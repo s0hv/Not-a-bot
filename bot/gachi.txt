@@ -1,0 +1,2909 @@
+{
+    "webpage_url_basename": "playlist",
+    "title": "gachimuchi",
+    "webpage_url": "https://www.youtube.com/playlist?list=PLk1DIHfcjT13GtsfSCQnSNf9fsV-yaley",
+    "_type": "playlist",
+    "id": "PLk1DIHfcjT13GtsfSCQnSNf9fsV-yaley",
+    "entries": [
+        {
+            "_type": "url",
+            "id": "4vHd78qysck",
+            "title": "Luv the VANastic??",
+            "ie_key": "Youtube",
+            "url": "4vHd78qysck"
+        },
+        {
+            "_type": "url",
+            "id": "KMFLnlg883I",
+            "title": "Barbie Van (ReUpload)",
+            "ie_key": "Youtube",
+            "url": "KMFLnlg883I"
+        },
+        {
+            "_type": "url",
+            "id": "kQc0eVdBJN0",
+            "title": "[Scrapped] Love V.A.N.",
+            "ie_key": "Youtube",
+            "url": "kQc0eVdBJN0"
+        },
+        {
+            "_type": "url",
+            "id": "ENQREQ9k4Kg",
+            "title": "HOMODESTEP\u2642   Gay Me a Sign",
+            "ie_key": "Youtube",
+            "url": "ENQREQ9k4Kg"
+        },
+        {
+            "_type": "url",
+            "id": "4yVXjGAnG6I",
+            "title": "Billy Herrington is Still Alive !",
+            "ie_key": "Youtube",
+            "url": "4yVXjGAnG6I"
+        },
+        {
+            "_type": "url",
+            "id": "NYwuAAG5YuU",
+            "title": "Aniki the Edgecock - CUMMICAL FELANT ZONE",
+            "ie_key": "Youtube",
+            "url": "NYwuAAG5YuU"
+        },
+        {
+            "_type": "url",
+            "id": "ezf7l7ZPNh8",
+            "title": "[Gachimuchi - \u30ac\u30c1\u30e0\u30c1] Ep_12 - Gourmet \u2642 Race",
+            "ie_key": "Youtube",
+            "url": "ezf7l7ZPNh8"
+        },
+        {
+            "_type": "url",
+            "id": "il2v4nm1Ngw",
+            "title": "Gachimuchi City Brawl",
+            "ie_key": "Youtube",
+            "url": "il2v4nm1Ngw"
+        },
+        {
+            "_type": "url",
+            "id": "J1Q0rgkFrA0",
+            "title": "Bockey Mouse March",
+            "ie_key": "Youtube",
+            "url": "J1Q0rgkFrA0"
+        },
+        {
+            "_type": "url",
+            "id": "a_1Zgn_xb_8",
+            "title": "Hattendo \u2642 All-Star Medley Collaboration",
+            "ie_key": "Youtube",
+            "url": "a_1Zgn_xb_8"
+        },
+        {
+            "_type": "url",
+            "id": "dtlUkSiMl1I",
+            "title": "\u5c3b\u3067\u30aa\u30ca\u30ea\u30ca",
+            "ie_key": "Youtube",
+            "url": "dtlUkSiMl1I"
+        },
+        {
+            "_type": "url",
+            "id": "JRWnx8-01iM",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "JRWnx8-01iM"
+        },
+        {
+            "_type": "url",
+            "id": "y10G3K2aar0",
+            "title": "\u3010Gachimuchi\u3011Canon\u2642Rock\u3010\u97f3MAD\u3011",
+            "ie_key": "Youtube",
+            "url": "y10G3K2aar0"
+        },
+        {
+            "_type": "url",
+            "id": "6fL_xQsr3F4",
+            "title": "\u3010\u672c\u683c\u7684\u2642\u3011 \u30c0\u30fc\u30af\u2642\u30ca\u30a4\u30c8 \u3010\u30c0\u30fc\u30af\u2642\u8a95\u751f\u796d\u3011",
+            "ie_key": "Youtube",
+            "url": "6fL_xQsr3F4"
+        },
+        {
+            "_type": "url",
+            "id": "1dAAo1d625s",
+            "title": "\u3010Gachimuchi\u3011Gaynal Fantasy X",
+            "ie_key": "Youtube",
+            "url": "1dAAo1d625s"
+        },
+        {
+            "_type": "url",
+            "id": "BhQsFHlQqiY",
+            "title": "Billy Herrington\u2642 Welcoming Ceremony\u2642",
+            "ie_key": "Youtube",
+            "url": "BhQsFHlQqiY"
+        },
+        {
+            "_type": "url",
+            "id": "O94Eo129NSs",
+            "title": "BOY\u2642NEXT\u2642DOOR\u300c\u767a\u5c55\u306e\u78ba\u7387\u300d",
+            "ie_key": "Youtube",
+            "url": "O94Eo129NSs"
+        },
+        {
+            "_type": "url",
+            "id": "6KX6KaUXips",
+            "title": "Bad Apple feat. Aniki",
+            "ie_key": "Youtube",
+            "url": "6KX6KaUXips"
+        },
+        {
+            "_type": "url",
+            "id": "D_CiK8CAXbo",
+            "title": "\u3042\u3041\u3093\u30ca\u30a6\u30a4\uff38 \u3010\u6771\u65b9\u9921\u639b\u7092\u98ef\u3011PV \u30a2\u30f3\u30ce\u30a6\u30f3X \uff5e Unfound Adventure\u3011",
+            "ie_key": "Youtube",
+            "url": "D_CiK8CAXbo"
+        },
+        {
+            "_type": "url",
+            "id": "ppjWIK50FCc",
+            "title": "Children (TDN Ver.)",
+            "ie_key": "Youtube",
+            "url": "ppjWIK50FCc"
+        },
+        {
+            "_type": "url",
+            "id": "oZVbf8bv0Lg",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "oZVbf8bv0Lg"
+        },
+        {
+            "_type": "url",
+            "id": "M0otAPMn1Ro",
+            "title": "VAN ZONE",
+            "ie_key": "Youtube",
+            "url": "M0otAPMn1Ro"
+        },
+        {
+            "_type": "url",
+            "id": "y4LqRRI2jKo",
+            "title": "Don't Stop Billy Now!!",
+            "ie_key": "Youtube",
+            "url": "y4LqRRI2jKo"
+        },
+        {
+            "_type": "url",
+            "id": "86D7oZqK2bQ",
+            "title": "Gachimuchi BALL Z OP",
+            "ie_key": "Youtube",
+            "url": "86D7oZqK2bQ"
+        },
+        {
+            "_type": "url",
+            "id": "cNSzC0scQXE",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "cNSzC0scQXE"
+        },
+        {
+            "_type": "url",
+            "id": "4qteWK0MkSA",
+            "title": "Cowboy Gaybop",
+            "ie_key": "Youtube",
+            "url": "4qteWK0MkSA"
+        },
+        {
+            "_type": "url",
+            "id": "T3iHxLs5maM",
+            "title": "Corridors of Darkholme",
+            "ie_key": "Youtube",
+            "url": "T3iHxLs5maM"
+        },
+        {
+            "_type": "url",
+            "id": "M61zARSP1Qk",
+            "title": "Mighty Spank Force",
+            "ie_key": "Youtube",
+            "url": "M61zARSP1Qk"
+        },
+        {
+            "_type": "url",
+            "id": "jFbstsiahwg",
+            "title": "\u3010Megamara X\u3011Tintin' Nauinder's Stage",
+            "ie_key": "Youtube",
+            "url": "jFbstsiahwg"
+        },
+        {
+            "_type": "url",
+            "id": "Krt4M5teGOM",
+            "title": "\u3010Megamara X\u3011Spark Senzuriller's Stage",
+            "ie_key": "Youtube",
+            "url": "Krt4M5teGOM"
+        },
+        {
+            "_type": "url",
+            "id": "YuM4O0EU7F8",
+            "title": "Megayman 3 - Shadow Man",
+            "ie_key": "Youtube",
+            "url": "YuM4O0EU7F8"
+        },
+        {
+            "_type": "url",
+            "id": "lZ1WDo2EhLc",
+            "title": "\u3010Gachimuchi\u3011F-ZERO\u3010Gayme\u3011",
+            "ie_key": "Youtube",
+            "url": "lZ1WDo2EhLc"
+        },
+        {
+            "_type": "url",
+            "id": "T7OzkeZ2RnA",
+            "title": "\u30db\u30eb\u30e9\u30db\u30ebOP\u300c\u5c3b\u2642\u300d",
+            "ie_key": "Youtube",
+            "url": "T7OzkeZ2RnA"
+        },
+        {
+            "_type": "url",
+            "id": "YUirYIF9T9Q",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "YUirYIF9T9Q"
+        },
+        {
+            "_type": "url",
+            "id": "YJ63xXjTwaY",
+            "title": "FMALOWER\u2642",
+            "ie_key": "Youtube",
+            "url": "YJ63xXjTwaY"
+        },
+        {
+            "_type": "url",
+            "id": "I1JRgi3LYUU",
+            "title": "\u3010\u97f3\u30b2\u30a4\u3011Evan\u69d8 \u2010 \u30cb\u30b3\u30cb\u30b3\u52d5\u753b\u539f\u5bbf",
+            "ie_key": "Youtube",
+            "url": "I1JRgi3LYUU"
+        },
+        {
+            "_type": "url",
+            "id": "hdYJDdj8tiw",
+            "title": "Gachimuchi wasn't very popular on 80s",
+            "ie_key": "Youtube",
+            "url": "hdYJDdj8tiw"
+        },
+        {
+            "_type": "url",
+            "id": "kw7IBJaN6rQ",
+            "title": "\u3010\u5408\u4f5c\u3011 - International Wrestling Festival - \u3010\u306f\u5144\u8cb4\u8a95\u751f\u796d\u3011",
+            "ie_key": "Youtube",
+            "url": "kw7IBJaN6rQ"
+        },
+        {
+            "_type": "url",
+            "id": "DNdC9hlW65c",
+            "title": "\u3010\u5408\u4f53\u3011\u672c\u683c\u7684\u7537\u5c3b\u796d2010 - BOY NEXT YEAR - \u3010\u7cde\u6666\u65e5\u3011",
+            "ie_key": "Youtube",
+            "url": "DNdC9hlW65c"
+        },
+        {
+            "_type": "url",
+            "id": "naIukH836jQ",
+            "title": "\u3010\u7cde\u6666\u65e5\u3011\u672c\u683c\u7684\u7537\u5c3b\u796d2011 \uff5e \u52c3\u3061\u3042\u304c\u308c\u2642\u7537\u6839\u3010\u5408\u4f5c\u3011",
+            "ie_key": "Youtube",
+            "url": "naIukH836jQ"
+        },
+        {
+            "_type": "url",
+            "id": "eChXOTD_qCE",
+            "title": "\u3010\u9ad8\u753b\u8cea\uff06\u5b8c\u6210\u7248\u3011 \u30ac\u30c1\u30e0\u30c1\u304e\u3085\uff5e\u3063\u3068\u30fb\u3075\u3043\u304e\u3085\uff20\u5144\u8cb4 \u3010\u6b6a\u97f3\u30a8\u30ca\u3011",
+            "ie_key": "Youtube",
+            "url": "eChXOTD_qCE"
+        },
+        {
+            "_type": "url",
+            "id": "ciMrXB5Q6iE",
+            "title": "Gachimuchi Collaboration Medley \u30ac\u30c1\u3067\u3044\u3053\u3046\u305c\uff01",
+            "ie_key": "Youtube",
+            "url": "ciMrXB5Q6iE"
+        },
+        {
+            "_type": "url",
+            "id": "-0-PUDjNycQ",
+            "title": "\u3010\u5408\u4f53\u3011\u672c\u683c\u7684\u7537\u5c3b\u796d2012 - FOURTH FAIRY FESTIVAL -\u3010\u7cde\u6666\u65e5\u3011",
+            "ie_key": "Youtube",
+            "url": "-0-PUDjNycQ"
+        },
+        {
+            "_type": "url",
+            "id": "6bPr5gkYX80",
+            "title": "\u3010\u5408\u4f53\u3011\u672c\u683c\u7684\u7537\u5c3b\u796d2014\u590f NO GATIMUTIC, NO LIFE \u3010\u5144\u8cb4\u8a95\u751f\u796d\u3011",
+            "ie_key": "Youtube",
+            "url": "6bPr5gkYX80"
+        },
+        {
+            "_type": "url",
+            "id": "g3N_VS-dorE",
+            "title": "\u3010\u5408\u4f53\u3011 \u672c\u683c\u7684\u7537\u5c3b\u796d2009   Ass We Can!!   \u3010\u7cde\u6666\u65e5\u3011",
+            "ie_key": "Youtube",
+            "url": "g3N_VS-dorE"
+        },
+        {
+            "_type": "url",
+            "id": "1CqMOCFysks",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "1CqMOCFysks"
+        },
+        {
+            "_type": "url",
+            "id": "zVp9ryqlfvU",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "zVp9ryqlfvU"
+        },
+        {
+            "_type": "url",
+            "id": "i2YnRRF5IjI",
+            "title": "\u672c\u683c\u7684\u2642\u4e00\u4eba\u5408\u4f53 \u8d85\u7d44\u66f2\u300c\u30ac\u30c1\u30e0\u30c1\u52d5\u753b\u300d",
+            "ie_key": "Youtube",
+            "url": "i2YnRRF5IjI"
+        },
+        {
+            "_type": "url",
+            "id": "TasZaLqkylI",
+            "title": "\u3010\u672c\u683c\u7684 \u30ed\u30c3\u30af\u3011 COLTPLAY - Vima la Vidan  \u7f8e\u30de\u30e9\u7f8e\u7537  \u3010COLDPLAY! \u3011",
+            "ie_key": "Youtube",
+            "url": "TasZaLqkylI"
+        },
+        {
+            "_type": "url",
+            "id": "BLfN5tzdlhc",
+            "title": "Gachimuchi Party",
+            "ie_key": "Youtube",
+            "url": "BLfN5tzdlhc"
+        },
+        {
+            "_type": "url",
+            "id": "0dD3dz44Xf8",
+            "title": "\u3010Gachimuchi\u2642\u3011 Rhythm Heaven: Wrestler Interview",
+            "ie_key": "Youtube",
+            "url": "0dD3dz44Xf8"
+        },
+        {
+            "_type": "url",
+            "id": "ioNot0RLC3U",
+            "title": "Better off a loan",
+            "ie_key": "Youtube",
+            "url": "ioNot0RLC3U"
+        },
+        {
+            "_type": "url",
+            "id": "f07_5d4Ei-g",
+            "title": "RarityW - Van\u2642Darkholme\u2642Blues 3min~",
+            "ie_key": "Youtube",
+            "url": "f07_5d4Ei-g"
+        },
+        {
+            "_type": "url",
+            "id": "xl7B7EzgiTU",
+            "title": "[\uac8c\uc774\uc655\uad6d] \uac19\uc774 \ub208\uc0ac\ub78c \ub9cc\ub4e4\ub798\u2642 Van Darkholme ver",
+            "ie_key": "Youtube",
+            "url": "xl7B7EzgiTU"
+        },
+        {
+            "_type": "url",
+            "id": "e-53hdd77NI",
+            "title": "Deep Dark Kolento",
+            "ie_key": "Youtube",
+            "url": "e-53hdd77NI"
+        },
+        {
+            "_type": "url",
+            "id": "YA9_3nvaTGk",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "YA9_3nvaTGk"
+        },
+        {
+            "_type": "url",
+            "id": "mJNe8ltSlrc",
+            "title": "Devil N' Mass",
+            "ie_key": "Youtube",
+            "url": "mJNe8ltSlrc"
+        },
+        {
+            "_type": "url",
+            "id": "YdOSV9ggBwA",
+            "title": "Gachimuchim@ster OP \u304a\u30cd\u30a8GUY\uff01\u30c1\u30f3\u30c7\u30ec\u30e9",
+            "ie_key": "Youtube",
+            "url": "YdOSV9ggBwA"
+        },
+        {
+            "_type": "url",
+            "id": "hF50jJ56_KQ",
+            "title": "Locker Room Heaven - Van Darkholme Interview",
+            "ie_key": "Youtube",
+            "url": "hF50jJ56_KQ"
+        },
+        {
+            "_type": "url",
+            "id": "iYwDHpQADvA",
+            "title": "Rolling \u2642 Boy",
+            "ie_key": "Youtube",
+            "url": "iYwDHpQADvA"
+        },
+        {
+            "_type": "url",
+            "id": "HPE-vifcads",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "HPE-vifcads"
+        },
+        {
+            "_type": "url",
+            "id": "JI2YeWHkdms",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "JI2YeWHkdms"
+        },
+        {
+            "_type": "url",
+            "id": "_d2cJxKdI74",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "_d2cJxKdI74"
+        },
+        {
+            "_type": "url",
+            "id": "bwPLwX9aluY",
+            "title": "\u3010Gachimuchi\u3011 Spring Time",
+            "ie_key": "Youtube",
+            "url": "bwPLwX9aluY"
+        },
+        {
+            "_type": "url",
+            "id": "EHqVFVOaTiE",
+            "title": "Fuck Sauce\u2642",
+            "ie_key": "Youtube",
+            "url": "EHqVFVOaTiE"
+        },
+        {
+            "_type": "url",
+            "id": "qPJvGMYxDPs",
+            "title": "\u672c\u683c\u7684\u2642\u30d1\u30ba\u30eb\u30dc\u30d6\u30eb",
+            "ie_key": "Youtube",
+            "url": "qPJvGMYxDPs"
+        },
+        {
+            "_type": "url",
+            "id": "lKXdmkJMCso",
+            "title": "\u3010Gachimuchi\u3011 \u30c0\u30fc\u30af\u2642\u5e30\u5b85 - Wrong Door",
+            "ie_key": "Youtube",
+            "url": "lKXdmkJMCso"
+        },
+        {
+            "_type": "url",
+            "id": "-Dg-g_LdncY",
+            "title": "[The Idolm@ster x Gachimuchi] The Gachimuchim@ster OP",
+            "ie_key": "Youtube",
+            "url": "-Dg-g_LdncY"
+        },
+        {
+            "_type": "url",
+            "id": "X2U3Oi94Gf0",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "X2U3Oi94Gf0"
+        },
+        {
+            "_type": "url",
+            "id": "FyW-_aBDUTY",
+            "title": "EVANgelion - \u65b0\u6027\u7d00\u30a8VAN\u30b2\u30ea\u30aa\u30f3 OP\u3010Gachimuchi\u2642\u3011",
+            "ie_key": "Youtube",
+            "url": "FyW-_aBDUTY"
+        },
+        {
+            "_type": "url",
+            "id": "geFfxXIxpvQ",
+            "title": "\u2642ATHLETIC\u2642BOSS\u2642 OF\u2642THIS\u2642GYM\u2642",
+            "ie_key": "Youtube",
+            "url": "geFfxXIxpvQ"
+        },
+        {
+            "_type": "url",
+            "id": "8D70ZkCvtQ8",
+            "title": "Midnight Foo~ (Reup) [Mowtendoo]",
+            "ie_key": "Youtube",
+            "url": "8D70ZkCvtQ8"
+        },
+        {
+            "_type": "url",
+            "id": "I-gO8qPkBtk",
+            "title": "Gachimuchi The Gays Life",
+            "ie_key": "Youtube",
+            "url": "I-gO8qPkBtk"
+        },
+        {
+            "_type": "url",
+            "id": "pILO9nR-_fA",
+            "title": "\u3010\u5144\u8cb4\u8a95\u751f\u796d13\u3011\u30ac\u30c1\u30e0\u30c1\u30d5\u30a1\u30a4\u30bf\u30fc\u30ba\u3010\u63cf\u3044\u3066\u307f\u305f\u3011",
+            "ie_key": "Youtube",
+            "url": "pILO9nR-_fA"
+        },
+        {
+            "_type": "url",
+            "id": "s-vFtl3QEBU",
+            "title": "GACHIMUCHI ON FIRE \u30fc\u2606",
+            "ie_key": "Youtube",
+            "url": "s-vFtl3QEBU"
+        },
+        {
+            "_type": "url",
+            "id": "JL4xvNYsODM",
+            "title": "Aniki! Let's go to the  Gachi Cooperation commemoration",
+            "ie_key": "Youtube",
+            "url": "JL4xvNYsODM"
+        },
+        {
+            "_type": "url",
+            "id": "PkQKxjneq9k",
+            "title": "\uc9c4\uaca9\uc758 \uac8c\uc774 - \ud64d\ub828\uc758 \ubd95\ud0c1 / \u9032\u6483\u306e\u30b2\u30a4/ Attack on gaytan",
+            "ie_key": "Youtube",
+            "url": "PkQKxjneq9k"
+        },
+        {
+            "_type": "url",
+            "id": "DgSITy6icGA",
+            "title": "\uc9c4\uaca9\uc758 \uac8c\uc774 OP - \ubd95\ud0c1\uc758 \ud654\uc0b4 \u9032\u6483\u306e\u30b2\u30a4 (attack on gay)",
+            "ie_key": "Youtube",
+            "url": "DgSITy6icGA"
+        },
+        {
+            "_type": "url",
+            "id": "idE7NVXPP44",
+            "title": "Real Elektro Gaylord",
+            "ie_key": "Youtube",
+            "url": "idE7NVXPP44"
+        },
+        {
+            "_type": "url",
+            "id": "cjIPzA7YK94",
+            "title": "\u672c\u683c\u7684PARTY\u2642NIGHT",
+            "ie_key": "Youtube",
+            "url": "cjIPzA7YK94"
+        },
+        {
+            "_type": "url",
+            "id": "IXBcB_Fa-oc",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "IXBcB_Fa-oc"
+        },
+        {
+            "_type": "url",
+            "id": "o006o9VgB0M",
+            "title": "I'm so fuck you   Niconico VideoGINZA",
+            "ie_key": "Youtube",
+            "url": "o006o9VgB0M"
+        },
+        {
+            "_type": "url",
+            "id": "2sGfxRb6vSw",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "2sGfxRb6vSw"
+        },
+        {
+            "_type": "url",
+            "id": "6xh8E3uhw_0",
+            "title": "\u3010\u5408\u4f53\u3011V\u2642C@L\u2642ID FAIRY CARNIVAL-\u5144\u8cb4\u8a95\u751f\u796d2010-\u3010\u6b6a\u97f3\u30a8\u30ca\u3011",
+            "ie_key": "Youtube",
+            "url": "6xh8E3uhw_0"
+        },
+        {
+            "_type": "url",
+            "id": "YqNdokkQ_a0",
+            "title": "\u3010\u54f2\u2642\u5b78\u3011\u5e79\u7269\u7537~\u6bd4\u2642\u5229",
+            "ie_key": "Youtube",
+            "url": "YqNdokkQ_a0"
+        },
+        {
+            "_type": "url",
+            "id": "D-2BQulQNW8",
+            "title": "\u3010\u6b6a\u307f\u3011 \u306d\u3047 \u3010Perfume\u3011",
+            "ie_key": "Youtube",
+            "url": "D-2BQulQNW8"
+        },
+        {
+            "_type": "url",
+            "id": "wLSnIgjNvxA",
+            "title": "The Man of Alps Gaydi",
+            "ie_key": "Youtube",
+            "url": "wLSnIgjNvxA"
+        },
+        {
+            "_type": "url",
+            "id": "I47m4FMX30c",
+            "title": "METAL GAY SOLID -\u672c\u683c\u7684\u2642\u5b8c\u5168\u7248-.mp4",
+            "ie_key": "Youtube",
+            "url": "I47m4FMX30c"
+        },
+        {
+            "_type": "url",
+            "id": "6QdSLeQ0494",
+            "title": "\u3010Gachimuchi\u3011 It Gets Better - Google Chr\u2642me",
+            "ie_key": "Youtube",
+            "url": "6QdSLeQ0494"
+        },
+        {
+            "_type": "url",
+            "id": "muaEya7EkZI",
+            "title": "Wrest-ling \u308c\u3059\u308a\u3093 OP",
+            "ie_key": "Youtube",
+            "url": "muaEya7EkZI"
+        },
+        {
+            "_type": "url",
+            "id": "3_pgVaEvrZ8",
+            "title": "Merry Christmas Mr Darkholme",
+            "ie_key": "Youtube",
+            "url": "3_pgVaEvrZ8"
+        },
+        {
+            "_type": "url",
+            "id": "ULksBoH1c9w",
+            "title": "\u30ed\u30fc\u30ea\u30f3\u2642\u30c0\u30fc\u30af\u3010\u30ed\u30fc\u30ea\u30f3\u30ac\u30fc\u30ebMAD\u3011",
+            "ie_key": "Youtube",
+            "url": "ULksBoH1c9w"
+        },
+        {
+            "_type": "url",
+            "id": "XVz2UZU1cJw",
+            "title": "Gachimuchi Club Music \u3010\u30ac\u30c1\u30e0\u30c1\u30de\u30b9\u30bf\u30fc\u3011\u3068\u304c\u3061\u5351\u7325\u6d3e",
+            "ie_key": "Youtube",
+            "url": "XVz2UZU1cJw"
+        },
+        {
+            "_type": "url",
+            "id": "ZuVC7p7BFM4",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "ZuVC7p7BFM4"
+        },
+        {
+            "_type": "url",
+            "id": "vhAW748yq-o",
+            "title": "magical doremi \u2642",
+            "ie_key": "Youtube",
+            "url": "vhAW748yq-o"
+        },
+        {
+            "_type": "url",
+            "id": "oXOLTYrqI5g",
+            "title": "GACHIMON RAINBOW - Celadon City",
+            "ie_key": "Youtube",
+            "url": "oXOLTYrqI5g"
+        },
+        {
+            "_type": "url",
+            "id": "_ZB0b2JXUe8",
+            "title": "(EZ2GAY)VAN Destructor",
+            "ie_key": "Youtube",
+            "url": "_ZB0b2JXUe8"
+        },
+        {
+            "_type": "url",
+            "id": "Xxsu5AwnIm4",
+            "title": "sm22568264",
+            "ie_key": "Youtube",
+            "url": "Xxsu5AwnIm4"
+        },
+        {
+            "_type": "url",
+            "id": "UzQXEQqX70I",
+            "title": "This is absolutely not Mermaid Story",
+            "ie_key": "Youtube",
+            "url": "UzQXEQqX70I"
+        },
+        {
+            "_type": "url",
+            "id": "24j2d0GoF0s",
+            "title": "Chrono Trigger Gachimuchi",
+            "ie_key": "Youtube",
+            "url": "24j2d0GoF0s"
+        },
+        {
+            "_type": "url",
+            "id": "oOJDSqTu2bQ",
+            "title": "\u3010Gachimuchi\u3011Gaynal Fantasy IV",
+            "ie_key": "Youtube",
+            "url": "oOJDSqTu2bQ"
+        },
+        {
+            "_type": "url",
+            "id": "-2DWbUtlgc8",
+            "title": "HATTEMBER",
+            "ie_key": "Youtube",
+            "url": "-2DWbUtlgc8"
+        },
+        {
+            "_type": "url",
+            "id": "5V7ZV50HXks",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "5V7ZV50HXks"
+        },
+        {
+            "_type": "url",
+            "id": "zpVr878r9wA",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "zpVr878r9wA"
+        },
+        {
+            "_type": "url",
+            "id": "IkXyLeLpMJA",
+            "title": "[MAD] DEEP\u2642DARK\u2642MIKU [3min ver][request]",
+            "ie_key": "Youtube",
+            "url": "IkXyLeLpMJA"
+        },
+        {
+            "_type": "url",
+            "id": "tUNoSXC9kDw",
+            "title": "Daft fuck",
+            "ie_key": "Youtube",
+            "url": "tUNoSXC9kDw"
+        },
+        {
+            "_type": "url",
+            "id": "eMHjljifCkI",
+            "title": "\u3010BMS\u3011\u5f69\u97f3 feat. \u5c0f\u5bae\u771f\u592e [oriental] \u591c\u685c (HD)",
+            "ie_key": "Youtube",
+            "url": "eMHjljifCkI"
+        },
+        {
+            "_type": "url",
+            "id": "nde8hIo1Mo0",
+            "title": "Kazuya of Wooden Good Fortune",
+            "ie_key": "Youtube",
+            "url": "nde8hIo1Mo0"
+        },
+        {
+            "_type": "url",
+            "id": "4xngUiWO_4g",
+            "title": "\u3010\u672c\u683c\u7684LatinPop\u3011Livin' la Mara Loca - \u55f6\u54e9\u55f6\u54e9 - ( \u309c- \u309c)\u3064\u30ed \u4e7e\u676f~.",
+            "ie_key": "Youtube",
+            "url": "4xngUiWO_4g"
+        },
+        {
+            "_type": "url",
+            "id": "e6ElGRAefPI",
+            "title": "\u2642\u2642Hige Driver join. SELEN - Dadadadadadadadadada\u2642\u2642",
+            "ie_key": "Youtube",
+            "url": "e6ElGRAefPI"
+        },
+        {
+            "_type": "url",
+            "id": "rlR6DPimNIk",
+            "title": "Spank It",
+            "ie_key": "Youtube",
+            "url": "rlR6DPimNIk"
+        },
+        {
+            "_type": "url",
+            "id": "lJkkUG7kxhE",
+            "title": "Phoenix Wright Ass Attorney",
+            "ie_key": "Youtube",
+            "url": "lJkkUG7kxhE"
+        },
+        {
+            "_type": "url",
+            "id": "FWhbL14CSro",
+            "title": "PokN\u00e9xtDoor - Gotta Gachi Them All | Van CancerHolme",
+            "ie_key": "Youtube",
+            "url": "FWhbL14CSro"
+        },
+        {
+            "_type": "url",
+            "id": "JchHNNVguuY",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "JchHNNVguuY"
+        },
+        {
+            "_type": "url",
+            "id": "F35EVQYNlqs",
+            "title": "Gachi Trick",
+            "ie_key": "Youtube",
+            "url": "F35EVQYNlqs"
+        },
+        {
+            "_type": "url",
+            "id": "5wUNe122MVk",
+            "title": "Code Gayass: Billy of the rebellion",
+            "ie_key": "Youtube",
+            "url": "5wUNe122MVk"
+        },
+        {
+            "_type": "url",
+            "id": "TFdPcXMeZdA",
+            "title": "\u3010\u97f3\u30b2\u30a4\u3011 V4U \u3010VAN\u69d8\u3011",
+            "ie_key": "Youtube",
+            "url": "TFdPcXMeZdA"
+        },
+        {
+            "_type": "url",
+            "id": "kSMoxfkv_qM",
+            "title": "\u3010Gachimuchi\u2642\u3011Super NOWI LOADING\u266a Theme\u3010IDOLM\uff20STER\u3011",
+            "ie_key": "Youtube",
+            "url": "kSMoxfkv_qM"
+        },
+        {
+            "_type": "url",
+            "id": "Mgyx8sxA5eY",
+            "title": "\u3068\u3042\u308b\u5de5\u696d\u306e\u8d85\u6c34\u9244\u7832 only my watergun",
+            "ie_key": "Youtube",
+            "url": "Mgyx8sxA5eY"
+        },
+        {
+            "_type": "url",
+            "id": "jw4yazFFyJM",
+            "title": "Ninjya Re Bang Bang - Cover Dance (Gay Version)",
+            "ie_key": "Youtube",
+            "url": "jw4yazFFyJM"
+        },
+        {
+            "_type": "url",
+            "id": "3_9QY7m9SxQ",
+            "title": "\u3010Gachimuchi\u3011\u521d\u97f3\u30df\u30af\u4f3c\u306e\u7dd1\u306e\u3042\u306e\u5b50\u304c\u304a\u307e\u305f\u3092\u3053\u3059\u308b\u3060\u3051\u3010Emergency Exit\u3011",
+            "ie_key": "Youtube",
+            "url": "3_9QY7m9SxQ"
+        },
+        {
+            "_type": "url",
+            "id": "_zJRw5EQXq0",
+            "title": "[YTP] [MAD] Time to Gachimuchi",
+            "ie_key": "Youtube",
+            "url": "_zJRw5EQXq0"
+        },
+        {
+            "_type": "url",
+            "id": "hqjCT_WmCvo",
+            "title": "\u672c\u683c\u7684\u30ac\u30c1\u30e0\u30c1\u5f71\u7d75PV\u3000Bad Applicue!! feat\uff0echimco",
+            "ie_key": "Youtube",
+            "url": "hqjCT_WmCvo"
+        },
+        {
+            "_type": "url",
+            "id": "rgUgGhHUbcE",
+            "title": "Gachimuchi Dirty Lunch Special \u2642",
+            "ie_key": "Youtube",
+            "url": "rgUgGhHUbcE"
+        },
+        {
+            "_type": "url",
+            "id": "DzB7zfvH17I",
+            "title": "Van's Aftercum",
+            "ie_key": "Youtube",
+            "url": "DzB7zfvH17I"
+        },
+        {
+            "_type": "url",
+            "id": "9KSu8WTbjbc",
+            "title": "\u30cf\u30fc\u30c9\u30d5\u30a1\u30c3\u30af!!\u30f4\u30a1\u30f3\u30ac\u30fc\u30c9",
+            "ie_key": "Youtube",
+            "url": "9KSu8WTbjbc"
+        },
+        {
+            "_type": "url",
+            "id": "DVNZ216AUE4",
+            "title": "Gachimuchi x Cirno's Perfect Class",
+            "ie_key": "Youtube",
+            "url": "DVNZ216AUE4"
+        },
+        {
+            "_type": "url",
+            "id": "FuYUobkmESY",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "FuYUobkmESY"
+        },
+        {
+            "_type": "url",
+            "id": "HUuEbzMhgBY",
+            "title": "\ubcf8\ub514\uc9c0\ubaac \uc5b4\ub4dc\ubca4\ucc98 - \ubd95\ud0c1\ud50c\ub77c\uc774",
+            "ie_key": "Youtube",
+            "url": "HUuEbzMhgBY"
+        },
+        {
+            "_type": "url",
+            "id": "YUOhOH50YvQ",
+            "title": "[\ud2f0\ube44\ud50c] \ube4c\ub9ac \ud5e4\ub9c1\ud134 vs \ub178\uc9c4\uad6c",
+            "ie_key": "Youtube",
+            "url": "YUOhOH50YvQ"
+        },
+        {
+            "_type": "url",
+            "id": "X8CaMYEm8b0",
+            "title": "\ud569\ud544\uac24 - \ube4c\ub9ac\uc758 \uc0ac\ub791\ube44",
+            "ie_key": "Youtube",
+            "url": "X8CaMYEm8b0"
+        },
+        {
+            "_type": "url",
+            "id": "UlkQo4QTnHQ",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "UlkQo4QTnHQ"
+        },
+        {
+            "_type": "url",
+            "id": "GXLzHnYDtBk",
+            "title": "\u30ac\u30c1\u30c3\u30db\u30e2\u30f3\u30b9\u30bf\u30fc\u3000\u5148\u982d\uff01\u51fa\u308b\u30fb\u30dd\u30ed\u30ea",
+            "ie_key": "Youtube",
+            "url": "GXLzHnYDtBk"
+        },
+        {
+            "_type": "url",
+            "id": "1feTKMolxvs",
+            "title": "Cumbiamuchi",
+            "ie_key": "Youtube",
+            "url": "1feTKMolxvs"
+        },
+        {
+            "_type": "url",
+            "id": "e9GX51lcZZ0",
+            "title": "Gachimuchi Club Music - minimal house \u3010Extended Overhaul\u3011",
+            "ie_key": "Youtube",
+            "url": "e9GX51lcZZ0"
+        },
+        {
+            "_type": "url",
+            "id": "C9qc3MF5Bhk",
+            "title": "\u3010\u30ac\u30c1\u30e0\u30c1\u3011\u3000vs \u30ad\u30f3\u30af\u3060\u3093\u306e\u30dc\u30b9VAN\u3000 from\uff12\uff15\uff12\uff15",
+            "ie_key": "Youtube",
+            "url": "C9qc3MF5Bhk"
+        },
+        {
+            "_type": "url",
+            "id": "7T6WzUxb0B0",
+            "title": "Gachimix 3 \u2642",
+            "ie_key": "Youtube",
+            "url": "7T6WzUxb0B0"
+        },
+        {
+            "_type": "url",
+            "id": "_4MoTJrhxOU",
+            "title": "\u672c\u683c\u7684 Gachimuchi Club Music \u3010\u30d3\u30aa\u30e9\u30f3\u30c6\u306e\u30c6\u30af\u30ce\u5c02\u9580\u5b66\u6821\u3011",
+            "ie_key": "Youtube",
+            "url": "_4MoTJrhxOU"
+        },
+        {
+            "_type": "url",
+            "id": "OmAFHTp547w",
+            "title": "\u3010\u54f2\u2642\u5b66\u3011The Billy Herrington\u2642Show",
+            "ie_key": "Youtube",
+            "url": "OmAFHTp547w"
+        },
+        {
+            "_type": "url",
+            "id": "hRCaUZ3FEdo",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "hRCaUZ3FEdo"
+        },
+        {
+            "_type": "url",
+            "id": "seZJWJ4UDy4",
+            "title": "Gachimuchi Dark \u2642 Boy",
+            "ie_key": "Youtube",
+            "url": "seZJWJ4UDy4"
+        },
+        {
+            "_type": "url",
+            "id": "tcGIgG9w2fw",
+            "title": "\u30a2\u30c3\u30d7\u30ea\u30b1\u793e\u3000\u30b2\u30a4\u2642\u30dd\u30c3\u30c9\u3000CM",
+            "ie_key": "Youtube",
+            "url": "tcGIgG9w2fw"
+        },
+        {
+            "_type": "url",
+            "id": "4CFRAL9yd7g",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "4CFRAL9yd7g"
+        },
+        {
+            "_type": "url",
+            "id": "KC_yDxS8wJk",
+            "title": "Like the First Time, Just\ufeff Like Billy",
+            "ie_key": "Youtube",
+            "url": "KC_yDxS8wJk"
+        },
+        {
+            "_type": "url",
+            "id": "W3ayJoU0xEs",
+            "title": "The SM\u2642ippet",
+            "ie_key": "Youtube",
+            "url": "W3ayJoU0xEs"
+        },
+        {
+            "_type": "url",
+            "id": "YP7NgHQv0tA",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "YP7NgHQv0tA"
+        },
+        {
+            "_type": "url",
+            "id": "23KvOQHkk_s",
+            "title": "Gaynad - Becum \u2642 Legendary",
+            "ie_key": "Youtube",
+            "url": "23KvOQHkk_s"
+        },
+        {
+            "_type": "url",
+            "id": "HWLi4uIbE5Q",
+            "title": "Gachimuchi Sakuranbo Wrestling",
+            "ie_key": "Youtube",
+            "url": "HWLi4uIbE5Q"
+        },
+        {
+            "_type": "url",
+            "id": "115QEnrgws4",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "115QEnrgws4"
+        },
+        {
+            "_type": "url",
+            "id": "9SZa5bUzJqY",
+            "title": "\u5c3b\u64ab\u30d1\u30fc\u30ab\u30c3\u30b7\u30e7\u30f3\u3010\u732b\u64ab\u30c7\u30a3\u30b9\u30c8\u30fc\u30b7\u30e7\u30f3\u00d7\u30ec\u30b9\u30ea\u30f3\u30b0\u30b7\u30ea\u30fc\u30ba\u3011",
+            "ie_key": "Youtube",
+            "url": "9SZa5bUzJqY"
+        },
+        {
+            "_type": "url",
+            "id": "EyW5tOqVgFc",
+            "title": "\u3010\u7d76\u9802\u3011\u5343\u672c\u30a2\u30af\u30e1\u3010\u6607\u5929\u3011 \u2010 \u30cb\u30b3\u30cb\u30b3\u52d5\u753b(\u539f\u5bbf).avi",
+            "ie_key": "Youtube",
+            "url": "EyW5tOqVgFc"
+        },
+        {
+            "_type": "url",
+            "id": "x8NwtGaMC5k",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "x8NwtGaMC5k"
+        },
+        {
+            "_type": "url",
+            "id": "1ckJwDnvXe0",
+            "title": "DARKNATURAL",
+            "ie_key": "Youtube",
+            "url": "1ckJwDnvXe0"
+        },
+        {
+            "_type": "url",
+            "id": "Zn_TD4O7fJI",
+            "title": "Vanjo Tooie - Mr Gacchi's Strange Wobbly Thing",
+            "ie_key": "Youtube",
+            "url": "Zn_TD4O7fJI"
+        },
+        {
+            "_type": "url",
+            "id": "Jx-LjT_Kfjc",
+            "title": "Van Darkholme - Vladimirski central",
+            "ie_key": "Youtube",
+            "url": "Jx-LjT_Kfjc"
+        },
+        {
+            "_type": "url",
+            "id": "ERMkSjcqYeE",
+            "title": "DEEP\u2642DARKWING\u2642DUCK",
+            "ie_key": "Youtube",
+            "url": "ERMkSjcqYeE"
+        },
+        {
+            "_type": "url",
+            "id": "hqu0fF_Ldzw",
+            "title": "Gachimix \u2642",
+            "ie_key": "Youtube",
+            "url": "hqu0fF_Ldzw"
+        },
+        {
+            "_type": "url",
+            "id": "daIeDh_fBjg",
+            "title": "Dungeon Story \u2642",
+            "ie_key": "Youtube",
+            "url": "daIeDh_fBjg"
+        },
+        {
+            "_type": "url",
+            "id": "QEfUCx1rJLw",
+            "title": "Billy Herrington\u2642 Welcoming Ceremony\u2642 3 min loop",
+            "ie_key": "Youtube",
+            "url": "QEfUCx1rJLw"
+        },
+        {
+            "_type": "url",
+            "id": "naOwGlbp0n4",
+            "title": "Magic of Ass",
+            "ie_key": "Youtube",
+            "url": "naOwGlbp0n4"
+        },
+        {
+            "_type": "url",
+            "id": "j4VrPAfPR9c",
+            "title": "Gachimuchi Star Spangled Banner",
+            "ie_key": "Youtube",
+            "url": "j4VrPAfPR9c"
+        },
+        {
+            "_type": "url",
+            "id": "8DftpJxMZkQ",
+            "title": "\u3010\u30ed\u30c3\u30af\u30de\u30e9X\u3011\u30cf\u30fc\u30e1\u30eb\u30fb\u30af\u30f4\u30a1\u30f3\u30ac\u30fcSTAGE",
+            "ie_key": "Youtube",
+            "url": "8DftpJxMZkQ"
+        },
+        {
+            "_type": "url",
+            "id": "tuVfw5l0bkU",
+            "title": "\u3010\u30ed\u30c3\u30af\u30de\u30e9X\u3011\u30c1\u30f3\u30c1\u30f3\u30fb\u30ca\u30a6\u30a4\u30f3\u30c0\u30fcSTAGE",
+            "ie_key": "Youtube",
+            "url": "tuVfw5l0bkU"
+        },
+        {
+            "_type": "url",
+            "id": "MWV6Ds1wGTQ",
+            "title": "[\u6771\u65b9\u9921\u639b\u7092\u98ef] \u2622\u30b2\u30a4\u77e5\u306e\u7092\u98ef\u4fe1\u4ef0\u2622\uff5e Gatimuti +[nico\u65e5\u672c\u5f48\u5e55]",
+            "ie_key": "Youtube",
+            "url": "MWV6Ds1wGTQ"
+        },
+        {
+            "_type": "url",
+            "id": "jTujYbBEXoY",
+            "title": "Dungeonmaster The Cancer Sisters [audio only]",
+            "ie_key": "Youtube",
+            "url": "jTujYbBEXoY"
+        },
+        {
+            "_type": "url",
+            "id": "fgAj11eF6c8",
+            "title": "Shimoneta Op",
+            "ie_key": "Youtube",
+            "url": "fgAj11eF6c8"
+        },
+        {
+            "_type": "url",
+            "id": "7saU_jbio7M",
+            "title": "Mermaid Van (DJ Command Remix)",
+            "ie_key": "Youtube",
+            "url": "7saU_jbio7M"
+        },
+        {
+            "_type": "url",
+            "id": "WsX5_fNuVUM",
+            "title": "[Private Video]",
+            "ie_key": "Youtube",
+            "url": "WsX5_fNuVUM"
+        },
+        {
+            "_type": "url",
+            "id": "dN0lS_qrA_k",
+            "title": "Gachimuchi Danem OP",
+            "ie_key": "Youtube",
+            "url": "dN0lS_qrA_k"
+        },
+        {
+            "_type": "url",
+            "id": "unVDcd2MYz4",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "unVDcd2MYz4"
+        },
+        {
+            "_type": "url",
+            "id": "BVNtMpy4veM",
+            "title": "Rem0veKebab - Masturbating To Van Darkholme[audio only]",
+            "ie_key": "Youtube",
+            "url": "BVNtMpy4veM"
+        },
+        {
+            "_type": "url",
+            "id": "fZtuHHwXlxk",
+            "title": "KAISER\u2640 PHOENIX BBA",
+            "ie_key": "Youtube",
+            "url": "fZtuHHwXlxk"
+        },
+        {
+            "_type": "url",
+            "id": "jKIPultEIuo",
+            "title": "Super Yee Theme",
+            "ie_key": "Youtube",
+            "url": "jKIPultEIuo"
+        },
+        {
+            "_type": "url",
+            "id": "2SNpQRY7G3k",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "2SNpQRY7G3k"
+        },
+        {
+            "_type": "url",
+            "id": "mqym6sYPb7k",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "mqym6sYPb7k"
+        },
+        {
+            "_type": "url",
+            "id": "s0Nw2Hk6nLM",
+            "title": "\u3010\u304d\u3057\u3081\u3093\u3011Gachimuchi Rhyme",
+            "ie_key": "Youtube",
+            "url": "s0Nw2Hk6nLM"
+        },
+        {
+            "_type": "url",
+            "id": "RDZwSZlDpfQ",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "RDZwSZlDpfQ"
+        },
+        {
+            "_type": "url",
+            "id": "e2VXvqjGXjo",
+            "title": "AnonGoose Midnight Gachimuchi[audio only]",
+            "ie_key": "Youtube",
+            "url": "e2VXvqjGXjo"
+        },
+        {
+            "_type": "url",
+            "id": "e1S53n-DFNc",
+            "title": "\u591c\u5484\u30b9\u30ec\u30a4\u30d6",
+            "ie_key": "Youtube",
+            "url": "e1S53n-DFNc"
+        },
+        {
+            "_type": "url",
+            "id": "HM9WkUzns5U",
+            "title": "RazQ   This is Bondage [audio only]",
+            "ie_key": "Youtube",
+            "url": "HM9WkUzns5U"
+        },
+        {
+            "_type": "url",
+            "id": "kJxE_7-LCEo",
+            "title": "Vanjo Kazooya - Rusty Fuck It Bay \u2642",
+            "ie_key": "Youtube",
+            "url": "kJxE_7-LCEo"
+        },
+        {
+            "_type": "url",
+            "id": "ZI1-BVOZw64",
+            "title": "We Will Fuck You \u2642",
+            "ie_key": "Youtube",
+            "url": "ZI1-BVOZw64"
+        },
+        {
+            "_type": "url",
+            "id": "FGX2Sn-6uXk",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "FGX2Sn-6uXk"
+        },
+        {
+            "_type": "url",
+            "id": "FDveBY2mVG0",
+            "title": "This is absolutely not a Mermaid Love Comedy",
+            "ie_key": "Youtube",
+            "url": "FDveBY2mVG0"
+        },
+        {
+            "_type": "url",
+            "id": "gaVo1L8NIM0",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "gaVo1L8NIM0"
+        },
+        {
+            "_type": "url",
+            "id": "2nEUI4g3LNk",
+            "title": "\u3010\u5144\u8d35\u3011\u4e0a\u6d77\u2642\u6ee9\uff08\u4fee\u590d\u7248\uff09",
+            "ie_key": "Youtube",
+            "url": "2nEUI4g3LNk"
+        },
+        {
+            "_type": "url",
+            "id": "me4wuWWiT_U",
+            "title": "Captain Jack \u2642",
+            "ie_key": "Youtube",
+            "url": "me4wuWWiT_U"
+        },
+        {
+            "_type": "url",
+            "id": "BiBfIjVooZ0",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "BiBfIjVooZ0"
+        },
+        {
+            "_type": "url",
+            "id": "R0PrS3U_74I",
+            "title": "Love Gay\u2642 Love Gay\u2642 Love \u3010Mighty Spank Force\u3011",
+            "ie_key": "Youtube",
+            "url": "R0PrS3U_74I"
+        },
+        {
+            "_type": "url",
+            "id": "g4V4udOasIw",
+            "title": "[Jojo x Gachimuchi]\u3010\u672c\u683c\u7684\u3011\u75d4\u30e7\u75d4\u30e7\u306e\u5947\u5999\u306a\u68d2\u967a\u2642 ED\u3010\u7cde\u6666\u65e5\u3011",
+            "ie_key": "Youtube",
+            "url": "g4V4udOasIw"
+        },
+        {
+            "_type": "url",
+            "id": "U3mZEm0VX2g",
+            "title": "GTA ( Gachimuchi Teacher Aniki) Op",
+            "ie_key": "Youtube",
+            "url": "U3mZEm0VX2g"
+        },
+        {
+            "_type": "url",
+            "id": "rlqe6wVd-ik",
+            "title": "Welcome To \u2642su",
+            "ie_key": "Youtube",
+            "url": "rlqe6wVd-ik"
+        },
+        {
+            "_type": "url",
+            "id": "9yiDM7TFax8",
+            "title": "\u3010\u97f3\u30b2\u30a4\u3011\u611b\u64ab so Bokky",
+            "ie_key": "Youtube",
+            "url": "9yiDM7TFax8"
+        },
+        {
+            "_type": "url",
+            "id": "UTLfHqoDkkU",
+            "title": "BILLYCH OP1",
+            "ie_key": "Youtube",
+            "url": "UTLfHqoDkkU"
+        },
+        {
+            "_type": "url",
+            "id": "Drli52N_cMY",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "Drli52N_cMY"
+        },
+        {
+            "_type": "url",
+            "id": "hxSMhqNMMf8",
+            "title": "\u3010\u672c\u683c\u7684\u2642\u4e00\u4eba\u5408\u4f5c\u3011Gayby's Erosite High Speed Medley \u3010\u5144\u8cb4\u8a95\u751f\u796d\u3011",
+            "ie_key": "Youtube",
+            "url": "hxSMhqNMMf8"
+        },
+        {
+            "_type": "url",
+            "id": "5MAim27VRyM",
+            "title": "gachi naruto",
+            "ie_key": "Youtube",
+            "url": "5MAim27VRyM"
+        },
+        {
+            "_type": "url",
+            "id": "wmHmuNLJcYs",
+            "title": "remove gachi",
+            "ie_key": "Youtube",
+            "url": "wmHmuNLJcYs"
+        },
+        {
+            "_type": "url",
+            "id": "falxxnaYZVY",
+            "title": "\u6226\u95d8\uff01\u30bb\u30af\u30b7\u30fc\u30fb\u30a2\u30b9\u30ce\u30e0\u30fb\u30a8\u30e0\u30ea\u30c3\u30ab\u30fc",
+            "ie_key": "Youtube",
+            "url": "falxxnaYZVY"
+        },
+        {
+            "_type": "url",
+            "id": "Kv9qRisEqvg",
+            "title": "sm9612718 - \u30d5\u30b0\u30ea(\uff9f\u03c9\uff9f)\u30c1\u30f3\u30dd\u2642.mp4",
+            "ie_key": "Youtube",
+            "url": "Kv9qRisEqvg"
+        },
+        {
+            "_type": "url",
+            "id": "aZw6b51bCkM",
+            "title": "HELL \u2642 DUNGEON \u2642 MARCH",
+            "ie_key": "Youtube",
+            "url": "aZw6b51bCkM"
+        },
+        {
+            "_type": "url",
+            "id": "Akim047Eov0",
+            "title": "\u3010Gachimuchi Medley\u2642\u3011\u672c\u683c\u7684\u97f3\u30b2\u30a4\u5408\u4f5c 2ndMIX -beatgaytion summit-",
+            "ie_key": "Youtube",
+            "url": "Akim047Eov0"
+        },
+        {
+            "_type": "url",
+            "id": "2n9_RiWB6pc",
+            "title": "\u3010Gachimuchi\u3011Gay Bar of Life (\u30b2\u30a4\u30d0\u30fc\u30aa\u30d6\u30e9\u30a4\u30d5)\u3010Touhou\u3011",
+            "ie_key": "Youtube",
+            "url": "2n9_RiWB6pc"
+        },
+        {
+            "_type": "url",
+            "id": "cJD9VZZpRgQ",
+            "title": "The Showerman",
+            "ie_key": "Youtube",
+            "url": "cJD9VZZpRgQ"
+        },
+        {
+            "_type": "url",
+            "id": "ieocBLkSasw",
+            "title": "\u3010Gachimuchi\u2642\u3011Casino\u3010Saga Frontier\u3011",
+            "ie_key": "Youtube",
+            "url": "ieocBLkSasw"
+        },
+        {
+            "_type": "url",
+            "id": "4wlb3LYuCLY",
+            "title": "\u30d3\u30ea\u30fc\u30fb\u30d8\u30ea\u30f3\u30c8\u30f3\u540d\u8a89\u30b3\u30e2\u30f3\u5c31\u4efb\u6f14\u8aac\u3010\u5b57\u5e55\u4ed8\u304d\u3011",
+            "ie_key": "Youtube",
+            "url": "4wlb3LYuCLY"
+        },
+        {
+            "_type": "url",
+            "id": "rqQj2t7YY-M",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "rqQj2t7YY-M"
+        },
+        {
+            "_type": "url",
+            "id": "P1CANNFxOXQ",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "P1CANNFxOXQ"
+        },
+        {
+            "_type": "url",
+            "id": "K0dFjaDQHvs",
+            "title": "Gachimuchi Spirits",
+            "ie_key": "Youtube",
+            "url": "K0dFjaDQHvs"
+        },
+        {
+            "_type": "url",
+            "id": "m2Syle64Nc0",
+            "title": "DEEP\u2642DARK\u2642MIKU",
+            "ie_key": "Youtube",
+            "url": "m2Syle64Nc0"
+        },
+        {
+            "_type": "url",
+            "id": "C45Z35D33sU",
+            "title": "\u5408\u4f53\u30ac\u30c1\u30e0\u30c1\u30e1\u30c9\u30ec\u30fc \uff5e2008 \u7cde\u6666\u65e5 \u6f22\u306e\u767a\u5c55\uff5e \u3010High Quality\u3011",
+            "ie_key": "Youtube",
+            "url": "C45Z35D33sU"
+        },
+        {
+            "_type": "url",
+            "id": "NIvUv8nrZww",
+            "title": "Phil Collins - In The Air Tonight (Right\u2642 Version\u2642)",
+            "ie_key": "Youtube",
+            "url": "NIvUv8nrZww"
+        },
+        {
+            "_type": "url",
+            "id": "xEWpO8JPAjI",
+            "title": "Lollipop\u2642",
+            "ie_key": "Youtube",
+            "url": "xEWpO8JPAjI"
+        },
+        {
+            "_type": "url",
+            "id": "KY3DKt4P0oE",
+            "title": "Running \u6deb the 69's",
+            "ie_key": "Youtube",
+            "url": "KY3DKt4P0oE"
+        },
+        {
+            "_type": "url",
+            "id": "WLLmS5KOTn8",
+            "title": "Gaytal - Still Alive",
+            "ie_key": "Youtube",
+            "url": "WLLmS5KOTn8"
+        },
+        {
+            "_type": "url",
+            "id": "ASnWvHO3PaM",
+            "title": "\u30c0\u30fc\u30af\u2642\u30d7\u30ea\u30ad\u30e5\u30a2",
+            "ie_key": "Youtube",
+            "url": "ASnWvHO3PaM"
+        },
+        {
+            "_type": "url",
+            "id": "1NojAQ2LCkE",
+            "title": "\u2642 Slave \u2642 Shop \u2642",
+            "ie_key": "Youtube",
+            "url": "1NojAQ2LCkE"
+        },
+        {
+            "_type": "url",
+            "id": "kDBM0q7L9do",
+            "title": "BOY\u2642NEXT\u2642ECUADOR",
+            "ie_key": "Youtube",
+            "url": "kDBM0q7L9do"
+        },
+        {
+            "_type": "url",
+            "id": "DkuazkTWb3k",
+            "title": "\u3010Gachimuchi\u3011Ike Dance   \u30a4\u30b1\u30c0\u30f3\u30b9",
+            "ie_key": "Youtube",
+            "url": "DkuazkTWb3k"
+        },
+        {
+            "_type": "url",
+            "id": "3i7qsTdx0Uk",
+            "title": "\u8d77\u52d5\u5996\u7cbe\u30ac\u30c1\u30c0\u30e0\u2642\u2642-\u30c0\u30d6\u30eb\u30b2\u30a4- \u300c\u4ffa\u304c\u3001\u4ffa\u9054\u304c\u30ac\u30c1\u30e0\u30c1\u3060\uff01\u300d",
+            "ie_key": "Youtube",
+            "url": "3i7qsTdx0Uk"
+        },
+        {
+            "_type": "url",
+            "id": "3Ioom3xTlwI",
+            "title": "\u301060FPS\u3011\u3010\u5408\u4f53\u3011\u672c\u683c\u7684\u7537\u5c3b\u796d2015 - THE ASS AWAKENS\u3010\u7cde\u6666\u65e5\u3011",
+            "ie_key": "Youtube",
+            "url": "3Ioom3xTlwI"
+        },
+        {
+            "_type": "url",
+            "id": "Da55V2t1ZCE",
+            "title": "Tongari Corn [Gachimuchi Red Zone]",
+            "ie_key": "Youtube",
+            "url": "Da55V2t1ZCE"
+        },
+        {
+            "_type": "url",
+            "id": "erOt5Zhp1go",
+            "title": "\u6797\u6a8e\u73c8\u7432\u9928\u3000\uff5e Apple Coffee",
+            "ie_key": "Youtube",
+            "url": "erOt5Zhp1go"
+        },
+        {
+            "_type": "url",
+            "id": "koLPQRpEAVU",
+            "title": "\u3010Collaboration\u3011International Wrestling Festival 2015 -WORLD OF ANIKI-\u3010Gay Year's Eve\u3011",
+            "ie_key": "Youtube",
+            "url": "koLPQRpEAVU"
+        },
+        {
+            "_type": "url",
+            "id": "mMvr1tH2brI",
+            "title": "Dr. ANIKI",
+            "ie_key": "Youtube",
+            "url": "mMvr1tH2brI"
+        },
+        {
+            "_type": "url",
+            "id": "TeFYvxW10xo",
+            "title": "\u2642 Skyrim \u2642",
+            "ie_key": "Youtube",
+            "url": "TeFYvxW10xo"
+        },
+        {
+            "_type": "url",
+            "id": "jVQUgMCV9Jg",
+            "title": "SAMBA\u2642 DE\u2642JANEIRO (fish monster dance version)",
+            "ie_key": "Youtube",
+            "url": "jVQUgMCV9Jg"
+        },
+        {
+            "_type": "url",
+            "id": "N9Hhe9rWe7U",
+            "title": "\u3010Splatoon\u3011Seeing the \u304a\u3063\u3071\u3044 of those Groovy Girls\u3010Game Exploit\u3011",
+            "ie_key": "Youtube",
+            "url": "N9Hhe9rWe7U"
+        },
+        {
+            "_type": "url",
+            "id": "jTIvcecz2Aw",
+            "title": "Van Darkholme's Floral Penis [GAYP\u2642RWAVE] Short Version",
+            "ie_key": "Youtube",
+            "url": "jTIvcecz2Aw"
+        },
+        {
+            "_type": "url",
+            "id": "UW8QASSYe4I",
+            "title": "\u5144\u8d35Kickstart\u2642My\u2642Ass HD",
+            "ie_key": "Youtube",
+            "url": "UW8QASSYe4I"
+        },
+        {
+            "_type": "url",
+            "id": "NCKzxm75MHY",
+            "title": "BILLYCH - Bleach Opening",
+            "ie_key": "Youtube",
+            "url": "NCKzxm75MHY"
+        },
+        {
+            "_type": "url",
+            "id": "VGlxNW5A-PE",
+            "title": "vanckey Mouse",
+            "ie_key": "Youtube",
+            "url": "VGlxNW5A-PE"
+        },
+        {
+            "_type": "url",
+            "id": "3coVFwCwQy0",
+            "title": "\ubd95\ud0c1 \ube4c\ub9ac\ub9e82\uc138",
+            "ie_key": "Youtube",
+            "url": "3coVFwCwQy0"
+        },
+        {
+            "_type": "url",
+            "id": "EjEU90Xp160",
+            "title": "Madoka Movie Gachimuchi",
+            "ie_key": "Youtube",
+            "url": "EjEU90Xp160"
+        },
+        {
+            "_type": "url",
+            "id": "zvzX1VN0tnI",
+            "title": "Van Darkholme ~ In The Dungeon Over The Sea",
+            "ie_key": "Youtube",
+            "url": "zvzX1VN0tnI"
+        },
+        {
+            "_type": "url",
+            "id": "bwhRvblLeQU",
+            "title": "supang driver",
+            "ie_key": "Youtube",
+            "url": "bwhRvblLeQU"
+        },
+        {
+            "_type": "url",
+            "id": "OshAu2lhbK8",
+            "title": "\u65b0\u65e5\u66ae\u91cc\u30bf\u30a6\u30f3\u30ac\u30a4\u30c9\u3000\u9b45\u60d1\u306e\u30c0\u30f3\u30b9\u30b9\u30af\u30fc\u30eb\u7de8",
+            "ie_key": "Youtube",
+            "url": "OshAu2lhbK8"
+        },
+        {
+            "_type": "url",
+            "id": "CZHDJBuuxWM",
+            "title": "Ass up\u2642",
+            "ie_key": "Youtube",
+            "url": "CZHDJBuuxWM"
+        },
+        {
+            "_type": "url",
+            "id": "MgfqujwuVkw",
+            "title": "SEGAY \u2642 CD",
+            "ie_key": "Youtube",
+            "url": "MgfqujwuVkw"
+        },
+        {
+            "_type": "url",
+            "id": "CSqNeQZoZNw",
+            "title": "\u2642 Un Owen Was Her\u2642   \u2588GACHIMUCHI \u2588",
+            "ie_key": "Youtube",
+            "url": "CSqNeQZoZNw"
+        },
+        {
+            "_type": "url",
+            "id": "a2Xym3_DcwE",
+            "title": "Gachi 65 - I'm Boy Next Door",
+            "ie_key": "Youtube",
+            "url": "a2Xym3_DcwE"
+        },
+        {
+            "_type": "url",
+            "id": "BanHe0Ywp24",
+            "title": "ANiKI\u2642\u6b6a\u97f3\u30a8\u30caPV\u2642",
+            "ie_key": "Youtube",
+            "url": "BanHe0Ywp24"
+        },
+        {
+            "_type": "url",
+            "id": "hsxgYGG_lQc",
+            "title": "\u3010\u5144\u8cb4\u8a95\u751f\u796d2013\u7248\u3011 \u5144\u8cb4\u3060\u3051\u3069\u611b\u3055\u3048\u3042\u308c\u3070\u95a2\u4fc2\u306a\u3044\u3088\u306d\u3063OP",
+            "ie_key": "Youtube",
+            "url": "hsxgYGG_lQc"
+        },
+        {
+            "_type": "url",
+            "id": "-gpOZvQTDAY",
+            "title": "Co-Aniki Field",
+            "ie_key": "Youtube",
+            "url": "-gpOZvQTDAY"
+        },
+        {
+            "_type": "url",
+            "id": "z0quirqgbUA",
+            "title": "\u3010Gachimuchi\u3011Yu\u2642Gay\u2642Oh!",
+            "ie_key": "Youtube",
+            "url": "z0quirqgbUA"
+        },
+        {
+            "_type": "url",
+            "id": "ECkpkvTrhNg",
+            "title": "\u300e\u30dc\u30c3\u30ad\u30fc\u30a2\u30a4\u30e9\u30f3\u30c9\u300f\u30a2\u30b9\u2642\u30ec\u2642\u30c7\u30a3\u30c3\u30af\u30b3\u30fc\u30b9\u300e\uff28\uff21\uff34\uff34\uff25\uff2e\uff24\uff2f\u300f",
+            "ie_key": "Youtube",
+            "url": "ECkpkvTrhNg"
+        },
+        {
+            "_type": "url",
+            "id": "GX-FF19JUbM",
+            "title": "\u2642 Takexic \u2642",
+            "ie_key": "Youtube",
+            "url": "GX-FF19JUbM"
+        },
+        {
+            "_type": "url",
+            "id": "27UwfmGhXzc",
+            "title": "\u2642 Everlasting  Summer \u2642 Gachimuchi Right Version",
+            "ie_key": "Youtube",
+            "url": "27UwfmGhXzc"
+        },
+        {
+            "_type": "url",
+            "id": "NLq6KtlwnRA",
+            "title": "Cumbusters",
+            "ie_key": "Youtube",
+            "url": "NLq6KtlwnRA"
+        },
+        {
+            "_type": "url",
+            "id": "1zsmMWaQSGM",
+            "title": "Gachimuchi - Guile's theme",
+            "ie_key": "Youtube",
+            "url": "1zsmMWaQSGM"
+        },
+        {
+            "_type": "url",
+            "id": "5H0gNyKmyNk",
+            "title": "\u3010\u65b0\u65e5\u66ae\u91cc\u5927\u7d71\u9818\u3011 \u30c1\u30e3\u30d9\u30b9\u30fb\u30aa\u30d0\u30de\u65b0\u5927\u7d71\u9818\u5c31\u4efb\u6f14\u8aac",
+            "ie_key": "Youtube",
+            "url": "5H0gNyKmyNk"
+        },
+        {
+            "_type": "url",
+            "id": "VQi0dvXxYQM",
+            "title": "Van Tsoy - Gruppa Krovi",
+            "ie_key": "Youtube",
+            "url": "VQi0dvXxYQM"
+        },
+        {
+            "_type": "url",
+            "id": "z96hOncuyYY",
+            "title": "Chinderella Gayge\uff5e\u3068\u304a\u308a\u3083\u3093\u305b\u2642",
+            "ie_key": "Youtube",
+            "url": "z96hOncuyYY"
+        },
+        {
+            "_type": "url",
+            "id": "CfQ7bu2Rxag",
+            "title": "Tak Tak no 3",
+            "ie_key": "Youtube",
+            "url": "CfQ7bu2Rxag"
+        },
+        {
+            "_type": "url",
+            "id": "p5lwvc7MDG4",
+            "title": "[Gachimuchi] \u8fc7\u2642\u5e74",
+            "ie_key": "Youtube",
+            "url": "p5lwvc7MDG4"
+        },
+        {
+            "_type": "url",
+            "id": "xa87phJGFkk",
+            "title": "GayTrousle",
+            "ie_key": "Youtube",
+            "url": "xa87phJGFkk"
+        },
+        {
+            "_type": "url",
+            "id": "Zfif5g-HHyc",
+            "title": "\ubb3c\ubd95\ud0c1\uc2dc\ud2f0",
+            "ie_key": "Youtube",
+            "url": "Zfif5g-HHyc"
+        },
+        {
+            "_type": "url",
+            "id": "sFbcE9j9q4c",
+            "title": "BOKKI ZONE",
+            "ie_key": "Youtube",
+            "url": "sFbcE9j9q4c"
+        },
+        {
+            "_type": "url",
+            "id": "q4rKnSMg28w",
+            "title": "\u3010\u6b4c\u3063\u3066\u307f\u305f\u3011\u30ac\u30c1\u30e2\u30f3\u30a4\u30b1\u308b\u304b\u306a\uff1f\uff22\uff37\u3010\u30b1\u30c4\u30c9\u30e9\u30e0\u4ed8\u304d\u3011",
+            "ie_key": "Youtube",
+            "url": "q4rKnSMg28w"
+        },
+        {
+            "_type": "url",
+            "id": "cXGmjsOT9BY",
+            "title": "\u7815\u5c3b",
+            "ie_key": "Youtube",
+            "url": "cXGmjsOT9BY"
+        },
+        {
+            "_type": "url",
+            "id": "FUDCcnk98uE",
+            "title": "DAICON IV\u3010All Out\u2642 Live Action Version\u3011",
+            "ie_key": "Youtube",
+            "url": "FUDCcnk98uE"
+        },
+        {
+            "_type": "url",
+            "id": "kQ5jRfZr6T4",
+            "title": "[Private Video]",
+            "ie_key": "Youtube",
+            "url": "kQ5jRfZr6T4"
+        },
+        {
+            "_type": "url",
+            "id": "bSbGl3LzeMA",
+            "title": "\u30c0\u30fc\u30af\u30db\u30fc\u30e0 \u3010BROTHER2\u3011",
+            "ie_key": "Youtube",
+            "url": "bSbGl3LzeMA"
+        },
+        {
+            "_type": "url",
+            "id": "rl0Qo9C0Y90",
+            "title": "Pokemon Dpt Naked player Glitch",
+            "ie_key": "Youtube",
+            "url": "rl0Qo9C0Y90"
+        },
+        {
+            "_type": "url",
+            "id": "r9YOTh5Tmtg",
+            "title": "\u30ac\u30c1\u30e0\u30c1\u30bb\u30d6\u30f3",
+            "ie_key": "Youtube",
+            "url": "r9YOTh5Tmtg"
+        },
+        {
+            "_type": "url",
+            "id": "qOMAxuh0Klg",
+            "title": "ONE FUCK MAN",
+            "ie_key": "Youtube",
+            "url": "qOMAxuh0Klg"
+        },
+        {
+            "_type": "url",
+            "id": "vc_Qf4dufVA",
+            "title": "\uad11\ub300",
+            "ie_key": "Youtube",
+            "url": "vc_Qf4dufVA"
+        },
+        {
+            "_type": "url",
+            "id": "OMt7nfUUKgk",
+            "title": "[Private Video]",
+            "ie_key": "Youtube",
+            "url": "OMt7nfUUKgk"
+        },
+        {
+            "_type": "url",
+            "id": "ydbOsvG6Q2o",
+            "title": "GACHIMUCHI - Highscore (Teminite & Panda Eyes)",
+            "ie_key": "Youtube",
+            "url": "ydbOsvG6Q2o"
+        },
+        {
+            "_type": "url",
+            "id": "fCFB-zR1do8",
+            "title": "Time to Aniki",
+            "ie_key": "Youtube",
+            "url": "fCFB-zR1do8"
+        },
+        {
+            "_type": "url",
+            "id": "3TkFm7COCKU",
+            "title": "ONE PANTS MAN OP\u300cTHE HOMO!!\uff5e\u8352\u3076\u308b\u606f\u5b50\u306b\u30b4\u30e0\u3092\u3064\u3051\u308d\uff5e\u300d",
+            "ie_key": "Youtube",
+            "url": "3TkFm7COCKU"
+        },
+        {
+            "_type": "url",
+            "id": "9dzlfHolWow",
+            "title": "\u3010R-18\u3011 I found a bug in the Kancolle Update Revealing a KanMusu's Torpedoes",
+            "ie_key": "Youtube",
+            "url": "9dzlfHolWow"
+        },
+        {
+            "_type": "url",
+            "id": "4sRIIRghXBA",
+            "title": "Lavander Town",
+            "ie_key": "Youtube",
+            "url": "4sRIIRghXBA"
+        },
+        {
+            "_type": "url",
+            "id": "s4pC2xI3x48",
+            "title": "[Translation] Sweet Home, Shin Nippori",
+            "ie_key": "Youtube",
+            "url": "s4pC2xI3x48"
+        },
+        {
+            "_type": "url",
+            "id": "tL6Tvjqo7bw",
+            "title": "Yatta Gachimuchi \u2642\u2642\u2642 gachiGASM",
+            "ie_key": "Youtube",
+            "url": "tL6Tvjqo7bw"
+        },
+        {
+            "_type": "url",
+            "id": "8YVyG9ZRV-I",
+            "title": "[Gachimuchi] \u30b2\u30a4\u685c",
+            "ie_key": "Youtube",
+            "url": "8YVyG9ZRV-I"
+        },
+        {
+            "_type": "url",
+            "id": "v8zYAY4irR4",
+            "title": "Gachimuchi -\u3010\u5b8c\u5168\u7248\u3011\u300e\u30aa\u30ea\u30b8\u30ca\u30eb\u66f2\u300fDark\u2642Boy",
+            "ie_key": "Youtube",
+            "url": "v8zYAY4irR4"
+        },
+        {
+            "_type": "url",
+            "id": "0EiJ3xcyaaQ",
+            "title": "Gachimuchi ElekTrick",
+            "ie_key": "Youtube",
+            "url": "0EiJ3xcyaaQ"
+        },
+        {
+            "_type": "url",
+            "id": "iS-w-ofebNc",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "iS-w-ofebNc"
+        },
+        {
+            "_type": "url",
+            "id": "7r2MmUTvSlQ",
+            "title": "[Gachimuchi] \u304a\u305f\u304b\u3089\u30e9\u30df\u30ec\u30b9\u30d3\u30fc\u30c1",
+            "ie_key": "Youtube",
+            "url": "7r2MmUTvSlQ"
+        },
+        {
+            "_type": "url",
+            "id": "tIK0RE8rnsA",
+            "title": "\u3010Gachimuchi\u3011 Gayld Arms 2nd",
+            "ie_key": "Youtube",
+            "url": "tIK0RE8rnsA"
+        },
+        {
+            "_type": "url",
+            "id": "Hko3VFT11Qw",
+            "title": "\u672c\u683c\u7684\u2642\u5996\u7cbe\u30a6\u30a9\u30c3\u30c1\u3000\u97f3MAD",
+            "ie_key": "Youtube",
+            "url": "Hko3VFT11Qw"
+        },
+        {
+            "_type": "url",
+            "id": "wwqDIwUJfZU",
+            "title": "\u30ac\u30c1\u3067\u30fb\u30fb\u30fb\uff01\uff1f",
+            "ie_key": "Youtube",
+            "url": "wwqDIwUJfZU"
+        },
+        {
+            "_type": "url",
+            "id": "-Rz-Va_8MkE",
+            "title": "Bondage Party 69 [Extended]",
+            "ie_key": "Youtube",
+            "url": "-Rz-Va_8MkE"
+        },
+        {
+            "_type": "url",
+            "id": "mkxJFxI3duI",
+            "title": "Holiywood\u2642Gaylaxy\uff0fDJ VAN",
+            "ie_key": "Youtube",
+            "url": "mkxJFxI3duI"
+        },
+        {
+            "_type": "url",
+            "id": "Ci47Mo1ucic",
+            "title": "remove funny gay porn",
+            "ie_key": "Youtube",
+            "url": "Ci47Mo1ucic"
+        },
+        {
+            "_type": "url",
+            "id": "ARBFwlugRmQ",
+            "title": "Gachimuchi Disco",
+            "ie_key": "Youtube",
+            "url": "ARBFwlugRmQ"
+        },
+        {
+            "_type": "url",
+            "id": "tGd3abnK18Y",
+            "title": "The Entertainer",
+            "ie_key": "Youtube",
+            "url": "tGd3abnK18Y"
+        },
+        {
+            "_type": "url",
+            "id": "cMPu5uXmjv0",
+            "title": "ONE\u2642MORE\u2642TIME",
+            "ie_key": "Youtube",
+            "url": "cMPu5uXmjv0"
+        },
+        {
+            "_type": "url",
+            "id": "mfFMpw2NZvc",
+            "title": "Fuck You!",
+            "ie_key": "Youtube",
+            "url": "mfFMpw2NZvc"
+        },
+        {
+            "_type": "url",
+            "id": "avD3eBYhPlY",
+            "title": "usa.mp4",
+            "ie_key": "Youtube",
+            "url": "avD3eBYhPlY"
+        },
+        {
+            "_type": "url",
+            "id": "XRn5Yn77oyY",
+            "title": "'Is the Order a Rabbit' Controversial Scene in Latest OP  \u3010\u901f\u5831\u3011\u300c\u3054\u6ce8\u6587\u306f\u3046\u3055\u304e\u3067\u3059\u304b\uff1f\uff1f\u300d\u6700\u65b0\u8a71OP\u3067\u554f\u984c\u306e\u30b7\u30fc\u30f3\u304c\uff01\uff1f",
+            "ie_key": "Youtube",
+            "url": "XRn5Yn77oyY"
+        },
+        {
+            "_type": "url",
+            "id": "DvCThR7QkBw",
+            "title": "\u30a2\u30cb\u30ad\u3067GO!!! Billy Herrington\u00d7NARUTO OP4",
+            "ie_key": "Youtube",
+            "url": "DvCThR7QkBw"
+        },
+        {
+            "_type": "url",
+            "id": "WMBZMDlGKrM",
+            "title": "\u96f7\u9cf4\u30b5\u3042\"\u3042\"\u3042\"\u3042\"\u3042\"\u3042\"\u3042\"\u3042\"\u3042\"\u30ad\u30e5\u30ec\u30fc\u30b7\u30e7\u30f3",
+            "ie_key": "Youtube",
+            "url": "WMBZMDlGKrM"
+        },
+        {
+            "_type": "url",
+            "id": "lYyHvIcp6oo",
+            "title": "\u7537\u8272\u306e\u30ac\u30c1\u30e0\u30c1\u52d5\u753b",
+            "ie_key": "Youtube",
+            "url": "lYyHvIcp6oo"
+        },
+        {
+            "_type": "url",
+            "id": "4BGvuohRLac",
+            "title": "tarzan boy (next door)",
+            "ie_key": "Youtube",
+            "url": "4BGvuohRLac"
+        },
+        {
+            "_type": "url",
+            "id": "wG9tyCIRJxc",
+            "title": "hoi 2 hoi",
+            "ie_key": "Youtube",
+            "url": "wG9tyCIRJxc"
+        },
+        {
+            "_type": "url",
+            "id": "829TZZI1GVE",
+            "title": "\u3010 Gachimuchi (\u30ac\u30c1\u30e0\u30c1) \u3011 BOY NEXT DOOR \u2642 ACE OF DUNGEON \u2642 2016 Easter Special",
+            "ie_key": "Youtube",
+            "url": "829TZZI1GVE"
+        },
+        {
+            "_type": "url",
+            "id": "TWiIlQFasPs",
+            "title": "godcheater \u2013 Gachic Fly (Space - Magic Fly \u2642Gachimuchi cover\u2642)",
+            "ie_key": "Youtube",
+            "url": "TWiIlQFasPs"
+        },
+        {
+            "_type": "url",
+            "id": "k_oCfUO_lHk",
+            "title": "\u30e0\u30fc\u30c1\u30a3\u306e\u30de\u30e9\u30e9\u30a4\u30c9\uff1a\u5c3b  Gachimuchi",
+            "ie_key": "Youtube",
+            "url": "k_oCfUO_lHk"
+        },
+        {
+            "_type": "url",
+            "id": "eE2q6x1KXoI",
+            "title": "\u5922\u7cbe\u9650\u306e\u30f4\u30a1\u30f3\u30c8\u30e0\u30fb\u30db\u30fc\u30eb\u30c9",
+            "ie_key": "Youtube",
+            "url": "eE2q6x1KXoI"
+        },
+        {
+            "_type": "url",
+            "id": "sHQ9tenkMfA",
+            "title": "electrofunk bodybuilder from brasil",
+            "ie_key": "Youtube",
+            "url": "sHQ9tenkMfA"
+        },
+        {
+            "_type": "url",
+            "id": "49X12y98mC0",
+            "title": "My Gachimuchi(\u30ac\u30c1\u30e0\u30c1\u30d1\u30c4\u30ec\u30b9\u30ea\u30f3\u30b0)'s 183",
+            "ie_key": "Youtube",
+            "url": "49X12y98mC0"
+        },
+        {
+            "_type": "url",
+            "id": "V8T9H3Fx-jw",
+            "title": "\u3010Gachimuchi\u3011Billy Herrington \u2013 Fuck It Up",
+            "ie_key": "Youtube",
+            "url": "V8T9H3Fx-jw"
+        },
+        {
+            "_type": "url",
+            "id": "_RrmL6SaMkk",
+            "title": "AMERICAN Disco",
+            "ie_key": "Youtube",
+            "url": "_RrmL6SaMkk"
+        },
+        {
+            "_type": "url",
+            "id": "Z1J_BBZJfgg",
+            "title": "\u3010Gachimuchi\u3011Billy the dank tank engine",
+            "ie_key": "Youtube",
+            "url": "Z1J_BBZJfgg"
+        },
+        {
+            "_type": "url",
+            "id": "gCirQRfLOqE",
+            "title": "Tetris \u2642",
+            "ie_key": "Youtube",
+            "url": "gCirQRfLOqE"
+        },
+        {
+            "_type": "url",
+            "id": "XuymLq5xEzk",
+            "title": "Aniki's Gourmet Race ~ \u9060\u91ce\u5e7b\u60f3\u7269\u8a9emix",
+            "ie_key": "Youtube",
+            "url": "XuymLq5xEzk"
+        },
+        {
+            "_type": "url",
+            "id": "WgwrgiS8034",
+            "title": "(MAD) Gachimuchi \u00d7 Puella Magi Madoka Magica",
+            "ie_key": "Youtube",
+            "url": "WgwrgiS8034"
+        },
+        {
+            "_type": "url",
+            "id": "mJ_t-3ZcTRo",
+            "title": "[Gachimuchi] \u672c\u683c\u7684\u2642Undertale",
+            "ie_key": "Youtube",
+            "url": "mJ_t-3ZcTRo"
+        },
+        {
+            "_type": "url",
+            "id": "oqyQ0iYrKHE",
+            "title": "Battle against a true boy next door",
+            "ie_key": "Youtube",
+            "url": "oqyQ0iYrKHE"
+        },
+        {
+            "_type": "url",
+            "id": "d1e_546cOCg",
+            "title": "\u3010\u7cde\u6666\u65e5\u3011\u672c\u683c\u7684\u7537\u5c3b\u796d2011 \uff5e \u52c3\u3061\u3042\u304c\u308c\u2642\u7537\u6839\u3010\u5408\u4f5c\u3011",
+            "ie_key": "Youtube",
+            "url": "d1e_546cOCg"
+        },
+        {
+            "_type": "url",
+            "id": "9Q_lr_iICEY",
+            "title": "[Gachimuchi] DAICOCK IV directed by Ron Sexton [GAYNAX early days]",
+            "ie_key": "Youtube",
+            "url": "9Q_lr_iICEY"
+        },
+        {
+            "_type": "url",
+            "id": "BWLJAR38zxU",
+            "title": "\u516d\u5341\u4e5d\u5e74\u76ee\u306e\u65b0\u65e5\u66ae\u91cc\u88c1\u5224\uff08\u97f3\u3060\u3051",
+            "ie_key": "Youtube",
+            "url": "BWLJAR38zxU"
+        },
+        {
+            "_type": "url",
+            "id": "6UKzs6sYd6E",
+            "title": "SUCTION SOUND SYSTEM -  BOY NEXT  DOOR",
+            "ie_key": "Youtube",
+            "url": "6UKzs6sYd6E"
+        },
+        {
+            "_type": "url",
+            "id": "Ub4mY631tS0",
+            "title": "Spider VANs",
+            "ie_key": "Youtube",
+            "url": "Ub4mY631tS0"
+        },
+        {
+            "_type": "url",
+            "id": "i8KFEpZ4rXQ",
+            "title": "Death By Spanking",
+            "ie_key": "Youtube",
+            "url": "i8KFEpZ4rXQ"
+        },
+        {
+            "_type": "url",
+            "id": "i4PXWA9w-5E",
+            "title": "Bodybuilder Dance",
+            "ie_key": "Youtube",
+            "url": "i4PXWA9w-5E"
+        },
+        {
+            "_type": "url",
+            "id": "8QTRQZsBGFQ",
+            "title": "I'm Digimon from Russia OP\u300cBodybuil-der\u300d",
+            "ie_key": "Youtube",
+            "url": "8QTRQZsBGFQ"
+        },
+        {
+            "_type": "url",
+            "id": "0nBuq-UPWDI",
+            "title": "\u3010 Gachimuchi (\u30ac\u30c1\u30e0\u30c1) \u3011 \u2642 BOY NEXT DOOR MEETS TOROMI \u2642 \u6b63\u7fa9\u306e\u5473\u65b9",
+            "ie_key": "Youtube",
+            "url": "0nBuq-UPWDI"
+        },
+        {
+            "_type": "url",
+            "id": "q7sepMPqMZw",
+            "title": "\u30a2\u30cb\u30ad\u4f53\u64cd\u7b2c\u4e8c",
+            "ie_key": "Youtube",
+            "url": "q7sepMPqMZw"
+        },
+        {
+            "_type": "url",
+            "id": "DkraqbJ6AhI",
+            "title": "\u30a2\u30eb\u30d7\u30b9\u306emen's\u30db\u30a4\u30b8",
+            "ie_key": "Youtube",
+            "url": "DkraqbJ6AhI"
+        },
+        {
+            "_type": "url",
+            "id": "yLSZba6D-Ck",
+            "title": "\u3010\u307e\u3069\u304b\u2606\u30de\u30ae\u30ab\u3011\u5287\u5834\u7248\u3067\u5b9f\u969b\u306b\u4f7f\u7528\u3055\u308c\u305f\u554f\u984c\u306e\uff2f\uff30\u3010\u30eb\u30df\u30ca\u30b9\u3011",
+            "ie_key": "Youtube",
+            "url": "yLSZba6D-Ck"
+        },
+        {
+            "_type": "url",
+            "id": "uWW3QTWWN68",
+            "title": "\u3076\u3063\u3061\u304e\u308a\u306b\u3057\u3066\u3042\u3052\u308b \u30cb\u30b3\u30cb\u30b3\u30b3\u30e1\u30f3\u30c8\u4ed8\u304d",
+            "ie_key": "Youtube",
+            "url": "uWW3QTWWN68"
+        },
+        {
+            "_type": "url",
+            "id": "4xl59lmrAi0",
+            "title": "\u2642 Rip the Skin (Evans) \u2642",
+            "ie_key": "Youtube",
+            "url": "4xl59lmrAi0"
+        },
+        {
+            "_type": "url",
+            "id": "3596tGghM2Y",
+            "title": "\u2642 Christian \u2642",
+            "ie_key": "Youtube",
+            "url": "3596tGghM2Y"
+        },
+        {
+            "_type": "url",
+            "id": "tV7QU0MJ5QU",
+            "title": "When Billy isn't home",
+            "ie_key": "Youtube",
+            "url": "tV7QU0MJ5QU"
+        },
+        {
+            "_type": "url",
+            "id": "Fx1Pf15dVbM",
+            "title": "Biki Biki \u2642 Romantic Night",
+            "ie_key": "Youtube",
+            "url": "Fx1Pf15dVbM"
+        },
+        {
+            "_type": "url",
+            "id": "vWScIs3SFWo",
+            "title": "Kazuya Town",
+            "ie_key": "Youtube",
+            "url": "vWScIs3SFWo"
+        },
+        {
+            "_type": "url",
+            "id": "RRtqK4Xr1Fs",
+            "title": "I'm foo",
+            "ie_key": "Youtube",
+            "url": "RRtqK4Xr1Fs"
+        },
+        {
+            "_type": "url",
+            "id": "z8eHyqs0NIQ",
+            "title": "Prayer\u2642",
+            "ie_key": "Youtube",
+            "url": "z8eHyqs0NIQ"
+        },
+        {
+            "_type": "url",
+            "id": "EQ_-rPBsqtI",
+            "title": "smackdown",
+            "ie_key": "Youtube",
+            "url": "EQ_-rPBsqtI"
+        },
+        {
+            "_type": "url",
+            "id": "oA2d1R19Vno",
+            "title": "MaraoKart",
+            "ie_key": "Youtube",
+            "url": "oA2d1R19Vno"
+        },
+        {
+            "_type": "url",
+            "id": "QxmH2N5PIAI",
+            "title": "Last Boy.",
+            "ie_key": "Youtube",
+            "url": "QxmH2N5PIAI"
+        },
+        {
+            "_type": "url",
+            "id": "0HOWQ54-r8k",
+            "title": "monkey love song",
+            "ie_key": "Youtube",
+            "url": "0HOWQ54-r8k"
+        },
+        {
+            "_type": "url",
+            "id": "ZRTtj154uaE",
+            "title": "\u5144\u8cb4\u4e4b\u604b\u585a\u3000Folower of Sin~nippori",
+            "ie_key": "Youtube",
+            "url": "ZRTtj154uaE"
+        },
+        {
+            "_type": "url",
+            "id": "ezSHIkbwlOY",
+            "title": "\u5ca1\u672c\u502b\u539f\u4f5c\u300e\u30a8\u30eb\u30d5\u30a7\u30f3\u30ea\u30fc\u30c8\u300f\u304c\u30cf\u30ea\u30a6\u30c3\u30c9\u6620\u753b\u5316\uff01",
+            "ie_key": "Youtube",
+            "url": "ezSHIkbwlOY"
+        },
+        {
+            "_type": "url",
+            "id": "SLXNJbfzGAw",
+            "title": "\u3010\u5de1\u97f3\u30eb\u30ab\u3011\u30c0\u30d6\u30eb\u30e9\u30ea\u30a2\u30c3\u30c8\u3092\u30a8\u30ed\u3063\u307d\u304f\u6b4c\u3063\u3066\u307f\u305f\u3002",
+            "ie_key": "Youtube",
+            "url": "SLXNJbfzGAw"
+        },
+        {
+            "_type": "url",
+            "id": "0kE1VDcOU-4",
+            "title": "\u3010\u8266\u3053\u308c\u3011\u8266\u5a18\u3068\u30bb\u30c3\u3007\u30b9\u3067\u304d\u308b\u516c\u5f0f\u30a8\u30ed\u30b2\u30fc\u304c\u30a8\u30ed\u3059\u304e\u308b\u4ef6\u3010R 18\u3011",
+            "ie_key": "Youtube",
+            "url": "0kE1VDcOU-4"
+        },
+        {
+            "_type": "url",
+            "id": "oT6DBSzzyz8",
+            "title": "GAYT FLIGHT",
+            "ie_key": "Youtube",
+            "url": "oT6DBSzzyz8"
+        },
+        {
+            "_type": "url",
+            "id": "dV3948Gl2e8",
+            "title": "Van's dream",
+            "ie_key": "Youtube",
+            "url": "dV3948Gl2e8"
+        },
+        {
+            "_type": "url",
+            "id": "X04uT3-PyAE",
+            "title": "Billy Herrington \u3010\u30a4\u30f3\u30ad\u30f3\u30d1\u30f3\u30c4\u3011Given Ah\uff5e!p\u3010\u30b7\u30e3\u30a6\u30c8\u8ffd\u52a0\u3011",
+            "ie_key": "Youtube",
+            "url": "X04uT3-PyAE"
+        },
+        {
+            "_type": "url",
+            "id": "PwS-e8SQ978",
+            "title": "\u30e2\u30b0\u30ea\uff01\uff01",
+            "ie_key": "Youtube",
+            "url": "PwS-e8SQ978"
+        },
+        {
+            "_type": "url",
+            "id": "Ka6CIRFwTqE",
+            "title": "gay_01 [RazQ]",
+            "ie_key": "Youtube",
+            "url": "Ka6CIRFwTqE"
+        },
+        {
+            "_type": "url",
+            "id": "xkeJUZdeeqc",
+            "title": "Shigemi so Happy",
+            "ie_key": "Youtube",
+            "url": "xkeJUZdeeqc"
+        },
+        {
+            "_type": "url",
+            "id": "MTOwncKM1TY",
+            "title": "1st Y T P M V",
+            "ie_key": "Youtube",
+            "url": "MTOwncKM1TY"
+        },
+        {
+            "_type": "url",
+            "id": "P4-3sp9PAfY",
+            "title": "Bad Gay Porn Reflection",
+            "ie_key": "Youtube",
+            "url": "P4-3sp9PAfY"
+        },
+        {
+            "_type": "url",
+            "id": "xWJac_EKkks",
+            "title": "\u3010\u8266\u3053\u308c\u5408\u4f5c\u3011\u7d44\u66f2\u300c\u30ab\u30f3\u30b3\u30ec\u52d5\u753b\u300d\u8266 Part 1",
+            "ie_key": "Youtube",
+            "url": "xWJac_EKkks"
+        },
+        {
+            "_type": "url",
+            "id": "nk2wViKSh_M",
+            "title": "Ultimate Muscle Roller Legend",
+            "ie_key": "Youtube",
+            "url": "nk2wViKSh_M"
+        },
+        {
+            "_type": "url",
+            "id": "o1u_kNuipDI",
+            "title": "\u3010\u8266\u3053\u308c\u5408\u4f5c\u3011\u7d44\u66f2\u300c\u30ab\u30f3\u30b3\u30ec\u52d5\u753b\u300d\u8266",
+            "ie_key": "Youtube",
+            "url": "o1u_kNuipDI"
+        },
+        {
+            "_type": "url",
+            "id": "Dyplqs_VBLU",
+            "title": "\u30b1\u30c4\u6226\uff01\u30b5\u30eb\u30fc\u6deb",
+            "ie_key": "Youtube",
+            "url": "Dyplqs_VBLU"
+        },
+        {
+            "_type": "url",
+            "id": "cltFarQSPLA",
+            "title": "Situati\u2642n",
+            "ie_key": "Youtube",
+            "url": "cltFarQSPLA"
+        },
+        {
+            "_type": "url",
+            "id": "DzauIJ5iX94",
+            "title": "GACHIMUCHI - Fade (Alan Walker)",
+            "ie_key": "Youtube",
+            "url": "DzauIJ5iX94"
+        },
+        {
+            "_type": "url",
+            "id": "jKwfNlwk_8o",
+            "title": "GACHIMUCHI - turn down for ass",
+            "ie_key": "Youtube",
+            "url": "jKwfNlwk_8o"
+        },
+        {
+            "_type": "url",
+            "id": "pkunKHVBL8Q",
+            "title": "GACHIMUCHI - One Thousand Cherry Trees",
+            "ie_key": "Youtube",
+            "url": "pkunKHVBL8Q"
+        },
+        {
+            "_type": "url",
+            "id": "8dJlufxUkHY",
+            "title": "GACHIMUCHI - Wake me up (Avicii)",
+            "ie_key": "Youtube",
+            "url": "8dJlufxUkHY"
+        },
+        {
+            "_type": "url",
+            "id": "ptOWVWvs4Yk",
+            "title": "GACHIMUCHI - nyan nyan",
+            "ie_key": "Youtube",
+            "url": "ptOWVWvs4Yk"
+        },
+        {
+            "_type": "url",
+            "id": "XhpRV6oZaTg",
+            "title": "GACHIMUCHI - popcorn",
+            "ie_key": "Youtube",
+            "url": "XhpRV6oZaTg"
+        },
+        {
+            "_type": "url",
+            "id": "tfTn7-jDfcs",
+            "title": "GACHIMUCHI - friend shitai",
+            "ie_key": "Youtube",
+            "url": "tfTn7-jDfcs"
+        },
+        {
+            "_type": "url",
+            "id": "0Hjd3tznFLs",
+            "title": "GACHIMUCHI - The Mass",
+            "ie_key": "Youtube",
+            "url": "0Hjd3tznFLs"
+        },
+        {
+            "_type": "url",
+            "id": "DwNKUDG6pYo",
+            "title": "GACHIMUCHI - Maru Maru Mori Mori!",
+            "ie_key": "Youtube",
+            "url": "DwNKUDG6pYo"
+        },
+        {
+            "_type": "url",
+            "id": "E4Vyh9o45LU",
+            "title": "GACHIMUCHI 2",
+            "ie_key": "Youtube",
+            "url": "E4Vyh9o45LU"
+        },
+        {
+            "_type": "url",
+            "id": "WTcQg71TRw8",
+            "title": "GACHIMUCHI - Dango Daikazoku",
+            "ie_key": "Youtube",
+            "url": "WTcQg71TRw8"
+        },
+        {
+            "_type": "url",
+            "id": "S_gMIq8Y2OE",
+            "title": "GACHIMUCHI - Angry birds",
+            "ie_key": "Youtube",
+            "url": "S_gMIq8Y2OE"
+        },
+        {
+            "_type": "url",
+            "id": "kKtWWz8PZdI",
+            "title": "GACHIMUCHI - Unity (TheFatRat)",
+            "ie_key": "Youtube",
+            "url": "kKtWWz8PZdI"
+        },
+        {
+            "_type": "url",
+            "id": "0Ipazf9Adw8",
+            "title": "\u672c\u683c\u7684\u306a\u92ad\u6e6f",
+            "ie_key": "Youtube",
+            "url": "0Ipazf9Adw8"
+        },
+        {
+            "_type": "url",
+            "id": "KxI5zGtHwJU",
+            "title": "GACHIMUCHI - let it go (diff. version)",
+            "ie_key": "Youtube",
+            "url": "KxI5zGtHwJU"
+        },
+        {
+            "_type": "url",
+            "id": "uNewfbPNF60",
+            "title": "\u3010 Gachimuchi (\u30ac\u30c1\u30e0\u30c1) \u3011 BOY NEXT DOOR \u2642 YOU LIKE THAT [PREMIUM EDITION]",
+            "ie_key": "Youtube",
+            "url": "uNewfbPNF60"
+        },
+        {
+            "_type": "url",
+            "id": "gp38fZlMZ18",
+            "title": "\u3010Ketsu Live!\u3011Snow Holation\u3010Complete VAN\u3011",
+            "ie_key": "Youtube",
+            "url": "gp38fZlMZ18"
+        },
+        {
+            "_type": "url",
+            "id": "uLiscpH1cNc",
+            "title": "Van Can Can",
+            "ie_key": "Youtube",
+            "url": "uLiscpH1cNc"
+        },
+        {
+            "_type": "url",
+            "id": "DsXq-SRavzU",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "DsXq-SRavzU"
+        },
+        {
+            "_type": "url",
+            "id": "DX0IqjlQ0Ew",
+            "title": "Zenith of Marabeat",
+            "ie_key": "Youtube",
+            "url": "DX0IqjlQ0Ew"
+        },
+        {
+            "_type": "url",
+            "id": "bSUolRuVjZE",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "bSUolRuVjZE"
+        },
+        {
+            "_type": "url",
+            "id": "rjdM0yqXkUM",
+            "title": "Chocoboy Spanking\u3010\u30ac\u30c1\u30e0\u30c1\u30ec\u30fc\u30b7\u30f3\u30b0\u3011",
+            "ie_key": "Youtube",
+            "url": "rjdM0yqXkUM"
+        },
+        {
+            "_type": "url",
+            "id": "VMUDeL7dLj8",
+            "title": "Finale Wrestling",
+            "ie_key": "Youtube",
+            "url": "VMUDeL7dLj8"
+        },
+        {
+            "_type": "url",
+            "id": "yYgHR98Cjx8",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "yYgHR98Cjx8"
+        },
+        {
+            "_type": "url",
+            "id": "KK64tKVAoXs",
+            "title": "\u3010\u68ee\u306e\u5996\u7cbe\u3011 GachiPuchi OP: \u300eHello\u2642Asstime\u300f",
+            "ie_key": "Youtube",
+            "url": "KK64tKVAoXs"
+        },
+        {
+            "_type": "url",
+            "id": "at4BbTM-ZeU",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "at4BbTM-ZeU"
+        },
+        {
+            "_type": "url",
+            "id": "s4mwS6hi7OA",
+            "title": "\u30ed\u30c3\u30af\u30de\u30e94\u3000\u6398\u30ea\u30eb\u30de\u30f3\u30b9\u30c6\u30fc\u30b8",
+            "ie_key": "Youtube",
+            "url": "s4mwS6hi7OA"
+        },
+        {
+            "_type": "url",
+            "id": "PBcJsz2FRwM",
+            "title": "\u30e4\u30de\u30c8\u30de\u30f3\u30b9\u30c6\u30fc\u30b8\u306e\u66f2\u306b\u4e57\u305b\u3066\u5144\u8cb4\u304c\u30cb\u30b3\u30cb\u30b3\u3092\u7f75\u5012\u3059\u308b\u52d5\u753b",
+            "ie_key": "Youtube",
+            "url": "PBcJsz2FRwM"
+        },
+        {
+            "_type": "url",
+            "id": "wfH4KpX2uD0",
+            "title": "ASS\u304b120% SPANKING Fist Fuck  \u8c4a\u7530\u30ab\u30ea\u5948\u306e\u30c6\u30fc\u30de",
+            "ie_key": "Youtube",
+            "url": "wfH4KpX2uD0"
+        },
+        {
+            "_type": "url",
+            "id": "dVVy4qAP2XM",
+            "title": "ANGPad mini",
+            "ie_key": "Youtube",
+            "url": "dVVy4qAP2XM"
+        },
+        {
+            "_type": "url",
+            "id": "oVrtJOn3Nl4",
+            "title": "\u3010\u8266\u3053\u308c\u5408\u4f5c\u3011\u7d44\u66f2\u300c\u30ab\u30f3\u30b3\u30ec\u52d5\u753b\u300d\u8266",
+            "ie_key": "Youtube",
+            "url": "oVrtJOn3Nl4"
+        },
+        {
+            "_type": "url",
+            "id": "wSTs5jyFCH8",
+            "title": "\u3010\u672c\u683c\u7684\u3011\u75d4\u30e7\u75d4\u30e7\u306e\u5947\u5999\u306a\u68d2\u967a\u2642 ED\u3010\u7cde\u6666\u65e5\u3011",
+            "ie_key": "Youtube",
+            "url": "wSTs5jyFCH8"
+        },
+        {
+            "_type": "url",
+            "id": "GfeGcq3L0vw",
+            "title": "[Deleted Video]",
+            "ie_key": "Youtube",
+            "url": "GfeGcq3L0vw"
+        },
+        {
+            "_type": "url",
+            "id": "qHaOZ40JFxU",
+            "title": "Conker's\u2642Bad\u2642Leather\u2642Day",
+            "ie_key": "Youtube",
+            "url": "qHaOZ40JFxU"
+        },
+        {
+            "_type": "url",
+            "id": "wtyh1iiKoHY",
+            "title": "Settle it in Smash\u2642 [Sound Only]",
+            "ie_key": "Youtube",
+            "url": "wtyh1iiKoHY"
+        },
+        {
+            "_type": "url",
+            "id": "gqS8Z79pPWs",
+            "title": "N \u2642 BATTLE \u2642",
+            "ie_key": "Youtube",
+            "url": "gqS8Z79pPWs"
+        },
+        {
+            "_type": "url",
+            "id": "aM0K8I0HGLE",
+            "title": "\ube4c\ub9ac\uc758 \uac8c\uc774\ud06c \ud558\uc6b0\uc2a4 (Gayke\u2642House)",
+            "ie_key": "Youtube",
+            "url": "aM0K8I0HGLE"
+        },
+        {
+            "_type": "url",
+            "id": "rRctiUI8pmE",
+            "title": "GAY\u2642POWER",
+            "ie_key": "Youtube",
+            "url": "rRctiUI8pmE"
+        },
+        {
+            "_type": "url",
+            "id": "xsyaNiWcOP0",
+            "title": "Gachimuchi \u2013 SEX Files",
+            "ie_key": "Youtube",
+            "url": "xsyaNiWcOP0"
+        },
+        {
+            "_type": "url",
+            "id": "tgAs2MF0O1E",
+            "title": "\u3010\u901f\u5831\u3011\u30dd\u30b1\u30e2\u30f3GO\u3067\u4f1d\u8aac\u306e\u30dd\u30b1\u30e2\u30f3\u304c\u30b2\u30c3\u30c8\u51fa\u6765\u308b\u30d0\u30b0\u304c\u898b\u3064\u304b\u3063\u305f\u4ef6",
+            "ie_key": "Youtube",
+            "url": "tgAs2MF0O1E"
+        },
+        {
+            "_type": "url",
+            "id": "V7f11paDT4k",
+            "title": "\u30ab\u30ba\u30e4\u3055\u3093\u306e\u30d0\u30fc",
+            "ie_key": "Youtube",
+            "url": "V7f11paDT4k"
+        },
+        {
+            "_type": "url",
+            "id": "0AeOtpxkk9U",
+            "title": "Dungeon Hearts II - Dearly Beloved \u2642",
+            "ie_key": "Youtube",
+            "url": "0AeOtpxkk9U"
+        },
+        {
+            "_type": "url",
+            "id": "vkI2lCd8chg",
+            "title": "Gayby 3\u3010Great Penis Offensive\u3011",
+            "ie_key": "Youtube",
+            "url": "vkI2lCd8chg"
+        },
+        {
+            "_type": "url",
+            "id": "g-kgtfe0tDs",
+            "title": "Oklahomo Mixer (Gachimuchi x Oklahoma Mixer)",
+            "ie_key": "Youtube",
+            "url": "g-kgtfe0tDs"
+        },
+        {
+            "_type": "url",
+            "id": "k3ym_kf9omI",
+            "title": "[Calamity\u2642Fantasy]Calamity Fortune",
+            "ie_key": "Youtube",
+            "url": "k3ym_kf9omI"
+        },
+        {
+            "_type": "url",
+            "id": "13eXn69PTYc",
+            "title": "Welc\u2642me!!",
+            "ie_key": "Youtube",
+            "url": "13eXn69PTYc"
+        },
+        {
+            "_type": "url",
+            "id": "hPW5jhlODGQ",
+            "title": "\u30ed\u30c3\u30af\u30de\u30e9\u30a8\u30ed3\u3000VS \u30aa\u30e1\u30b3\u6700\u7d42\u6226 Cannon Cannon",
+            "ie_key": "Youtube",
+            "url": "hPW5jhlODGQ"
+        },
+        {
+            "_type": "url",
+            "id": "jQVfd1FqTWc",
+            "title": "\u30ed\u30c3\u30af\u30de\u30e9\u30a8\u30ed2\u3000Power\u2642Bom",
+            "ie_key": "Youtube",
+            "url": "jQVfd1FqTWc"
+        },
+        {
+            "_type": "url",
+            "id": "I8YhJ-46K0I",
+            "title": "Drop it \u2642",
+            "ie_key": "Youtube",
+            "url": "I8YhJ-46K0I"
+        },
+        {
+            "_type": "url",
+            "id": "unFcDoozcHM",
+            "title": "Overwatch Gachimuchi",
+            "ie_key": "Youtube",
+            "url": "unFcDoozcHM"
+        },
+        {
+            "_type": "url",
+            "id": "9FYEQgKHYEw",
+            "title": "Sad\u2642Van",
+            "ie_key": "Youtube",
+            "url": "9FYEQgKHYEw"
+        },
+        {
+            "_type": "url",
+            "id": "fR_0QO9Kc54",
+            "title": "platinum ricardisco",
+            "ie_key": "Youtube",
+            "url": "fR_0QO9Kc54"
+        },
+        {
+            "_type": "url",
+            "id": "ZR7Kk8X27iQ",
+            "title": "\u2642 Tajiri Tajiri eighty-one",
+            "ie_key": "Youtube",
+            "url": "ZR7Kk8X27iQ"
+        },
+        {
+            "_type": "url",
+            "id": "eG-JYhyGu_s",
+            "title": "R - 20 \u2642 \u9280\u809b\u30b1\u30c4\u706b \u2642",
+            "ie_key": "Youtube",
+            "url": "eG-JYhyGu_s"
+        },
+        {
+            "_type": "url",
+            "id": "J3KSGSprKfM",
+            "title": "Martin\u2642Van - Fa\u2642nimals",
+            "ie_key": "Youtube",
+            "url": "J3KSGSprKfM"
+        },
+        {
+            "_type": "url",
+            "id": "Ss5hPX1wuA0",
+            "title": "Chocolate disco",
+            "ie_key": "Youtube",
+            "url": "Ss5hPX1wuA0"
+        },
+        {
+            "_type": "url",
+            "id": "oQ_gaftlRNw",
+            "title": "sm9334036   \u3010\u3068\u3042\u308b\u5e73\u5bb6\u306e\u96fb\u78c1\u718a\u624b\u3011only my Darkness",
+            "ie_key": "Youtube",
+            "url": "oQ_gaftlRNw"
+        },
+        {
+            "_type": "url",
+            "id": "08sU2nct1vs",
+            "title": "Gachimuchi \u30ac\u30c1\u30e0\u30c1Merry Christmas by Svarog034",
+            "ie_key": "Youtube",
+            "url": "08sU2nct1vs"
+        },
+        {
+            "_type": "url",
+            "id": "oqa89vLZkew",
+            "title": "HIP\u5148\u751f\u3000\u3010\u5144\u8cb4\uff58VIP\u5148\u751f\u3011",
+            "ie_key": "Youtube",
+            "url": "oqa89vLZkew"
+        },
+        {
+            "_type": "url",
+            "id": "60Ax_5h2_W0",
+            "title": "\u3010\u6b6a\u307f\u3011 \u306d\u3047 \u3010Perfume\u3011",
+            "ie_key": "Youtube",
+            "url": "60Ax_5h2_W0"
+        },
+        {
+            "_type": "url",
+            "id": "bkHXomSfczg",
+            "title": "Rock my source",
+            "ie_key": "Youtube",
+            "url": "bkHXomSfczg"
+        },
+        {
+            "_type": "url",
+            "id": "9Lgupb4oDoo",
+            "title": "\u3010\u591a\u7530\u97f3\u30d5\u30a1\u30af\u3011\u4e09\u904d\u5efb\u3063\u3066VAN\u3068\u8a00\u3048\uff01 [720p]",
+            "ie_key": "Youtube",
+            "url": "9Lgupb4oDoo"
+        }
+    ],
+    "extractor": "youtube:playlist",
+    "extractor_key": "YoutubePlaylist"
+}

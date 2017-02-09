@@ -1,0 +1,26 @@
+# User configs
+config/config.ini
+config/permissions.ini
+
+# Used for backing up and generating autoplaylist
+data/playlists/k/
+data/playlists/AutoIT/
+data/playlists/playlists_backup/
+
+# Audio files
+data/audio/sfx/
+data/audio/to_be_edited/
+data/audio/cache/
+
+
+# Used for testing or logging
+*.log
+*.mp3
+
+# Test files
+yttest.py
+test.py
+sfxtest.py
+
+# Auto-generated files
+battletags.json

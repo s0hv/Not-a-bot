@@ -21,6 +21,7 @@ data/audio/cache/
 yttest.py
 test.py
 sfxtest.py
+test.text
 
 # Auto-generated files
 battletags.json

@@ -53,13 +53,13 @@ class Playlist:
         self.random_loop = None
         self.sfx_loop = None
         self.player = None
+        self.random_sfx_on = self.bot.config.random_sfx
 
     def on_stop(self):
         self.bot.loop.call_soon_threadsafe(self.next.set)
         return
 
     def create_tasks(self):
-        # TODO If self.bot.config.random_sfx:
         self.random_loop = self.bot.loop.create_task(self.random_sfx())
         self.sfx_loop = self.bot.loop.create_task(self.audio_player())
 
@@ -72,7 +72,7 @@ class Playlist:
                 self.sfx_loop.cancel()
                 break
 
-            if random.random() < 0.1 and self.voice is not None:
+            if self.random_sfx_on and random.random() < 0.1 and self.voice is not None:
 
                 path = SFX_FOLDER
                 files = os.listdir(path)
@@ -310,6 +310,18 @@ class Audio:
                 file = [x for x in sfx if name in x]
 
         return file
+
+    @commands.command(pass_context=True, no_pm=True)
+    async def random_sfx(self, ctx, value):
+        value = value.lower().strip()
+        values = {'on': True, 'off': False}
+        values_rev = {v: k for k, v in values.items()}
+
+        value = values.get(value, False)
+        state = self.get_voice_state(ctx.message.server)
+        state.random_sfx_on = value
+
+        await self.bot.say_timeout('Random sfx set to %s' % values_rev.get(value), ctx.message.channel, 120)
 
     @commands.command(pass_context=True)
     async def sfxlist(self, ctx):

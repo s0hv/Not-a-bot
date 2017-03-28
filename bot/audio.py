@@ -362,7 +362,7 @@ class Audio:
 
             return options
 
-    @commands.command(pass_context=True, no_pm=True, aliases = ['a'], ignore_extra=True)
+    @commands.command(pass_context=True, no_pm=True, aliases=['a'], ignore_extra=True)
     async def again(self, ctx):
         await self._again(ctx)
 

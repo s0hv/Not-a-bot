@@ -2,10 +2,8 @@
 config/config.ini
 config/permissions.ini
 
-# Used for backing up and generating autoplaylist
-data/playlists/k/
-data/playlists/AutoIT/
-data/playlists/playlists_backup/
+# Don't upload autoplaylist more than once
+data/playlists/
 
 # Audio files
 data/audio/sfx/

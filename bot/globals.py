@@ -63,7 +63,7 @@ create_folders()
 
 if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autoplaylist.txt')):
     try:
-        shutil.copyfile(AUTOPLAYLIST, join(PLAYLISTS, '_autoplaylist.txt'))
+        shutil.copyfile(join(PLAYLISTS, '_autoplaylist.txt'), AUTOPLAYLIST)
     except Exception as e:
         print('[ERROR] Autoplaylist copying failed.\nReason: %s' % e)
 

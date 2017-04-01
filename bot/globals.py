@@ -41,6 +41,9 @@ TTS = join(_wd, 'data', 'audio', 'tts')
 CACHE = join(_wd, 'data', 'audio', 'cache')
 PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
 PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
+PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': False,
+                      'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,
+                      'edit_permissions': False, 'level': 0, 'whitelist': None, 'blacklist': None}
 
 
 def _create_folder(path):

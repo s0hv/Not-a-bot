@@ -29,7 +29,7 @@ from peewee import *
 from playhouse.pool import SqliteExtDatabase
 
 from bot.exceptions import *
-from bot.globals import PERMISSIONS
+from bot.globals import PERMISSIONS, PERMISSION_OPTIONS
 
 database = SqliteExtDatabase(PERMISSIONS, threadlocals=True)
 
@@ -99,10 +99,7 @@ def database_transaction(func):
 
 
 def parse_permissions(d, perms):
-    keys = {'name': None, 'ban_commands': False, 'master_override': False,
-            'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,
-            'edit_permissions': False, 'level': 0, 'whitelist': None, 'blacklist': None}
-
+    keys = PERMISSION_OPTIONS.copy()
     true = ['on', 'true', 'yes']
     false = ['off', 'false', 'no']
 

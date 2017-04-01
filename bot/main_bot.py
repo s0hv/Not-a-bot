@@ -146,6 +146,14 @@ def start(config, permissions):
 
         return _commands
 
+    @bot.command(pass_context=True)
+    async def permission_options(ctx):
+        s = 'Permission group options and default values'
+        for k, v in PERMISSION_OPTIONS.items():
+            s += '\n{}={}'.format(k, v)
+
+        await bot.send_message(ctx.message.channel, s)
+
     @bot.command(pass_context=True, level=5)
     async def create_permissions(ctx, *args):
         print(args, ctx)
@@ -165,8 +173,8 @@ def start(config, permissions):
 
         channel = ctx.message.channel
         kwargs = parse_permissions(kwargs, user_permissions)
-        kwargs['whitelist'] = check_commands(kwargs['whitelist'], user_permissions.level, channel)
-        kwargs['blacklist'] = check_commands(kwargs['blacklist'], user_permissions.level, channel)
+        kwargs['whitelist'] = await check_commands(kwargs['whitelist'], user_permissions.level, channel)
+        kwargs['blacklist'] = await check_commands(kwargs['blacklist'], user_permissions.level, channel)
 
         msg = 'Confirm the creation if a permission group with\ny/n'
         await bot.say_timeout(msg, ctx.message.channel, 40)

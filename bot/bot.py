@@ -365,6 +365,11 @@ class ProcessPlayer(StreamPlayer):
             self.process.communicate()
 
 
+def command(*args, **kwargs):
+    kwargs.pop('cls', None)
+    return commands.command(*args, cls=Command, **kwargs)
+
+
 class Context(commands.context.Context):
     __slots__ = ['user_permissions']
 

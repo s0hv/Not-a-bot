@@ -36,12 +36,12 @@ from bot.exceptions import NoCachedFileException
 logger = logging.getLogger('debug')
 
 
-def split_string(to_split, list_join='', maxlen=1900):
+def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
     if isinstance(to_split, str):
         if len(to_split) < maxlen:
-            return to_split
+            return [to_split]
 
-        to_split = to_split.split(' ')
+        to_split = to_split.split(splitter)
         length = 0
         split = ''
         splits = []

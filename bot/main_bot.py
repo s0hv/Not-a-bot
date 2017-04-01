@@ -40,7 +40,7 @@ from bot.permissions import owner_only, parse_permissions
 from bot.exceptions import *
 from utils import gachiGASM, wolfram, memes
 from utils.search import Search
-from utils.utilities import write_playlist, read_playlist, empty_file, y_n_check
+from utils.utilities import write_playlist, read_playlist, empty_file, y_n_check, split_string
 
 
 def start(config, permissions):
@@ -106,6 +106,26 @@ def start(config, permissions):
             f.seek(0)
             json.dump(data, f, indent=4)
         await bot.send_message(msg.channel, "Battle.net account for %s was set." % msg.author.name)
+
+    @bot.command(name='commands', pass_context=True, ignore_extra=True)
+    async def bot_commands(ctx):
+        s = ''
+
+        seen = set()
+        commands = bot.commands.values()
+        commands = [seen.add(c.name) or c for c in commands if c.name not in seen]
+        del seen
+        commands = sorted(commands, key=lambda c: c.name)
+
+        for command in commands:
+            try:
+                s += '{}: level {}\n'.format(command.name, command.level)
+            except Exception as e:
+                print('[ERROR] Command info failed. %s' % e)
+
+        s = split_string(s, splitter='\n')
+        for string in s:
+            await bot.send_message(ctx.message.author, string)
 
     async def check_commands(commands, level, channel):
         if commands is None:

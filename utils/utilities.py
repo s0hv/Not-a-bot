@@ -182,3 +182,8 @@ def write_wav(stdout, filename):
             f.write(data)
 
     return filename
+
+
+def y_n_check(msg):
+    msg = msg.content.lower().strip()
+    return msg in ['y', 'yes', 'n', 'no']

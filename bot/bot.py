@@ -54,6 +54,12 @@ from bot.permissions import check_permission
 log = logging.getLogger('discord')
 
 
+class Command(commands.Command):
+    def __init__(self, name, callback, level=0, **kwargs):
+        super().__init__(name, callback, **kwargs)
+        self.level = level
+
+
 class Bot(commands.Bot):
     def __init__(self, command_prefix, config, permissions=None, aiohttp_client=None, **options):
         super().__init__(command_prefix, **options)
@@ -90,17 +96,16 @@ class Bot(commands.Bot):
         traceback.print_exception(type(exception), exception,
                                   exception.__traceback__, file=sys.stderr)
 
-    def owner_only(self, func):
-        @wraps(func)
-        async def _func_wrapper(*args, **kwargs):
-            user = _get_variable('message')
-            owner = self.owner
-            if not user or user == owner:
-                return await func(self, *args, **kwargs)
-            else:
-                raise exceptions.PermissionError('Only the owner can use this command')
+    def command(self, *args, **kwargs):
+        """A shortcut decorator that invokes :func:`command` and adds it to
+        the internal command list via :meth:`add_command`.
+        """
+        def decorator(func):
+            result = commands.command(*args, cls=Command, **kwargs)(func)
+            self.add_command(result)
+            return result
 
-        return _func_wrapper
+        return decorator
 
     async def say_timeout(self, message, channel, timeout=None):
         """
@@ -124,6 +129,15 @@ class Bot(commands.Bot):
             self.timeout_messages.append(message)
 
         return message
+
+    @staticmethod
+    def get_role_members(role, server):
+        members = []
+        for member in server.members:
+            if role in member.roles:
+                members.append(member)
+
+        return members
 
     async def process_commands(self, message):
         _internal_channel = message.channel
@@ -158,15 +172,16 @@ class Bot(commands.Bot):
         ctx = Context(**tmp)
         del tmp
 
-        if self.permissions:
-            try:
-                check_permission(ctx)
-            except Exception as e:
-                await self.on_command_error(e, ctx)
-                return
-
         if invoker in self.commands:
             command = self.commands[invoker]
+
+            if self.permissions:
+                try:
+                    check_permission(ctx, command)
+                except Exception as e:
+                    await self.on_command_error(e, ctx)
+                    return
+
             self.dispatch('command', command, ctx)
             try:
                 await command.invoke(ctx)

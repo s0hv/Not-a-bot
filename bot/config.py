@@ -52,6 +52,7 @@ class Config:
 
         self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, True)
 
+
         try:
             self.owner = str(self.config.get('Owner', 'OwnerID', fallback=None))
             int(self.owner)
@@ -99,6 +100,12 @@ class Config:
         except ValueError as e:
             print("[ERROR] %s. VolumeMultiplier value is not a number. VolumeMultiplier set to 0.01" % e)
             self.volume_multiplier = 0.01
+
+        try:
+            self.gachi = self.config.getboolean('MusicSettings', 'Gachi', fallback=False)
+        except ValueError as e:
+            print("[ERROR] %s. Gachi value is not boolean. Gachi set to off" % e)
+            self.gachi = False
 
         self.game = self.config.get('BotOptions', 'Game', fallback=None)
         self.sfx_game = self.config.get('BotOptions', 'SfxGame', fallback=None)

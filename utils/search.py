@@ -48,12 +48,12 @@ class Search:
         self.key = bot.config.google_api_key
         self.cx = self.bot.config.custom_search
 
-    @command(pass_context=True)
+    @command(pass_context=True, level=1)
     async def image(self, ctx, *, query):
         logger.debug('Image search query: {}'.format(query))
         return await self.search(ctx, query, True)
 
-    @command(pass_context=True)
+    @command(pass_context=True, level=1)
     async def google(self, ctx, *, query):
         logger.debug('Web search query: {}'.format(query))
         return await self.search(ctx, query)

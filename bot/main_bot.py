@@ -27,6 +27,7 @@ SOFTWARE.
 
 import json
 from datetime import datetime
+import re
 
 import discord
 from aiohttp import ClientSession
@@ -35,15 +36,17 @@ from validators import url as test_url
 from bot import audio
 from bot.bot import Bot
 from bot.globals import *
-from bot.permissions import owner_only
+from bot.permissions import owner_only, parse_permissions
+from bot.exceptions import *
 from utils import gachiGASM, wolfram, memes
 from utils.search import Search
-from utils.utilities import write_playlist, read_playlist, empty_file
+from utils.utilities import write_playlist, read_playlist, empty_file, y_n_check
 
 
 def start(config, permissions):
     client = ClientSession()
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
+    permissions.bot = bot
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
@@ -104,6 +107,106 @@ def start(config, permissions):
             json.dump(data, f, indent=4)
         await bot.send_message(msg.channel, "Battle.net account for %s was set." % msg.author.name)
 
+    async def check_commands(commands, level, channel):
+        if commands is None:
+            return
+
+        _commands = []
+        for command in commands:
+            if command.strip() == '':
+                continue
+
+            if command not in bot.commands:
+                raise BotValueError('Command %s not found' % command)
+
+            c = commands[command]
+            if c.level > level:
+                await bot.say_timeout('Cannot add command %s because commands requires level %s and yours is %s', channel, 120)
+            _commands.append(c.name)
+
+        return _commands
+
+    @bot.command(pass_context=True, level=5)
+    async def create_permissions(ctx, *args):
+        print(args, ctx)
+        user_permissions = ctx.user_permissions
+        args = ' '.join(args)
+        args = re.findall(r'([\w\d]+=[\w\d\s]+)(?= [\w\d]+=[\w\d\s]+|$)', args)  # Could be improve but I don't know how
+
+        kwargs = {}
+
+        for arg in args:
+            try:
+                k, v = arg.split('=')
+            except ValueError:
+                raise BotValueError('Value %s could not be parsed' % arg)
+
+            kwargs[k] = v.strip()
+
+        channel = ctx.message.channel
+        kwargs = parse_permissions(kwargs, user_permissions)
+        kwargs['whitelist'] = check_commands(kwargs['whitelist'], user_permissions.level, channel)
+        kwargs['blacklist'] = check_commands(kwargs['blacklist'], user_permissions.level, channel)
+
+        msg = 'Confirm the creation if a permission group with\ny/n'
+        await bot.say_timeout(msg, ctx.message.channel, 40)
+        msg = await bot.wait_for_message(timeout=30, author=ctx.message.author, channel=channel, check=y_n_check)
+
+        if msg is None or msg in ['n', 'no']:
+            return await bot.say_timeout('Cancelling', ctx.message.channel, 40)
+
+        bot.permissions.create_permissions_group(**kwargs)
+
+    @bot.command(pass_context=True, level=5)
+    async def set_permissions(ctx, group_name, *args):
+        group = bot.permissions.get_permission_group(group_name)
+        channel = ctx.message.channel
+        perms = ctx.user_permissions
+        if perms is None:
+            return
+
+        if group is None:
+            return await bot.say_timeout('Permission group %s not found' % group_name, channel, 60)
+
+        if group.level >= perms.level >= 0 and not perms.master_override:
+            raise BotException('Your level must be higher than the groups level')
+
+        if group.master_override and not perms.master_override:
+            raise BotException("You cannot set roles with master override on if you don't have it yourself")
+
+        u = ctx.message.mentions
+
+        users = []
+        if perms.master_override:
+            users = [(None, i) for i in u]
+        else:
+            for user in u:
+                users.append((bot.permissions.get_permissions(user.id), user))
+
+        for role in ctx.message.role_mentions:
+            usrs = bot.get_role_members(role, ctx.message.server)
+            for user in usrs:
+                if perms.master_override:
+                    users.append((None, user))
+                else:
+                    users.append((bot.permissions.get_permissions(user.id), user))
+
+        valid_users = []
+        for user_perms, user in users:
+            if perms.master_override:
+                valid_users.append(user)
+            elif 0 <= perms.level <= user_perms.level:
+                await bot.say('Cannot change permission of %s because your level is too low' % user.name)
+            else:
+                valid_users.append(user)
+
+        errors = bot.permissions.set_permissions(group, *valid_users)
+
+        for user, e in errors.items():
+            await bot.say('Could not change the permissions of %s because of an error. %s' % (user.name, e))
+
+        await bot.say('Permissions set for %s users' % len(valid_users))
+
     @bot.command(pass_context=True)
     async def ow_stats(ctx, battletag=None):
         """Gets your winrate in competitive and quick play"""
@@ -127,7 +230,7 @@ def start(config, permissions):
         calc = ' '.join([*args])
         await bot.send_message(ctx.message.channel, await wolfram.math(calc, client, config.wolfram_key))
 
-    @bot.command(pass_context=True, no_pm=True, aliases=['gachiGASM'], ignore_extra=True)
+    @bot.command(pass_context=True, no_pm=True, aliases=['gachiGASM'], ignore_extra=True, level=1)
     async def gachi(ctx, amount=1):
         """gachiGASM Now this is what I call music gachiGASM"""
         if amount <= 0:
@@ -161,7 +264,7 @@ def start(config, permissions):
             json.dump(data, f, indent=4)
 
     @bot.command(pass_context=True, ignore_extra=True)
-    async def spam(ctx):
+    async def twitchquote(ctx):
         """Random twitch quote from twitchquotes.com"""
         await bot.send_message(ctx.message.channel, await memes.twitch_poems(client))
 

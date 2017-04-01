@@ -23,31 +23,47 @@ SOFTWARE.
 """
 
 import os
+from os.path import join
 from pathlib import Path
+import shutil
 
 try:
     _wd = Path(__file__).parent.parent.__str__()
 except:
     _wd = os.getcwd()
 
-PLAYLISTS = os.path.join(_wd, 'data', 'playlists')
-AUTOPLAYLIST = os.path.join(PLAYLISTS, 'autoplaylist.txt')
-ADD_AUTOPLAYLIST = os.path.join(PLAYLISTS, 'add_autoplaylist.txt')
-DELETE_AUTOPLAYLIST = os.path.join(PLAYLISTS, 'delete_autoplaylist.txt')
-SFX_FOLDER = os.path.join(_wd, 'data', 'audio', 'sfx')
-TTS = os.path.join(_wd, 'data', 'audio', 'tts')
-CACHE = os.path.join(_wd, 'data', 'audio', 'cache')
+PLAYLISTS = join(_wd, 'data', 'playlists')
+AUTOPLAYLIST = join(PLAYLISTS, 'autoplaylist.txt')
+ADD_AUTOPLAYLIST = join(PLAYLISTS, 'add_autoplaylist.txt')
+DELETE_AUTOPLAYLIST = join(PLAYLISTS, 'delete_autoplaylist.txt')
+SFX_FOLDER = join(_wd, 'data', 'audio', 'sfx')
+TTS = join(_wd, 'data', 'audio', 'tts')
+CACHE = join(_wd, 'data', 'audio', 'cache')
+PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
+PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
+
+
+def _create_folder(path):
+    if not os.path.exists(path):
+        os.mkdir(path)
 
 
 def create_folders():
-    if not os.path.exists(os.path.join(_wd, 'data')):
-        os.mkdir(os.path.join(_wd, 'data'))
+    _create_folder(join(_wd, 'data'))
 
     if not os.path.exists(PLAYLISTS):
         print('[ERROR] Path %s does not exist' % PLAYLISTS)
         raise FileNotFoundError('Path %s does not exist' % PLAYLISTS)
 
-    if not os.path.exists(SFX_FOLDER):
-        os.mkdir(SFX_FOLDER)
+    _create_folder(SFX_FOLDER)
+
+    _create_folder(PERMISSIONS_FOLDER)
 
 create_folders()
+
+if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autoplaylist.txt')):
+    try:
+        shutil.copyfile(AUTOPLAYLIST, join(PLAYLISTS, '_autoplaylist.txt'))
+    except Exception as e:
+        print('[ERROR] Autoplaylist copying failed.\nReason: %s' % e)
+

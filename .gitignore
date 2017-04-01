@@ -1,9 +1,14 @@
 # User configs
 config/config.ini
-config/permissions.ini
+data/permissions/
 
-# Don't upload autoplaylist more than once
-data/playlists/
+# Autoplaylist setup
+data/playlists/autoplaylist.txt
+data/playlists/delete_autoplaylist.txt
+data/playlists/add_autoplaylist.txt
+data/playlists/AutoIT/
+data/playlists/k/
+data/playlists/playlists_backup/
 
 # Audio files
 data/audio/sfx/
@@ -20,6 +25,7 @@ yttest.py
 test.py
 sfxtest.py
 test.txt
+db.db
 
 # Auto-generated files
 battletags.json

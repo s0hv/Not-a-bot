@@ -46,6 +46,7 @@ from bot.exceptions import NoCachedFileException
 from bot.playlist import Playlist
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.song import Song
+from bot.permissions import command_usable
 from utils.utilities import mean_volume, get_cached_song
 
 logger = logging.getLogger('debug')
@@ -74,6 +75,7 @@ class MusicPlayer:
         self.voice = None  # Voice channel that this is connected to
         self.current = None  # Current song
         self.channel = None  # Channel where all the automated messages will be posted to
+        self.gachi = bot.config.gachi
         self.bot = bot
         self.audio_player = None  # Main audio loop. Gets set when summon is called in :create_audio_task:
         self.volume = self.bot.config.default_volume
@@ -167,6 +169,8 @@ class MusicPlayer:
                 users = list(filter(lambda x: not x.bot, users))
                 if not users:
                     await self.voice.disconnect()
+                    self.change_status(self.bot.config.game)
+                    self.voice = None
                     break
 
                 if self.playlist.peek() is None:
@@ -222,7 +226,7 @@ class MusicPlayer:
             await self.change_status(self.current.title)
             await self.playlist.download_next()
 
-            if not self.current.seek and random.random() < 0.01:
+            if self.gachi and not self.current.seek and random.random() < 0.01:
                 await self.prepare_right_version()
 
             self.current.seek = False
@@ -230,6 +234,9 @@ class MusicPlayer:
             self.right_version_playing.clear()
 
     async def prepare_right_version(self):
+        if self.gachi:
+            return
+
         self.bot.loop.call_soon_threadsafe(self.right_version.set)
 
         try:
@@ -362,15 +369,25 @@ class Audio:
 
             return options
 
-    @commands.command(pass_context=True, no_pm=True, aliases=['a'], ignore_extra=True)
+    @commands.command(pass_context=True, no_pm=True, aliases=['a'], ignore_extra=True, level=1)
     async def again(self, ctx):
+        """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
-    @commands.command(name='q', pass_context=True, no_pm=True, ignore_extra=True)
-    async def queue_now_playing(self, ctx):
+    @commands.command(name='q', pass_context=True, no_pm=True, ignore_extra=True, level=2)
+    async def queue_np(self, ctx):
+        """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
 
     async def _again(self, ctx, priority=False):
+        """
+        Args:
+            ctx: class Context
+            priority: If true song is added to the start of the playlist
+                
+        Returns:
+            None
+        """
         state = self.get_voice_state(ctx.message.server)
         if state is None or not state.is_playing():
             return
@@ -378,7 +395,7 @@ class Audio:
         await state.playlist.add_from_song(Song.from_song(state.current), priority)
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, level=1)
     async def seek(self, ctx, *, where: str):
         """
         If the video is cached you can seek it using this format h m s ms,
@@ -400,6 +417,26 @@ class Audio:
         await self._seek(ctx, state, current, seek_time, run_loops=run_loops)
 
     async def _seek(self, ctx, state, current, seek_command, options=None, run_loops=None):
+        """
+        
+        Args:
+            ctx: :class:`Context`
+            
+            state: :class:`MusicPlayer` The current MusicPlayer
+            
+            current: The song that we want to seek
+            
+            seek_command: A command that is passed to before_options
+            
+            options: passed to create_ffmpeg_player options
+            
+            run_loops: How many audio loops have we gone through. 
+                       If None current.player.run_loops is used.
+                       This is makes duration work after seeking.
+                        
+        Returns:
+            None
+        """
         try:
             file = get_cached_song(current.filename)
         except NoCachedFileException:
@@ -430,7 +467,7 @@ class Audio:
         state.current.player.start()
         state.current.seek = False
 
-    @commands.command(pass_context=True, ignore_extra=True, no_pm=True)
+    @commands.command(pass_context=True, ignore_extra=True, no_pm=True, level=2)
     async def speed(self, ctx, value: str):
         channel = ctx.message.channel
         try:
@@ -517,7 +554,7 @@ class Audio:
         return song_name, metadata
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(pass_context=True, no_pm=True, level=1)
     async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search youtube for them"""
@@ -534,13 +571,16 @@ class Audio:
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
         return await state.playlist.add_song(song_name, maxlen=ctx.user_permissions.max_pl_len, **metadata)
 
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(pass_context=True, no_pm=True, level=2)
     async def play_playlist(self, ctx, *, playlist):
+        """Queue a saved playlist"""
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.add_from_playlist(playlist, ctx.message.channel)
 
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, level=1)
     async def search(self, ctx, *, name):
+        """Search for songs. Default site is youtube
+        Supported sites: -yt Youtube, -sc Soundcloud"""
         state = self.get_voice_state(ctx.message.server)
 
         if name.startswith('-yt '):
@@ -559,7 +599,7 @@ class Audio:
             if not success:
                 return
 
-    @commands.command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'])
+    @commands.command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'], level=1)
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
         summoned_channel = ctx.message.author.voice_channel
@@ -579,7 +619,7 @@ class Audio:
         return True
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(pass_context=True, no_pm=True, level=2)
     async def stereo(self, ctx, *, song_name: str):
         """
         Works the same way !play does
@@ -591,7 +631,7 @@ class Audio:
         options = {'filter': 'apulsator'}
         await self.play_song(ctx, song_name, **options)
 
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(pass_context=True, no_pm=True, level=4)
     async def clear(self, ctx, *, items):
         """
         Clear the selected indexes from the playlist.
@@ -615,7 +655,7 @@ class Audio:
         await state.playlist.clear(index)
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True, no_pm=True, aliases=['vol'])
+    @commands.command(pass_context=True, no_pm=True, aliases=['vol'], level=1)
     async def volume(self, ctx, value: int=-1):
         """
         Sets the volume of the currently playing song.
@@ -647,7 +687,7 @@ class Audio:
                                        ctx.message.channel, state.current.duration)
 
     @commands.cooldown(4, 4)
-    @commands.command(name='playnow', pass_context=True, no_pm=True)
+    @commands.command(name='playnow', pass_context=True, no_pm=True, level=2)
     async def play_now(self, ctx, *, song_name: str):
         """
         Sets a song to the priority queue which is played as soon as possible
@@ -674,7 +714,7 @@ class Audio:
             player.pause()
 
     @commands.cooldown(1, 60)
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, level=1)
     async def save_playlist(self, ctx, *name):
         if name:
             name = ' '.join(name)
@@ -691,10 +731,11 @@ class Audio:
             player = state.player
             player.resume()
 
-    @commands.command(name='bpm', pass_context=True, no_pm=True, ignore_extra=True)
-    async def get_bpm(self, ctx):
+    @commands.command(name='bpm', pass_context=True, no_pm=True, ignore_extra=True, level=1)
+    async def bpm(self, ctx):
+        """Gets the currently playing songs bpm using aubio"""
         if not aubio:
-            return
+            return await self.bot.say_timeout('BPM is not supported', ctx.message.channel, 100)
 
         state = self.get_voice_state(ctx.message.server)
         song = state.current
@@ -762,7 +803,7 @@ class Audio:
             os.remove(tempfile)
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(pass_context=True, no_pm=True, level=1)
     async def shuffle(self, ctx):
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.shuffle()
@@ -797,7 +838,7 @@ class Audio:
         except Exception as e:
             print('[ERROR] Error while stopping voice.\n%s' % e)
 
-    @commands.command(pass_context=True, no_pm=True, aliases=['stop1'])
+    @commands.command(pass_context=True, no_pm=True, aliases=['stop1'], level=1)
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
@@ -810,7 +851,7 @@ class Audio:
         self.clear_cache()
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'])
+    @commands.command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'], level=1)
     async def skip(self, ctx):
         """Skips the current song"""
         state = self.get_voice_state(ctx.message.server)
@@ -824,7 +865,8 @@ class Audio:
     @commands.cooldown(1, 3)
     @commands.command(pass_context=True, no_pm=True)
     async def playlist(self, ctx, index=None):
-        """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song"""
+        """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song
+        Usage !playlist or !playlist [song index]"""
         state = self.get_voice_state(ctx.message.server)
         playlist = list(state.playlist.playlist)
         channel = ctx.message.channel
@@ -884,10 +926,12 @@ class Audio:
 
         return await self.bot.send_message(ctx.message.channel, 'The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
-    @commands.command(pass_context=True, no_pm=True, ignore_extra=True)
+    @commands.command(pass_context=True, no_pm=True, ignore_extra=True, level=2)
     async def ds(self, ctx):
-        await ctx.invoke(self.skip)
-        await ctx.invoke(self.delete_from_ap)
+        perms = ctx.user_permissions
+        if command_usable(perms, self.skip) and command_usable(perms, self.delete_from_ap):
+            await ctx.invoke(self.skip)
+            await ctx.invoke(self.delete_from_ap)
 
     @staticmethod
     def list_length(state, index=None):
@@ -911,7 +955,7 @@ class Audio:
         else:
             await self.bot.send_message(ctx.message.channel, 'No videos are currently playing')
 
-    @commands.command(name='volm', pass_context=True, no_pm=True)
+    @commands.command(name='volm', pass_context=True, no_pm=True, level=1)
     async def vol_multiplier(self, ctx, value=None):
         state = self.get_voice_state(ctx.message.server)
         if not value:
@@ -930,7 +974,7 @@ class Audio:
         await self.bot.send_message(ctx.message.channel, 'Link to **{0.title}**: {0.webpage_url}'.format(current))
 
     @commands.cooldown(1, 4)
-    @commands.command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'])
+    @commands.command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], level=2)
     async def delete_from_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if not name:
@@ -948,7 +992,7 @@ class Audio:
         await state.say('Added entry %s to the deletion list' % ' '.join(name), 30, ctx.message.channel)
 
     @commands.cooldown(1, 4)
-    @commands.command(name='add', pass_context=True, no_pm=True)
+    @commands.command(name='add', pass_context=True, no_pm=True, level=2)
     async def add_to_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if name:
@@ -983,7 +1027,7 @@ class Audio:
         print('[INFO] Added entry %s' % name)
         await state.say('Added entry %s' % name, 30, ctx.message.channel)
 
-    @commands.command(pass_context=True, no_pm=True)
+    @commands.command(pass_context=True, no_pm=True, level=1)
     async def autoplaylist(self, ctx, option: str):
         """Set the autoplaylist on or off"""
         state = self.get_voice_state(ctx.message.server)
@@ -1024,60 +1068,3 @@ class Audio:
                     os.remove(os.path.join(cachedir, file))
                 except Exception:
                     pass
-
-
-# Timer class that calculates the duration the song has been playing. Not currently used
-class Timer:
-    def __init__(self):
-        self.pause_time = 0
-        self.start_time = 0
-        self.dur = 0
-        self.paused = False
-
-    def start(self):
-        self.start_time = time.time()
-
-    def pause(self):
-        self.pause_time += time.time()
-        self.paused = True
-
-    def resume(self):
-        self.pause_time = time.time() - self.pause_time
-        self.paused = False
-
-    def stop(self):
-        self.pause_time = 0
-        self.start_time = 0
-        self.dur = 0
-        self.paused = False
-
-    def on_seek(self, seek_string):
-        seek_time = time.strptime(seek_string.split('.')[0], '-ss %H:%M:%S')
-        h, m, s = seek_time[3:6]  # Take only hours, minutes and seconds
-        d = datetime.datetime(1970, 1, 1, h, m, s, 0, datetime.timezone.utc)
-        self.pause_time = 0
-        self.paused = False
-        self.start_time = time.time()
-        self.dur = calendar.timegm(d.utctimetuple())
-
-    def restart(self):
-        self.pause_time = 0
-        self.start_time = time.time()
-        self.dur = 0
-        self.paused = False
-
-    @property
-    def duration_seconds(self):
-        pause_time = self.pause_time
-        if self.paused:
-            pause_time = time.time() - pause_time
-        return time.time() - self.start_time - pause_time + self.dur
-
-    @property
-    def duration(self):
-        duration = self.duration_seconds
-        return datetime.datetime.fromtimestamp(duration, datetime.timezone.utc)
-
-    @staticmethod
-    def from_duration(duration):
-        return datetime.datetime.fromtimestamp(duration, datetime.timezone.utc)

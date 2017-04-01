@@ -22,136 +22,301 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import configparser
-import os
-
-from utils import utilities
+import collections
 from functools import wraps
-from discord.ext.commands.bot import _get_variable
-from bot import exceptions
+
+from peewee import *
+from playhouse.pool import SqliteExtDatabase
+
+from bot.exceptions import *
+from bot.globals import PERMISSIONS
+
+database = SqliteExtDatabase(PERMISSIONS, threadlocals=True)
 
 
 def owner_only(func):
     @wraps(func)
     async def _func_wrapper(ctx, *args, **kwargs):
-        user = _get_variable('message')
+        msg = ctx.message
         owner = ctx.bot.owner
-        if not user or user.author.id == owner:
+        if msg.author.id == owner:
             return await func(ctx, *args, **kwargs)
         else:
-            raise exceptions.PermissionError('Only the owner can use this command')
+            raise PermissionError('Only the owner can use this command')
 
     return _func_wrapper
 
 
-def check_permission(ctx):
+def command_usable(permissions, command):
+    try:
+        if permissions.whitelist is not None:
+            if command.name in permissions.whitelist.split(', '):
+                return True
+            else:
+                raise PermissionError("You don't have the permission to use the command "
+                                      "%s because it's not on your whitelist" % command.name)
+
+        elif permissions.blacklist is not None:
+            if command.name in permissions.blacklist.split(', '):
+                raise PermissionError("You don't have the permission to use the command "
+                                      "%s because it's blacklisted for you" % command.name)
+
+    except AttributeError:
+        pass
+
+    if 0 <= permissions.level < command.level:
+        raise LevelPermissionException(command.level, permissions.level, "You don't have permission to use this command")
+
+    return True
+
+
+def check_permission(ctx, command):
     if ctx is None:
-        raise exceptions.BotValueError('Error while processing command. Extra info in cmd',
-                                       'No context class found. pass_context needs to be True')
+        raise BotValueError('Error while processing command. Extra info in cmd',
+                            'No context class found. pass_context needs to be True')
 
     user_permissions = ctx.user_permissions
     if user_permissions.master_override:
         return True
 
-    name = ctx.invoked_with
-
-    if not user_permissions.command_usable(name):
-        raise exceptions.PermissionError("You don't have the permission to use the command %s" % name)
+    command_usable(user_permissions, command)
 
     return True
 
 
+def database_transaction(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        database.connect()
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            print('[ERROR] Database transaction error\n%s' % e)
+        finally:
+            database.close()
+
+    return wrapper
+
+
+def parse_permissions(d, perms):
+    keys = {'name': None, 'ban_commands': False, 'master_override': False,
+            'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,
+            'edit_permissions': False, 'level': 0, 'whitelist': None, 'blacklist': None}
+
+    true = ['on', 'true', 'yes']
+    false = ['off', 'false', 'no']
+
+    def valid_int_string(s, non_int, negative):
+        try:
+            s = int(s)
+        except ValueError:
+            raise InvalidValueException(s, non_int)
+
+        if s < 0:
+            raise InvalidValueException(s, negative)
+
+        return s
+
+    def valid_bool_str(s, name):
+        if s in true:
+            return True
+
+        if s in false:
+            return False
+
+        raise InvalidValueException(s, '{} value must be {} or {}'.format(name, ', '.join(true), ', '.join(false)))
+
+    for k, v in d.items():
+        if k not in keys:
+            raise InvalidArgumentException('Argument %s is invalid. To see valid arguments see !arguments' % k)
+
+        if k == 'master_override':
+            if v.lower() in true and not perms.master_override:
+                raise InvalidPermissionsException('You can only set master_override on if your role has it set on')
+
+        if k == 'level':
+            v = valid_int_string(v, 'Level takes an integer as the parameter',
+                                    'Level must be a positive integer')
+
+            if v > perms.level >= 0:
+                raise InvalidPermissionsException('You can only create permission with access level equal or lower than your level')
+
+        if k == 'playlists':
+            v = valid_bool_str(v, 'Playlist value')
+
+        if k == 'max_playlist_length':
+            v = valid_int_string(v, 'Playlist length takes an integer as the parameter',
+                                    'Playlist length must be a positive integer')
+
+        if k == 'edit_autoplaylist':
+            v = valid_bool_str(v, 'edit_autoplaylist')
+            if 10 > perms.level >= 0 and v:
+                raise InvalidLevelException(10, 'To set edit_autoplaylist to true level must be at least 10')
+
+        if k == 'edit_permissions':
+            v = valid_bool_str(v, 'edit_permissions')
+            if 7 > perms.level >= 0 and v:
+                raise InvalidLevelException(7, 'To set edit_permissions to true level must be at least 7')
+
+        if k == 'ban_commands':
+            v = valid_bool_str(v, 'ban_commands')
+            if 7 > perms.level >= 0 and v:
+                raise InvalidLevelException(7, 'To set ban_commands to true level must be at least 7')
+
+        if k == 'blacklist' or k == 'whitelist':
+            v = v.split(' ')
+
+        keys[k] = v
+
+    return keys
+
+
+class UserCache(collections.MutableMapping):
+    def __init__(self, *args, maxlen=100, **kwargs):
+        self.maxlen = maxlen
+        self.d = dict(*args, **kwargs)
+
+    def __iter__(self):
+        return iter(self.d)
+
+    def __len__(self):
+        return len(self.d)
+
+    def __getitem__(self, k):
+        return self.d[k]
+
+    def __delitem__(self, k):
+        del self.d[k]
+
+    def __setitem__(self, k, v):
+        if k not in self and len(self) >= self.maxlen:
+            self.popitem()
+
+        self.d[k] = v
+
+
 class Permissions:
-    def __init__(self, owner):
-        self.config = configparser.ConfigParser()
-        self.config.read(os.path.join(os.getcwd(), 'config', 'permissions.ini'), encoding='utf-8')
-        self.values = self.config.keys()
+    @database_transaction
+    def __init__(self, owner, bot=None, sfx_bot=None):
         self.owner = owner
-        self.groups = {s: PermissionGroup(s, **dict(self.config.items(s))) for s in self.config.sections()}
-        self.groups['Owner'].master_override = True  # Owner has master override
+        self.bot = bot
+        self.sfx_bot = sfx_bot
+        self.database = database
+        self.groups = {}
+        self.user_cache = UserCache(maxlen=30)
+        self.default_group = None
+        self.owner_group = None
 
-    def get_permissions(self, id=None, role=None):
-        if self.owner == id:
-            return self.groups['Owner']
+        for group in PermissionGroupTable.select():
+            self.groups[group.id] = group
+            if group.name == 'Owner':
+                self.owner_group = group.id
 
-        if id is None and role is None:
-            return self.groups['Default']
+            elif group.name == 'Default':
+                    self.default_group = group.id
 
-        for group in self.groups:
-            if self.groups[group].id_in_group(id):
-                return self.groups[group]
+    @database_transaction
+    def get_permissions(self, id=None):
+        if id is None:
+            return self.groups[self.default_group]
 
-        for group in self.groups:
-            if self.groups[group].role_in_group(role):
-                return self.groups[group]
+        if self.owner == id or self.bot.user.id == id or (self.sfx_bot is not None and self.sfx_bot.user.id == id):
+            return self.groups[self.owner_group]
 
-        return self.groups['Default']
+        if id in self.user_cache:
+            return self.user_cache[id]
+
+        permissions = self.groups[self.default_group]
+
+        try:
+            user = User.get(User.user_id == id)
+            permissions = PermissionGroupTable.get(PermissionGroupTable.id == user.group)
+            self.user_cache[id] = permissions
+        except DoesNotExist:
+            pass
+
+        return permissions
+
+    @database_transaction
+    def set_permissions(self, permissions, *users):
+        errors = {}
+        for user in users:
+            id = user.id
+            with database.atomic() as txn:
+                try:
+                    u, c = User.get_or_create(user_id=id)
+                    u.group = permissions.id
+                    u.save()
+                except Exception as e:
+                    errors[user] = e
+                    txn.rollback()
+
+        return errors
+
+    @database_transaction
+    def get_permission_group(self, name):
+        with database.atomic() as txn:
+            try:
+                group = PermissionGroupTable.get(name=name)
+            except Exception as e:
+                print('[ERROR] Database error. %s' % e)
+                txn.rollback()
+                return
+
+            return group
+
+    @database_transaction
+    def create_permissions_group(self, **kwargs):
+        with database.atomic() as txn:
+            try:
+                group = PermissionGroupTable.create(**kwargs)
+            except Exception as e:
+                txn.rollback()
+                raise BotValueError('Error creating permission group.\n%s' % e)
+
+            return group
 
 
-class PermissionGroup:
-    __slots__ = ['name', 'config', 'master_override', 'playlists', 'max_pl_len',
-                 'playnow', 'edit_autoplaylist', 'whitelist', 'blacklist', 'users',
-                 'roles']
-
-    def __init__(self, name: str, master_override=False, **kwargs):
-        self.name = name
-        self.config = configparser.ConfigParser()
-        self.config.read_dict({name: kwargs})
-        self.master_override = master_override
-        self.playlists = self.get_value('Playlists', bool, False)
-        self.max_pl_len = self.get_value('MaxPlaylistSize', int, 10)
-        self.playnow = self.get_value('PlayNow', bool, False)
-        self.edit_autoplaylist = self.get_value('EditAutoplaylist', bool, False)
-        self.blacklist = self._split(self.get_value('Blacklist', fallback=[]))
-        self.whitelist = self._split(self.get_value('Whitelist', fallback=[]))
-        self.users = self._split(self.get_value('UserList', fallback=[]))
-        self.roles = self._split(self.get_value('RoleList', fallback=[]))
-
-    def get_value(self, opt, opt_type=None, fallback=None):
-        return utilities.get_config_value(self.config, self.name, opt, opt_type, fallback)
-
-    # If s is string this splits it. Otherwise it does nothing
-    def _split(self, s):
-        if isinstance(s, str):
-            return s.split(' ')
-
-        else:
-            return s
-
-    def id_in_group(self, id):
-        return id in self.users
-
-    def role_in_group(self, role):
-        return role in self.roles
-
-    def command_usable(self, command):
-        if self.whitelist:
-            if command in self.whitelist:
-                return True
-            else:
-                return False
-
-        elif self.blacklist:
-            if command in self.blacklist:
-                return False
-
-        return True
+class BaseModel(Model):
+    class Meta:
+        database = database
 
 
+class PermissionGroupTable(BaseModel):
+    name = CharField(unique=True)                    # Name of the group
+    ban_commands = BooleanField(default=False)       # Ban the use of all commands
+    master_override = BooleanField(default=False)    # Grants access to all everything
+    playlists = BooleanField(default=True)           # Can queue playlists
+    max_playlist_length = IntegerField(default=10)   # How many songs will be taken from the queued playlist max
+    edit_autoplaylist = BooleanField(default=False)  # Can commit autoplaylist changes
+    edit_permissions = BooleanField(default=False)   # Can edit and modify permission groups
+    level = IntegerField(default=0)                  # The level this group grants
+    whitelist = TextField(default=None, null=True)   # Whitelist of commands. Has priority over blacklist.
+    blacklist = TextField(default=None, null=True)   # Blacklist of commands
 
-class Group:
-    __slots__ = ['name', 'permissions', 'role_list', 'user_list']
+    class Meta:
+        db_table = 'permissiongroup'
 
-    def __init__(self, name: str, master_override=False, **kwargs):
-        self.name = name
-        self.user_list = kwargs.pop('UserList', '').split(' ')
-        self.role_list = kwargs.pop('RoleList', '').split(' ')
-        self.permissions = PermissionGroup(name, master_override, **kwargs)
 
-    def check_role(self, id_or_role):
-        if id_or_role in self.user_list:
-            return True
-        elif id_or_role in self.role_list:
-            return True
+class User(BaseModel):
+    user_id = CharField(unique=True)
+    group = ForeignKeyField(PermissionGroupTable, related_name='to_permission', null=True)
 
-        return False
+
+def create_default_permissions():
+    try:
+        database.connect()
+        database.create_tables([PermissionGroupTable, User])
+
+        with database.transaction():
+            PermissionGroupTable.create(name='Owner', master_override=True, max_playlist_length=-1,
+                                        level=-1, edit_autoplaylist=True, edit_permissions=True)
+
+            PermissionGroupTable.create(name='Default')
+
+    except OperationalError:
+        pass
+    finally:
+        database.close()
+
+create_default_permissions()

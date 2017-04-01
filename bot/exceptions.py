@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+
 class BotException(Exception):
     def __init__(self, message, cmd_message: str=None):
         self._message = message
@@ -45,6 +46,49 @@ class PermissionError(BotException):
     @property
     def message(self):
         return "You don't have the permission to use this command. \nReason: " + self._message
+
+
+class InvalidLevelException(BotException):
+    def __init__(self, required, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._required = required
+
+    @property
+    def message(self):
+        return ("Required level is %s.\n" % self._required) + self._message
+
+
+class LevelPermissionException(BotException):
+    def __init__(self, required, current, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._required = required
+        self._current = current
+
+    @property
+    def message(self):
+        return "%s\nRequired level to use this command is %s and your level is %s" % (self._message, self._required, self._current)
+
+
+class InvalidArgumentException(BotException):
+    @property
+    def message(self):
+        return "Invalid argument.\n" + self._message
+
+
+class InvalidPermissionsException(BotException):
+    @property
+    def message(self):
+        return self._message
+
+
+class InvalidValueException(BotException):
+    def __init__(self, val, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._val = val
+
+    @property
+    def message(self):
+        return ('The given value "%s" is invalid.\n' % self._val) + self._message
 
 
 class BotValueError(BotException):

@@ -98,18 +98,3 @@ class TimeoutMessage:
                 self.deletion_task.cancel()
         except:
             pass
-
-
-class Message(discord.Message):
-    __slots__ = ['user_permissions']
-
-    def __init__(self, message):
-        kwargs = vars(message)
-        super().__init__(**kwargs)
-        self.user_permissions = None
-
-    def _set_permissions(self, name):
-        self.user_permissions = name
-
-    def _get_permissions(self):
-        return self.user_permissions

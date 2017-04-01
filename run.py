@@ -64,7 +64,7 @@ def main():
         sfx_bot = None
 
     if sfx_bot is not None:
-        sfx_bot = Process(target=sfx_bot.start, args=(config, permissions))
+        sfx_bot = sfx_bot.SfxBot(config, permissions)
         print('[INFO] Sfx bot starting up')
         sfx_bot.start()
 

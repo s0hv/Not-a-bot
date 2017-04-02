@@ -131,7 +131,7 @@ def start(config, permissions):
         if commands is None:
             return
 
-        _commands = []
+        _commands = set()
         for command in commands:
             if command.strip() == '':
                 continue
@@ -142,9 +142,9 @@ def start(config, permissions):
             c = commands[command]
             if c.level > level:
                 await bot.say_timeout('Cannot add command %s because commands requires level %s and yours is %s', channel, 120)
-            _commands.append(c.name)
+            _commands.add(c.name)
 
-        return _commands
+        return ', '.join(_commands)
 
     @bot.command(pass_context=True)
     async def permission_options(ctx):

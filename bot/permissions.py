@@ -48,15 +48,18 @@ def owner_only(func):
 
 
 def command_usable(permissions, command):
+    if permissions.ban_commands:
+        return PermissionError("You don't have the permission to use the command "
+                               "%s because you have all commands blacklisted" % command.name)
     try:
-        if permissions.whitelist is not None:
+        if permissions.whitelist is not None and len(permissions.whitelist) > 1:
             if command.name in permissions.whitelist.split(', '):
                 return True
             else:
                 raise PermissionError("You don't have the permission to use the command "
                                       "%s because it's not on your whitelist" % command.name)
 
-        elif permissions.blacklist is not None:
+        elif permissions.blacklist is not None and len(permissions.whitelist.strip()) > 1:
             if command.name in permissions.blacklist.split(', '):
                 raise PermissionError("You don't have the permission to use the command "
                                       "%s because it's blacklisted for you" % command.name)

@@ -183,7 +183,7 @@ class Playlist:
             if 'entries' in info:
                 entries = info['entries']
                 size = len(entries)
-                if size > maxlen:  # Max playlist size
+                if size > maxlen >= 0:  # Max playlist size
                     await self.say('Playlist is too big. Max size is %s' % maxlen)
                     return
 

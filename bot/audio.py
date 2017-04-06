@@ -552,8 +552,8 @@ class Audio:
         logger.debug('Parse play returned {0}, {1}'.format(song_name, metadata))
         return song_name, metadata
 
-    @commands.cooldown(4, 4)
     @command(pass_context=True, no_pm=True, level=1)
+    @commands.cooldown(4, 4)
     async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search youtube for them"""
@@ -568,7 +568,7 @@ class Audio:
                 return
 
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
-        return await state.playlist.add_song(song_name, maxlen=ctx.user_permissions.max_pl_len, **metadata)
+        return await state.playlist.add_song(song_name, maxlen=ctx.user_permissions.max_playlist_length, **metadata)
 
     @command(pass_context=True, no_pm=True, level=2)
     async def play_playlist(self, ctx, *, playlist):
@@ -700,7 +700,7 @@ class Audio:
 
         song_name, metadata = await self._parse_play(song_name, ctx)
         await state.playlist.add_song(song_name, priority=True,
-                                      maxlen=ctx.user_permission.max_pl_len,
+                                      maxlen=ctx.user_permission.max_playlist_length,
                                       **metadata)
 
     @commands.cooldown(4, 4)

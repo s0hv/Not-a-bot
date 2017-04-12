@@ -155,7 +155,7 @@ class Playlist:
 
             info = await self.downloader.extract_info(self.bot.loop, url=url, download=False)
             fname = self.downloader.safe_ytdl.prepare_filename(info)
-            song = Song(playlist=self, filename=fname)
+            song = Song(playlist=self, filename=fname, config=self.bot.config)
             song.info_from_dict(**info)
             await self._append_song(song, priority)
 
@@ -211,7 +211,7 @@ class Playlist:
                             await self.say('Failed to process %s' % entry.get('title', entry['id']))
                         continue
 
-                    song = Song(playlist=self, **metadata)
+                    song = Song(playlist=self, config=self.bot.config, **metadata)
                     song.info_from_dict(**info)
 
                     if not priority:
@@ -326,7 +326,7 @@ class Playlist:
         if song is None:
             return
 
-        song = Song(self, webpage_url=song)
+        song = Song(self, webpage_url=song, config=self.bot.config)
         print('[INFO] Downloading %s' % song.webpage_url)
         await song.download()
         await song.on_ready.wait()

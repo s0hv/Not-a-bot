@@ -33,9 +33,9 @@ class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'uploader',
                  'playlist', 'seek', 'success', 'filename', 'before_options',
                  'options', 'dl_folder', '_downloading', 'on_ready', 'player',
-                 'logger', 'bpm']
+                 'logger', 'bpm', 'config']
 
-    def __init__(self, playlist=None, filename=None, **kwargs):
+    def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')
         self.url = kwargs.pop('url', 'None')
         self.webpage_url = kwargs.pop('webpage_url', None)
@@ -45,6 +45,7 @@ class Song:
         self.playlist = playlist
         self.seek = False
         self.success = False
+        self.config = config
         self.filename = filename
         self.before_options = kwargs.pop('before_options', '')
         if '-nostdin' not in self.before_options:
@@ -124,13 +125,18 @@ class Song:
                     self.success = True
                     return
 
+            dl = self.config.download
             logger.debug('Getting info and downloading {}'.format(self.webpage_url))
-            info = await self.playlist.downloader.extract_info(loop, url=self.webpage_url)
+            info = await self.playlist.downloader.extract_info(loop, url=self.webpage_url, download=dl)
             logger.debug('Got info')
 
             self.info_from_dict(**info)
             print('[INFO] Downloaded', self.webpage_url)
-            self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(info)
+            if dl:
+                self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(info)
+            else:
+                self.filename = self.url
+
             logger.debug('Filename set to {}'.format(self.filename))
             self.success = True
             return

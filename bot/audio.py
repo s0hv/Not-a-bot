@@ -439,9 +439,10 @@ class Audio:
         try:
             file = get_cached_song(current.filename)
         except NoCachedFileException:
-            await self.bot.send_message(ctx.message.channel, "Cannot seek songs that haven't been cached")
-            current.seek = False
-            return
+            pass
+            #await self.bot.send_message(ctx.message.channel, "Cannot seek songs that haven't been cached")
+            #current.seek = False
+            #return
 
         if options is None:
             options = current.options
@@ -456,7 +457,7 @@ class Audio:
         volume = current.player.volume
         current.player.stop()
 
-        new_player = state.voice.create_ffmpeg_player(file, after=state.on_stop,
+        new_player = state.voice.create_ffmpeg_player(current.filename, after=state.on_stop,
                                                       before_options=before_options,
                                                       options=options,
                                                       run_loops=run_loops)
@@ -554,7 +555,7 @@ class Audio:
 
     @command(pass_context=True, no_pm=True, level=1)
     @commands.cooldown(4, 4)
-    async def play(self, ctx, *, song_name: str):
+    async def play1(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search youtube for them"""
         return await self.play_song(ctx, song_name)

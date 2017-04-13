@@ -58,14 +58,9 @@ def start(config, permissions):
 
     @bot.event
     async def on_member_join(member):
-        channel = bot.get_channel(302174140230664196)
+        channel = bot.get_channel('302174140230664196')
         if channel is not None:
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:301436540968501248> {}".format(member.mention))
-
-    @owner_only
-    @bot.command(pass_context=True)
-    async def test(ctx):
-        await bot.say('<:gachiGASM:301436540968501248> {}'.format(ctx))
 
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:

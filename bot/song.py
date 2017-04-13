@@ -93,39 +93,40 @@ class Song:
         self._downloading = True
         logger.debug('Started downloading %s' % self.long_str())
         try:
-            if not os.path.exists(self.dl_folder):
-                print('[INFO] Making directory %s' % self.dl_folder)
-                os.makedirs(self.dl_folder)
-                logger.debug('Created dir {}'.format(self.dl_folder))
-
-            if self.filename is not None and os.path.exists(self.filename):
-                self.success = True
-                return
-
-            check_dl = False
-            if self.id is not None:
-                fdir = os.listdir(self.dl_folder)
-                for f in fdir:
-                    if self.id in f:
-                        check_dl = True
-                        break
-
+            dl = self.config.download
             loop = self.playlist.bot.loop
-            if check_dl and self.filename is None:
-                logger.debug('Getting and checking info for: {}'.format(self))
-                info = await self.playlist.downloader.safe_extract_info(loop, url=self.webpage_url, download=False)
-                logger.debug('Got info')
-                self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(info)
-                logger.debug('Filename set to {}'.format(self.filename))
+            if dl:
+                if not os.path.exists(self.dl_folder):
+                    print('[INFO] Making directory %s' % self.dl_folder)
+                    os.makedirs(self.dl_folder)
+                    logger.debug('Created dir {}'.format(self.dl_folder))
 
-            if self.filename is not None:
-                if os.path.exists(self.filename):
-                    print('[INFO] File exists for %s' % self.title)
-                    logger.debug('File exists for %s' % self.title)
+                if self.filename is not None and os.path.exists(self.filename):
                     self.success = True
                     return
 
-            dl = self.config.download
+                check_dl = False
+                if self.id is not None:
+                    fdir = os.listdir(self.dl_folder)
+                    for f in fdir:
+                        if self.id in f:
+                            check_dl = True
+                            break
+
+                if check_dl and self.filename is None:
+                    logger.debug('Getting and checking info for: {}'.format(self))
+                    info = await self.playlist.downloader.safe_extract_info(loop, url=self.webpage_url, download=False)
+                    logger.debug('Got info')
+                    self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(info)
+                    logger.debug('Filename set to {}'.format(self.filename))
+
+                if self.filename is not None:
+                    if os.path.exists(self.filename):
+                        print('[INFO] File exists for %s' % self.title)
+                        logger.debug('File exists for %s' % self.title)
+                        self.success = True
+                        return
+
             logger.debug('Getting info and downloading {}'.format(self.webpage_url))
             info = await self.playlist.downloader.extract_info(loop, url=self.webpage_url, download=dl)
             logger.debug('Got info')

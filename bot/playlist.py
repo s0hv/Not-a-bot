@@ -73,6 +73,7 @@ class Playlist:
                 return
 
             if not song.success:
+                print('[INFO] downloading from next_song')
                 await song.download()
 
             return song
@@ -318,8 +319,8 @@ class Playlist:
             logger.debug('Song appended. Name: {}'.format(song.webpage_url))
             self.bot.loop.call_soon_threadsafe(self.not_empty.set)
         else:
-            self.bot.loop.call_soon_threadsafe(self.not_empty.set)
             self.playlist.append(song)
+            self.bot.loop.call_soon_threadsafe(self.not_empty.set)
 
     async def get_from_autoplaylist(self):
         song = self.get_random_song('autoplaylist')

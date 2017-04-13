@@ -41,13 +41,12 @@ from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.bot import _get_variable
 from discord.ext.commands.view import StringView
 
-"""
 try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 except ImportError:
     pass
-"""
+
 
 from bot import exceptions
 from bot.message import TimeoutMessage
@@ -65,7 +64,7 @@ class Command(commands.Command):
 class Bot(commands.Bot):
     def __init__(self, command_prefix, config, permissions=None, aiohttp_client=None, **options):
         super().__init__(command_prefix, **options)
-        log.info('Using loop {}'.format(self.loop))
+        log.debug('Using loop {}'.format(self.loop))
         self.aiohttp_client = aiohttp_client
         self.config = config
         self.permissions = permissions

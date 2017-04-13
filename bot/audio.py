@@ -129,6 +129,8 @@ class MusicPlayer:
             self.current = await self.playlist.next_song()
             if self.current is not None:
                 logger.debug(str(self.current.__dict__))
+            else:
+                logger.debug('Current is None')
 
         except asyncio.TimeoutError:
             logger.debug('Got TimeoutError. adding_songs = {}'.format(self.playlist.adding_songs))
@@ -174,19 +176,27 @@ class MusicPlayer:
                     break
 
                 if self.playlist.peek() is None:
-                    next_song = await self._wait_for_next_song()
-                    logger.debug('Next song is {}'.format(next_song))
-                    if next_song is None:
+                    if self.autoplaylist:
+                        self.current = await self.playlist.get_from_autoplaylist()
+                    else:
+                        await self.playlist.not_empty.wait()
                         continue
-
                 else:
                     self.current = await self.playlist.next_song()
 
                 if self.current is None:
                     continue
 
+                logger.debug('Next song is {}'.format(self.current))
                 logger.debug('Waiting for dl')
-                await self.current.on_ready.wait()
+
+                try:
+                    await asyncio.wait_for(self.current.on_ready.wait(), timeout=6,
+                                           loop=self.bot.loop)
+                except asyncio.TimeoutError:
+                    self.playlist.playlist.appendleft(self.current)
+                    continue
+
                 logger.debug('Done waiting')
                 if not self.current.success:
                     print('[EXCEPTION] Download unsuccessful')

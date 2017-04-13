@@ -358,7 +358,7 @@ def start(config, permissions):
         try:
             await bot.change_presence()
             await sound.shutdown()
-            for message in bot.timeout_messages:
+            for message in bot.timeout_messages.copy():
                 await message.delete_now()
                 message.cancel_tasks()
 

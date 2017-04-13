@@ -81,7 +81,7 @@ class SfxBot(threading.Thread):
         async def shutdown(ctx):
             try:
                 await audio.shutdown()
-                for message in sfx_bot.timeout_messages:
+                for message in sfx_bot.timeout_messages.copy():
                     message.delete_now()
                     message.cancel_tasks()
 

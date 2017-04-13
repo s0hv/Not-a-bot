@@ -555,7 +555,7 @@ class Audio:
 
     @command(pass_context=True, no_pm=True, level=1)
     @commands.cooldown(4, 4)
-    async def play1(self, ctx, *, song_name: str):
+    async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search youtube for them"""
         return await self.play_song(ctx, song_name)

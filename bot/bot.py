@@ -41,11 +41,13 @@ from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.bot import _get_variable
 from discord.ext.commands.view import StringView
 
+"""
 try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 except ImportError:
     pass
+"""
 
 from bot import exceptions
 from bot.message import TimeoutMessage

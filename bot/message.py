@@ -23,9 +23,12 @@ SOFTWARE.
 """
 
 import asyncio
+import logging
 
 from discord.client import Client
-import discord
+
+
+logger = logging.getLogger('debug')
 
 
 class TimeoutMessage:
@@ -56,16 +59,7 @@ class TimeoutMessage:
 
         # If either of these is None the message will not be deleted
         if self.bot is not None and timeout is not None:
-            self.lock_task = asyncio.ensure_future(self.set_lock(), loop=self.loop)
             self.deletion_task = asyncio.ensure_future(self._delete_message(), loop=self.loop)
-
-    # Sleep for :timeout: amount and then set _lock
-    async def set_lock(self):
-        try:
-            await asyncio.sleep(self.timeout)
-            self.loop.call_soon_threadsafe(self._lock.set)
-        except:
-            pass
 
     # Set the lock value to true immediately. Useful when skipping songs
     # or shutting the bot down while wanting to delete useless messages
@@ -80,19 +74,13 @@ class TimeoutMessage:
     # Waits for the lock to be set and then deletes the message
     async def _delete_message(self):
         try:
-            await self._lock.wait()
+            await asyncio.sleep(self.timeout)
             await self.bot.delete_message(self.message)
             self.deque.remove(self)
-        except:
-            pass
+        except Exception as e:
+            logger.debug('[EXCEPTION] Could not delete message. %s' % e)
 
     def cancel_tasks(self):
-        try:
-            if not self.lock_task.done():
-                self.lock_task.cancel()
-        except:
-            pass
-
         try:
             if not self.deletion_task.done():
                 self.deletion_task.cancel()

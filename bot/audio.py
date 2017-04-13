@@ -127,7 +127,8 @@ class MusicPlayer:
             await asyncio.wait_for(self.wait_for_not_empty(), 1, loop=self.bot.loop)
             logger.debug('Play was called on empty playlist. Waiting for download')
             self.current = await self.playlist.next_song()
-            logger.debug(str(self.current.__dict__))
+            if self.current is not None:
+                logger.debug(str(self.current.__dict__))
 
         except asyncio.TimeoutError:
             logger.debug('Got TimeoutError. adding_songs = {}'.format(self.playlist.adding_songs))

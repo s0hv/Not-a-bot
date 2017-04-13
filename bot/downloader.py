@@ -34,7 +34,6 @@ from youtube_dl import YoutubeDL
 opts = {
     'format': 'bestaudio/best',
     'extractaudio': True,
-    'audioformat': 'mp3',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,

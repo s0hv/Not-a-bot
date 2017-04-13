@@ -253,7 +253,7 @@ class VoiceClient(discord.VoiceClient):
     def create_ffmpeg_player(self, filename, *, use_avconv=False, pipe=False, stderr=None, after_input=None, options=None, before_options=None, headers=None, after=None, run_loops=0, **kwargs):
         command_ = 'ffmpeg' if not use_avconv else 'avconv'
         input_name = '-' if pipe else shlex.quote(filename)
-        before_args = " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 3"
+        before_args = " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
         if isinstance(headers, dict):
             for key, value in headers.items():
                 before_args += "{}: {}\r\n".format(key, value)

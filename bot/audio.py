@@ -166,7 +166,7 @@ class MusicPlayer:
                 break
 
             if self.current is None or not self.current.seek:
-
+                """
                 users = self.voice.channel.voice_members
                 users = list(filter(lambda x: not x.bot, users))
                 if not users:
@@ -174,12 +174,12 @@ class MusicPlayer:
                     self.change_status(self.bot.config.game)
                     self.voice = None
                     break
+                """
 
                 if self.playlist.peek() is None:
                     if self.autoplaylist:
                         self.current = await self.playlist.get_from_autoplaylist()
                     else:
-                        await self.playlist.not_empty.wait()
                         continue
                 else:
                     self.current = await self.playlist.next_song()

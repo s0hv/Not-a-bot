@@ -306,7 +306,7 @@ class Playlist:
         await self.say("Couldn't get the requested video\n%s" % e)
 
     async def _append_song(self, song, priority=False):
-        if True or not self.playlist or priority:
+        if not self.playlist or priority:
             print('[INFO] Downloading %s' % song.webpage_url)
             await song.download()
 

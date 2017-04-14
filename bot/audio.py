@@ -105,8 +105,7 @@ class MusicPlayer:
                 self.voice.ws.ensure_open()
                 assert self.voice.ws.open
             except:
-                if self.bot.config.debug_mode:
-                    print("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
+                print("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
                 await self.bot.reconnect_voice_client(self.voice.channel.server)
                 await asyncio.sleep(4)
             finally:
@@ -872,11 +871,12 @@ class Audio:
 
             if state.voice is not None:
                 await state.voice.disconnect()
+                state.voice = None
 
         except Exception as e:
             print('[ERROR] Error while stopping voice.\n%s' % e)
 
-    @command(pass_context=True, no_pm=True, aliases=['stop1'], level=1)
+    @command(pass_context=True, no_pm=True, aliases=['stop1'])
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.

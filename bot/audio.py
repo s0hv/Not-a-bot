@@ -85,10 +85,10 @@ class MusicPlayer:
         self.bot.loop.create_task(self.websocket_check())
 
     def is_playing(self):
-        if self.voice is None or self.current is None or self.current.player is None:
+        if self.voice is None or self.current is None or self.player is None:
             return False
 
-        return not self.current.player.is_done()
+        return not self.player.is_done()
 
     def reload_voice(self, voice_client):
         self.voice = voice_client
@@ -184,92 +184,91 @@ class MusicPlayer:
         return 1 / rms * self.volume_multiplier
 
     async def play_audio(self):
-        try:
-            while True:
-                self.play_next_song.clear()
-                if self.voice is None:
+        while True:
+            self.play_next_song.clear()
+            if self.voice is None:
+                break
+
+            if self.current is None or not self.current.seek:
+                """
+                users = self.voice.channel.voice_members
+                users = list(filter(lambda x: not x.bot, users))
+                if not users:
+                    await self.voice.disconnect()
+                    self.change_status(self.bot.config.game)
+                    self.voice = None
                     break
+                """
 
-                if self.current is None or not self.current.seek:
-                    """
-                    users = self.voice.channel.voice_members
-                    users = list(filter(lambda x: not x.bot, users))
-                    if not users:
-                        await self.voice.disconnect()
-                        self.change_status(self.bot.config.game)
-                        self.voice = None
-                        break
-                    """
-
-                    if self.playlist.peek() is None:
-                        if self.autoplaylist:
-                            self.current = await self.playlist.get_from_autoplaylist()
-                        else:
-                            continue
+                if self.playlist.peek() is None:
+                    if self.autoplaylist:
+                        self.current = await self.playlist.get_from_autoplaylist()
                     else:
-                        self.current = await self.playlist.next_song()
-
-                    if self.current is None:
                         continue
-
-                    logger.debug('Next song is {}'.format(self.current))
-                    logger.debug('Waiting for dl')
-
-                    try:
-                        await asyncio.wait_for(self.current.on_ready.wait(), timeout=6,
-                                               loop=self.bot.loop)
-                    except asyncio.TimeoutError:
-                        self.playlist.playlist.appendleft(self.current)
-                        continue
-
-                    logger.debug('Done waiting')
-                    if not self.current.success:
-                        print('[EXCEPTION] Download unsuccessful')
-                        continue
-
-                    if self.current.filename is not None:
-                        file = self.current.filename
-                    elif self.current.url != 'None':
-                        file = self.current.url
-                    else:
-                        print('[ERROR] No valid file to be played')
-                        continue
-
-                    logger.debug('Opening file with the name "{0}" and options "{1.before_options}" "{1.options}"'.format(file, self.current))
-
-                    self.current.player = self.voice.create_ffmpeg_player(file,
-                                                                          after=self.on_stop,
-                                                                          before_options=self.current.before_options,
-                                                                          options=self.current.options)
-
-                if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str):
-                    db = mean_volume(file)
-                    if db is None or abs(db) < 0.1:
-                        volume = self.volume
-                    else:
-                        volume = self._get_volume_from_db(db)
                 else:
+                    self.current = await self.playlist.next_song()
+
+                if self.current is None:
+                    continue
+
+                logger.debug('Next song is {}'.format(self.current))
+                logger.debug('Waiting for dl')
+
+                try:
+                    await asyncio.wait_for(self.current.on_ready.wait(), timeout=6,
+                                           loop=self.bot.loop)
+                except asyncio.TimeoutError:
+                    self.playlist.playlist.appendleft(self.current)
+                    continue
+
+                logger.debug('Done waiting')
+                if not self.current.success:
+                    print('[EXCEPTION] Download unsuccessful')
+                    continue
+
+                if self.current.filename is not None:
+                    file = self.current.filename
+                elif self.current.url != 'None':
+                    file = self.current.url
+                else:
+                    print('[ERROR] No valid file to be played')
+                    continue
+
+                logger.debug('Opening file with the name "{0}" and options "{1.before_options}" "{1.options}"'.format(file, self.current))
+
+                self.current.player = self.voice.create_ffmpeg_player(file,
+                                                                      after=self.on_stop,
+                                                                      before_options=self.current.before_options,
+                                                                      options=self.current.options)
+
+            if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str):
+                db = mean_volume(file)
+                if db is None or abs(db) < 0.1:
                     volume = self.volume
+                else:
+                    volume = self._get_volume_from_db(db)
+            else:
+                volume = self.volume
 
-                self.current.player.volume = volume
-                if not self.current.seek:
-                    dur = get_track_pos(self.current.duration, 0)
-                    await self.say('Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume), self.current.duration)
+            self.current.player.volume = volume
+            if not self.current.seek:
+                dur = get_track_pos(self.current.duration, 0)
+                await self.say('Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume), self.current.duration)
 
-                self.current.player.start()
-                logger.debug('Started player')
-                await self.change_status(self.current.title)
-                await self.playlist.download_next()
+            print(self.player)
+            self.current.player.start()
+            print('started')
+            logger.debug('Started player')
+            await self.change_status(self.current.title)
+            logger.debug('Downloading next')
+            await self.playlist.download_next()
 
-                if self.gachi and not self.current.seek and random.random() < 0.01:
-                    await self.prepare_right_version()
+            if self.gachi and not self.current.seek and random.random() < 0.01:
+                await self.prepare_right_version()
 
-                self.current.seek = False
-                await self.play_next_song.wait()
-                self.right_version_playing.clear()
-        except Exception as e:
-            print(e)
-            logger.exception(e)
+            self.current.seek = False
+            await self.play_next_song.wait()
+            self.right_version_playing.clear()
 
     async def prepare_right_version(self):
         if self.gachi:

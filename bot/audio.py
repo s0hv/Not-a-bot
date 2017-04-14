@@ -99,6 +99,7 @@ class MusicPlayer:
 
     async def websocket_check(self):
         print("[Debug] Creating websocket check loop")
+        logger.debug("[Debug] Creating websocket check loop")
 
         while self.voice is not None:
             try:
@@ -106,6 +107,7 @@ class MusicPlayer:
                 assert self.voice.ws.open
             except:
                 print("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
+                logger.debug("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
                 await self.bot.reconnect_voice_client(self.voice.channel.server)
                 await asyncio.sleep(4)
             finally:

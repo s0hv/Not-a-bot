@@ -28,7 +28,7 @@ import os
 
 from concurrent.futures import ThreadPoolExecutor
 
-from youtube_dl import YoutubeDL
+import youtube_dl
 
 
 opts = {
@@ -47,19 +47,21 @@ opts = {
     'nooverwrites': True
 }
 
+youtube_dl.utils.bug_reports_message = lambda: ''
+
 
 class Downloader:
     def __init__(self, dl_folder=''):
         self.dl_folder = dl_folder
         self.thread_pool = ThreadPoolExecutor(max_workers=3)
-        self.safe_ytdl = YoutubeDL(opts)
+        self.safe_ytdl = youtube_dl.YoutubeDL(opts)
         self.safe_ytdl.params['outtmpl'] = os.path.join(self.dl_folder, self.safe_ytdl.params['outtmpl'])
         self.safe_ytdl.params['ignore_errors'] = True
 
-        self.unsafe_ytdl = YoutubeDL(opts)
+        self.unsafe_ytdl = youtube_dl.YoutubeDL(opts)
         self.unsafe_ytdl.params['outtmpl'] = os.path.join(self.dl_folder, self.unsafe_ytdl.params['outtmpl'])
 
-        self.info_ytdl = YoutubeDL(opts)
+        self.info_ytdl =youtube_dl.YoutubeDL(opts)
         self.info_ytdl.params['extract_flat'] = True
 
     async def extract_info(self, loop, info=False, on_error=None, *args, **kwargs):

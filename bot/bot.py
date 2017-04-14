@@ -70,6 +70,7 @@ class Bot(commands.Bot):
         self.permissions = permissions
         self.timeout_messages = deque()
         self.owner = config.owner
+        self.voice_clients_ = {}
 
     async def on_command_error(self, exception, context):
         """|coro|
@@ -240,10 +241,37 @@ class Bot(commands.Bot):
             except:
                 # we don't care if disconnect failed because connection failed
                 pass
-            raise e # re-raise
+            raise e  # re-raise
 
         self.connection._add_voice_client(server.id, voice)
         return voice
+
+    async def reconnect_voice_client(self, server):
+        if server.id not in self.voice_clients:
+            return
+
+        vc = self.voice_clients.pop(server.id)
+        _paused = False
+
+        player = vc.player
+        if vc.is_playing:
+            vc.pause()
+            _paused = True
+
+        try:
+            await vc.disconnect()
+        except:
+            print("Error disconnecting during reconnect")
+            traceback.print_exc()
+
+        await asyncio.sleep(0.1)
+
+        if player:
+            new_vc = await self.join_voice_channel(vc.channel)
+            vc.reload_voice(new_vc)
+
+            if not vc.is_playing and _paused:
+                player.resume()
 
 
 class VoiceClient(discord.VoiceClient):
@@ -327,7 +355,7 @@ class StreamPlayer(voice_client.StreamPlayer):
                 self.buffer_audio()
             else:
                 data = self.buff.read(self.frame_size)
-                while not self.audio_buffer.full() and not self._stream_finished.is_set():
+                while not self.audio_buffer.full() and not self._stream_finished.is_set() and not self._end.is_set():
                     self.buffer_audio()
 
             if self._volume != 1.0:

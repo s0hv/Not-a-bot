@@ -82,12 +82,35 @@ class MusicPlayer:
         self.autoplaylist = bot.config.autoplaylist
         self.volume_multiplier = bot.config.volume_multiplier
         self.messages = deque()
+        self.bot.loop.create_task(self.websocket_check())
 
     def is_playing(self):
         if self.voice is None or self.current is None or self.current.player is None:
             return False
 
         return not self.current.player.is_done()
+
+    def reload_voice(self, voice_client):
+        self.voice = voice_client
+        if self.player:
+            self.player.player = voice_client.play_audio
+            self.player._resumed.clear()
+            self.player._connected.set()
+
+    async def websocket_check(self):
+        print("[Debug] Creating websocket check loop")
+
+        while self.voice is not None:
+            try:
+                self.voice.ws.ensure_open()
+                assert self.voice.ws.open
+            except:
+                if self.bot.config.debug_mode:
+                    print("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
+                await self.bot.reconnect_voice_client(self.voice.channel.server)
+                await asyncio.sleep(4)
+            finally:
+                await asyncio.sleep(1)
 
     def create_audio_task(self):
         self.audio_player = self.bot.loop.create_task(self.play_audio())
@@ -296,11 +319,19 @@ class MusicPlayer:
 
         return await self.bot.say_timeout(message, channel, timeout)
 
+    def pause(self):
+        if self.is_playing():
+            self.player.pause()
+
+    def resume(self):
+        if self.is_playing():
+            self.player.resume()
+
 
 class Audio:
     def __init__(self, bot, client):
         self.bot = bot
-        self.voice_states = {}
+        self.voice_states = bot.voice_clients_
         self.client = client
         self.owner = bot.owner
         self.arguments = []
@@ -720,9 +751,7 @@ class Audio:
     async def pause(self, ctx):
         """Pauses the currently played song."""
         state = self.get_voice_state(ctx.message.server)
-        if state.is_playing():
-            player = state.player
-            player.pause()
+        state.pause()
 
     @commands.cooldown(1, 60)
     @command(pass_context=True, level=1)
@@ -738,9 +767,7 @@ class Audio:
     async def resume(self, ctx):
         """Resumes the currently played song."""
         state = self.get_voice_state(ctx.message.server)
-        if state.is_playing():
-            player = state.player
-            player.resume()
+        state.resume()
 
     @command(name='bpm', pass_context=True, no_pm=True, ignore_extra=True, level=1)
     async def bpm(self, ctx):

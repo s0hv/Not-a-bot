@@ -62,6 +62,11 @@ def start(config, permissions):
         if channel is not None:
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(member.mention))
 
+    @bot.command(pass_context=True)
+    @owner_only
+    async def test(ctx):
+        await bot.send_message(ctx.message.channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(ctx.message.author.mention))
+
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:
             if r.status == 200:

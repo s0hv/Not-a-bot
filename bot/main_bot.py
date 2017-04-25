@@ -60,7 +60,7 @@ def start(config, permissions):
     async def on_member_join(member):
         channel = bot.get_channel('302174140230664196')
         if channel is not None:
-            await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:301436540968501248> {}".format(member.mention))
+            await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(member.mention))
 
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:

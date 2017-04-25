@@ -256,6 +256,7 @@ class MusicPlayer:
                 await self.say('Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume), self.current.duration)
 
             print(self.player)
+            logger.debug(self.player)
             self.current.player.start()
             print('started')
             logger.debug('Started player')
@@ -282,6 +283,9 @@ class MusicPlayer:
             pass
 
         file = self._get_right_version()
+        if file is None:
+            return
+
         vol = self._get_volume_from_db(mean_volume(file))
         self.current.player.stop()
         self.current.player = self.voice.create_ffmpeg_player(file,

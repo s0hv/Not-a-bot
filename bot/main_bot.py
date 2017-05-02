@@ -49,7 +49,7 @@ def start(config, permissions):
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
     permissions.bot = bot
     colors = ['Green', 'Blue', 'Blue', 'Yellow', 'Purple', 'Turquoise',
-              'Orange', 'Black', 'White', 'Red']
+              'Orange', 'Black', 'White', 'Red', 'Pink', 'Brown']
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
@@ -63,9 +63,9 @@ def start(config, permissions):
     async def on_member_join(member):
         channel = bot.get_channel('302174140230664196')
         roles = member.server.roles
+        roles = list(filter(lambda r: str(r) in colors, roles))
         if channel is not None:
-            color = choice(colors)
-            role = list(filter(lambda r: str(r) == color, roles))
+            role = choice(roles)
             if role:
                 try:
                     await bot.add_roles(member, *role)

@@ -41,12 +41,15 @@ from bot.exceptions import *
 from utils import gachiGASM, wolfram, memes
 from utils.search import Search
 from utils.utilities import write_playlist, read_playlist, empty_file, y_n_check, split_string
+from random import choice
 
 
 def start(config, permissions):
     client = ClientSession()
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
     permissions.bot = bot
+    colors = ['Green', 'Blue', 'Blue', 'Yellow', 'Purple', 'Turquoise',
+              'Orange', 'Black', 'White', 'Red']
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
@@ -59,13 +62,33 @@ def start(config, permissions):
     @bot.event
     async def on_member_join(member):
         channel = bot.get_channel('302174140230664196')
+        roles = member.server.roles
         if channel is not None:
+            color = choice(colors)
+            role = list(filter(lambda r: str(r) == color, roles))
+            if role:
+                try:
+                    await bot.add_roles(member, *role)
+                except Exception:
+                    pass
+
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(member.mention))
 
     @bot.command(pass_context=True)
     @owner_only
     async def test(ctx):
-        await bot.send_message(ctx.message.channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(ctx.message.author.mention))
+        if ctx.message.server.id != '217677285442977792':
+            return
+
+        roles = ctx.message.server.roles
+        for member in ctx.message.server.members:
+            if len(member.roles) == 1:
+                color = choice(colors)
+                role = list(filter(lambda r: str(r) == color, roles))
+                try:
+                    await bot.add_roles(member, *role)
+                except Exception:
+                    pass
 
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:

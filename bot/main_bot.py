@@ -61,16 +61,18 @@ def start(config, permissions):
 
     @bot.event
     async def on_member_join(member):
+        if member.server.id != '217677285442977792':
+            return
+
         channel = bot.get_channel('302174140230664196')
         roles = member.server.roles
-        roles = list(filter(lambda r: str(r) in colors, roles))
+        color = choice(colors)
+        role = list(filter(lambda r: str(r) == color, roles))
         if channel is not None:
-            role = choice(roles)
-            if role:
-                try:
-                    await bot.add_roles(member, *role)
-                except Exception:
-                    pass
+            try:
+                await bot.add_roles(member, *role)
+            except Exception:
+                pass
 
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(member.mention))
 

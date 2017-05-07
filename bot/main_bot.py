@@ -38,7 +38,7 @@ from bot.bot import Bot
 from bot.globals import *
 from bot.permissions import owner_only, parse_permissions
 from bot.exceptions import *
-from utils import gachiGASM, wolfram, memes
+from utils import gachiGASM, wolfram, memes, hearthstone
 from utils.search import Search
 from utils.utilities import write_playlist, read_playlist, empty_file, y_n_check, split_string
 from random import choice
@@ -441,4 +441,5 @@ def start(config, permissions):
 
     bot.add_cog(search)
     bot.add_cog(sound)
+    bot.add_cog((hearthstone.Hearthstone(bot, config.mashape_key, bot.aiohttp_client)))
     bot.run(config.token)

@@ -71,10 +71,39 @@ def start(config, permissions):
         if channel is not None:
             try:
                 await bot.add_roles(member, *role)
-            except Exception:
+            except:
                 pass
 
-            await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:306381005688668161> {}".format(member.mention))
+            await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:310755051079729174> {}".format(member.mention))
+
+    @bot.command(name='color', pass_context=True)
+    async def set_color(ctx, *, color):
+        server = ctx.message.server
+        if server.id != '217677285442977792':
+            return
+
+        roles = server.roles
+        color = color.lower()
+        role = list(filter(lambda r: str(r) == color, roles))
+        if not role:
+            return await bot.say('Color %s not found. Use !colors for all the available colors' % color)
+
+        _roles = []
+        for role in ctx.message.author.roles:
+            if str(role) in color:
+                _roles.append(role)
+
+        try:
+            await bot.remove_roles(ctx.message.author, *_roles)
+            await bot.add_roles(ctx.message.author, *role)
+        except:
+            await bot.say('Failed to change color')
+        else:
+            await bot.say('Color set to %s' % color)
+
+    @bot.command(name='colors')
+    async def get_colors():
+        await bot.say('Available colors: {}'.format(', '.join(colors)))
 
     @bot.command(pass_context=True)
     @owner_only

@@ -84,9 +84,9 @@ def start(config, permissions):
 
         roles = server.roles
         color = color.lower()
-        role = list(filter(lambda r: str(r) == color, roles))
+        role = list(filter(lambda r: str(r).lower() == color, roles))
         if not role:
-            return await bot.say('Color %s not found. Use !colors for all the available colors' % color)
+            return await bot.say('Color %s not found. Use !colors for all the available colors.' % color)
 
         _roles = []
         for role in ctx.message.author.roles:

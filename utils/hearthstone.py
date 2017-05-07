@@ -50,6 +50,6 @@ class Hearthstone:
                     imgs += j['img'] + ' '
 
                 if imgs:
-                    await self.bot.say(imgs)
-                else:
-                    await self.bot.say('No matches')
+                    return await self.bot.say(imgs)
+
+            await self.bot.say('No matches')

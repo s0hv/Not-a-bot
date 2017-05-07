@@ -22,7 +22,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from discord.ext.commands import command
+from bot.bot import command
+from discord.ext.commands import cooldown
 
 
 class Hearthstone:
@@ -32,6 +33,7 @@ class Hearthstone:
         self.client = client
 
     @command()
+    @cooldown(1, 2)
     async def hs(self, *, name):
         headers = {'content-type': 'application/json', 'X-Mashape-Key': self.key}
         async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/%s' % name,

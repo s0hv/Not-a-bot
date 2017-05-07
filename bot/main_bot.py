@@ -84,19 +84,24 @@ def start(config, permissions):
 
         roles = server.roles
         color = color.lower()
-        role = list(filter(lambda r: str(r).lower() == color, roles))
-        if not role:
+        role_ = list(filter(lambda r: str(r).lower() == color, roles))
+        if not role_:
             return await bot.say('Color %s not found. Use !colors for all the available colors.' % color)
 
         _roles = []
         for role in ctx.message.author.roles:
-            if str(role) in color:
+            if str(role) in colors and role != role_[0]:
                 _roles.append(role)
 
         try:
             await bot.remove_roles(ctx.message.author, *_roles)
-            await bot.add_roles(ctx.message.author, *role)
-        except:
+            for r in _roles:
+                if r in ctx.message.author.roles:
+                    ctx.message.author.roles.remove(r)
+
+            await bot.add_roles(ctx.message.author, *role_)
+        except Exception as e:
+            print(e)
             await bot.say('Failed to change color')
         else:
             await bot.say('Color set to %s' % color)

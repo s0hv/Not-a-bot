@@ -38,7 +38,7 @@ except ImportError:
 from bot.downloader import Downloader
 from bot.song import Song
 from bot.globals import CACHE, PLAYLISTS
-from utils.utilities import read_playlist, write_playlist, timestamp
+from utils.utilities import read_lines, write_playlist, timestamp
 
 
 logger = logging.getLogger('debug')
@@ -251,7 +251,7 @@ class Playlist:
             await self.say('Enqueued {}'.format(song))
 
     async def add_from_playlist(self, name, channel=None):
-        lines = read_playlist(os.path.join(self.playlist_path, name))
+        lines = read_lines(os.path.join(self.playlist_path, name))
         if lines is None:
             return await self.say('Invalid playlist name')
 
@@ -343,7 +343,7 @@ class Playlist:
 
     def _get_playlist(self, name):
         playlist = os.path.join(self.playlist_path, name)
-        lines = read_playlist(playlist)
+        lines = read_lines(playlist)
         return lines
 
     def in_list(self, webpage_url):

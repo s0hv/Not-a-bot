@@ -123,9 +123,9 @@ def write_playlist(file, contents, mode='w'):
 
 
 # Read lines from a file and put them to a list without newlines
-def read_playlist(file):
+def read_lines(file):
     if not os.path.exists(file):
-        return
+        return []
 
     with open(file, 'r', encoding='utf-8') as f:
         songs = f.read().splitlines()

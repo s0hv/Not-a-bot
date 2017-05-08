@@ -40,16 +40,39 @@ from bot.permissions import owner_only, parse_permissions
 from bot.exceptions import *
 from utils import gachiGASM, wolfram, memes, hearthstone
 from utils.search import Search
-from utils.utilities import write_playlist, read_playlist, empty_file, y_n_check, split_string
+from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string
 from random import choice
+from colour import Color
 
 
 def start(config, permissions):
+    def get_colors():
+        file = os.path.join(os.getcwd(), 'data', 'colors.txt')
+        if os.path.exists(file):
+            return read_lines(file)
+        else:
+            return []
+
+    def add_color(name):
+        file = os.path.join(os.getcwd(), 'data', 'colors.txt')
+        colors.append(name)
+        with open(file, 'w') as f:
+            f.write('\n'.join(colors))
+
+    def delete_color(name):
+        file = os.path.join(os.getcwd(), 'data', 'colors.txt')
+        try:
+            colors.__delitem__(name)
+        except:
+            return
+
+        with open(file, 'w') as f:
+            f.write('\n'.join(colors))
+
     client = ClientSession()
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
     permissions.bot = bot
-    colors = ['Green', 'Blue', 'Blue', 'Yellow', 'Purple', 'Turquoise',
-              'Orange', 'Black', 'White', 'Red', 'Pink', 'Brown', 'Lime', 'Olive']
+    colors = get_colors()
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
@@ -75,6 +98,30 @@ def start(config, permissions):
                 pass
 
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:310755051079729174> {}".format(member.mention))
+
+    @bot.command(name='add_color', pass_context=True)
+    @owner_only
+    async def add_color_(ctx, color, *, name):
+        try:
+            color = Color(color)
+        except ValueError:
+            return await bot.say('Color %s is invalid' % color)
+
+        try:
+            color = color.hex
+            if color.startswith('#'):
+                color = color[1:]
+
+            color = discord.Color(int(color, 16))
+            everyone = ctx.message.server.default_role
+            perms = discord.Permissions(everyone.permissions.value)
+            await bot.create_role(ctx.message.server, name=name, colour=color, permissions=perms,
+                                  mentionable=False, hoist=False)
+        except Exception as e:
+            print('[ERROR] Exception while creating role. %s' % e)
+            return await bot.say('Could not create role')
+
+        add_color(name)
 
     @bot.command(name='color', pass_context=True)
     async def set_color(ctx, *, color):
@@ -374,7 +421,7 @@ def start(config, permissions):
     @bot.command(pass_context=True, ignore_extra=True)
     @owner_only
     async def add_all(ctx):
-        songs = set(read_playlist(ADD_AUTOPLAYLIST))
+        songs = set(read_lines(ADD_AUTOPLAYLIST))
 
         invalid = []
         for song in list(songs):
@@ -394,9 +441,9 @@ def start(config, permissions):
     @bot.command(pass_context=True, ignore_extra=True)
     @owner_only
     async def delete_all(ctx):
-        delete_songs = set(read_playlist(DELETE_AUTOPLAYLIST))
+        delete_songs = set(read_lines(DELETE_AUTOPLAYLIST))
 
-        songs = set(read_playlist(AUTOPLAYLIST))
+        songs = set(read_lines(AUTOPLAYLIST))
 
         failed = 0
         succeeded = 0

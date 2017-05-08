@@ -122,6 +122,7 @@ def start(config, permissions):
             return await bot.say('Could not create role')
 
         add_color(name)
+        await bot.say('Color %s added' % name)
 
     @bot.command(name='color', pass_context=True)
     async def set_color(ctx, *, color):

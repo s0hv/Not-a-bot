@@ -49,7 +49,7 @@ def start(config, permissions):
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
     permissions.bot = bot
     colors = ['Green', 'Blue', 'Blue', 'Yellow', 'Purple', 'Turquoise',
-              'Orange', 'Black', 'White', 'Red', 'Pink', 'Brown']
+              'Orange', 'Black', 'White', 'Red', 'Pink', 'Brown', 'Lime']
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)

@@ -45,6 +45,11 @@ from random import choice
 from colour import Color
 
 
+HALFWIDTH_TO_FULLWIDTH = str.maketrans(
+    '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~',
+    '０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ！゛＃＄％＆（）＊＋、ー。／：；〈＝〉？＠［］＾＿‘｛｜｝～')
+
+
 def start(config, permissions):
     def get_colors():
         file = os.path.join(os.getcwd(), 'data', 'colors.txt')
@@ -64,7 +69,7 @@ def start(config, permissions):
         try:
             colors.__delitem__(name)
         except:
-            return
+            pass
 
         with open(file, 'w') as f:
             f.write('\n'.join(colors))
@@ -124,6 +129,54 @@ def start(config, permissions):
         add_color(name)
         await bot.say('Color %s added' % name)
 
+    @bot.command(pass_context=True)
+    @owner_only
+    async def delete_color(ctx, *, name):
+        roles = list(filter(lambda r: r == name, ctx.message.server.roles))
+        if name not in colors or not roles:
+            return await bot.say('Color %s not found' % name)
+
+        if len(roles) > 1:
+            await bot.say('Multiple roles found. Delete them all y/n')
+            msg = await bot.wait_for_message(timeout=10, author=ctx.message.author,
+                                             channel=ctx.message.channel,
+                                             check=y_n_check)
+            if msg is None or msg.lower() in ['n', 'no']:
+                return await bot.say('Canceled')
+
+        r_len = len(roles)
+        failed = 0
+        for role in roles:
+            try:
+                await bot.delete_role(ctx.message.server, role)
+            except:
+                failed += 1
+
+        if failed == 0:
+            await bot.say('Successfully deleted %s roles' % str(r_len))
+        else:
+            await bot.say('Successfully deleted {} roles and failed {}'.format(
+                           r_len - failed, failed))
+
+        delete_color(name)
+
+    def _standify_text(s, type_=0):
+        types = ['『』', '「」']
+        bracket = types[type_]
+        s = s.translate(HALFWIDTH_TO_FULLWIDTH)
+        s = bracket[0] + s + bracket[1]
+        return s
+
+    @bot.command(aliases=['stand'])
+    async def standify(*, stand):
+        stand = _standify_text(stand)
+        await bot.say(stand)
+
+    @bot.command(aliases=['stand2'])
+    async def standify2(*, stand):
+        stand = _standify_text(stand, 1)
+        await bot.say(stand)
+
     @bot.command(name='color', pass_context=True)
     async def set_color(ctx, *, color):
         server = ctx.message.server
@@ -160,8 +213,8 @@ def start(config, permissions):
 
     @bot.command(pass_context=True)
     @owner_only
-    async def test(ctx):
-        if ctx.message.server.id != '217677285442977792':
+    async def color_uncolored(ctx):
+        if not colors:
             return
 
         roles = ctx.message.server.roles

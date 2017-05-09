@@ -67,9 +67,10 @@ def start(config, permissions):
     def delete_color(name):
         file = os.path.join(os.getcwd(), 'data', 'colors.txt')
         try:
-            colors.__delitem__(name)
-        except:
-            pass
+            while name in colors:
+                colors.remove(name)
+        except Exception as e:
+            print(e)
 
         with open(file, 'w') as f:
             f.write('\n'.join(colors))
@@ -109,7 +110,7 @@ def start(config, permissions):
     async def add_color_(ctx, color, *, name):
         try:
             color = Color(color)
-        except ValueError:
+        except (ValueError, AttributeError):
             return await bot.say('Color %s is invalid' % color)
 
         try:
@@ -129,10 +130,10 @@ def start(config, permissions):
         add_color(name)
         await bot.say('Color %s added' % name)
 
-    @bot.command(pass_context=True)
+    @bot.command(name='delete_color', pass_context=True)
     @owner_only
-    async def delete_color(ctx, *, name):
-        roles = list(filter(lambda r: r == name, ctx.message.server.roles))
+    async def delete_color_(ctx, *, name):
+        roles = list(filter(lambda r: str(r) == name, ctx.message.server.roles))
         if name not in colors or not roles:
             return await bot.say('Color %s not found' % name)
 
@@ -141,8 +142,8 @@ def start(config, permissions):
             msg = await bot.wait_for_message(timeout=10, author=ctx.message.author,
                                              channel=ctx.message.channel,
                                              check=y_n_check)
-            if msg is None or msg.lower() in ['n', 'no']:
-                return await bot.say('Canceled')
+            if msg is None or msg.content.lower().strip() in ['n', 'no']:
+                return await bot.say('Cancelled')
 
         r_len = len(roles)
         failed = 0

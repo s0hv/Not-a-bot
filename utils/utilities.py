@@ -30,6 +30,8 @@ import subprocess
 from collections import OrderedDict
 import time
 
+from validators import url as test_url
+
 from bot.exceptions import NoCachedFileException
 
 
@@ -187,3 +189,27 @@ def write_wav(stdout, filename):
 def y_n_check(msg):
     msg = msg.content.lower().strip()
     return msg in ['y', 'yes', 'n', 'no']
+
+
+def check_negative(n):
+    if n < 0:
+        return -1
+    else:
+        return 1
+
+def emote_url_from_id(id):
+    return 'https://cdn.discordapp.com/emojis/%s.png' % id
+
+
+def get_picture_from_msg(msg):
+    if msg is None:
+        return
+
+    if len(msg.attachments) > 0:
+        return msg.attachments[0]
+
+    words = msg.content.split(' ')
+    for word in words:
+        if test_url(word):
+            return word
+

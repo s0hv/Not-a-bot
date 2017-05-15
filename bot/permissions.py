@@ -31,20 +31,8 @@ from playhouse.pool import SqliteExtDatabase
 from bot.exceptions import *
 from bot.globals import PERMISSIONS, PERMISSION_OPTIONS
 
+
 database = SqliteExtDatabase(PERMISSIONS, threadlocals=True)
-
-
-def owner_only(func):
-    @wraps(func)
-    async def _func_wrapper(ctx, *args, **kwargs):
-        msg = ctx.message
-        owner = ctx.bot.owner
-        if msg.author.id == owner:
-            return await func(ctx, *args, **kwargs)
-        else:
-            raise PermissionError('Only the owner can use this command')
-
-    return _func_wrapper
 
 
 def command_usable(permissions, command):

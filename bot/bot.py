@@ -56,9 +56,10 @@ log = logging.getLogger('discord')
 
 
 class Command(commands.Command):
-    def __init__(self, name, callback, level=0, **kwargs):
+    def __init__(self, name, callback, level=0, owner_only=False, **kwargs):
         super().__init__(name, callback, **kwargs)
         self.level = level
+        self.owner_only = owner_only
 
 
 class Bot(commands.Bot):
@@ -176,6 +177,9 @@ class Bot(commands.Bot):
 
         if invoker in self.commands:
             command = self.commands[invoker]
+            if command.owner_only and self.owner != message.author.id:
+                command.dispatch_error(exceptions.PermissionError('Only the owner can use this command'), ctx)
+                return
 
             if self.permissions:
                 try:

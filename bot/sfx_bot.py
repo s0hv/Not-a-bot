@@ -32,7 +32,6 @@ import asyncio
 
 from bot import sfx_audio
 from bot.bot import Bot
-from bot.permissions import owner_only
 
 
 class SfxBot(threading.Thread):
@@ -76,8 +75,7 @@ class SfxBot(threading.Thread):
             except:
                 pass
 
-        @sfx_bot.command(pass_context=True, aliases=['shutdown2'])
-        @owner_only
+        @sfx_bot.command(pass_context=True, aliases=['shutdown2'], owner_only=True)
         async def shutdown(ctx):
             try:
                 await audio.shutdown()

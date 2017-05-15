@@ -24,15 +24,15 @@ SOFTWARE.
 
 import asyncio
 import os
+import random
 from collections import deque, OrderedDict
 
 from discord.ext import commands
 from gtts import gTTS
 
-from utils.utilities import split_string
+from bot.bot import command
 from bot.globals import TTS, SFX_FOLDER
-
-import random
+from utils.utilities import split_string
 
 
 class SFX:
@@ -140,7 +140,7 @@ class Audio:
 
         return playlist
 
-    @commands.command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon2'])
+    @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon2'])
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
         summoned_channel = ctx.message.author.voice_channel
@@ -157,7 +157,7 @@ class Audio:
 
         return True
 
-    @commands.command(pass_context=True, no_pm=True, ignore_extra=True)
+    @command(pass_context=True, no_pm=True, ignore_extra=True)
     async def stop_sfx(self, ctx):
         state = self.get_voice_state(ctx.message.server)
         if state.is_playing():
@@ -188,7 +188,7 @@ class Audio:
             print('[ERROR] Error while stopping sfx_bot.\n%s' % e)
 
     @commands.cooldown(4, 4)
-    @commands.command(pass_context=True, no_pm=True)
+    @command(pass_context=True, no_pm=True)
     async def sfx(self, ctx, *, name):
 
         path = SFX_FOLDER
@@ -206,7 +206,7 @@ class Audio:
 
         state.add_to_queue(file)
 
-    @commands.command(name='cadd')
+    @command(name='cadd')
     async def change_combo(self, max_combo=None):
         if max_combo is None:
             return await self.bot.say(self.bot.config.max_combo)
@@ -218,7 +218,7 @@ class Audio:
         self.bot.config.max_combo = max_combo
         await self.bot.say('Max combo set to %s' % str(max_combo))
 
-    @commands.command(name='combo', pass_context=True, no_pm=True, aliases=['concat'])
+    @command(name='combo', pass_context=True, no_pm=True, aliases=['concat'])
     async def combine(self, ctx, *, names):
         max_combo = self.bot.config.max_combo
         names = names.split(' ')
@@ -311,7 +311,7 @@ class Audio:
 
         return file
 
-    @commands.command(pass_context=True, no_pm=True)
+    @command(pass_context=True, no_pm=True)
     async def random_sfx(self, ctx, value):
         value = value.lower().strip()
         values = {'on': True, 'off': False}
@@ -323,7 +323,7 @@ class Audio:
 
         await self.bot.say_timeout('Random sfx set to %s' % values_rev.get(value), ctx.message.channel, 120)
 
-    @commands.command(pass_context=True)
+    @command(pass_context=True)
     async def sfxlist(self, ctx):
         """List of all the sound effects"""
         sfx = os.listdir(SFX_FOLDER)
@@ -388,7 +388,7 @@ class Audio:
     def _get_name(url):
         return url.split('/')[-1]
 
-    @commands.command(pass_context=True, no_pm=True, aliases=['stop2'])
+    @command(pass_context=True, no_pm=True, aliases=['stop2'])
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.

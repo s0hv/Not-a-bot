@@ -36,9 +36,9 @@ from validators import url as test_url
 from bot import audio
 from bot.bot import Bot
 from bot.globals import *
-from bot.permissions import owner_only, parse_permissions
+from bot.permissions import parse_permissions
 from bot.exceptions import *
-from utils import gachiGASM, wolfram, memes, hearthstone
+from utils import wolfram, memes, hearthstone, jojo
 from utils.search import Search
 from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string
 from random import choice
@@ -105,8 +105,7 @@ def start(config, permissions):
 
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:310755051079729174> {}".format(member.mention))
 
-    @bot.command(name='add_color', pass_context=True)
-    @owner_only
+    @bot.command(name='add_color', pass_context=True, owner_only=True)
     async def add_color_(ctx, color, *, name):
         try:
             color = Color(color)
@@ -114,7 +113,7 @@ def start(config, permissions):
             return await bot.say('Color %s is invalid' % color)
 
         try:
-            color = color.hex
+            color = color.get_hex_l()
             if color.startswith('#'):
                 color = color[1:]
 
@@ -130,8 +129,7 @@ def start(config, permissions):
         add_color(name)
         await bot.say('Color %s added' % name)
 
-    @bot.command(name='delete_color', pass_context=True)
-    @owner_only
+    @bot.command(name='delete_color', pass_context=True, owner_only=True)
     async def delete_color_(ctx, *, name):
         roles = list(filter(lambda r: str(r) == name, ctx.message.server.roles))
         if name not in colors or not roles:
@@ -160,23 +158,6 @@ def start(config, permissions):
                            r_len - failed, failed))
 
         delete_color(name)
-
-    def _standify_text(s, type_=0):
-        types = ['『』', '「」']
-        bracket = types[type_]
-        s = s.translate(HALFWIDTH_TO_FULLWIDTH)
-        s = bracket[0] + s + bracket[1]
-        return s
-
-    @bot.command(aliases=['stand'])
-    async def standify(*, stand):
-        stand = _standify_text(stand)
-        await bot.say(stand)
-
-    @bot.command(aliases=['stand2'])
-    async def standify2(*, stand):
-        stand = _standify_text(stand, 1)
-        await bot.say(stand)
 
     @bot.command(name='color', pass_context=True)
     async def set_color(ctx, *, color):
@@ -212,8 +193,7 @@ def start(config, permissions):
     async def get_colors():
         await bot.say('Available colors: {}'.format(', '.join(colors)))
 
-    @bot.command(pass_context=True)
-    @owner_only
+    @bot.command(pass_context=True, owner_only=True)
     async def color_uncolored(ctx):
         if not colors:
             return
@@ -327,6 +307,15 @@ def start(config, permissions):
         await bot.send_message(ctx.message.channel, s)
 
     @bot.command(pass_context=True, level=5)
+    async def get_roles(ctx):
+        roles = '```'
+        for role in ctx.message.server.roles:
+            roles += '{}: {}\n'.format(role.name, role.mention)
+
+        roles += '```'
+        return await bot.say(roles)
+
+    @bot.command(pass_context=True, level=5)
     async def create_permissions(ctx, *args):
         print(args, ctx)
         user_permissions = ctx.user_permissions
@@ -430,39 +419,6 @@ def start(config, permissions):
         calc = ' '.join([*args])
         await bot.send_message(ctx.message.channel, await wolfram.math(calc, client, config.wolfram_key))
 
-    @bot.command(pass_context=True, no_pm=True, aliases=['gachiGASM'], ignore_extra=True, level=1)
-    async def gachi(ctx, amount=1):
-        """gachiGASM Now this is what I call music gachiGASM"""
-        if amount <= 0:
-            amount = 1
-
-        resp = await gachiGASM.random_gachi(sound, ctx, amount)
-        if not resp:
-            await bot.say_timeout('Could not get a suitable video', ctx.message.channel, 60)
-
-    @bot.command(pass_context=True, ignore_extra=True)
-    @owner_only
-    async def update_gachi(ctx):
-        """Update the gachi list. This can be done once per day"""
-
-        path = os.path.join(os.getcwd(), 'utils', 'gachi.txt')
-        today = datetime.now().strftime('%Y %m %d')
-        try:
-            modified = os.path.getmtime(path)
-        except OSError:
-            modified = 0
-        last_update = datetime.fromtimestamp(modified).strftime('%Y %m %d')
-
-        if last_update == today:
-            return await bot.say_timeout('You can only update the list once per day',
-                                         ctx.message.channel, 60)
-
-        with open(path, 'w') as f:
-
-            data = await gachiGASM.update_gachi()
-
-            json.dump(data, f, indent=4)
-
     @bot.command(pass_context=True, ignore_extra=True)
     async def twitchquote(ctx):
         """Random twitch quote from twitchquotes.com"""
@@ -473,8 +429,7 @@ def start(config, permissions):
         """Says the text that was put as a parameter"""
         await bot.send_message(ctx.message.channel, '{0} {1}'.format(ctx.message.author.mention, words))
 
-    @bot.command(pass_context=True, ignore_extra=True)
-    @owner_only
+    @bot.command(pass_context=True, ignore_extra=True, owner_only=True)
     async def add_all(ctx):
         songs = set(read_lines(ADD_AUTOPLAYLIST))
 
@@ -493,8 +448,7 @@ def start(config, permissions):
         amount = len(songs)
         await bot.say_timeout('Added %s song(s) to autoplaylist' % amount, ctx.message.channel, 60)
 
-    @bot.command(pass_context=True, ignore_extra=True)
-    @owner_only
+    @bot.command(pass_context=True, ignore_extra=True, owner_only=True)
     async def delete_all(ctx):
         delete_songs = set(read_lines(DELETE_AUTOPLAYLIST))
 
@@ -524,8 +478,7 @@ def start(config, permissions):
         sort = filter(lambda f: os.path.isfile(os.path.join(p, f)), files)
         await bot.say_timeout('Playlists: {}'.format(', '.join(sort)), ctx.message.channel)
 
-    @bot.command(pass_context=True)
-    @owner_only
+    @bot.command(pass_context=True, owner_only=True)
     async def shutdown(ctx):
         try:
             await bot.change_presence()
@@ -544,4 +497,5 @@ def start(config, permissions):
     bot.add_cog(search)
     bot.add_cog(sound)
     bot.add_cog((hearthstone.Hearthstone(bot, config.mashape_key, bot.aiohttp_client)))
+    bot.add_cog(jojo.JoJo(bot))
     bot.run(config.token)

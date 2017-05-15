@@ -44,7 +44,7 @@ logger = logging.getLogger('debug')
 IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
 MAGICK = 'magick'
 try:
-    subprocess.call('magick')
+    subprocess.call(['magick'], timeout=1)
 except:
     MAGICK = ''
 

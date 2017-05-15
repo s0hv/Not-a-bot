@@ -232,6 +232,11 @@ class JoJo:
 
     @command(pass_context=True, aliases=['stand_generator'], ignore_extra=True, owner_only=True)
     async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
+        """Generate a stand card. Arguments are stand name, user name and an image
+        
+        Image can be an attachment or a link. Passing -advanced as the last argument
+        will enable advanced mode which gives the ability to tune some numbers.
+        """
         author = ctx.message.author
         channel = ctx.message.channel
         stand = self._standify_text(stand, 2)

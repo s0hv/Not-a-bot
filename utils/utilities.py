@@ -206,7 +206,7 @@ def get_picture_from_msg(msg):
         return
 
     if len(msg.attachments) > 0:
-        return msg.attachments[0]
+        return msg.attachments[0]['url']
 
     words = msg.content.split(' ')
     for word in words:

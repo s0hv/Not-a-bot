@@ -58,9 +58,9 @@ if not os.path.exists(IMAGES_PATH):
 class ColorThief(CF):
     def __init__(self, img):
         if isinstance(img, Image.Image):
-            self.img = img
+            self.image = img
         else:
-            self.img = Image.open(img)
+            self.image = Image.open(img)
 
 
 class GeoPattern(geopatterns.GeoPattern):
@@ -167,6 +167,11 @@ def bg_from_texture(img, size, mode='RGB'):
             new_im.paste(img, (i, j))
 
     return new_im
+
+
+def get_color(img, quality=5):
+    cf = ColorThief(img)
+    return cf.get_color(quality)
 
 
 def get_palette(img, colors=6, quality=5):
@@ -292,11 +297,8 @@ def shift_color(color, amount):
     if round(sat, 3) == 0:
         sat = 0.1
 
-    print(hue, sat)
     color.saturation = min(abs(sat * (1 + amount/20)), 1.0)
     color.hue = shift_value(hue)
-    print(color.get_hue())
-    print(color.get_saturation())
 
     return color
 
@@ -337,16 +339,19 @@ def create_shadow(img, percent, opacity, x, y):
     return img
 
 
-def resize_keep_aspect_ratio(img, new_size):
+def resize_keep_aspect_ratio(img, new_size, crop_to_size=False):
     x, y = img.size
     x_m = x / new_size[0]
     y_m = y / new_size[1]
-    if y_m >= x_m:
+    if y_m <= x_m:
         m = new_size[1] / y
     else:
         m = new_size[0] / x
 
-    return img.resize((int(x * m), int(y * m)))
+    img = img.resize((int(x * m), int(y * m)))
+    if crop_to_size:
+        img = img.crop((0, 0, *new_size))
+    return img
 
 
 def create_text(s, font, fill, canvas_size, point=(10, 10)):

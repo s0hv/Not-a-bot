@@ -44,7 +44,7 @@ from bot.bot import command
 from utils.imagetools import (create_shadow, create_text, create_glow,
                               create_geopattern_background, shift_color,
                               trim_image, remove_background,
-                              resize_keep_aspect_ratio, get_palette,
+                              resize_keep_aspect_ratio, get_color,
                               IMAGES_PATH, image_from_url, GeoPattern,
                               color_distance, MAX_COLOR_DIFF)
 from utils.utilities import get_picture_from_msg, emote_url_from_id, y_n_check, check_negative
@@ -143,7 +143,7 @@ class JoJo:
             if power_value is None:
                 power_value = 'E'
             power_value = power_value.upper()
-            power_int = LETTERS_TO_INT[power_value]
+            power_int = LETTERS_TO_INT.get(power_value, 0)
 
             # Small correction to the text position
             correction = 0.03
@@ -166,7 +166,7 @@ class JoJo:
                 rot = 0
 
             ax.text(lx, ly, power_value, color=c, alpha=0.9, fontsize=14,
-                    weight='bold', ha='center')
+                    weight='bold', ha='center', va='center')
             ax.text(lx * 1.50, ly * 1.50, power, color=c, fontsize=17,
                     ha='center', rotation=rot, va='center')
 
@@ -184,7 +184,7 @@ class JoJo:
             y = (r1*cosr, r2*cosr)
             ax.plot(x, y, '-', color=c, linewidth=w)
 
-        pol = Polygon(stat_spread, fc='y', alpha=0.5)
+        pol = Polygon(stat_spread, fc='y', alpha=0.7)
         pol.set_color(color)
 
         fig.gca().add_patch(inner_circle)
@@ -271,7 +271,7 @@ class JoJo:
 
         m_, msg = await self.subcommand(
             'Give the stand **stats** in the given order ranging from **A** to **E** '
-            'separated by **spaces**. Default value is E\n{}'.format(' '.join(POWERS)),
+            'separated by **spaces**.\nDefault value is E\n{}'.format(' '.join(POWERS)),
             timeout=60, author=author, channel=channel)
 
         await self.bot.delete_message(m_)
@@ -292,11 +292,13 @@ class JoJo:
         if bg is not None:
             try:
                 bg = await image_from_url(bg, self.bot.aiohttp_client)
-                palette = get_palette(bg, colors=1)
-                color = Color(palette[0])
-                await self.bot.say('Failed to use custom background. Using generated one', delete_after=60.0)
+                dominant_color = get_color(bg)
+                color = Color(rgb=list(map(lambda c: c/255, dominant_color)))
+                bg = resize_keep_aspect_ratio(bg, size, True)
             except Exception:
                 logger.exception('Failed to get background')
+                await self.bot.say('Failed to use custom background. Using generated one',
+                                   delete_after=60.0)
                 bg = None
 
         if bg is None:
@@ -336,7 +338,7 @@ class JoJo:
 
         if advanced:
             m_, msg = await self.subcommand(
-                'Input color value change as an **integer**.\nDefault is {}. '
+                'Input color value change as an **integer**. Default is {}. '
                 'You can also input a **color** instead of the change value. '
                 'The resulting color will be used in the stats circle'.format(shift),
                 timeout=60, channel=channel, author=author)
@@ -392,7 +394,7 @@ class JoJo:
 
             m_, msg = await self.subcommand(
                 'Try to automatically remove background (y/n)? '
-                'This might fuck the picture up', author=author, channel=channel,
+                'This might fuck the picture up and will take a moment', author=author, channel=channel,
                 timeout=60, check=y_n_check)
             await self.bot.delete_message(m_)
             if msg and msg.content.lower() in ['y', 'yes']:
@@ -421,8 +423,9 @@ class JoJo:
 
             box = (500, 600)
             im = resize_keep_aspect_ratio(im, box)
-            im = create_shadow(im, 70, 3, -20, -15).convert('RGBA')
-            full.paste(im, (full.width - box[0], int((full.height - box[1])/2)), im)
+            print(im.size)
+            im = create_shadow(im, 70, 3, -22, -7).convert('RGBA')
+            full.paste(im, (full.width - im.width, int((full.height - im.height)/2)), im)
 
         full.paste(text2,(int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)))
         bg.paste(full, (0, 0), full)

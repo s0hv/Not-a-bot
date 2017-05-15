@@ -355,9 +355,3 @@ def create_text(s, font, fill, canvas_size, point=(10, 10)):
     draw = ImageDraw.Draw(text)
     draw.text(point, s, fill, font=font)
     return text
-
-
-color = Color('#FFFFFC')
-print(color.get_hex_l())
-shift_color(color, 700)
-print(color.get_hex_l())

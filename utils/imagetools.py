@@ -52,8 +52,7 @@ MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
 GLOW_LOCK = Lock()
 TRIMMING_LOCK = Lock()
 if not os.path.exists(IMAGES_PATH):
-    #os.mkdir(IMAGES_PATH)
-    pass
+    os.mkdir(IMAGES_PATH)
 
 
 class ColorThief(CF):

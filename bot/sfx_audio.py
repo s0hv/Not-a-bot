@@ -101,7 +101,8 @@ class Playlist:
                                                           before_options=sfx.before_options,
                                                           after=self.on_stop,
                                                           after_input=sfx.after_input,
-                                                          options=sfx.options)
+                                                          options=sfx.options,
+                                                          reconnect=False)
 
             self.player.start()
 

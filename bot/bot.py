@@ -38,7 +38,6 @@ import discord
 from discord import Object, InvalidArgument, ChannelType, ClientException, voice_client
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
-from discord.ext.commands.bot import _get_variable
 from discord.ext.commands.view import StringView
 
 try:
@@ -94,6 +93,10 @@ class Bot(commands.Bot):
         if isinstance(exception.__cause__, exceptions.BotException):
             await self.say_timeout(exception.__cause__.message, context.message.channel, 30)
             return
+
+        if isinstance(exception.__cause__, commands.errors.MissingRequiredArgument):
+            return await self.say_timeout('Missing arguments. {}'.format(str(exception.__cause__)),
+                                          context.message.channel, 60)
 
         print('Ignoring exception in command {}'.format(context.command), file=sys.stderr)
         traceback.print_exception(type(exception), exception,
@@ -282,10 +285,18 @@ class VoiceClient(discord.VoiceClient):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def create_ffmpeg_player(self, filename, *, use_avconv=False, pipe=False, stderr=None, after_input=None, options=None, before_options=None, headers=None, after=None, run_loops=0, **kwargs):
+    def create_ffmpeg_player(self, filename, *, use_avconv=False, pipe=False,
+                             stderr=None, after_input=None, options=None,
+                             before_options=None, headers=None, after=None,
+                             run_loops=0, reconnect=True, **kwargs):
+
         command_ = 'ffmpeg' if not use_avconv else 'avconv'
         input_name = '-' if pipe else shlex.quote(filename)
-        before_args = " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+
+        before_args = ''
+        if reconnect:
+            before_args = " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+
         if isinstance(headers, dict):
             for key, value in headers.items():
                 before_args += "{}: {}\r\n".format(key, value)

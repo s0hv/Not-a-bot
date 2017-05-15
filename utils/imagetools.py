@@ -42,9 +42,9 @@ from io import BytesIO
 
 logger = logging.getLogger('debug')
 IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
-MAGICK = 'magick'
+MAGICK = 'magick '
 try:
-    subprocess.call(['magick'], timeout=1)
+    subprocess.call(['magick'], timeout=3)
 except:
     MAGICK = ''
 
@@ -178,7 +178,7 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     pattern = GeoPattern(s, generator=generator, color=color)
     svg = os.path.join(IMAGES_PATH, 'bg.svg')
 
-    args = 'magick convert -size 100x100 svg:- png:-'
+    args = '{}convert -size 100x100 svg:- png:-'.format(MAGICK)
     p = subprocess.Popen(args.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(pattern.svg_string.encode('utf-8'))
     out, err = p.communicate()
@@ -308,9 +308,9 @@ def create_glow(img, amount):
     with GLOW_LOCK:
         try:
             img.save(image_path, 'PNG')
-            args = 'magick convert {} -blur 0x{} {}'.format(image_path, amount, glow_path)
+            args = '{}convert {} -blur 0x{} {}'.format(MAGICK, image_path, amount, glow_path)
             subprocess.call(args.split(' '))
-            args = 'magick composite -compose multiply {} {} png:-'.format(glow_path, image_path)
+            args = '{}composite -compose multiply {} {} png:-'.format(MAGICK, glow_path, image_path)
             p = subprocess.Popen(args.split(' '), stdout=subprocess.PIPE)
             out = p.stdout.read()
             buff = BytesIO(out)
@@ -323,8 +323,8 @@ def create_glow(img, amount):
 
 def create_shadow(img, percent, opacity, x, y):
     import shlex
-    args = 'magick convert - ( +clone -background black -shadow {}x{}+{}+{} ) +swap ' \
-           '-background transparent -layers merge +repage png:-'.format(percent, opacity, x, y)
+    args = '{}convert - ( +clone -background black -shadow {}x{}+{}+{} ) +swap ' \
+           '-background transparent -layers merge +repage png:-'.format(MAGICK, percent, opacity, x, y)
     p = subprocess.Popen(shlex.split(args), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
     stdin = p.stdin
     image = BytesIO()

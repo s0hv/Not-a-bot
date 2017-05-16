@@ -244,6 +244,7 @@ class JoJo:
         
         Image can be an attachment or a link. Passing -advanced as the last argument
         will enable advanced mode which gives the ability to tune some numbers.
+        Use quotes for names that have spaces e.g. !stand_gen "Star Platinum" "Jotaro Kujo" [image]
         """
         author = ctx.message.author
         name = author.name

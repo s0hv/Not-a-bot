@@ -75,6 +75,7 @@ class ColorThief(CF):
 
 
 class GeoPattern(geopatterns.GeoPattern):
+    # 'triangles' removed cuz it doesn't work
     available_generators = [
         'bricks',
         'hexagons',
@@ -85,7 +86,6 @@ class GeoPattern(geopatterns.GeoPattern):
         'rings',
         'sinewaves',
         'squares',
-        'triangles',
         'xes'
     ]
 
@@ -208,7 +208,7 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
 # http://stackoverflow.com/a/29314286/6046713
 # http://stackoverflow.com/a/41048793/6046713
 def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
-                      mask_dilate_iter=10, mask_erode_iter=10):
+                      mask_dilate_iter=5, mask_erode_iter=5):
     # Parameters
     BLUR = blur
     CANNY_THRESH_1 = canny_thresh_1

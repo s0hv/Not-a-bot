@@ -99,7 +99,7 @@ class JoJo:
             self.parser.add_argument(arg, type=int, default=argparse.SUPPRESS,
                                      required=False)
 
-    def create_empty_stats_circle(self):
+    def create_empty_stats_circle(self, color='k'):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         for i in range(6):
@@ -109,7 +109,7 @@ class JoJo:
             # Rotate the points in the line rot degrees
             x = list(map(lambda x: x * np.sin(rot), self.line_points))
             y = list(map(lambda y: y * np.cos(rot), self.line_points))
-            line = ax.plot(x, y, '-', color='k', alpha=0.6, markersize=6,
+            line = ax.plot(x, y, '-', color=color, alpha=0.6, markersize=6,
                            marker=(2, 0, 360 - 90 - 60 * i))
 
             if i == 0:
@@ -120,7 +120,7 @@ class JoJo:
                 correctiony = 0.05
                 for l, idx in LETTERS_TO_INT.items():
                     ax.text(x[idx] + correctionx, y[idx] - correctiony, l,
-                            horizontalalignment='right', color='k', alpha=0.65,
+                            horizontalalignment='right', color=color, alpha=0.65,
                             fontsize=10)
 
             self.stats[power] = line
@@ -135,7 +135,7 @@ class JoJo:
         inner_circle = Circle((0, 0), radius=1.1, fc='none', ec=c)
         outer_circle = Circle((0, 0), radius=1.55, fc='none', ec=c)
         outest_circle = Circle((0, 0), radius=1.65, fc='none', ec=c)
-        fig, ax = self.create_empty_stats_circle()
+        fig, ax = self.create_empty_stats_circle(c)
         stat_spread = []
         for idx, line in enumerate(self.stats.values()):
             x, y = line[0].get_data()
@@ -246,6 +246,7 @@ class JoJo:
         will enable advanced mode which gives the ability to tune some numbers.
         """
         author = ctx.message.author
+        name = author.name
         channel = ctx.message.channel
         stand = self._standify_text(stand, 2)
         user = '[STAND MASTER]\n' + user
@@ -260,7 +261,7 @@ class JoJo:
             advanced = advanced.strip() == '-advanced'
 
         if advanced:
-            await self.bot.say('Advanced mode activated', delete_after=20)
+            await self.bot.say('`{}` Advanced mode activated'.format(name), delete_after=20)
 
         if image is None and len(ctx.message.attachments) > 0:
             image = ctx.message.attachments[0]['url']
@@ -275,12 +276,12 @@ class JoJo:
 
         img = await image_from_url(image, self.bot.aiohttp_client)
         if img is None:
-            return await self.bot.say('Could not extract image from %s' % image)
+            return await self.bot.say('`{}` Could not extract image from {}. Stopping command'.format(name, image))
 
         m_, msg = await self.subcommand(
-            'Give the stand **stats** in the given order ranging from **A** to **E** '
-            'separated by **spaces**.\nDefault value is E\n{}'.format(' '.join(POWERS)),
-            timeout=60, author=author, channel=channel)
+            '`{}` Give the stand **stats** in the given order ranging from **A** to **E** '
+            'separated by **spaces**.\nDefault value is E\n`{}`'.format(name, '` `'.join(POWERS)),
+            timeout=120, author=author, channel=channel)
 
         await self.bot.delete_message(m_)
         if msg is None:
@@ -291,21 +292,22 @@ class JoJo:
         stats = dict(zip_longest(POWERS, stats[:6]))
 
         m_, msg = await self.subcommand(
-            'Use a custom background by uploading a **picture** or using a **link**. '
-            'Posting something other than an image will use the **generated background**',
-            timeout=60, author=author, channel=channel)
+            '`{}` Use a custom background by uploading a **picture** or using a **link**. '
+            'Posting something other than an image will use the **generated background**'.format(name),
+            timeout=120, author=author, channel=channel)
 
         bg = get_picture_from_msg(msg)
         await self.bot.delete_message(m_)
         if bg is not None:
             try:
+                bg = bg.strip()
                 bg = await image_from_url(bg, self.bot.aiohttp_client)
                 dominant_color = get_color(bg)
                 color = Color(rgb=list(map(lambda c: c/255, dominant_color)))
                 bg = resize_keep_aspect_ratio(bg, size, True)
             except Exception:
                 logger.exception('Failed to get background')
-                await self.bot.say('Failed to use custom background. Using generated one',
+                await self.bot.say('`{}` Failed to use custom background. Using generated one'.format(name),
                                    delete_after=60.0)
                 bg = None
 
@@ -313,14 +315,14 @@ class JoJo:
             color = None
             pattern = random.choice(GeoPattern.available_generators)
             m_, msg = await self.subcommand(
-                "Generating background. Select a **pattern** and **color** separated by space. "
+                "`{}` Generating background. Select a **pattern** and **color** separated by space. "
                 "Otherwise they'll will be randomly chosen. Available patterns:\n"
-                '{}'.format('\n'.join(GeoPattern.available_generators)),
-                timeout=60, channel=channel, author=author)
+                '{}'.format(name, '\n'.join(GeoPattern.available_generators)),
+                timeout=120, channel=channel, author=author)
 
             await self.bot.delete_message(m_)
             if msg is None:
-                await self.bot.say('Selecting randomly', delete_after=20)
+                await self.bot.say('`{}` Selecting randomly'.format(name), delete_after=20)
             if msg is not None:
                 msg = msg.content.split(' ')
                 pa, c = None, None
@@ -332,13 +334,13 @@ class JoJo:
                 if pa in GeoPattern.available_generators:
                     pattern = pa
                 else:
-                    await self.bot.say('Pattern {} not found'.format(pa),
+                    await self.bot.say('`{}` Pattern {} not found. Selecting randomly'.format(name, pa),
                                        delete_after=20)
 
                 try:
                     color = Color(c)
                 except:
-                    await self.bot.say('{} not an available color'.format(c),
+                    await self.bot.say('`{}` {} not an available color'.format(name, c),
                                        delete_after=20)
 
             bg, color = create_geopattern_background(size, stand + user,
@@ -346,10 +348,10 @@ class JoJo:
 
         if advanced:
             m_, msg = await self.subcommand(
-                'Input color value change as an **integer**. Default is {}. '
+                '`{}` Input color value change as an **integer**. Default is {}. '
                 'You can also input a **color** instead of the change value. '
-                'The resulting color will be used in the stats circle'.format(shift),
-                timeout=60, channel=channel, author=author)
+                'The resulting color will be used in the stats circle'.format(name, shift),
+                timeout=120, channel=channel, author=author)
 
             try:
                 shift = int(msg.content.split(' ')[0])
@@ -358,7 +360,7 @@ class JoJo:
                     color = Color(msg.content.split(' ')[0])
                     shift = 0
                 except:
-                    await self.bot.say('Could set color or color change int. Using default values',
+                    await self.bot.say('`{}` Could set color or color change int. Using default values'.format(name),
                                        delete_after=15)
 
             await self.bot.delete_message(m_)
@@ -374,7 +376,7 @@ class JoJo:
                 stat_img = Image.open(path)
             except:
                 logger.exception('Could not create image')
-                return await self.bot.say('Could not create picture because of an error.')
+                return await self.bot.say('`{}` Could not create picture because of an error.'.format(name))
 
         stat_img = stat_img.resize((int(stat_img.width * 0.85),
                                     int(stat_img.height * 0.85)),
@@ -401,32 +403,33 @@ class JoJo:
             im = trim_image(img)
 
             m_, msg = await self.subcommand(
-                'Try to automatically remove background (y/n)? '
-                'This might fuck the picture up and will take a moment', author=author, channel=channel,
-                timeout=60, check=y_n_check)
+                '`{}` Try to automatically remove background (y/n)? '
+                'This might fuck the picture up and will take a moment'.format(name),
+                author=author, channel=channel, timeout=120, check=y_n_check)
             await self.bot.delete_message(m_)
             if msg and msg.content.lower() in ['y', 'yes']:
                 kwargs = {}
                 if advanced:
                     m_, msg = await self.subcommand(
-                        'Change the arguments of background removing. Available'
+                        '`{}` Change the arguments of background removing. Available'
                         ' arguments are `blur`, `canny_thresh_1`, `canny_thresh_2`, '
                         '`mask_dilate_iter`, `mask_erode_iter`. '
                         'Accepted values are integers.\nArguments are added like this '
-                        '`-blur 30 -canny_thresh_2 50`. All arguments are optional',
-                        channel=channel, author=author, timeout=80)
+                        '`-blur 30 -canny_thresh_2 50`. All arguments are optional'.format(name),
+                        channel=channel, author=author, timeout=140)
                     await self.bot.delete_message(m_)
+                    await self.bot.send_typing(channel)
                     if msg is not None:
                         try:
                             kwargs = self.parser.parse_known_args(msg.content.split(' '))[0].__dict__
                         except:
-                            await self.bot.say('Could not get arguments from %s' % str(msg.content),
+                            await self.bot.say('`{}` Could not get arguments from {}'.format(name, msg.content),
                                                delete_after=20)
 
                 try:
                     im = remove_background(im, **kwargs)
                 except Exception as e:
-                    await self.bot.say('Could remove background because of an error %s' % e,
+                    await self.bot.say('`{}` Could not remove background because of an error {}'.format(name, e),
                                        delete_after=30)
 
             box = (500, 600)
@@ -434,6 +437,7 @@ class JoJo:
             im = create_shadow(im, 70, 3, -22, -7).convert('RGBA')
             full.paste(im, (full.width - im.width, int((full.height - im.height)/2)), im)
 
+        self.bot.send_typing(channel)
         full.paste(text2,(int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)), text2)
         bg.paste(full, (0, 0), full)
 

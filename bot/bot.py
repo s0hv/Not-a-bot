@@ -194,6 +194,8 @@ class Bot(commands.Bot):
             self.dispatch('command', command, ctx)
             try:
                 await command.invoke(ctx)
+            except discord.ext.commands.errors.MissingRequiredArgument as e:
+                command.dispatch_error(exceptions.MissingRequiredArgument(e), ctx)
             except CommandError as e:
                 ctx.command.dispatch_error(e, ctx)
             else:

@@ -197,6 +197,7 @@ def check_negative(n):
     else:
         return 1
 
+
 def emote_url_from_id(id):
     return 'https://cdn.discordapp.com/emojis/%s.png' % id
 
@@ -213,3 +214,13 @@ def get_picture_from_msg(msg):
         if test_url(word):
             return word
 
+
+def normalize_text(s):
+    # Get cleaned emotes
+    matches = re.findall('<:\w+:\d+>', s)
+
+    for match in matches:
+        s = s.replace(match, match.split(':')[1])
+
+    #matches = re.findall('<@\d+>')
+    return s

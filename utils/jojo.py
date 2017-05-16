@@ -47,7 +47,8 @@ from utils.imagetools import (create_shadow, create_text, create_glow,
                               resize_keep_aspect_ratio, get_color,
                               IMAGES_PATH, image_from_url, GeoPattern,
                               color_distance, MAX_COLOR_DIFF)
-from utils.utilities import get_picture_from_msg, emote_url_from_id, y_n_check, check_negative
+from utils.utilities import (get_picture_from_msg, emote_url_from_id, y_n_check,
+                             check_negative, normalize_text)
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
@@ -204,6 +205,7 @@ class JoJo:
     def _standify_text(s, type_=0):
         types = ['『』', '「」', '']
         bracket = types[type_]
+        s = normalize_text(s)
         s = s.translate(HALFWIDTH_TO_FULLWIDTH)
         if type_ > 1:
             return s
@@ -225,12 +227,18 @@ class JoJo:
         stand = self._standify_text(stand, 1)
         await self.bot.say(stand)
 
+    @command(pass_context=True, aliases=['stand3'])
+    async def standify3(self, ctx, *, stand):
+        stand = ' '.join(ctx.message.clean_content.split(' ')[1:])
+        stand = self._standify_text(stand, 2)
+        await self.bot.say(stand)
+
     async def subcommand(self, content, delete_after=None, **kwargs):
         m_ = await self.bot.say(content, delete_after=delete_after)
         msg = await self.bot.wait_for_message(**kwargs)
         return m_, msg
 
-    @command(pass_context=True, aliases=['stand_generator'], ignore_extra=True, owner_only=True)
+    @command(pass_context=True, aliases=['stand_generator'], ignore_extra=True)
     async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
         """Generate a stand card. Arguments are stand name, user name and an image
         
@@ -381,12 +389,12 @@ class JoJo:
 
         text = create_glow(create_shadow(create_text(stand, font, '#FFFFFF',
                                         (int(full.width*0.75), int(y*0.8)), (10, 10)),
-                                         80, 3, 2, 4), 3)
-        full.paste(text, (20, 20))
+                                         80, 3, 2, 4), 3).convert('RGBA')
+        full.paste(text, (20, 20), text)
         text2 = create_glow(create_shadow(create_text(user, font, '#FFFFFF',
                                         (int((full.width - stat_corner[0])*0.8),
                                          int(full.height*0.7)),
-                                        (10, 10)), 80, 3, 2, 4), 3)
+                                        (10, 10)), 80, 3, 2, 4), 3).convert('RGBA')
         text2.load()
 
         if img is not None:
@@ -422,12 +430,11 @@ class JoJo:
                                        delete_after=30)
 
             box = (500, 600)
-            im = resize_keep_aspect_ratio(im, box)
-            print(im.size)
+            im = resize_keep_aspect_ratio(im, box, can_be_bigger=False)
             im = create_shadow(im, 70, 3, -22, -7).convert('RGBA')
             full.paste(im, (full.width - im.width, int((full.height - im.height)/2)), im)
 
-        full.paste(text2,(int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)))
+        full.paste(text2,(int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)), text2)
         bg.paste(full, (0, 0), full)
 
         file = BytesIO()

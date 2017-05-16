@@ -81,9 +81,19 @@ class InvalidPermissionsException(BotException):
         return self._message
 
 
+class MissingRequiredArgument(BotException):
+    def __init__(self, e, message='', cmd_message=None):
+        super().__init__(message, cmd_message=cmd_message)
+        self._e = e
+
+    @property
+    def message(self):
+        return 'Missing argument(s)\n{}'.format(self._e)
+
+
 class InvalidValueException(BotException):
-    def __init__(self, val, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, val, message, cmd_message=None):
+        super().__init__(message, cmd_message=cmd_message)
         self._val = val
 
     @property

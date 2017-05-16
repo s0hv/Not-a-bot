@@ -55,6 +55,17 @@ if not os.path.exists(IMAGES_PATH):
     os.mkdir(IMAGES_PATH)
 
 
+def make_shiftable(color):
+    # Color stays almost the same when it's too close to white or black
+    max_dist = MAX_COLOR_DIFF * 0.05
+    if color_distance(color, Color('white')) < max_dist:
+        color.set_hex('#EEEEEE')
+    elif color_distance(color, Color('black')) < max_dist:
+        color.set_hex('#333333')
+
+    return color
+
+
 class ColorThief(CF):
     def __init__(self, img):
         if isinstance(img, Image.Image):
@@ -100,6 +111,7 @@ class GeoPattern(geopatterns.GeoPattern):
             hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 365)
             base_color.hue = base_color.hue - hue_offset
 
+        base_color = make_shiftable(base_color)
         sat_offset = promap(int(self.hash[17:][:1], 16), 0, 15, 0, 0.5)
 
         if sat_offset % 2:
@@ -282,12 +294,7 @@ def shift_color(color, amount):
         else:
             return val * 0.035 * (1 - (amount/20))
 
-    # Color stays almost the same when it's too close to white or black
-    max_dist = MAX_COLOR_DIFF * 0.05
-    if color_distance(color, Color('white')) < max_dist:
-        color.set_hex('#EEEEEE')
-    elif color_distance(color, Color('black')) < max_dist:
-        color.set_hex('#333333')
+    color = make_shiftable(color)
 
     sat = color.saturation
     hue = color.hue
@@ -339,11 +346,12 @@ def create_shadow(img, percent, opacity, x, y):
     return img
 
 
-def resize_keep_aspect_ratio(img, new_size, crop_to_size=False):
+def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True):
     x, y = img.size
     x_m = x / new_size[0]
     y_m = y / new_size[1]
-    if y_m <= x_m:
+    check = y_m <= x_m if can_be_bigger else y_m >= x_m
+    if check:
         m = new_size[1] / y
     else:
         m = new_size[0] / x

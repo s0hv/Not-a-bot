@@ -418,12 +418,12 @@ class Audio:
 
             return options
 
-    @command(pass_context=True, no_pm=True, aliases=['a'], ignore_extra=True, level=1)
+    @command(pass_context=True, no_pm=True, aliases=['a'], ignore_extra=True)
     async def again(self, ctx):
         """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
-    @command(name='q', pass_context=True, no_pm=True, ignore_extra=True, level=2)
+    @command(name='q', pass_context=True, no_pm=True, ignore_extra=True, level=1)
     async def queue_np(self, ctx):
         """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
@@ -444,7 +444,7 @@ class Audio:
         await state.playlist.add_from_song(Song.from_song(state.current), priority)
 
     @commands.cooldown(4, 4)
-    @command(pass_context=True, level=1)
+    @command(pass_context=True)
     async def seek(self, ctx, *, where: str):
         """
         If the video is cached you can seek it using this format h m s ms,
@@ -603,7 +603,7 @@ class Audio:
         logger.debug('Parse play returned {0}, {1}'.format(song_name, metadata))
         return song_name, metadata
 
-    @command(pass_context=True, no_pm=True, level=1)
+    @command(pass_context=True, no_pm=True)
     @commands.cooldown(4, 4)
     async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
@@ -627,7 +627,7 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.add_from_playlist(playlist, ctx.message.channel)
 
-    @command(pass_context=True, level=1)
+    @command(pass_context=True)
     async def search(self, ctx, *, name):
         """Search for songs. Default site is youtube
         Supported sites: -yt Youtube, -sc Soundcloud"""
@@ -649,7 +649,7 @@ class Audio:
             if not success:
                 return
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'], level=1)
+    @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'])
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
         summoned_channel = ctx.message.author.voice_channel
@@ -705,7 +705,7 @@ class Audio:
         await state.playlist.clear(index)
 
     @commands.cooldown(4, 4)
-    @command(pass_context=True, no_pm=True, aliases=['vol'], level=1)
+    @command(pass_context=True, no_pm=True, aliases=['vol'])
     async def volume(self, ctx, value: int=-1):
         """
         Sets the volume of the currently playing song.
@@ -849,7 +849,7 @@ class Audio:
             os.remove(tempfile)
 
     @commands.cooldown(4, 4)
-    @command(pass_context=True, no_pm=True, level=1)
+    @command(pass_context=True, no_pm=True)
     async def shuffle(self, ctx):
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.shuffle()
@@ -898,7 +898,7 @@ class Audio:
         self.clear_cache()
 
     @commands.cooldown(4, 4)
-    @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'], level=1)
+    @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'])
     async def skip(self, ctx):
         """Skips the current song"""
         state = self.get_voice_state(ctx.message.server)
@@ -973,7 +973,7 @@ class Audio:
 
         return await self.bot.send_message(ctx.message.channel, 'The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, level=2)
+    @command(pass_context=True, no_pm=True, ignore_extra=True, level=3)
     async def ds(self, ctx):
         perms = ctx.user_permissions
         if command_usable(perms, self.skip) and command_usable(perms, self.delete_from_ap):
@@ -1021,7 +1021,7 @@ class Audio:
         await self.bot.send_message(ctx.message.channel, 'Link to **{0.title}**: {0.webpage_url}'.format(current))
 
     @commands.cooldown(1, 4)
-    @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], level=2)
+    @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], level=3)
     async def delete_from_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if not name:
@@ -1039,7 +1039,7 @@ class Audio:
         await state.say('Added entry %s to the deletion list' % ' '.join(name), 30, ctx.message.channel)
 
     @commands.cooldown(1, 4)
-    @command(name='add', pass_context=True, no_pm=True, level=2)
+    @command(name='add', pass_context=True, no_pm=True, level=3)
     async def add_to_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if name:

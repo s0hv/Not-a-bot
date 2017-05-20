@@ -79,6 +79,7 @@ def start(config, permissions):
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
     permissions.bot = bot
     colors = get_colors()
+    hi_new = {ord(c): '' for c in ", '"}
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
@@ -243,6 +244,9 @@ def start(config, permissions):
             else:
                 await bot.send_message(message.channel, 'dat boi')
             return
+
+        elif message.content.lower().translate(hi_new) == 'hiimnew':
+            await bot.send_message(message.channel, 'Hi new, I\'m dad')
 
     @bot.command(pass_context=True)
     async def set_battletag(ctx, battletag):

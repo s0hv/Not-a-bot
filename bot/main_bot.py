@@ -41,6 +41,7 @@ from bot.exceptions import *
 from utils import wolfram, memes, hearthstone, jojo
 from utils.search import Search
 from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string
+from bot.management import Management
 from random import choice
 from colour import Color
 
@@ -83,6 +84,7 @@ def start(config, permissions):
 
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
+    management = Management(bot)
 
     @bot.event
     async def on_ready():
@@ -105,6 +107,45 @@ def start(config, permissions):
                 pass
 
             await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:310755051079729174> {}".format(member.mention))
+
+    @bot.event
+    async def on_member_remove(member):
+        server = member.server
+        conf = management.get_config(server)
+        if conf is None:
+            return
+
+        channel = server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        mention = member.name if not conf['mention'] else member.mention
+        try:
+            message = conf['message'].replace('{user}', mention, 1)
+        except KeyError:
+            message = conf['message'].strip() + ' {}'.format(mention)
+
+        await bot.send_message(channel, message)
+
+    @bot.command(pass_context=True)
+    async def test(ctx):
+        member = ctx.message.author
+        server = member.server
+        conf = management.get_config(server)
+        if conf is None:
+            return
+
+        channel = server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        mention = member.name if not conf['mention'] else member.mention
+        try:
+            message = conf['message'].replace('{user}', mention, 1)
+        except KeyError:
+            message = conf['message'].strip() + ' {}'.format(mention)
+
+        await bot.send_message(channel, message)
 
     @bot.command(name='add_color', pass_context=True, owner_only=True)
     async def add_color_(ctx, color, *, name):
@@ -160,7 +201,7 @@ def start(config, permissions):
 
         delete_color(name)
 
-    @bot.command(name='color', pass_context=True)
+    @bot.command(name='color', pass_context=True, aliases=['colour'])
     async def set_color(ctx, *, color):
         server = ctx.message.server
         if server.id != '217677285442977792':
@@ -502,4 +543,5 @@ def start(config, permissions):
     bot.add_cog(sound)
     bot.add_cog((hearthstone.Hearthstone(bot, config.mashape_key, bot.aiohttp_client)))
     bot.add_cog(jojo.JoJo(bot))
+    bot.add_cog(management)
     bot.run(config.token)

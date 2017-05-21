@@ -52,34 +52,9 @@ HALFWIDTH_TO_FULLWIDTH = str.maketrans(
 
 
 def start(config, permissions):
-    def get_colors():
-        file = os.path.join(os.getcwd(), 'data', 'colors.txt')
-        if os.path.exists(file):
-            return read_lines(file)
-        else:
-            return []
-
-    def add_color(name):
-        file = os.path.join(os.getcwd(), 'data', 'colors.txt')
-        colors.append(name)
-        with open(file, 'w') as f:
-            f.write('\n'.join(colors))
-
-    def delete_color(name):
-        file = os.path.join(os.getcwd(), 'data', 'colors.txt')
-        try:
-            while name in colors:
-                colors.remove(name)
-        except Exception as e:
-            print(e)
-
-        with open(file, 'w') as f:
-            f.write('\n'.join(colors))
-
     client = ClientSession()
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
     permissions.bot = bot
-    colors = get_colors()
     hi_new = {ord(c): '' for c in ", '"}
 
     sound = audio.Audio(bot, client)
@@ -93,25 +68,12 @@ def start(config, permissions):
 
     @bot.event
     async def on_member_join(member):
-        if member.server.id != '217677285442977792':
+        server = member.server
+        server_config = management.get_config(server.id)
+        if server_config is None:
             return
 
-        channel = bot.get_channel('302174140230664196')
-        roles = member.server.roles
-        color = choice(colors)
-        role = list(filter(lambda r: str(r) == color, roles))
-        if channel is not None:
-            try:
-                await bot.add_roles(member, *role)
-            except:
-                pass
-
-            await bot.send_message(channel, "Fuck you leatherman <:gachiGASM:310755051079729174> {}".format(member.mention))
-
-    @bot.event
-    async def on_member_remove(member):
-        server = member.server
-        conf = management.get_config(server)
+        conf = server_config.get('join', None)
         if conf is None:
             return
 
@@ -119,7 +81,38 @@ def start(config, permissions):
         if channel is None:
             return
 
-        mention = member.name if not conf['mention'] else member.mention
+        mention = str(member) if not conf['mention'] else member.mention
+        try:
+            message = conf['message'].replace('{user}', mention, 1)
+        except KeyError:
+            message = conf['message'].strip() + ' {}'.format(mention)
+
+        await bot.send_message(channel, message)
+
+        if conf['add_color']:
+            colors = server_config.get('colors', [])
+
+            if colors:
+                color = choice(colors)
+                roles = member.server.roles
+                role = list(filter(lambda r: str(r) == color, roles))
+                if channel is not None:
+                    try:
+                        await bot.add_roles(member, *role)
+                    except:
+                        pass
+    @bot.event
+    async def on_member_remove(member):
+        server = member.server
+        conf = management.get_leave(server)
+        if conf is None:
+            return
+
+        channel = server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        mention = str(member) if not conf['mention'] else member.mention
         try:
             message = conf['message'].replace('{user}', mention, 1)
         except KeyError:
@@ -131,7 +124,11 @@ def start(config, permissions):
     async def test(ctx):
         member = ctx.message.author
         server = member.server
-        conf = management.get_config(server)
+        server_config = management.get_config(server.id)
+        if server_config is None:
+            return
+
+        conf = server_config.get('join', None)
         if conf is None:
             return
 
@@ -139,7 +136,7 @@ def start(config, permissions):
         if channel is None:
             return
 
-        mention = member.name if not conf['mention'] else member.mention
+        mention = str(member) if not conf['mention'] else member.mention
         try:
             message = conf['message'].replace('{user}', mention, 1)
         except KeyError:
@@ -147,108 +144,18 @@ def start(config, permissions):
 
         await bot.send_message(channel, message)
 
-    @bot.command(name='add_color', pass_context=True, owner_only=True)
-    async def add_color_(ctx, color, *, name):
-        try:
-            color = Color(color)
-        except (ValueError, AttributeError):
-            return await bot.say('Color %s is invalid' % color)
+        if conf['add_color']:
+            colors = server_config.get('colors', [])
 
-        try:
-            color = color.get_hex_l()
-            if color.startswith('#'):
-                color = color[1:]
-
-            color = discord.Color(int(color, 16))
-            everyone = ctx.message.server.default_role
-            perms = discord.Permissions(everyone.permissions.value)
-            await bot.create_role(ctx.message.server, name=name, colour=color, permissions=perms,
-                                  mentionable=False, hoist=False)
-        except Exception as e:
-            print('[ERROR] Exception while creating role. %s' % e)
-            return await bot.say('Could not create role')
-
-        add_color(name)
-        await bot.say('Color %s added' % name)
-
-    @bot.command(name='delete_color', pass_context=True, owner_only=True)
-    async def delete_color_(ctx, *, name):
-        roles = list(filter(lambda r: str(r) == name, ctx.message.server.roles))
-        if name not in colors or not roles:
-            return await bot.say('Color %s not found' % name)
-
-        if len(roles) > 1:
-            await bot.say('Multiple roles found. Delete them all y/n')
-            msg = await bot.wait_for_message(timeout=10, author=ctx.message.author,
-                                             channel=ctx.message.channel,
-                                             check=y_n_check)
-            if msg is None or msg.content.lower().strip() in ['n', 'no']:
-                return await bot.say('Cancelled')
-
-        r_len = len(roles)
-        failed = 0
-        for role in roles:
-            try:
-                await bot.delete_role(ctx.message.server, role)
-            except:
-                failed += 1
-
-        if failed == 0:
-            await bot.say('Successfully deleted %s roles' % str(r_len))
-        else:
-            await bot.say('Successfully deleted {} roles and failed {}'.format(
-                           r_len - failed, failed))
-
-        delete_color(name)
-
-    @bot.command(name='color', pass_context=True, aliases=['colour'])
-    async def set_color(ctx, *, color):
-        server = ctx.message.server
-        if server.id != '217677285442977792':
-            return
-
-        roles = server.roles
-        color = color.lower()
-        role_ = list(filter(lambda r: str(r).lower() == color, roles))
-        if not role_:
-            return await bot.say('Color %s not found. Use !colors for all the available colors.' % color)
-
-        _roles = []
-        for role in ctx.message.author.roles:
-            if str(role) in colors and role != role_[0]:
-                _roles.append(role)
-
-        try:
-            await bot.remove_roles(ctx.message.author, *_roles)
-            for r in _roles:
-                if r in ctx.message.author.roles:
-                    ctx.message.author.roles.remove(r)
-
-            await bot.add_roles(ctx.message.author, *role_)
-        except Exception as e:
-            print(e)
-            await bot.say('Failed to change color')
-        else:
-            await bot.say('Color set to %s' % color)
-
-    @bot.command(name='colors')
-    async def get_colors():
-        await bot.say('Available colors: {}'.format(', '.join(colors)))
-
-    @bot.command(pass_context=True, owner_only=True)
-    async def color_uncolored(ctx):
-        if not colors:
-            return
-
-        roles = ctx.message.server.roles
-        for member in ctx.message.server.members:
-            if len(member.roles) == 1:
+            if colors:
                 color = choice(colors)
+                roles = member.server.roles
                 role = list(filter(lambda r: str(r) == color, roles))
-                try:
-                    await bot.add_roles(member, *role)
-                except Exception:
-                    pass
+                if channel is not None:
+                    try:
+                        await bot.add_roles(member, *role)
+                    except:
+                        pass
 
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:
@@ -382,7 +289,7 @@ def start(config, permissions):
         kwargs['whitelist'] = await check_commands(kwargs['whitelist'], user_permissions.level, channel)
         kwargs['blacklist'] = await check_commands(kwargs['blacklist'], user_permissions.level, channel)
 
-        msg = 'Confirm the creation if a permission group with\ny/n'
+        msg = 'Confirm the creation if a permission group with{}\ny/n'.format(kwargs)
         await bot.say_timeout(msg, ctx.message.channel, 40)
         msg = await bot.wait_for_message(timeout=30, author=ctx.message.author, channel=channel, check=y_n_check)
 

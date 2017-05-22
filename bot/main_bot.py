@@ -101,10 +101,11 @@ def start(config, permissions):
                         await bot.add_roles(member, *role)
                     except:
                         pass
+
     @bot.event
     async def on_member_remove(member):
         server = member.server
-        conf = management.get_leave(server)
+        conf = management.get_leave(server.id)
         if conf is None:
             return
 
@@ -120,15 +121,11 @@ def start(config, permissions):
 
         await bot.send_message(channel, message)
 
-    @bot.command(pass_context=True)
+    @bot.command(pass_context=True, owner_only=True)
     async def test(ctx):
         member = ctx.message.author
         server = member.server
-        server_config = management.get_config(server.id)
-        if server_config is None:
-            return
-
-        conf = server_config.get('join', None)
+        conf = management.get_leave(server.id)
         if conf is None:
             return
 
@@ -143,20 +140,6 @@ def start(config, permissions):
             message = conf['message'].strip() + ' {}'.format(mention)
 
         await bot.send_message(channel, message)
-
-        if conf['add_color']:
-            colors = server_config.get('colors', [])
-
-            if colors:
-                color = choice(colors)
-                roles = member.server.roles
-                role = list(filter(lambda r: str(r) == color, roles))
-                if channel is not None:
-                    try:
-                        await bot.add_roles(member, *role)
-                    except:
-                        pass
-
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:
             if r.status == 200:

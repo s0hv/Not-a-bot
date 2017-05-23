@@ -81,11 +81,8 @@ def start(config, permissions):
         if channel is None:
             return
 
-        mention = str(member) if not conf['mention'] else member.mention
-        try:
-            message = conf['message'].replace('{user}', mention, 1)
-        except KeyError:
-            message = conf['message'].strip() + ' {}'.format(mention)
+        user = str(member)
+        message = conf['message'].format(user=user, **vars(member))
 
         await bot.send_message(channel, message)
 
@@ -113,33 +110,53 @@ def start(config, permissions):
         if channel is None:
             return
 
-        mention = str(member) if not conf['mention'] else member.mention
-        try:
-            message = conf['message'].replace('{user}', mention, 1)
-        except KeyError:
-            message = conf['message'].strip() + ' {}'.format(mention)
-
+        message = conf['message'].format(user=str(member), **vars(member))
         await bot.send_message(channel, message)
 
-    @bot.command(pass_context=True, owner_only=True)
-    async def test(ctx):
-        member = ctx.message.author
-        server = member.server
-        conf = management.get_leave(server.id)
+    @bot.event
+    async def on_message_edit(before, after):
+        conf = management.get_config(before.server.id).get('on_edit', None)
         if conf is None:
             return
 
-        channel = server.get_channel(conf['channel'])
+        channel = before.server.get_channel(conf['channel'])
         if channel is None:
             return
 
-        mention = str(member) if not conf['mention'] else member.mention
-        try:
-            message = conf['message'].replace('{user}', mention, 1)
-        except KeyError:
-            message = conf['message'].strip() + ' {}'.format(mention)
+        bef_content = before.content
+        aft_content = after.content
+        if bef_content == aft_content:
+            return
 
-        await bot.send_message(channel, message)
+        user = before.author
+
+        message = conf['message']
+        message = message.format(name=str(user), **vars(user),
+                                 before=bef_content, after=aft_content)
+
+        message = split_string(message, maxlen=1960)
+        for m in message:
+            await bot.send_message(channel, m)
+
+    @bot.event
+    async def on_message_delete(msg):
+        conf = management.get_config(msg.server.id).get('on_delete', None)
+        if conf is None:
+            return
+
+        channel = msg.server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        content = msg.content
+        user = msg.author
+
+        message = conf['message']
+        message = message.format(name=str(user), message=content, **vars(user))
+        message = split_string(message)
+        for m in message:
+            await bot.send_message(channel, m)
+
     async def get_ow(bt):
         async with client.get('https://api.lootbox.eu/pc/eu/%s/profile' % bt) as r:
             if r.status == 200:

@@ -41,26 +41,21 @@ class Management:
 
         self.save_json()
 
-    async def _join_leave(self, ctx, channel, message, mention, add_color, join=True):
+    async def _join_leave(self, ctx, channel, message, add_color, join=True):
         key = 'join' if join else 'leave'
         user = ctx.message.author
         channel_ = ctx.message.channel
         server = ctx.message.server
         if not user.permissions_in(channel_).manage_server:
-            return await self.bot.send_message(channel_,
-                                               "You don't have manage server permissions")
+            return await self.bot.send_message(channel_, "You don't have manage server permissions")
 
         chn = self.get_channel(channel, server)
         if chn is None:
-            return await self.bot.send_message(channel_,
-                                               'Could not get channel %s' % channel)
-
-        if not isinstance(mention, bool):
-            mention = False
+            return await self.bot.send_message(channel_, 'Could not get channel %s' % channel)
 
         config = self.servers.get(server.id, {})
         config[key] = {'message': message, 'channel': chn.id,
-                       'mention': mention, 'add_color': add_color}
+                       'add_color': add_color}
         self.servers[server.id] = config
         self.save_json()
         config = json.dumps(config[key], ensure_ascii=False)
@@ -68,12 +63,35 @@ class Management:
                                    channel_, 120)
 
     @command(pass_context=True)
-    async def leave_message(self, ctx, channel, message, mention=False, add_color=False):
-        await self._join_leave(ctx, channel, message, mention, add_color, join=False)
+    async def leave_message(self, ctx, channel, message):
+        await self._join_leave(ctx, channel, message, False, join=False)
 
     @command(pass_context=True)
-    async def join_message(self, ctx, channel, message, mention=False, add_color=False):
-        await self._join_leave(ctx, channel, message, mention, add_color,  join=True)
+    async def join_message(self, ctx, channel, message, add_color=False):
+        await self._join_leave(ctx, channel, message, add_color,  join=True)
+
+    async def _message_edited(self, ctx, channel, message, key='on_edit'):
+        server = ctx.message.server
+
+        config = self.get_config(server.id)
+        chn = self.get_channel(channel, server)
+        if chn is None:
+            return await self.bot.send_message(ctx.message.channel,
+                                               'Could not get channel %s' % channel)
+
+        config[key] = {'message': message, 'channel': chn.id}
+        self.save_json()
+        config = json.dumps(config[key], ensure_ascii=False)
+        await self.bot.send_message(ctx.message.channel,
+                                    '{} config ```json\n{}```'.format(key, config))
+
+    @command(pass_context=True)
+    async def on_edit_message(self, ctx, channel, message):
+        await self._message_edited(ctx, channel, message)
+
+    @command(pass_context=True)
+    async def on_delete_message(self, ctx, channel, message):
+        await self._message_edited(ctx, channel, message, key='on_delete')
 
     @command(pass_context=True, owner_only=True)
     async def delete_color(self, ctx, *, name):
@@ -198,20 +216,19 @@ class Management:
                 return
 
     def get_config(self, serverid):
-        return self.servers.get(serverid, None)
+        conf = self.servers.get(serverid, None)
+        if conf is None:
+            conf = {}
+            self.servers[serverid] = conf
+
+        return conf
 
     def get_join(self, serverid):
         config = self.get_config(serverid)
-        if config is None:
-            return
-
         return config.get('join', None)
 
     def get_leave(self, serverid):
         config = self.get_config(serverid)
-        if config is None:
-            return
-
         return config.get('leave', None)
 
     def get_colors(self, serverid):

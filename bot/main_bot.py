@@ -115,9 +115,6 @@ def start(config, permissions):
 
     @bot.event
     async def on_message_edit(before, after):
-        if before.author.bot:
-            return
-
         conf = management.get_config(before.server.id).get('on_edit', None)
         if conf is None:
             return

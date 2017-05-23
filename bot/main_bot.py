@@ -115,6 +115,9 @@ def start(config, permissions):
 
     @bot.event
     async def on_message_edit(before, after):
+        if before.author.bot:
+            return
+
         conf = management.get_config(before.server.id).get('on_edit', None)
         if conf is None:
             return
@@ -131,7 +134,7 @@ def start(config, permissions):
         user = before.author
 
         message = conf['message']
-        message = message.format(name=str(user), **vars(user),
+        message = message.format(name=str(user), **{k: getattr(user, k)for k in user.__slots__},
                                  before=bef_content, after=aft_content)
 
         message = split_string(message, maxlen=1960)
@@ -156,7 +159,7 @@ def start(config, permissions):
         user = msg.author
 
         message = conf['message']
-        message = message.format(name=str(user), message=content, **vars(user))
+        message = message.format(name=str(user), message=content, **{k: getattr(user, k)for k in user.__slots__})
         message = split_string(message)
         for m in message:
             await bot.send_message(channel, m)

@@ -115,6 +115,9 @@ def start(config, permissions):
 
     @bot.event
     async def on_message_edit(before, after):
+        if before.author.bot:
+            return
+
         conf = management.get_config(before.server.id).get('on_edit', None)
         if conf is None:
             return
@@ -138,8 +141,12 @@ def start(config, permissions):
         for m in message:
             await bot.send_message(channel, m)
 
+    @bot.command(pass_context=True)
     @bot.event
     async def on_message_delete(msg):
+        if msg.author.bot:
+            return
+
         conf = management.get_config(msg.server.id).get('on_delete', None)
         if conf is None:
             return

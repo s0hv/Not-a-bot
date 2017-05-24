@@ -224,3 +224,19 @@ def normalize_text(s):
 
     #matches = re.findall('<@\d+>')
     return s
+
+
+def slots2dict(obj):
+    # Turns slots and @properties to a dict
+    d = {k: getattr(obj, k) for k in obj.__slots__}
+    for k in dir(obj):
+        if k.startswith('_'):
+            # We don't want any private methods
+            continue
+
+        v = getattr(obj, k)
+        if not callable(v):
+            # Don't need methods here
+            d[k] = v
+
+    return d

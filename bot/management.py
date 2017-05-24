@@ -5,7 +5,7 @@ import re
 from bot.bot import command
 from colour import Color
 import discord
-from utils.utilities import y_n_check
+from utils.utilities import y_n_check, slots2dict
 from random import choice
 
 
@@ -17,6 +17,48 @@ class Management:
         if os.path.exists(self.path):
             with open(self.path, 'r') as f:
                 self.servers = json.load(f)
+
+    @staticmethod
+    def format_on_edit(before, after, conf, check_equal=True):
+        bef_content = before.content
+        aft_content = after.content
+        if check_equal:
+            if bef_content == aft_content:
+                return
+
+        user = before.author
+
+        message = conf['message']
+        d = slots2dict(user)
+        for e in ['name', 'before', 'after']:
+            d.pop(e, None)
+
+        d['channel'] = after.channel.mention
+        message = message.format(name=str(user), **d,
+                                 before=bef_content, after=aft_content)
+
+        return message
+
+    @staticmethod
+    def format_join_leave(member, conf):
+        d = slots2dict(member)
+        d.pop('user', None)
+        message = conf['message'].format(user=str(member), **d)
+        return message
+
+    @staticmethod
+    def format_on_delete(msg, conf):
+        content = msg.content
+        user = msg.author
+
+        message = conf['message']
+        d = slots2dict(user)
+        for e in ['name', 'message']:
+            d.pop(e, None)
+
+        d['channel'] = msg.channel.mention
+        message = message.format(name=str(user), message=content, **d)
+        return message
 
     @staticmethod
     def get_channel(s, server):
@@ -58,40 +100,93 @@ class Management:
                        'add_color': add_color}
         self.servers[server.id] = config
         self.save_json()
-        config = json.dumps(config[key], ensure_ascii=False)
-        await self.bot.say_timeout('Current {} message config ```json\n{}```'.format(key, config),
+        config_ = json.dumps(config[key], ensure_ascii=False)
+        await self.bot.say_timeout('Current {} message config ```json\n{}```'.format(key, config_),
                                    channel_, 120)
+
+        return config
 
     @command(pass_context=True)
     async def leave_message(self, ctx, channel, message):
-        await self._join_leave(ctx, channel, message, False, join=False)
+        old = self.get_config(ctx.message.server.id).get('leave', {})
+        conf = await self._join_leave(ctx, channel, message, False, join=False)
+        if not isinstance(conf, dict):
+            return
+
+        try:
+            self.format_on_delete(ctx.message, conf['leave'])
+        except Exception as e:
+            conf['leave'] = old
+            self.save_json()
+            await self.bot.say('New format failed with error "{}"\n'
+                               'reverting back'.format(e))
 
     @command(pass_context=True)
     async def join_message(self, ctx, channel, message, add_color=False):
-        await self._join_leave(ctx, channel, message, add_color,  join=True)
+        old = self.get_config(ctx.message.server.id).get('join', {})
+        conf = await self._join_leave(ctx, channel, message, add_color,  join=True)
+        if not isinstance(conf, dict):
+            return
+
+        try:
+            self.format_on_delete(ctx.message, conf['join'])
+        except Exception as e:
+            conf['join'] = old
+            self.save_json()
+            await self.bot.say('New format failed with error "{}"\n'
+                               'reverting back'.format(e))
 
     async def _message_edited(self, ctx, channel, message, key='on_edit'):
+        user = ctx.message.author
+        channel_ = ctx.message.channel
         server = ctx.message.server
+        if not user.permissions_in(channel_).manage_server:
+            return await self.bot.send_message(channel_, "You don't have manage server permissions")
 
         config = self.get_config(server.id)
         chn = self.get_channel(channel, server)
         if chn is None:
-            return await self.bot.send_message(ctx.message.channel,
+            return await self.bot.send_message(channel_,
                                                'Could not get channel %s' % channel)
 
         config[key] = {'message': message, 'channel': chn.id}
         self.save_json()
-        config = json.dumps(config[key], ensure_ascii=False)
-        await self.bot.send_message(ctx.message.channel,
-                                    '{} config ```json\n{}```'.format(key, config))
+        config_ = json.dumps(config[key], ensure_ascii=False)
+        await self.bot.send_message(channel_,
+                                    '{} config ```json\n{}```'.format(key, config_))
+
+        return config
 
     @command(pass_context=True)
     async def on_edit_message(self, ctx, channel, message):
-        await self._message_edited(ctx, channel, message)
+        old = self.get_config(ctx.message.server.id).get('on_edit', {})
+        conf = await self._message_edited(ctx, channel, message)
+        if not isinstance(conf, dict):
+            return
+
+        try:
+            self.format_on_edit(ctx.message, ctx.message, conf['on_edit'], False)
+        except Exception as e:
+            conf['on_edit'] = old
+            self.save_json()
+            await self.bot.say('New format failed with error "{}"\n'
+                               'reverting back'.format(e))
 
     @command(pass_context=True)
     async def on_delete_message(self, ctx, channel, message):
-        await self._message_edited(ctx, channel, message, key='on_delete')
+        old = self.get_config(ctx.message.server.id).get('on_delete', {})
+        conf = await self._message_edited(ctx, channel, message, key='on_delete')
+
+        if not isinstance(conf, dict):
+            return
+
+        try:
+            self.format_on_delete(ctx.message, conf['on_delete'])
+        except Exception as e:
+            conf['on_delete'] = old
+            self.save_json()
+            await self.bot.say('New format failed with error "{}"\n'
+                               'reverting back'.format(e))
 
     @command(pass_context=True, owner_only=True)
     async def delete_color(self, ctx, *, name):

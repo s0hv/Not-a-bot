@@ -40,10 +40,9 @@ from bot.permissions import parse_permissions
 from bot.exceptions import *
 from utils import wolfram, memes, hearthstone, jojo
 from utils.search import Search
-from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string
+from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string, slots2dict
 from bot.management import Management
 from random import choice
-from colour import Color
 
 
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
@@ -81,8 +80,7 @@ def start(config, permissions):
         if channel is None:
             return
 
-        user = str(member)
-        message = conf['message'].format(user=user, **vars(member))
+        message = management.format_join_leave(member, conf)
 
         await bot.send_message(channel, message)
 
@@ -110,7 +108,7 @@ def start(config, permissions):
         if channel is None:
             return
 
-        message = conf['message'].format(user=str(member), **vars(member))
+        message = management.format_join_leave(member, conf)
         await bot.send_message(channel, message)
 
     @bot.event
@@ -119,23 +117,14 @@ def start(config, permissions):
             return
 
         conf = management.get_config(before.server.id).get('on_edit', None)
-        if conf is None:
+        if not conf:
             return
 
         channel = before.server.get_channel(conf['channel'])
         if channel is None:
             return
 
-        bef_content = before.content
-        aft_content = after.content
-        if bef_content == aft_content:
-            return
-
-        user = before.author
-
-        message = conf['message']
-        message = message.format(name=str(user), **{k: getattr(user, k)for k in user.__slots__},
-                                 before=bef_content, after=aft_content)
+        message = management.format_on_edit(before, after, conf)
 
         message = split_string(message, maxlen=1960)
         for m in message:
@@ -155,11 +144,7 @@ def start(config, permissions):
         if channel is None:
             return
 
-        content = msg.content
-        user = msg.author
-
-        message = conf['message']
-        message = message.format(name=str(user), message=content, **{k: getattr(user, k)for k in user.__slots__})
+        message = management.format_on_delete(msg, conf)
         message = split_string(message)
         for m in message:
             await bot.send_message(channel, m)

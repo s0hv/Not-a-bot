@@ -107,7 +107,15 @@ class Management:
         return config
 
     @command(pass_context=True)
-    async def leave_message(self, ctx, channel, message):
+    async def leave_message(self, ctx, channel, message=None):
+        if channel.lower() == 'off':
+            self.get_config(ctx.message.server.id).pop('leave', None)
+            await self.bot.say('Removed on leave config')
+            return
+
+        if message is None:
+            return await self.bot.say('You need to specify a message')
+
         old = self.get_config(ctx.message.server.id).get('leave', {})
         conf = await self._join_leave(ctx, channel, message, False, join=False)
         if not isinstance(conf, dict):
@@ -122,7 +130,15 @@ class Management:
                                'reverting back'.format(e))
 
     @command(pass_context=True)
-    async def join_message(self, ctx, channel, message, add_color=False):
+    async def join_message(self, ctx, channel, message=None, add_color=False):
+        if channel.lower() == 'off':
+            self.get_config(ctx.message.server.id).pop('join', None)
+            await self.bot.say('Removed on join config')
+            return
+
+        if not message:
+            return await self.bot.say('You need to specify a message')
+
         old = self.get_config(ctx.message.server.id).get('join', {})
         conf = await self._join_leave(ctx, channel, message, add_color,  join=True)
         if not isinstance(conf, dict):
@@ -158,7 +174,12 @@ class Management:
         return config
 
     @command(pass_context=True)
-    async def on_edit_message(self, ctx, channel, message):
+    async def on_edit_message(self, ctx, channel, *, message):
+        if channel.lower() == 'off':
+            self.get_config(ctx.message.server.id).pop('on_edit', None)
+            await self.bot.say('Removed on message edit config')
+            return
+
         old = self.get_config(ctx.message.server.id).get('on_edit', {})
         conf = await self._message_edited(ctx, channel, message)
         if not isinstance(conf, dict):
@@ -173,7 +194,12 @@ class Management:
                                'reverting back'.format(e))
 
     @command(pass_context=True)
-    async def on_delete_message(self, ctx, channel, message):
+    async def on_delete_message(self, ctx, channel, *message):
+        if channel.lower() == 'off':
+            self.get_config(ctx.message.server.id).pop('on_delete', None)
+            await self.bot.say('Removed on message delete config')
+            return
+
         old = self.get_config(ctx.message.server.id).get('on_delete', {})
         conf = await self._message_edited(ctx, channel, message, key='on_delete')
 

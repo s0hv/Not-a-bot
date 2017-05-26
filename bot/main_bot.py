@@ -108,7 +108,9 @@ def start(config, permissions):
         if channel is None:
             return
 
-        message = management.format_join_leave(member, conf)
+        d = slots2dict(member)
+        d.pop('user', None)
+        message = conf['message'].format(user=str(member), **d)
         await bot.send_message(channel, message)
 
     @bot.event
@@ -124,7 +126,21 @@ def start(config, permissions):
         if channel is None:
             return
 
-        message = management.format_on_edit(before, after, conf)
+        bef_content = before.content
+        aft_content = after.content
+        if bef_content == aft_content:
+            return
+
+        user = before.author
+
+        message = conf['message']
+        d = slots2dict(user)
+        for e in ['name', 'before', 'after']:
+            d.pop(e, None)
+
+        d['channel'] = after.channel.mention
+        message = message.format(name=str(user), **d,
+                                 before=bef_content, after=aft_content)
 
         message = split_string(message, maxlen=1960)
         for m in message:
@@ -144,7 +160,16 @@ def start(config, permissions):
         if channel is None:
             return
 
-        message = management.format_on_delete(msg, conf)
+        content = msg.content
+        user = msg.author
+
+        message = conf['message']
+        d = slots2dict(user)
+        for e in ['name', 'message']:
+            d.pop(e, None)
+
+        d['channel'] = msg.channel.mention
+        message = message.format(name=str(user), message=content, **d)
         message = split_string(message)
         for m in message:
             await bot.send_message(channel, m)

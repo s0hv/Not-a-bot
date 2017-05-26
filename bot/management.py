@@ -194,7 +194,7 @@ class Management:
                                'reverting back'.format(e))
 
     @command(pass_context=True)
-    async def on_delete_message(self, ctx, channel, *, message):
+    async def on_delete_message(self, ctx, channel, message):
         if channel.lower() == 'off':
             self.get_config(ctx.message.server.id).pop('on_delete', None)
             await self.bot.say('Removed on message delete config')

@@ -60,6 +60,32 @@ def start(config, permissions):
     search = Search(bot, client)
     management = Management(bot)
 
+    async def _wants_to_be_noticed(member, server):
+        role = list(filter(lambda r: r.id == '318762162552045568', server.roles))
+        if not role:
+            return
+
+        role = role[0]
+
+        name = member.name if not member.nick else member.nick
+        if name[0] == sorted([name[0], '!'])[0]:
+            for i in range(0, 2):
+                try:
+                    await bot.add_roles(member, role)
+                except:
+                    pass
+                else:
+                    break
+
+        else:
+            for i in range(0, 3):
+                try:
+                    await bot.remove_roles(member, role)
+                except:
+                    pass
+                else:
+                    break
+
     @bot.event
     async def on_ready():
         print('[INFO] Logged in as {0.user.name}'.format(bot))
@@ -92,10 +118,16 @@ def start(config, permissions):
                 roles = member.server.roles
                 role = list(filter(lambda r: str(r) == color, roles))
                 if channel is not None:
-                    try:
-                        await bot.add_roles(member, *role)
-                    except:
-                        pass
+                    for i in range(0, 3):
+                        try:
+                            await bot.add_roles(member, *role)
+                        except:
+                            pass
+                        else:
+                            break
+
+        if server.id == '217677285442977792':
+            await _wants_to_be_noticed(member, server)
 
     @bot.event
     async def on_member_remove(member):
@@ -112,6 +144,17 @@ def start(config, permissions):
         d.pop('user', None)
         message = conf['message'].format(user=str(member), **d)
         await bot.send_message(channel, message)
+
+    @bot.event
+    async def on_member_update(before, after):
+        server = after.server
+        if server.id == '217677285442977792':
+            name = before.name if not before.nick else before.nick
+            name2 = after.name if not after.nick else after.nick
+            if name == name2:
+                return
+
+            await _wants_to_be_noticed(after, server)
 
     @bot.event
     async def on_message_edit(before, after):
@@ -275,7 +318,7 @@ def start(config, permissions):
 
         await bot.send_message(ctx.message.channel, s)
 
-    @bot.command(pass_context=True, level=5)
+    @bot.command(name='roles', pass_context=True, level=5)
     async def get_roles(ctx):
         roles = '```'
         for role in ctx.message.server.roles:

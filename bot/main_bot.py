@@ -43,8 +43,9 @@ from utils.search import Search
 from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string, slots2dict
 from bot.management import Management
 from random import choice
+import logging
 
-
+logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
     '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~',
     '０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ！゛＃＄％＆（）＊＋、ー。／：；〈＝〉？＠［］＾＿‘｛｜｝～')
@@ -68,7 +69,7 @@ def start(config, permissions):
         role = role[0]
 
         name = member.name if not member.nick else member.nick
-        if name[0] == sorted([name[0], '!'])[0]:
+        if ord(name[0]) <= 46:
             for i in range(0, 2):
                 try:
                     await bot.add_roles(member, role)
@@ -85,6 +86,42 @@ def start(config, permissions):
                     pass
                 else:
                     break
+
+    @bot.command(pass_context=True, owner_only=True)
+    async def test(ctx):
+        member = ctx.message.author
+        server = member.server
+        server_config = management.get_config(server.id)
+        if server_config is None:
+            return
+
+        conf = server_config.get('join', None)
+        if conf is None:
+            return
+
+        channel = server.get_channel('252872751319089153')
+        if channel is None:
+            return
+
+        message = management.format_join_leave(member, conf)
+
+        await bot.send_message(channel, message)
+
+        if conf['add_color']:
+            colors = server_config.get('colors', {})
+
+            if colors:
+                color = choice(list(colors.values()))
+                roles = member.server.roles
+                role = list(filter(lambda r: r.id == color, roles))
+                if channel is not None:
+                    for i in range(0, 3):
+                        try:
+                            await bot.add_roles(member, *role)
+                        except:
+                            logger.exception('Could not add color')
+                        else:
+                            break
 
     @bot.event
     async def on_ready():
@@ -111,18 +148,18 @@ def start(config, permissions):
         await bot.send_message(channel, message)
 
         if conf['add_color']:
-            colors = server_config.get('colors', [])
+            colors = server_config.get('colors', {})
 
             if colors:
-                color = choice(colors)
-                roles = member.server.roles
-                role = list(filter(lambda r: str(r) == color, roles))
+                color = choice(list(colors.values()))
+                roles = server.roles
+                role = list(filter(lambda r: r.id == color, roles))
                 if channel is not None:
                     for i in range(0, 3):
                         try:
                             await bot.add_roles(member, *role)
                         except:
-                            pass
+                            logger.exception('Could not add color')
                         else:
                             break
 
@@ -155,6 +192,30 @@ def start(config, permissions):
                 return
 
             await _wants_to_be_noticed(after, server)
+
+    @bot.command(pass_context=True, owner_only=True)
+    async def notice_me(ctx):
+        server = ctx.message.server
+        if server.id == '217677285442977792':
+            await bot.request_offline_members(server)
+            for member in server.members:
+                print(member.name)
+                await _wants_to_be_noticed(member, server)
+
+    @bot.command(pass_context=True, owner_only=True)
+    async def convert_colors(ctx):
+        server = ctx.message.server
+        roles = server.roles
+        colors = management.get_colors(server.id)
+        colors_temp = {}
+        roles = list(filter(lambda r: str(r) in colors, roles))
+
+        for role in roles:
+            colors_temp[role.name] = role.id
+
+        conf = management.get_config(server.id)
+        conf['colors'] = colors_temp
+        management.save_json()
 
     @bot.event
     async def on_message_edit(before, after):

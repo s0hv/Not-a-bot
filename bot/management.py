@@ -68,16 +68,16 @@ class Management:
             channel = server.get_channel(id)
             return channel
 
-    def add_color_to_json(self, name, serverid):
+    def add_color_to_json(self, name, serverid, roleid):
         colors = self.get_colors(serverid)
-        colors.append(name)
+        colors[name] = roleid
+
         self.save_json()
 
     def delete_color_from_json(self, name, serverid):
         colors = self.get_colors(serverid)
         try:
-            while name in colors:
-                colors.remove(name)
+            del colors[name]
         except Exception as e:
             print(e)
 
@@ -216,34 +216,20 @@ class Management:
 
     @command(pass_context=True, owner_only=True)
     async def delete_color(self, ctx, *, name):
-        roles = list(filter(lambda r: str(r) == name, ctx.message.server.roles))
         server = ctx.message.server
         colors = self.get_colors(server.id)
-        if name not in colors or not roles:
+        v = colors.values()
+        roles = list(filter(lambda r: r.id in v, ctx.message.server.roles))
+
+        if not roles:
             return await self.bot.say('Color %s not found' % name)
 
-        if len(roles) > 1:
-            await self.bot.say('Multiple roles found. Delete them all y/n')
-            msg = await self.bot.wait_for_message(timeout=10,
-                                                  author=ctx.message.author,
-                                                  channel=ctx.message.channel,
-                                                  check=y_n_check)
-            if msg is None or msg.content.lower().strip() in ['n', 'no']:
-                return await self.bot.say('Cancelled')
-
-        r_len = len(roles)
-        failed = 0
-        for role in roles:
-            try:
-                await self.bot.delete_role(server, role)
-            except:
-                failed += 1
-
-        if failed == 0:
-            await self.bot.say('Successfully deleted %s roles' % str(r_len))
-        else:
-            await self.bot.say('Successfully deleted {} roles and failed {}'.format(
-                                r_len - failed, failed))
+        role = roles[0]
+        try:
+            await self.bot.delete_role(server, role)
+        except Exception as e:
+            await self.bot.say('Could not delete color %s\n%s' % (name, e))
+            return
 
         self.delete_color_from_json(name, server.id)
 
@@ -262,15 +248,15 @@ class Management:
             color = discord.Color(int(color, 16))
             everyone = ctx.message.server.default_role
             perms = discord.Permissions(everyone.permissions.value)
-            await self.bot.create_role(ctx.message.server, name=name,
-                                       colour=color,
-                                       permissions=perms,
-                                       mentionable=False, hoist=False)
+            role = await self.bot.create_role(ctx.message.server, name=name,
+                                              colour=color,
+                                              permissions=perms,
+                                              mentionable=False, hoist=False)
         except Exception as e:
             print('[ERROR] Exception while creating role. %s' % e)
             return await self.bot.say('Could not create role')
 
-        self.add_color_to_json(name, ctx.message.server.id)
+        self.add_color_to_json(name, ctx.message.server.id, role.id)
         await self.bot.say('Color %s added' % name)
 
     @command(pass_context=True, aliases=['colour'])
@@ -279,23 +265,27 @@ class Management:
         roles = server.roles
         color = color.lower()
         colors = self.get_colors(server.id)
-        role_ = list(filter(lambda r: str(r).lower() == color, roles))
+        color_id = colors.get(color, None)
+        role_ = list(filter(lambda r: r.id == color_id, roles))
         if not role_:
             return await self.bot.say('Color %s not found. Use !colors for all the available colors.' % color)
 
+        role_ = role_[0]
         _roles = []
         for role in ctx.message.author.roles:
-            if str(role) in colors and role != role_[0]:
+            v = colors.values()
+            if role.id in v and role != role_:
                 _roles.append(role)
 
         try:
             await self.bot.remove_roles(ctx.message.author, *_roles)
+            v = colors.values()
             for r in _roles:
                 if r in ctx.message.author.roles:
-                    if str(r) in colors:
+                    if r.id in v:
                         ctx.message.author.roles.remove(r)
 
-            await self.bot.add_roles(ctx.message.author, *role_)
+            await self.bot.add_roles(ctx.message.author, role_)
         except Exception as e:
             print(e)
             await self.bot.say('Failed to change color')
@@ -304,7 +294,7 @@ class Management:
 
     @command(pass_context=True)
     async def colors(self, ctx):
-        await self.bot.say('Available colors: {}'.format(', '.join(self.get_colors(ctx.message.server.id))))
+        await self.bot.say('Available colors: {}'.format(', '.join(self.get_colors(ctx.message.server.id).keys())))
 
     @command(pass_context=True, owner_only=True)
     async def color_uncolored(self, ctx):
@@ -357,7 +347,7 @@ class Management:
         if serverid not in self.servers:
             self.servers[serverid] = config
 
-        colors = config.get('colors', [])
+        colors = config.get('colors', {})
         if 'colors' not in config:
             config['colors'] = colors
 

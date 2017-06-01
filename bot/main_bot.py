@@ -198,7 +198,7 @@ def start(config, permissions):
         server = ctx.message.server
         if server.id == '217677285442977792':
             await bot.request_offline_members(server)
-            for member in server.members:
+            for member in list(server.members):
                 print(member.name)
                 await _wants_to_be_noticed(member, server)
 

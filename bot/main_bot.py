@@ -61,7 +61,7 @@ def start(config, permissions):
     search = Search(bot, client)
     management = Management(bot)
 
-    async def _wants_to_be_noticed(member, server):
+    async def _wants_to_be_noticed(member, server, remove=True):
         role = list(filter(lambda r: r.id == '318762162552045568', server.roles))
         if not role:
             return
@@ -78,7 +78,7 @@ def start(config, permissions):
                 else:
                     break
 
-        else:
+        elif remove:
             for i in range(0, 3):
                 try:
                     await bot.remove_roles(member, role)
@@ -164,7 +164,7 @@ def start(config, permissions):
                             break
 
         if server.id == '217677285442977792':
-            await _wants_to_be_noticed(member, server)
+            await _wants_to_be_noticed(member, server, remove=False)
 
     @bot.event
     async def on_member_remove(member):

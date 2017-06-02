@@ -35,10 +35,12 @@ import time
 import audioop
 
 import discord
-from discord import Object, InvalidArgument, ChannelType, ClientException, voice_client
+from discord import Object, InvalidArgument, ChannelType, ClientException, voice_client, Reaction
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.view import StringView
+from discord import state
+
 
 try:
     import uvloop
@@ -59,6 +61,48 @@ class Command(commands.Command):
         super().__init__(name, callback, **kwargs)
         self.level = level
         self.owner_only = owner_only
+
+
+class ConnectionState(state.ConnectionState):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def parse_message_reaction_add(self, data):
+        message = self._get_message(data['message_id'])
+        if message is not None:
+            emoji = self._get_reaction_emoji(**data.pop('emoji'))
+            reaction = discord.utils.get(message.reactions, emoji=emoji)
+
+            is_me = data['user_id'] == self.user.id
+
+            if not reaction:
+                reaction = Reaction(
+                    message=message, emoji=emoji, me=is_me, **data)
+                message.reactions.append(reaction)
+            else:
+                reaction.count += 1
+                if is_me:
+                    reaction.me = True
+
+            channel = self.get_channel(data['channel_id'])
+            member = self._get_member(channel, data['user_id'])
+
+            self.dispatch('reaction_add', reaction, member)
+
+        else:
+            self.dispatch('raw_reaction_add', **data)
+
+
+class Client(discord.Client):
+    def __init__(self, loop=None, **options):
+        super().__init__(loop=loop, **options)
+
+        max_messages = options.get('max_messages')
+        if max_messages is None or max_messages < 100:
+            max_messages = 5000
+
+        self.connection = ConnectionState(self.dispatch, self.request_offline_members,
+                                          self._syncer, max_messages, loop=self.loop)
 
 
 class Bot(commands.Bot):

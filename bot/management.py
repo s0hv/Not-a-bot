@@ -5,7 +5,7 @@ import re
 from bot.bot import command
 from colour import Color
 import discord
-from utils.utilities import y_n_check, slots2dict
+from utils.utilities import y_n_check, slots2dict, normalize_text
 from random import choice
 
 
@@ -175,6 +175,11 @@ class Management:
 
     @command(pass_context=True)
     async def on_edit_message(self, ctx, channel, *, message):
+        user = ctx.message.author
+        channel_ = ctx.message.channel
+        if not user.permissions_in(channel_).manage_server:
+            return await self.bot.send_message(channel_, "You don't have manage server permissions")
+
         if channel.lower() == 'off':
             self.get_config(ctx.message.server.id).pop('on_edit', None)
             await self.bot.say('Removed on message edit config')
@@ -195,6 +200,11 @@ class Management:
 
     @command(pass_context=True)
     async def on_delete_message(self, ctx, channel, message):
+        user = ctx.message.author
+        channel_ = ctx.message.channel
+        if not user.permissions_in(channel_).manage_server:
+            return await self.bot.send_message(channel_, "You don't have manage server permissions")
+
         if channel.lower() == 'off':
             self.get_config(ctx.message.server.id).pop('on_delete', None)
             await self.bot.say('Removed on message delete config')
@@ -306,8 +316,8 @@ class Management:
         roles = server.roles
         for member in server.members:
             if len(member.roles) == 1:
-                color = choice(colors)
-                role = list(filter(lambda r: str(r) == color, roles))
+                color = choice(list(colors.values()))
+                role = list(filter(lambda r: r.id == color, roles))
                 try:
                     await self.bot.add_roles(member, *role)
                 except Exception:

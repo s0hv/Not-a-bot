@@ -42,6 +42,7 @@ from utils import wolfram, memes, hearthstone, jojo
 from utils.search import Search
 from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string, slots2dict
 from bot.management import Management
+from utils.voting import VoteManager
 from random import choice
 import logging
 
@@ -60,6 +61,7 @@ def start(config, permissions):
     sound = audio.Audio(bot, client)
     search = Search(bot, client)
     management = Management(bot)
+    votes = VoteManager(bot)
 
     async def _wants_to_be_noticed(member, server, remove=True):
         role = list(filter(lambda r: r.id == '318762162552045568', server.roles))
@@ -78,7 +80,7 @@ def start(config, permissions):
                 else:
                     break
 
-        elif remove:
+        elif remove and role in member.roles:
             for i in range(0, 3):
                 try:
                     await bot.remove_roles(member, role)
@@ -211,11 +213,19 @@ def start(config, permissions):
         roles = list(filter(lambda r: str(r) in colors, roles))
 
         for role in roles:
-            colors_temp[role.name] = role.id
+            colors_temp[role.name.lower()] = role.id
 
         conf = management.get_config(server.id)
         conf['colors'] = colors_temp
         management.save_json()
+
+    @bot.event
+    async def on_reaction_add(user, reaction):
+        return
+
+    @bot.event
+    async def raw_reaction_add(**data):
+        return
 
     @bot.event
     async def on_message_edit(before, after):

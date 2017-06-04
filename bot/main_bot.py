@@ -90,40 +90,10 @@ def start(config, permissions):
                     break
 
     @bot.command(pass_context=True, owner_only=True)
-    async def test(ctx):
-        member = ctx.message.author
-        server = member.server
-        server_config = management.get_config(server.id)
-        if server_config is None:
-            return
-
-        conf = server_config.get('join', None)
-        if conf is None:
-            return
-
-        channel = server.get_channel('252872751319089153')
-        if channel is None:
-            return
-
-        message = management.format_join_leave(member, conf)
-
-        await bot.send_message(channel, message)
-
-        if conf['add_color']:
-            colors = server_config.get('colors', {})
-
-            if colors:
-                color = choice(list(colors.values()))
-                roles = member.server.roles
-                role = list(filter(lambda r: r.id == color, roles))
-                if channel is not None:
-                    for i in range(0, 3):
-                        try:
-                            await bot.add_roles(member, *role)
-                        except:
-                            logger.exception('Could not add color')
-                        else:
-                            break
+    async def test(ctx, channel, msg):
+        channel = bot.get_channel(channel)
+        message = await bot.get_message(channel, msg)
+        print(await votes.get_most_voted(message))
 
     @bot.event
     async def on_ready():
@@ -582,4 +552,6 @@ def start(config, permissions):
     bot.add_cog((hearthstone.Hearthstone(bot, config.mashape_key, bot.aiohttp_client)))
     bot.add_cog(jojo.JoJo(bot))
     bot.add_cog(management)
+    bot.add_cog(votes)
+
     bot.run(config.token)

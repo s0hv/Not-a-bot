@@ -2,6 +2,7 @@ from bot.bot import command
 from utils.utilities import normalize_text
 import os, json
 import time
+from discord import User
 
 
 class VoteManager:
@@ -18,26 +19,62 @@ class VoteManager:
         # TODO Add permission check
         server = ctx.message.server
         msg = await self.bot.say(message)
-        votes = normalize_text(votes).split(' ')
         success = 0
-        for emote in votes:
+        for emote in votes.split(' '):
             try:
-                await self.bot.add_reaction(message, emote)
+                await self.bot.add_reaction(msg, emote.strip('<>'))
                 success += 1
             except Exception as e:
-                await self.bot.say('Error adding reaction\n%s' % e, timeout=20)
+                await self.bot.say('Error adding reaction%s\n%s' % (emote, e), delete_after=20)
 
         if success == 0:
             try:
-                self.bot.delete_message(msg)
+                await self.bot.delete_message(msg)
             except:
                 pass
 
-            await self.bot.say('No reactions could be added to vote. Cancelling', timeout=60)
+            await self.bot.say('No reactions could be added to vote. Cancelling', delete_after=20)
             return
 
-    def on_vote(self, message, reaction, user):
-        return
+    async def get_most_voted(self, msg):
+        users_voted = []
+        votes = {}
+        reactions = await self.get_reactions(msg)
+        for emote, users in reactions.items():
+            votes_ = 0
+            for user in list(users):
+                if user not in users_voted:
+                    users_voted.append(user)
+                    votes_ += 1
+
+            votes[emote] = votes_
+
+        print(votes)
+        emote = max(votes.keys(), key=lambda key: votes[key])
+        return emote, votes[emote]
+
+    async def get_reactions(self, msg):
+        token = self.bot.config.token
+        client = self.bot.aiohttp_client
+        url = 'https://discordapp.com/api/v6/channels/{0.channel.id}/messages/{0.id}'.format(msg) + '/reactions/{}?token=' + token
+        reactions = msg.reactions
+
+        reaction_users = {}
+        for reaction in reactions:
+            users = []
+            emote = reaction.emoji
+            if isinstance(emote, str):
+                u = url.format(emote)
+            else:
+                u = url.format(':{0.name}:{0.id}'.format(emote))
+            r = await client.get(u)
+            j = await r.json()
+            for user in j:
+                users.append(User(**user))
+
+            reaction_users[emote] = users
+
+        return reaction_users
 
     def add_message(self, message):
         votes = self.get_vote_messages(message.server.id)

@@ -242,6 +242,7 @@ class Management:
             return
 
         self.delete_color_from_json(name, server.id)
+        await self.bot.say('Deleted color %s' % name)
 
     @command(pass_context=True, owner_only=True)
     async def add_color(self, ctx, color, *, name):

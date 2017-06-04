@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import copy
 import asyncio
 import shlex
 import sys
@@ -40,6 +41,7 @@ from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.view import StringView
 from discord import state
+from aiohttp import ClientSession
 
 
 try:
@@ -92,6 +94,24 @@ class ConnectionState(state.ConnectionState):
         else:
             self.dispatch('raw_reaction_add', **data)
 
+    def parse_message_update(self, data):
+        message = self._get_message(data.get('id'))
+        if message is not None:
+            older_message = copy.copy(message)
+            if 'call' in data:
+                # call state message edit
+                message._handle_call(data['call'])
+            elif 'content' not in data:
+                # embed only edit
+                message.embeds = data['embeds']
+            else:
+                message._update(channel=message.channel, **data)
+
+            self.dispatch('message_edit', older_message, message)
+
+        else:
+            self.dispatch('uncached_message_edit', data)
+
 
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
@@ -109,6 +129,9 @@ class Bot(commands.Bot):
     def __init__(self, command_prefix, config, permissions=None, aiohttp_client=None, **options):
         super().__init__(command_prefix, **options)
         log.debug('Using loop {}'.format(self.loop))
+        if aiohttp_client is None:
+            aiohttp_client = ClientSession(loop=self.loop)
+
         self.aiohttp_client = aiohttp_client
         self.config = config
         self.permissions = permissions

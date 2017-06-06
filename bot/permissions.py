@@ -67,6 +67,8 @@ def check_permission(ctx, command):
                             'No context class found. pass_context needs to be True')
 
     user_permissions = ctx.user_permissions
+    if not user_permissions:
+        return True
     if user_permissions.master_override:
         return True
 

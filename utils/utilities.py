@@ -240,3 +240,15 @@ def slots2dict(obj):
             d[k] = v
 
     return d
+
+async def retry(f, *args, retries_=3, **kwargs):
+    e = None
+    for i in range(0, retries_):
+        try:
+            retval = await f(*args, **kwargs)
+        except Exception as e:
+            e = e
+        else:
+            return retval
+
+    return e

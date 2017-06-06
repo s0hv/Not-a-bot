@@ -54,6 +54,7 @@ except ImportError:
 from bot import exceptions
 from bot.message import TimeoutMessage
 from bot.permissions import check_permission
+from utils.utilities import retry
 
 log = logging.getLogger('discord')
 
@@ -270,6 +271,23 @@ class Bot(commands.Bot):
         elif invoker:
             exc = CommandNotFound('Command "{}" is not found'.format(invoker))
             self.dispatch('command_error', exc, ctx)
+
+    async def replace_role(self, member, replaced, roles):
+        replaced = list(map((lambda r: r.id if not isinstance(r, str) else r), replaced))
+        roles = (map((lambda r: r.id if not isinstance(r, str) else r), roles))
+        new_roles = [r.id for r in member.roles]
+        for role in replaced:
+            if role in new_roles:
+                try:
+                    new_roles.remove(role)
+                except ValueError:
+                    pass
+
+        for role in roles:
+            if role not in new_roles:
+                new_roles.append(role)
+
+        await self._replace_roles(member, new_roles)
 
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):

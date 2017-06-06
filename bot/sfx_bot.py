@@ -35,7 +35,7 @@ from bot.bot import Bot
 
 
 class SfxBot(threading.Thread):
-    def __init__(self, config, permissions, **kwargs):
+    def __init__(self, config, permissions=None, **kwargs):
         super().__init__(**kwargs)
         self.config = config
         self.permissions = permissions
@@ -46,7 +46,8 @@ class SfxBot(threading.Thread):
         sfx_bot = Bot(command_prefix='!', config=self.config,
                       aiohttp_client=aiohttp.ClientSession(),
                       pm_help=True, permissions=self.permissions)
-        self.permissions.sfx_bot = sfx_bot
+        if self.permissions:
+            self.permissions.sfx_bot = sfx_bot
 
         audio = sfx_audio.Audio(sfx_bot, None)
 

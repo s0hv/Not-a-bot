@@ -93,7 +93,7 @@ def start(config, permissions):
     async def test(ctx, channel, msg):
         channel = bot.get_channel(channel)
         message = await bot.get_message(channel, msg)
-        print(await votes.get_most_voted(message))
+        val = await votes.get_most_voted(message)
 
     @bot.event
     async def on_ready():

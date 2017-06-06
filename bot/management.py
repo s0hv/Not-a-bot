@@ -270,6 +270,11 @@ class Management:
         self.add_color_to_json(name, ctx.message.server.id, role.id)
         await self.bot.say('Color %s added' % name)
 
+    @command(pass_context=True, owner_only=True)
+    async def test2(self, ctx, mention, role1, role2, replaced):
+        mention = ctx.message.server.get_member(mention)
+        await self.bot.replace_role(mention, (role1, role2), (replaced, ))
+
     @command(pass_context=True, aliases=['colour'])
     async def color(self, ctx, *, color):
         server = ctx.message.server
@@ -311,18 +316,25 @@ class Management:
     async def color_uncolored(self, ctx):
         server = ctx.message.server
         colors = self.get_colors(server.id)
+        color_ids = list(colors.values())
         if not colors:
             return
 
         roles = server.roles
         for member in server.members:
-            if len(member.roles) == 1:
-                color = choice(list(colors.values()))
+            m_roles = member.roles
+            found = list(filter(lambda r: r.id in color_ids, m_roles))
+            if not found:
+                color = choice(color_ids)
                 role = list(filter(lambda r: r.id == color, roles))
                 try:
                     await self.bot.add_roles(member, *role)
                 except Exception:
                     pass
+            elif len(found) > 1:
+                await self.bot.replace_role(member, color_ids, (found[0],))
+
+        await self.bot.say('Colored users without color role')
 
     def save_json(self):
         def save():

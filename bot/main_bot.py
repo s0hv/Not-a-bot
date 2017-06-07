@@ -354,12 +354,14 @@ def start(config, permissions):
 
     @bot.command(name='roles', pass_context=True, level=5)
     async def get_roles(ctx):
-        roles = '```'
-        for role in ctx.message.server.roles:
+        roles = ''
+        server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
+        for role in server_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
-        roles += '```'
-        return await bot.say(roles)
+        roles = split_string(roles, splitter='\n')
+        for s in roles:
+            return await bot.say('```' + s + '```')
 
     @bot.command(pass_context=True, level=5)
     async def create_permissions(ctx, *args):

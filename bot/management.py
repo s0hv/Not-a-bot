@@ -271,7 +271,7 @@ class Management:
             print('[ERROR] Exception while creating role. %s' % e)
             return await self.bot.say('Could not create role')
 
-        self.add_color_to_json(name, ctx.message.server.id, role.id)
+        self.add_color_to_json(name.lower(), ctx.message.server.id, role.id)
         await self.bot.say('Color %s added' % name)
 
     @command(pass_context=True, owner_only=True)

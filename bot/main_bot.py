@@ -360,8 +360,9 @@ def start(config, permissions):
             roles += '{}: {}\n'.format(role.name, role.mention)
 
         roles = split_string(roles, splitter='\n')
+        await bot.say('```A total of %s roles```' % len(server_roles))
         for s in roles:
-            return await bot.say('```' + s + '```')
+            await bot.say('```' + s + '```')
 
     @bot.command(pass_context=True, level=5)
     async def create_permissions(ctx, *args):

@@ -42,18 +42,22 @@ def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
         if len(to_split) < maxlen:
             return [to_split]
 
-        to_split = to_split.split(splitter)
+        to_split = [s + splitter for s in to_split.split(splitter)]
+        to_split[-1] = to_split[-1][:-1]
         length = 0
         split = ''
         splits = []
         for s in to_split:
-            if length + len(s) > maxlen:
+            l = len(s)
+            if length + l > maxlen:
                 splits += [split]
-                split = ''
-                length = 0
+                split = s
+                length = l
             else:
                 split += s
-                length += len(s)
+                length += l
+
+        splits.append(split)
 
         return splits
 

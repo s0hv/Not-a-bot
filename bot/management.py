@@ -1,12 +1,13 @@
 import json
 import os
 import re
+from random import choice
+
+import discord
+from colour import Color
 
 from bot.bot import command
-from colour import Color
-import discord
-from utils.utilities import y_n_check, slots2dict, normalize_text
-from random import choice
+from utils.utilities import slots2dict
 
 
 class Management:

@@ -23,7 +23,9 @@ SOFTWARE.
 """
 
 import urllib
+
 from bs4 import BeautifulSoup
+
 
 async def math(calculation, client, key):
     if key is None:

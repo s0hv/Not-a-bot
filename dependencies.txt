@@ -1,0 +1,19 @@
+[Required software]
+ffmpeg
+imagemagick (for jojo module)
+
+[Required packages]
+discord.py[voice]
+youtube_dl
+validators
+aiohttp
+colour
+peewee
+numpy
+gtts (for join leave messages in voice chat)
+PIL
+geopatterns
+colorthief
+cv2
+matplotlib
+beautifulsoup4

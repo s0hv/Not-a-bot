@@ -23,22 +23,22 @@ SOFTWARE.
 """
 
 import hashlib
+import logging
 import os
 import subprocess
+from io import BytesIO
+from sys import platform
+from threading import Lock
 
+import cv2
 import geopatterns
+import numpy as np
 from PIL import Image, ImageChops, ImageDraw
 from colorthief import ColorThief as CF
 from colour import Color
 from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
-import numpy as np
-import cv2
-import logging
-from threading import Lock
-from sys import platform
-from io import BytesIO
 
 logger = logging.getLogger('debug')
 IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')

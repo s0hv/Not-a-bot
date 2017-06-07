@@ -1,8 +1,10 @@
-from bot.bot import command
-from utils.utilities import normalize_text
-import os, json
+import json
+import os
 import time
+
 from discord import User
+
+from bot.bot import command
 
 
 class VoteManager:

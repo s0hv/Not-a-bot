@@ -22,27 +22,26 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import copy
 import asyncio
-import shlex
-import sys
-import traceback
-import logging
-import subprocess
-import threading
-from collections import deque
-from functools import wraps
-import time
 import audioop
+import copy
+import logging
+import shlex
+import subprocess
+import sys
+import threading
+import time
+import traceback
+from collections import deque
 
 import discord
-from discord import Object, InvalidArgument, ChannelType, ClientException, voice_client, Reaction
+from aiohttp import ClientSession
+from discord import Object, InvalidArgument, ChannelType, ClientException, \
+    voice_client, Reaction
+from discord import state
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.view import StringView
-from discord import state
-from aiohttp import ClientSession
-
 
 try:
     import uvloop
@@ -54,7 +53,6 @@ except ImportError:
 from bot import exceptions
 from bot.message import TimeoutMessage
 from bot.permissions import check_permission
-from utils.utilities import retry
 
 log = logging.getLogger('discord')
 

@@ -28,7 +28,10 @@ import random
 from collections import deque, OrderedDict
 
 from discord.ext import commands
-from gtts import gTTS
+try:
+    from gtts import gTTS
+except ImportError:
+    gTTS = None
 
 from bot.bot import command
 from bot.globals import TTS, SFX_FOLDER
@@ -412,6 +415,9 @@ class Audio:
         self._add_tts(path, string, member.server)
 
     def _add_tts(self, path, string, server):
+        if gTTS is None:
+            return
+
         gtts = gTTS(string, lang='en-us')
         gtts.save(path)
         state = self.get_voice_state(server)

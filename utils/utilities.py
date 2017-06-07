@@ -27,13 +27,12 @@ import os
 import re
 import shlex
 import subprocess
-from collections import OrderedDict
 import time
+from collections import OrderedDict
 
 from validators import url as test_url
 
 from bot.exceptions import NoCachedFileException
-
 
 logger = logging.getLogger('debug')
 

@@ -26,8 +26,9 @@ SOFTWARE.
 """
 
 import json
-from datetime import datetime
+import logging
 import re
+from random import choice
 
 import discord
 from aiohttp import ClientSession
@@ -35,17 +36,15 @@ from validators import url as test_url
 
 from bot import audio
 from bot.bot import Bot
-from bot.globals import *
-from bot.permissions import parse_permissions
 from bot.exceptions import *
+from bot.globals import *
+from bot.management import Management
+from bot.permissions import parse_permissions
 from utils import wolfram, memes, hearthstone, jojo
 from utils.search import Search
 from utils.utilities import (write_playlist, read_lines, empty_file, y_n_check,
                              split_string, slots2dict, retry)
-from bot.management import Management
 from utils.voting import VoteManager
-from random import choice
-import logging
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(

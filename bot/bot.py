@@ -289,6 +289,18 @@ class Bot(commands.Bot):
 
         await self._replace_roles(member, new_roles)
 
+    async def add_roles(self, member, *roles):
+        await super().add_roles(member, *roles)
+        member.roles.extend(roles)
+
+    async def remove_roles(self, member, *roles):
+        await super().remove_roles(member, *roles)
+        for r in roles:
+            try:
+                member.roles.remove(r)
+            except ValueError:
+                pass
+
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)

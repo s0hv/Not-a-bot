@@ -40,7 +40,8 @@ from bot.permissions import parse_permissions
 from bot.exceptions import *
 from utils import wolfram, memes, hearthstone, jojo
 from utils.search import Search
-from utils.utilities import write_playlist, read_lines, empty_file, y_n_check, split_string, slots2dict
+from utils.utilities import (write_playlist, read_lines, empty_file, y_n_check,
+                             split_string, slots2dict, retry)
 from bot.management import Management
 from utils.voting import VoteManager
 from random import choice
@@ -81,13 +82,7 @@ def start(config, permissions):
                     break
 
         elif remove and role in member.roles:
-            for i in range(0, 3):
-                try:
-                    await bot.remove_roles(member, role)
-                except:
-                    pass
-                else:
-                    break
+                await retry(bot.remove_roles, member, role)
 
     @bot.command(pass_context=True, owner_only=True)
     async def test(ctx, channel, msg):
@@ -133,6 +128,7 @@ def start(config, permissions):
                         except:
                             logger.exception('Could not add color')
                         else:
+                            member.roles.append(role[0])
                             break
 
         if server.id == '217677285442977792':
@@ -287,7 +283,7 @@ def start(config, permissions):
             msg = 'waddup'
             await bot.send_message(message.channel, msg)
 
-            herecome = await bot.wait_for_message(timeout=6.0, author=message.author, content='here come')
+            herecome = await bot.wait_for_message(timeout=12, author=message.author, content='here come')
             if herecome is None:
                 await bot.send_message(message.channel, ':(')
             else:

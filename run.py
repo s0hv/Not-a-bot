@@ -36,14 +36,14 @@ from bot.permissions import Permissions
 
 def main():
     discord_logger = logging.getLogger('discord')
-    discord_logger.setLevel(logging.INFO)
+    discord_logger.setLevel(logging.DEBUG)
     handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
     handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
     discord_logger.addHandler(handler)
 
     logger = logging.getLogger('debug')
     logger.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='w')
+    handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
     handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
     logger.addHandler(handler)
 
@@ -69,6 +69,7 @@ def main():
         sfx_bot.start()
 
     print('[INFO] Main bot starting up')
+    logger.info('Starting bots')
     main_bot.start(config, permissions)
 
 if __name__ == '__main__':

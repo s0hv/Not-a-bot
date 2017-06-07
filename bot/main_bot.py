@@ -116,19 +116,17 @@ def start(config, permissions):
         if conf['add_color']:
             colors = server_config.get('colors', {})
 
-            if colors:
-                color = choice(list(colors.values()))
-                roles = server.roles
-                role = list(filter(lambda r: r.id == color, roles))
-                if channel is not None:
-                    for i in range(0, 3):
-                        try:
-                            await bot.add_roles(member, *role)
-                        except:
-                            logger.exception('Could not add color')
-                        else:
-                            member.roles.append(role[0])
-                            break
+            if colors and channel is not None:
+                role = None
+                for i in range(3):
+                    color = choice(list(colors.values()))
+                    roles = server.roles
+                    role = list(filter(lambda r: r.id == color, roles))
+                    if role:
+                        break
+
+                if role:
+                    await bot.add_roles(member, role[0])
 
         if server.id == '217677285442977792':
             await _wants_to_be_noticed(member, server, remove=False)

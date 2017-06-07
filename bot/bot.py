@@ -53,6 +53,7 @@ except ImportError:
 from bot import exceptions
 from bot.message import TimeoutMessage
 from bot.permissions import check_permission
+from utils.utilities import split_string
 
 log = logging.getLogger('discord')
 
@@ -298,6 +299,17 @@ class Bot(commands.Bot):
                 member.roles.remove(r)
             except ValueError:
                 pass
+
+    async def send_message(self, destination, content=None, *, tts=False,
+                           embed=None, split=False, splitter=' '):
+        if split and embed is None and isinstance(content, str):
+            content = split_string(content, splitter=splitter)
+            for s in content:
+                await super().send_message(destination, s, tts=tts)
+
+            return
+
+        await super().send_message(destination, content, tts=tts, embed=embed)
 
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):

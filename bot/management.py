@@ -1,13 +1,12 @@
 import json
 import os
 import re
-from random import choice
-
-import discord
-from colour import Color
 
 from bot.bot import command
-from utils.utilities import slots2dict
+from colour import Color
+import discord
+from utils.utilities import y_n_check, slots2dict, normalize_text
+from random import choice
 
 
 class Management:
@@ -229,13 +228,17 @@ class Management:
     async def delete_color(self, ctx, *, name):
         server = ctx.message.server
         colors = self.get_colors(server.id)
-        v = colors.values()
-        roles = list(filter(lambda r: r.id in v, ctx.message.server.roles))
-
-        if not roles:
+        color = colors.get(name, None)
+        if not color:
             return await self.bot.say('Color %s not found' % name)
 
-        role = roles[0]
+        v = colors.values()
+        role = discord.utils.find(lambda r: r.id == color, server.roles)
+        list(filter(lambda r: r.id in v, ctx.message.server.roles))
+
+        if not role:
+            return await self.bot.say('Color %s not found' % name)
+
         try:
             await self.bot.delete_role(server, role)
         except Exception as e:
@@ -295,14 +298,7 @@ class Management:
                 _roles.append(role)
 
         try:
-            await self.bot.remove_roles(ctx.message.author, *_roles)
-            v = colors.values()
-            for r in _roles:
-                if r in ctx.message.author.roles:
-                    if r.id in v:
-                        ctx.message.author.roles.remove(r)
-
-            await self.bot.add_roles(ctx.message.author, role_)
+            await self.bot.replace_role(ctx.message.author, _roles, (role_,))
         except Exception as e:
             print(e)
             await self.bot.say('Failed to change color')
@@ -313,15 +309,44 @@ class Management:
     async def colors(self, ctx):
         await self.bot.say('Available colors: {}'.format(', '.join(self.get_colors(ctx.message.server.id).keys())))
 
+    def remove_removed_colors(self, serverid):
+        server = self.bot.get_server(serverid)
+        roles = server.roles
+        colors = self.get_colors(serverid)
+
+        removed = []
+
+        for key, color in list(colors.items()):
+            role = discord.utils.find(lambda r: r.id == color, roles)
+            if role is None:
+                self.delete_color_from_json(key, serverid)
+                removed.append(key)
+
+        return removed
+
+    @command(pass_context=True, owner_only=True)
+    async def check_colors(self, ctx):
+        server = ctx.message.server
+        removed = self.remove_removed_colors(server.id)
+        if removed:
+            await self.bot.say('removed colors {}'.format(', '.join(removed)))
+        else:
+            await  self.bot.say('No colors to remove')
+
     @command(pass_context=True, owner_only=True)
     async def color_uncolored(self, ctx):
         server = ctx.message.server
+        removed = self.remove_removed_colors(server.id)
+        if removed:
+            await self.bot.say('Removed colors without role. {}'.format(', '.join(removed)))
+
         colors = self.get_colors(server.id)
         color_ids = list(colors.values())
         if not colors:
             return
 
         roles = server.roles
+        colored = 0
         for member in server.members:
             m_roles = member.roles
             found = list(filter(lambda r: r.id in color_ids, m_roles))
@@ -330,12 +355,17 @@ class Management:
                 role = list(filter(lambda r: r.id == color, roles))
                 try:
                     await self.bot.add_roles(member, *role)
+                    colored += 1
                 except Exception:
                     pass
             elif len(found) > 1:
-                await self.bot.replace_role(member, color_ids, (found[0],))
+                try:
+                    await self.bot.replace_role(member, color_ids, (found[0],))
+                    colored += 1
+                except Exception:
+                    pass
 
-        await self.bot.say('Colored users without color role')
+        await self.bot.say('Colored %s users without color role' % colored)
 
     def save_json(self):
         def save():

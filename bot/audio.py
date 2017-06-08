@@ -48,7 +48,12 @@ from bot.bot import command
 from bot.permissions import command_usable
 from utils.utilities import mean_volume, get_cached_song
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('audio')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='audio.log', encoding='utf-8', mode='a')
+handler.setFormatter(
+    logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
 
 
 def get_track_pos(duration, current_pos):

@@ -26,7 +26,7 @@ import asyncio
 import logging
 import os
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('audio')
 
 
 class Song:

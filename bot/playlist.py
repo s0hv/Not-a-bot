@@ -41,7 +41,7 @@ from bot.globals import CACHE, PLAYLISTS
 from utils.utilities import read_lines, write_playlist, timestamp
 
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('audio')
 
 
 class Playlist:

@@ -354,13 +354,12 @@ def start(config, permissions):
 
     @bot.command(name='roles', pass_context=True, level=5)
     async def get_roles(ctx):
-        roles = ''
         server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
+        roles = 'A total of %s roles\n' % len(server_roles)
         for role in server_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
         roles = split_string(roles, splitter='\n')
-        await bot.say('```A total of %s roles```' % len(server_roles))
         for s in roles:
             await bot.say('```' + s + '```')
 

@@ -352,6 +352,15 @@ def start(config, permissions):
 
         await bot.send_message(ctx.message.channel, s)
 
+    @bot.command(name='eval', pass_context=True, onwer_only=True)
+    async def eval_(ctx, *, message):
+        try:
+            retval = eval(message)
+        except Exception as e:
+            retval = 'Exception\n%s' % e
+
+        await bot.say(retval)
+
     @bot.command(name='roles', pass_context=True, level=5)
     async def get_roles(ctx):
         server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)

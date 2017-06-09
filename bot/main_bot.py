@@ -28,6 +28,7 @@ SOFTWARE.
 import json
 import logging
 import re
+import asyncio
 from random import choice
 
 import discord
@@ -354,10 +355,37 @@ def start(config, permissions):
 
     @bot.command(name='eval', pass_context=True, onwer_only=True)
     async def eval_(ctx, *, message):
+        nonlocal bot
         try:
             retval = eval(message)
+            if asyncio.iscoroutine(retval):
+                retval = await retval
+
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             retval = 'Exception\n%s' % e
+
+        if not retval:
+            retval = 'Done'
+
+        await bot.say(retval)
+
+    @bot.command(name='exec', pass_context=True, onwer_only=True)
+    async def exec_(ctx, *, message):
+        nonlocal bot
+        try:
+            retval = exec(message)
+            if asyncio.iscoroutine(retval):
+                retval = await retval
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            retval = 'Exception\n%s' % e
+
+        if not retval:
+            retval = 'Done'
 
         await bot.say(retval)
 

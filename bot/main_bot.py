@@ -184,14 +184,6 @@ def start(config, permissions):
         management.save_json()
 
     @bot.event
-    async def on_reaction_add(user, reaction):
-        return
-
-    @bot.event
-    async def raw_reaction_add(**data):
-        return
-
-    @bot.event
     async def on_message_edit(before, after):
         if before.author.bot:
             return
@@ -271,6 +263,15 @@ def start(config, permissions):
     async def on_message(message):
         if message.author == bot.user:
             return
+
+        if message.server.id == '217677285442977792':
+            if len(message.mentions) + len(message.role_mentions) > 10:
+                role = discord.utils.find(lambda r: r.id == '322837972317896704',
+                                          message.server.roles)
+                if role is not None:
+                    await bot.add_roles(message.author, role)
+                    await bot.send_message(message.channel,
+                                           'Muted {0.mention}'.format(message.author))
 
         # If the message is a command do that instead
         if message.content.startswith('!'):

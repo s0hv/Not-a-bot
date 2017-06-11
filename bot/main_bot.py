@@ -361,6 +361,7 @@ def start(config, permissions):
 
     @bot.command(name='eval', pass_context=True, owner_only=True)
     async def eval_(ctx, *, message):
+        return
         nonlocal bot
         try:
             retval = eval(message)
@@ -379,6 +380,7 @@ def start(config, permissions):
 
     @bot.command(name='exec', pass_context=True, owner_only=True)
     async def exec_(ctx, *, message):
+        return
         nonlocal bot
         try:
             retval = exec(message)

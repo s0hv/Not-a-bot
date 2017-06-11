@@ -65,6 +65,15 @@ class Command(commands.Command):
         self.owner_only = owner_only
 
 
+class Group(Command, commands.Group):
+    def __init__(self, **attrs):
+        self.invoke_without_command = attrs.pop('invoke_without_command', False)
+        self.level = attrs.pop('level', 0)
+        self.owner_only = attrs.pop('owner_only', False)
+
+        super(Command, self).__init__(**attrs)
+
+
 class ConnectionState(state.ConnectionState):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -154,16 +163,22 @@ class Bot(commands.Bot):
         if hasattr(context.command, "on_error"):
             return
 
-        if type(exception) is commands.errors.CommandNotFound or type(exception) is commands.errors.CommandOnCooldown:
+        if type(exception) is commands.errors.CommandNotFound:
+            return
+
+        channel = context.message.channel
+        if type(exception) is commands.errors.CommandOnCooldown:
+            await self.say_timeout('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after),
+                                   channel, 20)
             return
 
         if isinstance(exception.__cause__, exceptions.BotException):
-            await self.say_timeout(exception.__cause__.message, context.message.channel, 30)
+            await self.say_timeout(exception.__cause__.message, channel, 30)
             return
 
         if isinstance(exception.__cause__, commands.errors.MissingRequiredArgument):
             return await self.say_timeout('Missing arguments. {}'.format(str(exception.__cause__)),
-                                          context.message.channel, 60)
+                                          channel, 60)
 
         print('Ignoring exception in command {}'.format(context.command), file=sys.stderr)
         traceback.print_exception(type(exception), exception,
@@ -287,6 +302,14 @@ class Bot(commands.Bot):
                 new_roles.append(role)
 
         await self._replace_roles(member, new_roles)
+
+    def group(self, *args, **kwargs):
+        def decorator(func):
+            result = group(*args, **kwargs)(func)
+            self.add_command(result)
+            return result
+
+        return decorator
 
     async def add_roles(self, member, *roles):
         await super().add_roles(member, *roles)
@@ -510,6 +533,11 @@ class ProcessPlayer(StreamPlayer):
 def command(*args, **kwargs):
     kwargs.pop('cls', None)
     return commands.command(*args, cls=Command, **kwargs)
+
+
+def group(name=None, **attrs):
+    """Uses custom Group class"""
+    return commands.command(name=name, cls=Group, **attrs)
 
 
 class Context(commands.context.Context):

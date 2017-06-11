@@ -46,6 +46,7 @@ from utils.search import Search
 from utils.utilities import (write_playlist, read_lines, empty_file, y_n_check,
                              split_string, slots2dict, retry)
 from utils.voting import VoteManager
+from bot.emotes import Emotes
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
@@ -266,12 +267,16 @@ def start(config, permissions):
 
         if message.server.id == '217677285442977792':
             if len(message.mentions) + len(message.role_mentions) > 10:
-                role = discord.utils.find(lambda r: r.id == '322837972317896704',
-                                          message.server.roles)
-                if role is not None:
-                    await bot.add_roles(message.author, role)
-                    await bot.send_message(message.channel,
-                                           'Muted {0.mention}'.format(message.author))
+                whitelist = management.get_mute_whitelist(message.server.id)
+                invulnerable = discord.utils.find(lambda r: r.id in whitelist,
+                                                  message.server.roles)
+                if invulnerable is None or invulnerable not in message.author.roles:
+                    role = discord.utils.find(lambda r: r.id == '322837972317896704',
+                                              message.server.roles)
+                    if role is not None:
+                        await bot.add_roles(message.author, role)
+                        await bot.send_message(message.channel,
+                                               'Muted {0.mention}'.format(message.author))
 
         # If the message is a command do that instead
         if message.content.startswith('!'):
@@ -354,7 +359,7 @@ def start(config, permissions):
 
         await bot.send_message(ctx.message.channel, s)
 
-    @bot.command(name='eval', pass_context=True, onwer_only=True)
+    @bot.command(name='eval', pass_context=True, owner_only=True)
     async def eval_(ctx, *, message):
         nonlocal bot
         try:
@@ -372,7 +377,7 @@ def start(config, permissions):
 
         await bot.say(retval)
 
-    @bot.command(name='exec', pass_context=True, onwer_only=True)
+    @bot.command(name='exec', pass_context=True, owner_only=True)
     async def exec_(ctx, *, message):
         nonlocal bot
         try:
@@ -585,6 +590,7 @@ def start(config, permissions):
     bot.add_cog((hearthstone.Hearthstone(bot, config.mashape_key, bot.aiohttp_client)))
     bot.add_cog(jojo.JoJo(bot))
     bot.add_cog(management)
+    bot.add_cog(Emotes(bot))
     bot.add_cog(votes)
 
     bot.run(config.token)

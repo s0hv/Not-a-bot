@@ -83,6 +83,21 @@ class Management:
 
         self.save_json()
 
+    @staticmethod
+    def get_roles_from_ids(server_roles, *ids):
+        roles = []
+        for r in ids:
+            try:
+                int(r)
+            except:
+                continue
+
+            r = discord.utils.find(lambda r: r.id == r, server_roles)
+            if r:
+                roles.append(r)
+
+        return roles
+
     async def _join_leave(self, ctx, channel, message, add_color, join=True):
         key = 'join' if join else 'leave'
         user = ctx.message.author
@@ -249,6 +264,46 @@ class Management:
         await self.bot.say('Deleted color %s' % name)
 
     @command(pass_context=True, owner_only=True)
+    async def mute_whitelist(self, ctx, *roles):
+        role_mentions = ctx.message.role_mentions.copy()
+
+        server_roles = ctx.message.server.roles
+        role_mentions.extend(self.get_roles_from_ids(server_roles, *roles))
+
+        if not role_mentions:
+            return await self.bot.say(
+                'Use the role ids or mention roles to add them to the whitelist')
+
+        conf = self.get_mute_whitelist(ctx.message.server.id)
+        for role in role_mentions:
+            if role.id not in conf:
+                conf.append(role.id)
+
+        self.save_json()
+        await self.bot.say('Roles added to the whitelist')
+
+    @command(pass_context=True, owner_only=True)
+    async def remove_mute_whitelist(self, ctx, *roles):
+        role_mentions = ctx.message.role_mentions.copy()
+
+        server_roles = ctx.message.server.roles
+        role_mentions.extend(self.get_roles_from_ids(server_roles, *roles))
+
+        if not role_mentions:
+            return await self.bot.say(
+                'Use the role ids or mention roles to remove them from the whitelist')
+
+        conf = self.get_mute_whitelist(ctx.message.server.id)
+        for role in roles:
+            try:
+                conf.remove(role.id)
+            except ValueError:
+                pass
+
+        self.save_json()
+        await self.bot.say('Roles removed from the whitelist')
+
+    @command(pass_context=True, owner_only=True)
     async def add_color(self, ctx, color, *, name):
         try:
             color = Color(color)
@@ -406,3 +461,10 @@ class Management:
             config['colors'] = colors
 
         return colors
+
+    def get_mute_whitelist(self, serverid):
+        config = self.get_config(serverid)
+        if 'unmutable' not in config:
+            config['unmutable'] = []
+
+        return config.get('unmutable', [])

@@ -7,6 +7,7 @@ from colour import Color
 import discord
 from utils.utilities import y_n_check, slots2dict, normalize_text
 from random import choice
+from threading import Lock
 
 
 class Management:
@@ -14,6 +15,10 @@ class Management:
         self.bot = bot
         self.servers = {}
         self.path = os.path.join(os.getcwd(), 'data', 'servers.json')
+        self._lock = Lock()
+        self._load_config()
+
+    def _load_config(self):
         if os.path.exists(self.path):
             with open(self.path, 'r') as f:
                 self.servers = json.load(f)
@@ -92,11 +97,26 @@ class Management:
             except:
                 continue
 
-            r = discord.utils.find(lambda r: r.id == r, server_roles)
+            r = discord.utils.find(lambda role: role.id == str(r), server_roles)
             if r:
                 roles.append(r)
 
         return roles
+
+    @staticmethod
+    def get_users_from_ids(server, *ids):
+        users = []
+        for i in ids:
+            try:
+                int(i)
+            except:
+                continue
+
+            user = server.get_member(i)
+            if user:
+                users.append(user)
+
+        return users
 
     async def _join_leave(self, ctx, channel, message, add_color, join=True):
         key = 'join' if join else 'leave'
@@ -280,7 +300,71 @@ class Management:
                 conf.append(role.id)
 
         self.save_json()
-        await self.bot.say('Roles added to the whitelist')
+        role_mentions = list(map(lambda r: r.name, role_mentions))
+        await self.bot.say('Roles {} added to the whitelist'.format(', '.join(role_mentions)))
+
+    @command(pass_context=True, owner_only=True)
+    async def muted_role(self, ctx, *roles):
+        server = ctx.message.server
+        role_mentions = ctx.message.role_mentions
+        role_mentions.extend(self.get_roles_from_ids(server.roles, *roles))
+        if not role_mentions:
+            return await self.bot.say('No role/role id specified')
+
+        whitelist = self.get_mute_whitelist(server.id)
+        role = role_mentions[0]
+        if role.id in whitelist:
+            return await self.bot.say('Role is already in the mute whitelist. '
+                                      'Remove it from there first using !remove_mute_whitelist')
+
+        self.set_muted_role(server.id, role.id)
+        await self.bot.say('Muted role set to {0.name}: {0.id}'.format(role))
+
+    @command(pass_context=True, owner_only=True)
+    async def mute(self, ctx, *user):
+        server = ctx.message.server
+        mute_role = self.get_config(server.id).get('muted_role', None)
+        if mute_role is None:
+            return await self.bot.say('No mute role set')
+
+        users = ctx.message.mentions.copy()
+        users.extend(self.get_users_from_ids(server, *user))
+
+        if not users:
+            return await self.bot.say('No user ids or mentions')
+
+        mute_role = discord.utils.find(lambda r: r.id == str(mute_role), server.roles)
+        if mute_role is None:
+            return await self.bot.say('Could not find the muted role')
+
+        try:
+            await self.bot.add_roles(users[0], mute_role)
+            await self.bot.say('Muted user {}'.format(users[0].name))
+        except:
+            await self.bot.say('Could not mute user {}'.format(users[0].name))
+
+    @command(pass_context=True, owner_only=True)
+    async def unmute(self, ctx, *user):
+        server = ctx.message.server
+        mute_role = self.get_config(server.id).get('muted_role', None)
+        if mute_role is None:
+            return await self.bot.say('No mute role set')
+
+        users = ctx.message.mentions.copy()
+        users.extend(self.get_users_from_ids(server, *user))
+
+        if not users:
+            return await self.bot.say('No user ids or mentions')
+
+        mute_role = discord.utils.find(lambda r: r.id == str(mute_role), server.roles)
+        if mute_role is None:
+            return await self.bot.say('Could not find the muted role')
+
+        try:
+            await self.bot.remove_roles(users[0], mute_role, remove_manually=False)
+            await self.bot.say('Unmuted user {}'.format(users[0].name))
+        except:
+            await self.bot.say('Could not unmute user {}'.format(users[0].name))
 
     @command(pass_context=True, owner_only=True)
     async def remove_mute_whitelist(self, ctx, *roles):
@@ -294,7 +378,7 @@ class Management:
                 'Use the role ids or mention roles to remove them from the whitelist')
 
         conf = self.get_mute_whitelist(ctx.message.server.id)
-        for role in roles:
+        for role in role_mentions:
             try:
                 conf.remove(role.id)
             except ValueError:
@@ -422,6 +506,11 @@ class Management:
 
         await self.bot.say('Colored %s users without color role' % colored)
 
+    @command(owner_only=True)
+    async def reload_config(self):
+        self._load_config()
+        await self.bot.say('Reloaded config')
+
     def save_json(self):
         def save():
             try:
@@ -431,9 +520,10 @@ class Management:
             except:
                 return False
 
-        for i in range(3):
-            if save():
-                return
+        with self._lock:
+            for i in range(2):
+                if save():
+                    return
 
     def get_config(self, serverid):
         conf = self.servers.get(serverid, None)
@@ -468,3 +558,9 @@ class Management:
             config['unmutable'] = []
 
         return config.get('unmutable', [])
+
+    def set_muted_role(self, serverid, roleid):
+        conf = self.get_config(serverid)
+        conf['muted_role'] = roleid
+
+        self.save_json()

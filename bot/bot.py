@@ -63,6 +63,8 @@ class Command(commands.Command):
         super().__init__(name, callback, **kwargs)
         self.level = level
         self.owner_only = owner_only
+        if self.owner_only:
+            print('registered owner_only command %s' % name)
 
 
 class Group(Command, commands.Group):
@@ -72,6 +74,8 @@ class Group(Command, commands.Group):
         self.owner_only = attrs.pop('owner_only', False)
 
         super(Command, self).__init__(**attrs)
+        if self.owner_only:
+            print('registered owner_only command %s' % self.name)
 
 
 class ConnectionState(state.ConnectionState):
@@ -315,7 +319,7 @@ class Bot(commands.Bot):
         await super().add_roles(member, *roles)
         member.roles.extend(roles)
 
-    async def remove_roles(self, member, *roles):
+    async def remove_roles(self, member, *roles, remove_manually=True):
         await super().remove_roles(member, *roles)
         for r in roles:
             try:

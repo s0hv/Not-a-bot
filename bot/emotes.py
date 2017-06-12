@@ -28,11 +28,11 @@ class Emotes:
         e = ''
         for emote in emotes:
             if include_name:
-                e += '{}: {}{}'.format(emote.name, emote, delim)
+                e += '{} {}{}'.format(emote.name, emote, delim)
             else:
                 e += '{}{}'.format(emote, delim)
 
-        return e
+        return e[:-len(delim)]
 
     @cooldown(1, 10, commands.BucketType.server)
     @group(pass_context=True)

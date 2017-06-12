@@ -378,14 +378,17 @@ class Management:
                 'Use the role ids or mention roles to remove them from the whitelist')
 
         conf = self.get_mute_whitelist(ctx.message.server.id)
+        removed = []
         for role in role_mentions:
             try:
                 conf.remove(role.id)
             except ValueError:
                 pass
+            else:
+                removed.append('```{0.name}```'.format(role))
 
         self.save_json()
-        await self.bot.say('Roles removed from the whitelist')
+        await self.bot.say('Roles {} removed from the whitelist'.format(', '.join(removed)))
 
     @command(pass_context=True, owner_only=True)
     async def add_color(self, ctx, color, *, name):

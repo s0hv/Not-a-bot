@@ -50,7 +50,7 @@ class Config:
         self.custom_search = get_config_value(self.config, 'Credentials', 'CustomSearch', str, None)
         self.wolfram_key = get_config_value(self.config, 'Credentials', 'WolframKey', str, None)
 
-        self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, True)
+        self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, False)
 
 
         try:

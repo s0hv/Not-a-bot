@@ -33,7 +33,7 @@ from threading import Lock
 import cv2
 import geopatterns
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw
+from PIL import Image, ImageChops, ImageDraw, ImageOps
 from colorthief import ColorThief as CF
 from colour import Color
 from geopatterns import svg
@@ -52,7 +52,8 @@ MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
 GLOW_LOCK = Lock()
 TRIMMING_LOCK = Lock()
 if not os.path.exists(IMAGES_PATH):
-    os.mkdir(IMAGES_PATH)
+    pass
+    #os.mkdir(IMAGES_PATH)
 
 
 def make_shiftable(color):
@@ -126,6 +127,75 @@ class GeoPattern(geopatterns.GeoPattern):
         return self.svg.rect(0, 0, '100%', '100%', **{
             'fill': 'rgb({}, {}, {})'.format(r, g, b)
         })
+
+
+# https://stackoverflow.com/a/3753428/6046713
+def replace_color(im, color1, color2):
+    """
+
+    Args:
+        im: Image
+        color1: tuple of 3 integers. Color to be replaced
+        color2: tuple of 3 integers. Color that replaces the other color
+
+    Returns:
+        new image object
+    """
+
+    im = im.convert('RGBA')
+
+    data = np.array(im)  # "data" is a height x width x 4 numpy array
+    red, green, blue, alpha = data.T  # Temporarily unpack the bands for readability
+
+    r,g,b = color1
+    # Replace white with red... (leaves alpha values alone...)
+    white_areas = (red == r) & (blue == b) & (green == g)
+    data[..., :-1][white_areas.T] = color2  # Transpose back needed
+    im = Image.fromarray(data)
+
+    return im
+
+
+def sepia(im, strength=0.75):
+    image = BytesIO()
+    im.save(image, 'PNG')
+    args = '{}convert - -sepia-tone {:.0%} -evaluate Uniform-noise 7 png:-'.format(MAGICK, strength)
+    p = subprocess.Popen(args.split(' '), stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+    p.stdin.write(image.getvalue())
+    out, err = p.communicate()
+    buff = BytesIO(out)
+    del image
+    return Image.open(buff)
+
+
+# http://effbot.org/zone/pil-sepia.htm
+def sepia_filter(im):
+    def make_linear_ramp(white):
+        # putpalette expects [r,g,b,r,g,b,...]
+        ramp = []
+        r, g, b = white
+        for i in range(255):
+            if i == 0:
+                i = 100
+            elif i == 254:
+                i = 200
+            ramp.extend((int(r * i / 255), int(g * i / 255), int(b * i / 255)))
+        return ramp
+
+    # make sepia ramp (tweak color as necessary)
+    sepia = make_linear_ramp((250, 225, 175))
+
+    # convert to grayscale
+    if im.mode != "L":
+        im = im.convert("L")
+
+    # optional: apply contrast enhancement here, e.g.
+    #im = ImageOps.autocontrast(im)
+
+    # apply sepia palette
+    im.putpalette(sepia)
+
+    return im
 
 
 def trim_image(im):
@@ -346,7 +416,8 @@ def create_shadow(img, percent, opacity, x, y):
     return img
 
 
-def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True):
+def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
+                             resample=Image.NEAREST):
     x, y = img.size
     x_m = x / new_size[0]
     y_m = y / new_size[1]
@@ -356,7 +427,7 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
     else:
         m = new_size[0] / x
 
-    img = img.resize((int(x * m), int(y * m)))
+    img = img.resize((int(x * m), int(y * m)), resample=resample)
     if crop_to_size:
         img = img.crop((0, 0, *new_size))
     return img
@@ -367,3 +438,24 @@ def create_text(s, font, fill, canvas_size, point=(10, 10)):
     draw = ImageDraw.Draw(text)
     draw.text(point, s, fill, font=font)
     return text
+
+r"""
+width = im.width
+height = im.height
+if width < 300:
+    width = 300
+
+if height < 200:
+    height = 200
+
+im = im.resize((width, height), Image.BILINEAR)
+im = sepia(im)
+height = im.height
+width = im.width
+x = int(width * 0.09)
+y = int(height * 0.90)
+tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),
+                               can_be_bigger=False, resample=Image.BILINEAR)
+im.paste(tbc, (x, y), tbc)
+im.save('test.png')
+"""

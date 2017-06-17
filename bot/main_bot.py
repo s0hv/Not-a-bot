@@ -25,10 +25,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import asyncio
 import json
 import logging
 import re
-import asyncio
 from random import choice
 
 import discord
@@ -37,16 +37,17 @@ from validators import url as test_url
 
 from bot import audio
 from bot.bot import Bot
+from bot.emotes import Emotes
 from bot.exceptions import *
 from bot.globals import *
 from bot.management import Management
 from bot.permissions import parse_permissions
-from utils import wolfram, memes, hearthstone, jojo
+from cogs import jojo
+from cogs.voting import VoteManager
+from utils import wolfram, memes, hearthstone
 from utils.search import Search
 from utils.utilities import (write_playlist, read_lines, empty_file, y_n_check,
                              split_string, slots2dict, retry)
-from utils.voting import VoteManager
-from bot.emotes import Emotes
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
@@ -262,7 +263,7 @@ def start(config, permissions):
 
     @bot.event
     async def on_message(message):
-        if message.author == bot.user:
+        if message.author.bot or message.author == bot.user:
             return
 
         if message.server.id == '217677285442977792':

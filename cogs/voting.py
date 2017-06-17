@@ -3,9 +3,41 @@ import os
 import time
 
 from discord import User
+import asyncio
 
 from bot.bot import command
 
+
+class Uservote:
+    def __init__(self, user):
+        self.user = user
+        self._vote = None
+        self.valid = True
+
+    @property
+    def vote(self):
+        return self._vote
+
+    @vote.setter
+    def vote(self, emote):
+        if self._vote is not None:
+            self.valid = False
+
+        self._vote = emote
+
+
+class Vote:
+    def __init__(self, message, duration=None):
+        self.message = message
+        self.duration = duration or 0
+        self._created_at = time.time()
+
+        if not isinstance(self.duration, int) or not isinstance(self.duration, float):
+            raise ValueError('Duration must be int or float')
+
+    @property
+    def created_at(self):
+        return self._created_at
 
 class VoteManager:
     def __init__(self, bot):
@@ -41,8 +73,11 @@ class VoteManager:
     async def get_most_voted(self, msg):
         users_voted = []
         votes = {}
-        reactions = await self.get_reactions(msg)
-        for emote, users in reactions.items():
+        reactions = msg.reactions
+        if not reactions:
+            return
+
+        for emote, users in reactions:
             votes_ = 0
             for user in list(users):
                 if user not in users_voted:
@@ -54,29 +89,6 @@ class VoteManager:
         print(votes)
         emote = max(votes.keys(), key=lambda key: votes[key])
         return emote, votes[emote]
-
-    async def get_reactions(self, msg):
-        token = self.bot.config.token
-        client = self.bot.aiohttp_client
-        url = 'https://discordapp.com/api/v6/channels/{0.channel.id}/messages/{0.id}'.format(msg) + '/reactions/{}?token=' + token
-        reactions = msg.reactions
-
-        reaction_users = {}
-        for reaction in reactions:
-            users = []
-            emote = reaction.emoji
-            if isinstance(emote, str):
-                u = url.format(emote)
-            else:
-                u = url.format(':{0.name}:{0.id}'.format(emote))
-            r = await client.get(u)
-            j = await r.json()
-            for user in j:
-                users.append(User(**user))
-
-            reaction_users[emote] = users
-
-        return reaction_users
 
     def add_message(self, message):
         votes = self.get_vote_messages(message.server.id)

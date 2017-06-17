@@ -632,10 +632,7 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.add_from_playlist(playlist, ctx.message.channel)
 
-    @command(pass_context=True)
-    async def search(self, ctx, *, name):
-        """Search for songs. Default site is youtube
-        Supported sites: -yt Youtube, -sc Soundcloud"""
+    async def _search(self, ctx, name):
         state = self.get_voice_state(ctx.message.server)
 
         if name.startswith('-yt '):
@@ -653,6 +650,12 @@ class Audio:
             success = await ctx.invoke(self.summon)
             if not success:
                 return
+
+    @command(pass_context=True)
+    async def search(self, ctx, *, name):
+        """Search for songs. Default site is youtube
+        Supported sites: -yt Youtube, -sc Soundcloud"""
+
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'])
     async def summon(self, ctx):
@@ -898,8 +901,10 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
 
         await self.stop_state(state)
-        await self.bot.change_presence(game=Game(name=self.bot.config.game))
         del self.voice_states[ctx.message.server.id]
+        if not self.voice_states:
+            await self.bot.change_presence(game=Game(name=self.bot.config.game))
+
         self.clear_cache()
 
     @commands.cooldown(4, 4)
@@ -1094,7 +1099,7 @@ class Audio:
 
         return await self.bot.send_message(ctx.message.channel, 'Autoplaylist set %s' % option)
 
-    def clear_cache(self):
+    def clear_cache(self, state=None):
         songs = []
         for state in self.voice_states.values():
             for song in state.playlist.playlist:

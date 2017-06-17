@@ -255,3 +255,20 @@ async def retry(f, *args, retries_=3, **kwargs):
             return retval
 
     return e
+
+
+def get_image_from_message(ctx, *messages):
+    if len(ctx.message.attachments) > 0:
+        image = ctx.message.attachments[0]['url']
+    elif messages:
+        image = messages[0]
+        if not test_url(image):
+            if re.match('<@!?\d+>', image) and ctx.message.mentions:
+                image = ctx.message.mentions[0].avatar_url
+            elif re.match('<:\w+:\d+>', image):
+                image = emote_url_from_id(
+                    re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
+            else:
+                image = None
+
+    return image

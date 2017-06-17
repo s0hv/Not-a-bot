@@ -159,6 +159,10 @@ class Audio:
         else:
             await state.voice.move_to(summoned_channel)
 
+        file = self._search_sfx('attention')
+        if file:
+            state.add_to_queue(file)
+
         return True
 
     @command(pass_context=True, no_pm=True, ignore_extra=True)

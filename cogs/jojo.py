@@ -52,8 +52,8 @@ from utils.utilities import (get_picture_from_msg, emote_url_from_id, y_n_check,
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
-    '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~',
-    '０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ！゛＃＄％＆（）＊＋、ー。／：；〈＝〉？＠［］＾＿‘｛｜｝～')
+    '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~ ',
+    '０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ！゛＃＄％＆（）＊＋、ー。／：；〈＝〉？＠［］＾＿‘｛｜｝～　')
 
 LETTERS_TO_INT = {k: idx for idx, k in enumerate(['A', 'B', 'C', 'D', 'E'])}
 INT_TO_LETTER = ['A', 'B', 'C', 'D', 'E']
@@ -264,16 +264,7 @@ class JoJo:
         if advanced:
             await self.bot.say('`{}` Advanced mode activated'.format(name), delete_after=20)
 
-        if image is None and len(ctx.message.attachments) > 0:
-            image = ctx.message.attachments[0]['url']
-        elif image is not None:
-            if not test_url(image):
-                if re.match('<@\d+>', image) and ctx.message.mentions:
-                    image = ctx.message.mentions[0].avatar_url
-                elif re.match('<:\w+:\d+>', image):
-                    image = emote_url_from_id(re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
-                else:
-                    image = None
+        image = get_image_from_message(ctx, image)
 
         img = await image_from_url(image, self.bot.aiohttp_client)
         if img is None:
@@ -462,6 +453,7 @@ class JoJo:
         if img is None:
             return await self.bot.say('`{}` Could not extract image from {}.'.format(image, image))
 
+        await self.bot.send_typing(ctx.message.channel)
         if not no_sepia:
             img = sepia(img)
 

@@ -42,10 +42,12 @@ from bot.exceptions import *
 from bot.globals import *
 from bot.management import Management
 from bot.permissions import parse_permissions
+from bot.cooldown import CooldownManager
 from cogs import jojo
 from cogs.voting import VoteManager
 from utils import wolfram, memes, hearthstone
 from utils.search import Search
+from discord.ext.commands import cooldown, BucketType
 from utils.utilities import (write_playlist, read_lines, empty_file, y_n_check,
                              split_string, slots2dict, retry)
 
@@ -58,6 +60,10 @@ HALFWIDTH_TO_FULLWIDTH = str.maketrans(
 def start(config, permissions):
     client = ClientSession()
     bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
+    cdm = CooldownManager()
+    cdm.add_cooldown('oshit', 3, 8)
+    cdm.add_cooldown('imnew', 3, 8)
+
     permissions.bot = bot
     hi_new = {ord(c): '' for c in ", '"}
 
@@ -91,6 +97,7 @@ def start(config, permissions):
         channel = bot.get_channel(channel)
         message = await bot.get_message(channel, msg)
         val = await votes.get_most_voted(message)
+        await bot.say(str(val))
 
     @bot.event
     async def on_ready():
@@ -266,7 +273,7 @@ def start(config, permissions):
         if message.author.bot or message.author == bot.user:
             return
 
-        if message.server.id == '217677285442977792':
+        if message.server and message.server.id == '217677285442977792':
             if len(message.mentions) + len(message.role_mentions) > 10:
                 whitelist = management.get_mute_whitelist(message.server.id)
                 invulnerable = discord.utils.find(lambda r: r.id in whitelist,
@@ -284,7 +291,9 @@ def start(config, permissions):
             await bot.process_commands(message)
             return
 
-        if message.content.lower() == 'o shit':
+        oshit = cdm.get_cooldown('oshit')
+        imnew = cdm.get_cooldown('imnew')
+        if oshit and oshit.trigger(False) and message.content.lower() == 'o shit':
             msg = 'waddup'
             await bot.send_message(message.channel, msg)
 
@@ -295,7 +304,7 @@ def start(config, permissions):
                 await bot.send_message(message.channel, 'dat boi')
             return
 
-        elif message.content.lower().translate(hi_new) == 'hiimnew':
+        elif imnew and imnew.trigger(False) and message.content.lower().translate(hi_new) == 'hiimnew':
             await bot.send_message(message.channel, 'Hi new, I\'m dad')
 
     @bot.command(pass_context=True)
@@ -362,8 +371,7 @@ def start(config, permissions):
 
     @bot.command(name='eval', pass_context=True, owner_only=True)
     async def eval_(ctx, *, message):
-        return
-        nonlocal bot
+        msg = ctx.message
         try:
             retval = eval(message)
             if asyncio.iscoroutine(retval):
@@ -381,8 +389,7 @@ def start(config, permissions):
 
     @bot.command(name='exec', pass_context=True, owner_only=True)
     async def exec_(ctx, *, message):
-        return
-        nonlocal bot
+        msg = ctx.message
         try:
             retval = exec(message)
             if asyncio.iscoroutine(retval):
@@ -398,14 +405,34 @@ def start(config, permissions):
 
         await bot.say(retval)
 
-    @bot.command(name='roles', pass_context=True, level=5)
-    async def get_roles(ctx):
+    @bot.command(name='roles', pass_context=True, ignore_extra=True)
+    @cooldown(1, 5, BucketType.server)
+    async def get_roles(ctx, page=''):
         server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
+        print_all = page.lower() == 'all'
+        idx = 0
+        if print_all and ctx.message.author.id != bot.owner:
+            return await bot.say('Only the owner can use the all modifier', delete_after=30)
+        elif page and not print_all:
+            try:
+                idx = int(page) - 1
+                if idx < 0:
+                    return await bot.say('Index must be bigger than 0')
+            except ValueError:
+                return await bot.say('%s is not a valid integer' % page, delete_after=30)
+
+        maxlen = 1950
         roles = 'A total of %s roles\n' % len(server_roles)
         for role in server_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
-        roles = split_string(roles, splitter='\n')
+        roles = split_string(roles, splitter='\n', maxlen=maxlen)
+        if not print_all:
+            try:
+                roles = (roles[idx],)
+            except IndexError:
+                return await bot.say('Page index %s is out of bounds' % idx, delete_after=30)
+
         for s in roles:
             await bot.say('```' + s + '```')
 

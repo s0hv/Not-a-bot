@@ -258,6 +258,7 @@ async def retry(f, *args, retries_=3, **kwargs):
 
 
 def get_image_from_message(ctx, *messages):
+    image = None
     if len(ctx.message.attachments) > 0:
         image = ctx.message.attachments[0]['url']
     elif messages:
@@ -269,6 +270,15 @@ def get_image_from_message(ctx, *messages):
                 image = emote_url_from_id(
                     re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
             else:
-                image = None
+                try:
+                    int(image)
+                except:
+                    image = None
+                else:
+                    server = ctx.message.server
+                    if server:
+                        member = server.get_member(image)
+                        if member:
+                            image = member.avatar_url
 
     return image

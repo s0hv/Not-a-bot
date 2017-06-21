@@ -25,6 +25,8 @@ SOFTWARE.
 import asyncio
 import audioop
 import copy
+import inspect
+import itertools
 import logging
 import shlex
 import subprocess
@@ -41,6 +43,7 @@ from discord import Object, InvalidArgument, ChannelType, ClientException, \
 from discord import state
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
+from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.ext.commands.view import StringView
 
 try:
@@ -53,7 +56,6 @@ except ImportError:
 from bot import exceptions
 from bot.message import TimeoutMessage
 from bot.permissions import check_permission
-from utils.utilities import split_string
 
 log = logging.getLogger('discord')
 
@@ -140,7 +142,12 @@ class Client(discord.Client):
 
 class Bot(commands.Bot):
     def __init__(self, command_prefix, config, permissions=None, aiohttp_client=None, **options):
+        if 'formatter' not in options:
+            options['formatter'] = Formatter()
+
         super().__init__(command_prefix, **options)
+        self.remove_command('help')
+        self.command(**{'name': 'help', 'pass_context': True})(self.help)
         log.debug('Using loop {}'.format(self.loop))
         if aiohttp_client is None:
             aiohttp_client = ClientSession(loop=self.loop)
@@ -230,6 +237,65 @@ class Bot(commands.Bot):
                 members.append(member)
 
         return members
+
+    async def help(self, ctx, *commands_: str):
+        """Shows this message."""
+        destination = ctx.message.author if self.pm_help else ctx.message.channel
+        author = ctx.message.author
+        is_owner = author.id == self.owner
+
+        def repl(obj):
+            return commands.bot._mentions_transforms.get(obj.group(0), '')
+
+        # help by itself just lists our own commands.
+        if len(commands_) == 0:
+            pages = self.formatter.format_help_for(ctx, self, is_owner=is_owner)
+        elif len(commands_) == 1:
+            # try to see if it is a cog name
+            name = commands.bot._mention_pattern.sub(repl, commands_[0])
+            command_ = None
+            if name in self.cogs:
+                command_ = self.cogs[name]
+            else:
+                command_ = self.commands.get(name)
+                if command_ is None:
+                    await self.send_message(destination,
+                                            self.command_not_found.format(name))
+                    return
+
+            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner)
+        else:
+            name = commands.bot._mention_pattern.sub(repl, commands_[0])
+            command_ = self.commands.get(name)
+            if command_ is None:
+                await self.send_message(destination,
+                                        self.command_not_found.format(name))
+                return
+
+            for key in commands[1:]:
+                try:
+                    key = commands.bot._mention_pattern.sub(repl, key)
+                    command_ = command_.commands.get(key)
+                    if command_ is None:
+                        await self.send_message(destination,
+                                                self.command_not_found.format(key))
+                        return
+                except AttributeError:
+                    await self.send_message(destination,
+                                            self.command_has_no_subcommands.format(
+                                                    command_, key))
+                    return
+
+            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner)
+
+        if self.pm_help is None:
+            characters = sum(map(lambda l: len(l), pages))
+            # modify destination based on length of pages.
+            if characters > 1000:
+                destination = ctx.message.author
+
+        for page in pages:
+            await self.send_message(destination, page)
 
     async def process_commands(self, message):
         _internal_channel = message.channel
@@ -550,3 +616,90 @@ class Context(commands.context.Context):
     def __init__(self, **attrs):
         super().__init__(**attrs)
         self.user_permissions = attrs.pop('user_permissions', None)
+
+
+class Formatter(HelpFormatter):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def format_help_for(self, context, command_or_bot, is_owner=False):
+        self.context = context
+        self.command = command_or_bot
+        return self.format(is_owner=is_owner)
+
+    def format(self, is_owner=False):
+        """Handles the actual behaviour involved with formatting.
+
+        To change the behaviour, this method should be overridden.
+
+        Returns
+        --------
+        list
+            A paginated output of the help command.
+        """
+        self._paginator = Paginator(prefix='```Markdown\n')
+
+        # we need a padding of ~80 or so
+
+        description = self.command.description if not self.is_cog() else inspect.getdoc(self.command)
+
+        if description:
+            # <description> portion
+            self._paginator.add_line(description, empty=True)
+
+        if isinstance(self.command, Command):
+            # <signature portion>
+            signature = self.get_command_signature()
+            if self.command.owner_only:
+                signature = 'This command is owner only\n' + signature
+
+            self._paginator.add_line(signature, empty=True)
+
+            # <long doc> section
+            if self.command.help:
+                self._paginator.add_line(self.command.help, empty=True)
+
+            # end it here if it's just a regular command
+            if not self.has_subcommands():
+                self._paginator.close_page()
+                return self._paginator.pages
+
+        max_width = self.max_name_size
+
+        def category(tup):
+            cog = tup[1].cog_name
+            # we insert the zero width space there to give it approximate
+            # last place sorting position.
+            return cog + ':' if cog is not None else '\u200bNo Category:'
+
+        if self.is_bot():
+            data = sorted(self.filter_command_list(), key=category)
+            for category, commands in itertools.groupby(data, key=category):
+                # there simply is no prettier way of doing this.
+                commands = list(commands)
+                if len(commands) > 0:
+                    self._paginator.add_line('#' + category)
+
+                self._add_subcommands_to_page(max_width, commands, is_owner=is_owner)
+        else:
+            self._paginator.add_line('Commands:')
+            self._add_subcommands_to_page(max_width, self.filter_command_list(), is_owner=is_owner)
+
+        # add the ending note
+        self._paginator.add_line()
+        ending_note = self.get_ending_note()
+        self._paginator.add_line(ending_note)
+        return self._paginator.pages
+
+    def _add_subcommands_to_page(self, max_width, commands, is_owner=False):
+        for name, command in commands:
+            if name in command.aliases:
+                # skip aliases
+                continue
+
+            if command.owner_only and not is_owner:
+                continue
+
+            entry = '  {0:<{width}} {1}'.format(name, command.short_doc, width=max_width)
+            shortened = self.shorten(entry)
+            self._paginator.add_line(shortened)

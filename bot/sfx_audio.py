@@ -214,7 +214,7 @@ class Audio:
 
         state.add_to_queue(file)
 
-    @command(name='cadd')
+    @command(name='max_combo')
     async def change_combo(self, max_combo=None):
         if max_combo is None:
             return await self.bot.say(self.bot.config.max_combo)

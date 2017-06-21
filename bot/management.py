@@ -44,6 +44,10 @@ class Management:
 
         return message
 
+    @command(pass_context=True, owner_only=True)
+    async def exclude_edit(self, ctx, channel):
+        self.get_channel()
+
     @staticmethod
     def format_join_leave(member, conf):
         d = slots2dict(member)
@@ -123,8 +127,8 @@ class Management:
         user = ctx.message.author
         channel_ = ctx.message.channel
         server = ctx.message.server
-        if not user.permissions_in(channel_).manage_server:
-            return await self.bot.send_message(channel_, "You don't have manage server permissions")
+        if not user.permissions_in(channel_).manage_channels:
+            return await self.bot.send_message(channel_, "You don't have manage channel permissions")
 
         chn = self.get_channel(channel, server)
         if chn is None:
@@ -191,8 +195,8 @@ class Management:
         user = ctx.message.author
         channel_ = ctx.message.channel
         server = ctx.message.server
-        if not user.permissions_in(channel_).manage_server:
-            return await self.bot.send_message(channel_, "You don't have manage server permissions")
+        if not user.permissions_in(channel_).manage_channels:
+            return await self.bot.send_message(channel_, "You don't have manage channel permissions")
 
         config = self.get_config(server.id)
         chn = self.get_channel(channel, server)
@@ -212,8 +216,8 @@ class Management:
     async def on_edit_message(self, ctx, channel, *, message):
         user = ctx.message.author
         channel_ = ctx.message.channel
-        if not user.permissions_in(channel_).manage_server:
-            return await self.bot.send_message(channel_, "You don't have manage server permissions")
+        if not user.permissions_in(channel_).manage_channels:
+            return await self.bot.send_message(channel_, "You don't have manage channel permissions")
 
         if channel.lower() == 'off':
             self.get_config(ctx.message.server.id).pop('on_edit', None)
@@ -237,8 +241,8 @@ class Management:
     async def on_delete_message(self, ctx, channel, message):
         user = ctx.message.author
         channel_ = ctx.message.channel
-        if not user.permissions_in(channel_).manage_server:
-            return await self.bot.send_message(channel_, "You don't have manage server permissions")
+        if not user.permissions_in(channel_).manage_channels:
+            return await self.bot.send_message(channel_, "You don't have manage channel permissions")
 
         if channel.lower() == 'off':
             self.get_config(ctx.message.server.id).pop('on_delete', None)

@@ -655,7 +655,7 @@ class Audio:
     async def search(self, ctx, *, name):
         """Search for songs. Default site is youtube
         Supported sites: -yt Youtube, -sc Soundcloud"""
-
+        await self._search(ctx, name)
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'])
     async def summon(self, ctx):
@@ -908,7 +908,7 @@ class Audio:
         self.clear_cache()
 
     @commands.cooldown(4, 4)
-    @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'])
+    @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'], level=2)
     async def skip(self, ctx):
         """Skips the current song"""
         state = self.get_voice_state(ctx.message.server)

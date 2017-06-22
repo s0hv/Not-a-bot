@@ -149,14 +149,14 @@ class Playlist:
 
         await _say('That was all of them. Max amount of results is %s' % max_results)
 
-    async def _add_url(self, url, channel=None, no_message=False, priority=False):
+    async def _add_url(self, url, channel=None, no_message=False, priority=False, **metadata):
         try:
             if not channel:
                 channel = self.channel
 
             info = await self.downloader.extract_info(self.bot.loop, url=url, download=False)
             fname = self.downloader.safe_ytdl.prepare_filename(info)
-            song = Song(playlist=self, filename=fname, config=self.bot.config)
+            song = Song(playlist=self, filename=fname, config=self.bot.config, **metadata)
             song.info_from_dict(**info)
             await self._append_song(song, priority)
 
@@ -238,7 +238,8 @@ class Playlist:
                     return await self.say(message, 60)
 
             else:
-                await self._add_url(info['webpage_url'], no_message=no_message, priority=priority)
+                await self._add_url(info['webpage_url'], no_message=no_message,
+                                    priority=priority, **metadata)
 
         finally:
             self.adding_songs = False

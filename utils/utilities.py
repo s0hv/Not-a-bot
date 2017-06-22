@@ -35,6 +35,7 @@ from validators import url as test_url
 from bot.exceptions import NoCachedFileException
 
 logger = logging.getLogger('debug')
+audio = logging.getLogger('audio')
 
 
 def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
@@ -85,7 +86,7 @@ def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
 
 
 def mean_volume(file, avconv=False):
-    logger.debug('Getting mean volume')
+    audio.debug('Getting mean volume')
     ffmpeg = 'ffmpeg' if not avconv else 'avconv'
     file = '"{}"'.format(file)
 
@@ -103,7 +104,7 @@ def mean_volume(file, avconv=False):
         return
     try:
         volume = float(matches[0].split(' ')[1])
-        logger.debug('Parsed volume is {}'.format(volume))
+        audio.debug('Parsed volume is {}'.format(volume))
         return volume
     except ValueError:
         return

@@ -349,7 +349,7 @@ class Audio:
         self.owner = bot.owner
         self.arguments = []
         options = [('-speed', {'help': 'Speeds up the audio. Value must be between 0.5 and 2'}),
-                   ('-stereo', {'help': 'Plays the song with a stereo effect'})]
+                   ('-stereo', {'help': 'Plays the song with a stereo effect', 'action': 'store_true'})]
 
         self.argparser = argparse.ArgumentParser(description='Arguments that can be passed to the different play functions')
         for arg, kwargs in options:
@@ -565,7 +565,7 @@ class Audio:
                 continue
             break
 
-        return args, s[len(args):]
+        return args, ' '.join(s[len(args):])
 
     async def _parse_play(self, string, ctx, metadata=None, permissions=None):
         options = {}
@@ -592,7 +592,7 @@ class Audio:
                 filters.append('apulsator')
 
         if filters:
-            options['filter'] = '-filter:a "{}"'.format(', '.join(filters))
+            options['options'] = '-filter:a "{}"'.format(', '.join(filters))
 
         if metadata is not None:
             for key in options:
@@ -624,6 +624,9 @@ class Audio:
                 return
 
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
+        if ctx.user_permissions.level < 2:
+            metadata = {}
+
         return await state.playlist.add_song(song_name, maxlen=ctx.user_permissions.max_playlist_length, **metadata)
 
     @command(pass_context=True, no_pm=True, level=2)

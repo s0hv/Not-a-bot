@@ -531,7 +531,7 @@ class StreamPlayer(voice_client.StreamPlayer):
     def __init__(self, *args, run_loops=0, **kwargs):
         super().__init__(*args, **kwargs)
         self.bitrate = self.frame_size / self.delay
-        self.audio_buffer = Deque(maxlen=100)
+        self.audio_buffer = Deque(maxlen=200)
         self._stream_finished = threading.Event()
         self.run_loops = run_loops
 

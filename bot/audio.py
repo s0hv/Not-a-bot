@@ -923,7 +923,7 @@ class Audio:
         await state.skip(ctx.message.author)
 
     @commands.cooldown(1, 3)
-    @command(pass_context=True, no_pm=True)
+    @command(name='queue', pass_context=True, no_pm=True, aliases=['playlist'])
     async def playlist(self, ctx, index=None):
         """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song
         Usage !playlist or !playlist [song index]"""

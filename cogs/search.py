@@ -91,3 +91,7 @@ class Search:
             return await self.bot.say_timeout(self.last_search.popleft(), ctx.message.channel)
         except IndexError:
             return await self.bot.say_timeout('No more results', ctx.message.channel, 60)
+
+
+def setup(bot):
+    bot.add_cog(Search(bot, bot.aiohttp_client))

@@ -39,6 +39,7 @@ class Vote:
     def created_at(self):
         return self._created_at
 
+
 class VoteManager:
     def __init__(self, bot):
         self.bot = bot
@@ -99,3 +100,7 @@ class VoteManager:
             self.votes[serverid] = {}
 
         return self.votes[serverid]
+
+
+def setup(bot):
+    bot.add_cog(VoteManager(bot))

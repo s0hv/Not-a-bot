@@ -53,3 +53,7 @@ class Hearthstone:
                     return await self.bot.say(imgs)
 
             await self.bot.say('No matches')
+
+
+def setup(bot):
+    bot.add_cog(Hearthstone(bot, bot.config.mashape_key, bot.aiohttp_client))

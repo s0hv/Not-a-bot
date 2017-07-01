@@ -143,7 +143,7 @@ class Client(discord.Client):
 class Bot(commands.Bot):
     def __init__(self, command_prefix, config, permissions=None, aiohttp_client=None, **options):
         if 'formatter' not in options:
-            options['formatter'] = Formatter()
+            options['formatter'] = Formatter(width=150)
 
         super().__init__(command_prefix, **options)
         self.remove_command('help')

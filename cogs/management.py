@@ -1,13 +1,15 @@
 import json
 import os
 import re
-
-from bot.bot import command
-from colour import Color
-import discord
-from utils.utilities import y_n_check, slots2dict, normalize_text
 from random import choice
 from threading import Lock
+
+import discord
+from colour import Color
+from discord.ext.commands import cooldown, BucketType
+
+from bot.bot import command
+from utils.utilities import slots2dict, split_string
 
 
 class Management:
@@ -532,6 +534,37 @@ class Management:
 
         await self.bot.say('Colored %s users without color role' % colored)
 
+    @command(name='roles', pass_context=True, ignore_extra=True)
+    @cooldown(1, 5, BucketType.server)
+    async def get_roles(self, ctx, page=''):
+        server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
+        print_all = page.lower() == 'all'
+        idx = 0
+        if print_all and ctx.message.author.id != self.bot.owner:
+            return await self.bot.say('Only the owner can use the all modifier', delete_after=30)
+        elif page and not print_all:
+            try:
+                idx = int(page) - 1
+                if idx < 0:
+                    return await self.bot.say('Index must be bigger than 0')
+            except ValueError:
+                return await self.bot.say('%s is not a valid integer' % page, delete_after=30)
+
+        maxlen = 1950
+        roles = 'A total of %s roles\n' % len(server_roles)
+        for role in server_roles:
+            roles += '{}: {}\n'.format(role.name, role.mention)
+
+        roles = split_string(roles, splitter='\n', maxlen=maxlen)
+        if not print_all:
+            try:
+                roles = (roles[idx],)
+            except IndexError:
+                return await self.bot.say('Page index %s is out of bounds' % idx, delete_after=30)
+
+        for s in roles:
+            await self.bot.say('```' + s + '```')
+
     @command(owner_only=True)
     async def reload_config(self):
         self._load_config()
@@ -590,3 +623,7 @@ class Management:
         conf['muted_role'] = roleid
 
         self.save_json()
+
+
+def setup(bot):
+    bot.add_cog(Management(bot))

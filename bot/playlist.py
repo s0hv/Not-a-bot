@@ -99,7 +99,7 @@ class Playlist:
 
             await self.say('Playlist cleared', channel=channel)
 
-    async def search(self, name, ctx, site='yt', priority=False):
+    async def search(self, name, ctx, site='yt', priority=False, in_vc=True):
         search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
         urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
         max_results = 20
@@ -131,7 +131,7 @@ class Playlist:
             else:
                 new_url = url % entry['id']
 
-            message = await _say('Is this the right one? (Y/N) {}'.format(new_url))
+            message = await _say('Is this the right one? (`Y`/`N`/`STOP`) {}'.format(new_url))
 
             returned = await _wait_for_message()
             if returned is None or returned.content.lower() in 'stop':
@@ -143,8 +143,9 @@ class Playlist:
                 await self.bot.delete_message(message)
                 continue
 
-            await self.bot.delete_message(message)
-            await self._add_url(new_url, ctx.message.channel, priority=priority)
+            if in_vc:
+                await self.bot.delete_message(message)
+                await self._add_url(new_url, ctx.message.channel, priority=priority)
             return True
 
         await _say('That was all of them. Max amount of results is %s' % max_results)

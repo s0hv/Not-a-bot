@@ -342,10 +342,9 @@ class MusicPlayer:
 
 
 class Audio:
-    def __init__(self, bot, client):
+    def __init__(self, bot):
         self.bot = bot
         self.voice_states = bot.voice_clients_
-        self.client = client
         self.owner = bot.owner
         self.arguments = []
         options = [('-speed', {'help': 'Speeds up the audio. Value must be between 0.5 and 2'}),
@@ -637,7 +636,7 @@ class Audio:
 
     async def _search(self, ctx, name):
         state = self.get_voice_state(ctx.message.server)
-
+        vc = True if ctx.message.author.voice_channel else False
         if name.startswith('-yt '):
             site = 'yt'
             name = name.split('-yt ', 1)[1]
@@ -647,14 +646,15 @@ class Audio:
         else:
             site = 'yt'
 
-        result = await state.playlist.search(name, ctx, site)
+        result = await state.playlist.search(name, ctx, site, in_vc=vc)
 
-        if result and state.voice is None:
+        if vc and result and state.voice is None:
             success = await ctx.invoke(self.summon)
             if not success:
                 return
 
     @command(pass_context=True)
+    @commands.cooldown(1, 3)
     async def search(self, ctx, *, name):
         """Search for songs. Default site is youtube
         Supported sites: -yt Youtube, -sc Soundcloud"""
@@ -1128,3 +1128,7 @@ class Audio:
                     os.remove(os.path.join(cachedir, file))
                 except Exception:
                     pass
+
+
+def setup(bot):
+    bot.add_cog(Audio(bot))

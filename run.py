@@ -27,50 +27,43 @@ SOFTWARE.
 
 import logging
 from multiprocessing import Process
-
+from bot.Not_a_bot import NotABot
 import discord
 
 from bot.config import Config
 from bot.permissions import Permissions
 
 
-def main():
-    discord_logger = logging.getLogger('discord')
-    discord_logger.setLevel(logging.INFO)
-    handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-    discord_logger.addHandler(handler)
+discord_logger = logging.getLogger('discord')
+discord_logger.setLevel(logging.INFO)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+discord_logger.addHandler(handler)
 
-    logger = logging.getLogger('debug')
-    logger.setLevel(logging.DEBUG)
-    handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
-    handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-    logger.addHandler(handler)
+logger = logging.getLogger('debug')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
 
-    config = Config()
-    permissions = Permissions(config.owner)
-    try:
-        from bot import main_bot
-    except ImportError as e:
-        print('[ERROR] Could not import bot\n%s' % e)
-        exit(1)
+config = Config()
+permissions = Permissions(config.owner)
 
-    if not discord.opus.is_loaded():
-        discord.opus.load_opus('opus')
+if not discord.opus.is_loaded():
+    discord.opus.load_opus('opus')
 
-    if config.sfx_token is not None:
-        from bot import sfx_bot
-    else:
-        sfx_bot = None
+if config.sfx_token is not None:
+    from bot import sfx_bot
+else:
+    sfx_bot = None
 
-    if sfx_bot is not None:
-        sfx_bot = sfx_bot.SfxBot(config)
-        print('[INFO] Sfx bot starting up')
-        sfx_bot.start()
+if sfx_bot is not None:
+    sfx_bot = sfx_bot.SfxBot(config)
+    print('[INFO] Sfx bot starting up')
+    sfx_bot.start()
 
-    print('[INFO] Main bot starting up')
-    logger.info('Starting bots')
-    main_bot.start(config, permissions)
+print('[INFO] Main bot starting up')
+logger.info('Starting bots')
+bot = NotABot(prefix='!', conf=config, pm_help=False, perms=permissions)
+bot.run(config.token)
 
-if __name__ == '__main__':
-    main()

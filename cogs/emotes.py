@@ -77,3 +77,7 @@ class Emotes:
 
         for s in split_string(s, maxlen=2000, splitter=delim):
             await self.bot.say(s)
+
+
+def setup(bot):
+    bot.add_cog(Emotes(bot))

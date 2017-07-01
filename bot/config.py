@@ -52,7 +52,10 @@ class Config:
 
         self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, False)
 
-
+        self.db_user = get_config_value(self.config, 'Database', 'Username', str)
+        self.db_password = get_config_value(self.config, 'Database', 'Password', str)
+        self.db_host = get_config_value(self.config, 'Database', 'Host', str)
+        self.db_port = get_config_value(self.config, 'Database', 'Port', str)
         try:
             self.owner = str(self.config.get('Owner', 'OwnerID', fallback=None))
             int(self.owner)

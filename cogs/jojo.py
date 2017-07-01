@@ -481,3 +481,6 @@ class JoJo:
         img.save(file, 'PNG')
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='To_be_continued.png')
+
+def setup(bot):
+    bot.add_cog(JoJo(bot))

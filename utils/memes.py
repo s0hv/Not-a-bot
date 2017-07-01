@@ -32,7 +32,6 @@ async def twitch_poems(client):
             # The quote
             quote = soup.find('span').get_text()
             # When and where the quote was posted
-            stream = soup.find('div', {'class': 'quotes_list_stream_name_date'})
+            stream = soup.find('span', {'id': 'quote_display_content_0'})
             quote += '\n' + stream.get_text().strip(' \n\r')
             return quote
-

@@ -23,7 +23,8 @@ initial_cogs = [
     'cogs.search',
     'cogs.utils',
     'cogs.voting',
-    'cogs.logging']
+    'cogs.logging',
+    'cogs.gachiGASM']
 
 
 class Object:

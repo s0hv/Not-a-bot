@@ -90,23 +90,24 @@ class Admin(Cog):
     async def reload(self, *, name):
         t = time.time()
         try:
-            self.bot.unload_extension(name)
-            self.bot.load_extension(name)
+            cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
+            self.bot.unload_extension(cog_name)
+            self.bot.load_extension(cog_name)
         except Exception as e:
-            command = self.bot.get_command(name)
-            if not command:
+            command_ = self.bot.get_command(name)
+            if not command_:
                 return await self.bot.say('Could not reload %s because of an error\n%s' % (name, e))
             try:
-                if isinstance(command, GroupMixin):
-                    commands = self._recursively_remove_all_commands(command, self.bot)
+                if isinstance(command_, GroupMixin):
+                    commands = self._recursively_remove_all_commands(command_, self.bot)
                     self._recursively_add_all_commands([commands], self.bot)
                 else:
-                    self.bot.remove_command(command.name)
-                    self.bot.add_command(command)
+                    self.bot.remove_command(command_.name)
+                    self.bot.add_command(command_)
             except Exception as e:
                 return await self.bot.say('Could not reload command(s) %s because of an error\n%s' % (name, e))
 
-        await self.bot.say('Reloaded {} in {:.02f}'.format(name, time.time()-t))
+        await self.bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time()-t*1000)))
 
     @command(pass_context=True, owner_only=True)
     async def shutdown(self, ctx):

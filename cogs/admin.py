@@ -107,7 +107,7 @@ class Admin(Cog):
             except Exception as e:
                 return await self.bot.say('Could not reload command(s) %s because of an error\n%s' % (name, e))
 
-        await self.bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time()-t*1000)))
+        await self.bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time()-t)*1000))
 
     @command(pass_context=True, owner_only=True)
     async def shutdown(self, ctx):

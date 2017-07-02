@@ -43,9 +43,9 @@ class SfxBot(threading.Thread):
     def _start(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        sfx_bot = Bot(command_prefix='!', config=self.config,
+        sfx_bot = Bot(prefix='!!', config=self.config,
                       aiohttp=aiohttp.ClientSession(),
-                      pm_help=True, permissions=self.permissions)
+                      pm_help=True, perms=self.permissions)
         if self.permissions:
             self.permissions.sfx_bot = sfx_bot
 

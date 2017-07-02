@@ -22,7 +22,8 @@ initial_cogs = [
     'cogs.misc',
     'cogs.search',
     'cogs.utils',
-    'cogs.voting']
+    'cogs.voting',
+    'cogs.logging']
 
 
 class Object:
@@ -45,7 +46,8 @@ class NotABot(Bot):
         self._setup()
 
     def _setup(self):
-        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}'.format(self.config, 'test'),
+        db = 'test'
+        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
                                encoding='utf8')
         session_factory = sessionmaker(bind=engine)
         Session = scoped_session(session_factory)
@@ -73,7 +75,7 @@ class NotABot(Bot):
         if message.author.bot or message.author == self.user:
             return
 
-        management = self.get_cog('Management')
+        management = getattr(self, 'management', None)
 
         if message.server and message.server.id == '217677285442977792' and management:
             if len(message.mentions) + len(message.role_mentions) > 10:
@@ -111,7 +113,7 @@ class NotABot(Bot):
 
     async def on_member_join(self, member):
         server = member.server
-        management = self.get_cog('Management')
+        management = getattr(self, 'management', None)
         if not management:
             return
 
@@ -150,7 +152,7 @@ class NotABot(Bot):
             await self._wants_to_be_noticed(member, server, remove=False)
 
     async def on_member_remove(self, member):
-        management = self.get_cog('Management')
+        management = getattr(self, 'management', None)
         if not management:
             return
 
@@ -201,7 +203,7 @@ class NotABot(Bot):
     async def on_message_delete(self, msg):
         if msg.author.bot:
             return
-        management = self.get_cog('Management')
+        management = getattr(self, 'management', None)
         if not management:
             return
 
@@ -231,7 +233,10 @@ class NotABot(Bot):
         if before.author.bot:
             return
 
-        management = self.get_cog('Management')
+        management = getattr(self, 'management', None)
+        if not management:
+            return
+
         conf = management.get_config(before.server.id).get('on_edit', None)
         if not conf:
             return

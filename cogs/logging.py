@@ -7,4 +7,37 @@ class Logger(Cog):
         self.session = bot.mysql.session
 
     async def on_message(self, message):
-        sql = "INSERT INTO `messages` (`server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message_id`) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        if message.author == self.bot.user:
+            return
+
+        sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message`, `message_id`, `attachment`) " \
+              "VALUES (:shard, :server, :server_name, channel, :channel_name, :user, :user_id, :message, :message_id, :attachment)"
+        is_pm = message.channel.is_private
+        shard = self.bot.shard_id
+        server = message.server.id if not is_pm else None
+        server_name = message.server.name if not is_pm else 'DM'
+        channel = message.channel.id if not is_pm else None
+        channel_name = message.channel.name if not is_pm else None
+        user = str(message.author)
+        user_id = message.author.id
+        message_id = message.id
+        attachment = message.attachments[0].get('url') if message.attachments else None
+        print((shard, server, server_name, channel, channel_name, user, user_id,
+               message.content, message_id, attachment))
+
+        self.session.execute(sql, {'shard': shard,
+                                   'server': server,
+                                   'server_name': server_name,
+                                   'channel': channel,
+                                   'channel_name': channel_name,
+                                   'user': user,
+                                   'user_id': user_id,
+                                   'message': message.content,
+                                   'message_id': message_id,
+                                   'attachment': attachment})
+
+        self.session.commit()
+
+
+def setup(bot):
+    bot.add_cog(Logger(bot))

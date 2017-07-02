@@ -149,20 +149,20 @@ class Client(discord.Client):
 
 
 class Bot(commands.Bot):
-    def __init__(self, command_prefix, config, permissions=None, aiohttp_client=None, **options):
+    def __init__(self, prefix, config, perms=None, aiohttp=None, **options):
         if 'formatter' not in options:
             options['formatter'] = Formatter(width=150)
 
-        super().__init__(command_prefix, **options)
+        super().__init__(prefix, **options)
         self.remove_command('help')
         self.command(**{'name': 'help', 'pass_context': True})(self.help)
         log.debug('Using loop {}'.format(self.loop))
-        if aiohttp_client is None:
-            aiohttp_client = ClientSession(loop=self.loop)
+        if aiohttp is None:
+            aiohttp = ClientSession(loop=self.loop)
 
-        self.aiohttp_client = aiohttp_client
+        self.aiohttp_client = aiohttp
         self.config = config
-        self.permissions = permissions
+        self.permissions = perms
         self.timeout_messages = deque()
         self.owner = config.owner
         self.voice_clients_ = {}

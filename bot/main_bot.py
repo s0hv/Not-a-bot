@@ -43,7 +43,7 @@ logger = logging.getLogger('debug')
 
 def start(config, permissions):
     client = ClientSession()
-    bot = Bot(command_prefix='!', config=config, aiohttp_client=client, pm_help=True, permissions=permissions)
+    bot = Bot(command_prefix='!', config=config, aiohttp=client, pm_help=True, permissions=permissions)
     cdm = CooldownManager()
     cdm.add_cooldown('oshit', 3, 8)
     cdm.add_cooldown('imnew', 3, 8)

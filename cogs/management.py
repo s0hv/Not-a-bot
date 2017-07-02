@@ -12,15 +12,15 @@ from bot.bot import command
 from utils.utilities import slots2dict, split_string
 
 
-class Management:
+class ManagementHandler:
     def __init__(self, bot):
         self.bot = bot
         self.servers = {}
         self.path = os.path.join(os.getcwd(), 'data', 'servers.json')
         self._lock = Lock()
-        self._load_config()
+        self.reload_config()
 
-    def _load_config(self):
+    def reload_config(self):
         if os.path.exists(self.path):
             with open(self.path, 'r') as f:
                 self.servers = json.load(f)
@@ -45,10 +45,6 @@ class Management:
                                  before=bef_content, after=aft_content)
 
         return message
-
-    @command(pass_context=True, owner_only=True)
-    async def exclude_edit(self, ctx, channel):
-        self.get_channel()
 
     @staticmethod
     def format_join_leave(member, conf):
@@ -124,7 +120,7 @@ class Management:
 
         return users
 
-    async def _join_leave(self, ctx, channel, message, add_color, join=True):
+    async def join_leave(self, ctx, channel, message, add_color, join=True):
         key = 'join' if join else 'leave'
         user = ctx.message.author
         channel_ = ctx.message.channel
@@ -147,53 +143,7 @@ class Management:
 
         return config
 
-    @command(pass_context=True)
-    async def leave_message(self, ctx, channel, message=None):
-        if channel.lower() == 'off':
-            self.get_config(ctx.message.server.id).pop('leave', None)
-            await self.bot.say('Removed on leave config')
-            return
-
-        if message is None:
-            return await self.bot.say('You need to specify a message')
-
-        old = self.get_config(ctx.message.server.id).get('leave', {})
-        conf = await self._join_leave(ctx, channel, message, False, join=False)
-        if not isinstance(conf, dict):
-            return
-
-        try:
-            self.format_on_delete(ctx.message, conf['leave'])
-        except Exception as e:
-            conf['leave'] = old
-            self.save_json()
-            await self.bot.say('New format failed with error "{}"\n'
-                               'reverting back'.format(e))
-
-    @command(pass_context=True)
-    async def join_message(self, ctx, channel, message=None, add_color=False):
-        if channel.lower() == 'off':
-            self.get_config(ctx.message.server.id).pop('join', None)
-            await self.bot.say('Removed on join config')
-            return
-
-        if not message:
-            return await self.bot.say('You need to specify a message')
-
-        old = self.get_config(ctx.message.server.id).get('join', {})
-        conf = await self._join_leave(ctx, channel, message, add_color,  join=True)
-        if not isinstance(conf, dict):
-            return
-
-        try:
-            self.format_on_delete(ctx.message, conf['join'])
-        except Exception as e:
-            conf['join'] = old
-            self.save_json()
-            await self.bot.say('New format failed with error "{}"\n'
-                               'reverting back'.format(e))
-
-    async def _message_edited(self, ctx, channel, message, key='on_edit'):
+    async def message_edited(self, ctx, channel, message, key='on_edit'):
         user = ctx.message.author
         channel_ = ctx.message.channel
         server = ctx.message.server
@@ -214,6 +164,128 @@ class Management:
 
         return config
 
+    def save_json(self):
+        def save():
+            try:
+                with open(self.path, 'w', encoding='utf-8') as f:
+                    json.dump(self.servers, f, ensure_ascii=False, indent=4)
+                    return True
+            except:
+                return False
+
+        with self._lock:
+            for i in range(2):
+                if save():
+                    return
+
+    def get_config(self, serverid):
+        conf = self.servers.get(serverid, None)
+        if conf is None:
+            conf = {}
+            self.servers[serverid] = conf
+
+        return conf
+
+    def get_join(self, serverid):
+        config = self.get_config(serverid)
+        return config.get('join', None)
+
+    def get_leave(self, serverid):
+        config = self.get_config(serverid)
+        return config.get('leave', None)
+
+    def get_colors(self, serverid):
+        config = self.servers.get(serverid, {})
+        if serverid not in self.servers:
+            self.servers[serverid] = config
+
+        colors = config.get('colors', {})
+        if 'colors' not in config:
+            config['colors'] = colors
+
+        return colors
+
+    def get_mute_whitelist(self, serverid):
+        config = self.get_config(serverid)
+        if 'unmutable' not in config:
+            config['unmutable'] = []
+
+        return config.get('unmutable', [])
+
+    def set_muted_role(self, serverid, roleid):
+        conf = self.get_config(serverid)
+        conf['muted_role'] = roleid
+
+        self.save_json()
+
+    def remove_removed_colors(self, serverid):
+        server = self.bot.get_server(serverid)
+        roles = server.roles
+        colors = self.get_colors(serverid)
+
+        removed = []
+
+        for key, color in list(colors.items()):
+            role = discord.utils.find(lambda r: r.id == color, roles)
+            if role is None:
+                self.delete_color_from_json(key, serverid)
+                removed.append(key)
+
+        return removed
+
+
+class Management:
+    def __init__(self, bot):
+        self.bot = bot
+        self.utils = ManagementHandler(bot)
+        self.bot.management = self.utils
+
+    @command(pass_context=True)
+    async def leave_message(self, ctx, channel, message=None):
+        if channel.lower() == 'off':
+            self.utils.get_config(ctx.message.server.id).pop('leave', None)
+            await self.bot.say('Removed on leave config')
+            return
+
+        if message is None:
+            return await self.bot.say('You need to specify a message')
+
+        old = self.utils.get_config(ctx.message.server.id).get('leave', {})
+        conf = await self.utils.join_leave(ctx, channel, message, False, join=False)
+        if not isinstance(conf, dict):
+            return
+
+        try:
+            self.utils.format_on_delete(ctx.message, conf['leave'])
+        except Exception as e:
+            conf['leave'] = old
+            self.utils.save_json()
+            await self.bot.say('New format failed with error "{}"\n'
+                               'reverting back'.format(e))
+
+    @command(pass_context=True)
+    async def join_message(self, ctx, channel, message=None, add_color=False):
+        if channel.lower() == 'off':
+            self.utils.get_config(ctx.message.server.id).pop('join', None)
+            await self.bot.say('Removed on join config')
+            return
+
+        if not message:
+            return await self.bot.say('You need to specify a message')
+
+        old = self.utils.get_config(ctx.message.server.id).get('join', {})
+        conf = await self.utils.join_leave(ctx, channel, message, add_color,  join=True)
+        if not isinstance(conf, dict):
+            return
+
+        try:
+            self.utils.format_on_delete(ctx.message, conf['join'])
+        except Exception as e:
+            conf['join'] = old
+            self.utils.save_json()
+            await self.bot.say('New format failed with error "{}"\n'
+                               'reverting back'.format(e))
+
     @command(pass_context=True)
     async def on_edit_message(self, ctx, channel, *, message):
         user = ctx.message.author
@@ -222,20 +294,20 @@ class Management:
             return await self.bot.send_message(channel_, "You don't have manage channel permissions")
 
         if channel.lower() == 'off':
-            self.get_config(ctx.message.server.id).pop('on_edit', None)
+            self.utils.get_config(ctx.message.server.id).pop('on_edit', None)
             await self.bot.say('Removed on message edit config')
             return
 
-        old = self.get_config(ctx.message.server.id).get('on_edit', {})
-        conf = await self._message_edited(ctx, channel, message)
+        old = self.utils.get_config(ctx.message.server.id).get('on_edit', {})
+        conf = await self.utils.message_edited(ctx, channel, message)
         if not isinstance(conf, dict):
             return
 
         try:
-            self.format_on_edit(ctx.message, ctx.message, conf['on_edit'], False)
+            self.utils.format_on_edit(ctx.message, ctx.message, conf['on_edit'], False)
         except Exception as e:
             conf['on_edit'] = old
-            self.save_json()
+            self.utils.save_json()
             await self.bot.say('New format failed with error "{}"\n'
                                'reverting back'.format(e))
 
@@ -247,28 +319,28 @@ class Management:
             return await self.bot.send_message(channel_, "You don't have manage channel permissions")
 
         if channel.lower() == 'off':
-            self.get_config(ctx.message.server.id).pop('on_delete', None)
+            self.utils.get_config(ctx.message.server.id).pop('on_delete', None)
             await self.bot.say('Removed on message delete config')
             return
 
-        old = self.get_config(ctx.message.server.id).get('on_delete', {})
-        conf = await self._message_edited(ctx, channel, message, key='on_delete')
+        old = self.utils.get_config(ctx.message.server.id).get('on_delete', {})
+        conf = await self.utils.message_edited(ctx, channel, message, key='on_delete')
 
         if not isinstance(conf, dict):
             return
 
         try:
-            self.format_on_delete(ctx.message, conf['on_delete'])
+            self.utils.format_on_delete(ctx.message, conf['on_delete'])
         except Exception as e:
             conf['on_delete'] = old
-            self.save_json()
+            self.utils.save_json()
             await self.bot.say('New format failed with error "{}"\n'
                                'reverting back'.format(e))
 
     @command(pass_context=True, owner_only=True)
     async def delete_color(self, ctx, *, name):
         server = ctx.message.server
-        colors = self.get_colors(server.id)
+        colors = self.utils.get_colors(server.id)
         color = colors.get(name, None)
         if not color:
             return await self.bot.say('Color %s not found' % name)
@@ -286,7 +358,7 @@ class Management:
             await self.bot.say('Could not delete color %s\n%s' % (name, e))
             return
 
-        self.delete_color_from_json(name.lower(), server.id)
+        self.utils.delete_color_from_json(name.lower(), server.id)
         await self.bot.say('Deleted color %s' % name)
 
     @command(pass_context=True, owner_only=True)
@@ -294,18 +366,18 @@ class Management:
         role_mentions = ctx.message.role_mentions.copy()
 
         server_roles = ctx.message.server.roles
-        role_mentions.extend(self.get_roles_from_ids(server_roles, *roles))
+        role_mentions.extend(self.utils.get_roles_from_ids(server_roles, *roles))
 
         if not role_mentions:
             return await self.bot.say(
                 'Use the role ids or mention roles to add them to the whitelist')
 
-        conf = self.get_mute_whitelist(ctx.message.server.id)
+        conf = self.utils.get_mute_whitelist(ctx.message.server.id)
         for role in role_mentions:
             if role.id not in conf:
                 conf.append(role.id)
 
-        self.save_json()
+        self.utils.save_json()
         role_mentions = list(map(lambda r: r.name, role_mentions))
         await self.bot.say('Roles {} added to the whitelist'.format(', '.join(role_mentions)))
 
@@ -313,28 +385,28 @@ class Management:
     async def muted_role(self, ctx, *roles):
         server = ctx.message.server
         role_mentions = ctx.message.role_mentions
-        role_mentions.extend(self.get_roles_from_ids(server.roles, *roles))
+        role_mentions.extend(self.utils.get_roles_from_ids(server.roles, *roles))
         if not role_mentions:
             return await self.bot.say('No role/role id specified')
 
-        whitelist = self.get_mute_whitelist(server.id)
+        whitelist = self.utils.get_mute_whitelist(server.id)
         role = role_mentions[0]
         if role.id in whitelist:
             return await self.bot.say('Role is already in the mute whitelist. '
                                       'Remove it from there first using !remove_mute_whitelist')
 
-        self.set_muted_role(server.id, role.id)
+        self.utils.set_muted_role(server.id, role.id)
         await self.bot.say('Muted role set to {0.name}: {0.id}'.format(role))
 
     @command(pass_context=True, owner_only=True)
     async def mute(self, ctx, *user):
         server = ctx.message.server
-        mute_role = self.get_config(server.id).get('muted_role', None)
+        mute_role = self.utils.get_config(server.id).get('muted_role', None)
         if mute_role is None:
             return await self.bot.say('No mute role set')
 
         users = ctx.message.mentions.copy()
-        users.extend(self.get_users_from_ids(server, *user))
+        users.extend(self.utils.get_users_from_ids(server, *user))
 
         if not users:
             return await self.bot.say('No user ids or mentions')
@@ -352,12 +424,12 @@ class Management:
     @command(pass_context=True, owner_only=True)
     async def unmute(self, ctx, *user):
         server = ctx.message.server
-        mute_role = self.get_config(server.id).get('muted_role', None)
+        mute_role = self.utils.get_config(server.id).get('muted_role', None)
         if mute_role is None:
             return await self.bot.say('No mute role set')
 
         users = ctx.message.mentions.copy()
-        users.extend(self.get_users_from_ids(server, *user))
+        users.extend(self.utils.get_users_from_ids(server, *user))
 
         if not users:
             return await self.bot.say('No user ids or mentions')
@@ -377,13 +449,13 @@ class Management:
         role_mentions = ctx.message.role_mentions.copy()
 
         server_roles = ctx.message.server.roles
-        role_mentions.extend(self.get_roles_from_ids(server_roles, *roles))
+        role_mentions.extend(self.utils.get_roles_from_ids(server_roles, *roles))
 
         if not role_mentions:
             return await self.bot.say(
                 'Use the role ids or mention roles to remove them from the whitelist')
 
-        conf = self.get_mute_whitelist(ctx.message.server.id)
+        conf = self.utils.get_mute_whitelist(ctx.message.server.id)
         removed = []
         for role in role_mentions:
             try:
@@ -393,13 +465,13 @@ class Management:
             else:
                 removed.append('```{0.name}```'.format(role))
 
-        self.save_json()
+        self.utils.save_json()
         await self.bot.say('Roles {} removed from the whitelist'.format(', '.join(removed)))
 
     @command(pass_context=True, ignore_extra=True)
     async def show_colors(self, ctx, color: str=None):
         embed = discord.Embed(title='Colors')
-        colors = self.get_colors(ctx.message.server.id)
+        colors = self.utils.get_colors(ctx.message.server.id)
         if color is not None:
             key = discord.utils.find(lambda key: key.lower() == color.lower(), colors)
             if key is not None:
@@ -438,7 +510,7 @@ class Management:
             print('[ERROR] Exception while creating role. %s' % e)
             return await self.bot.say('Could not create role')
 
-        self.add_color_to_json(name.lower(), ctx.message.server.id, role.id)
+        self.utils.add_color_to_json(name.lower(), ctx.message.server.id, role.id)
         await self.bot.say('Color %s added' % name)
 
     @command(pass_context=True, owner_only=True)
@@ -451,7 +523,7 @@ class Management:
         server = ctx.message.server
         roles = server.roles
         color = color.lower()
-        colors = self.get_colors(server.id)
+        colors = self.utils.get_colors(server.id)
         color_id = colors.get(color, None)
         role_ = list(filter(lambda r: r.id == color_id, roles))
         if not role_:
@@ -474,27 +546,12 @@ class Management:
 
     @command(pass_context=True)
     async def colors(self, ctx):
-        await self.bot.say('Available colors: {}'.format(', '.join(self.get_colors(ctx.message.server.id).keys())))
-
-    def remove_removed_colors(self, serverid):
-        server = self.bot.get_server(serverid)
-        roles = server.roles
-        colors = self.get_colors(serverid)
-
-        removed = []
-
-        for key, color in list(colors.items()):
-            role = discord.utils.find(lambda r: r.id == color, roles)
-            if role is None:
-                self.delete_color_from_json(key, serverid)
-                removed.append(key)
-
-        return removed
+        await self.bot.say('Available colors: {}'.format(', '.join(self.utils.get_colors(ctx.message.server.id).keys())))
 
     @command(pass_context=True, owner_only=True)
     async def check_colors(self, ctx):
         server = ctx.message.server
-        removed = self.remove_removed_colors(server.id)
+        removed = self.utils.remove_removed_colors(server.id)
         if removed:
             await self.bot.say('removed colors {}'.format(', '.join(removed)))
         else:
@@ -503,11 +560,11 @@ class Management:
     @command(pass_context=True, owner_only=True)
     async def color_uncolored(self, ctx):
         server = ctx.message.server
-        removed = self.remove_removed_colors(server.id)
+        removed = self.utils.remove_removed_colors(server.id)
         if removed:
             await self.bot.say('Removed colors without role. {}'.format(', '.join(removed)))
 
-        colors = self.get_colors(server.id)
+        colors = self.utils.get_colors(server.id)
         color_ids = list(colors.values())
         if not colors:
             return
@@ -567,62 +624,9 @@ class Management:
 
     @command(owner_only=True)
     async def reload_config(self):
-        self._load_config()
+        self.utils.reload_config()
         await self.bot.say('Reloaded config')
 
-    def save_json(self):
-        def save():
-            try:
-                with open(self.path, 'w', encoding='utf-8') as f:
-                    json.dump(self.servers, f, ensure_ascii=False, indent=4)
-                    return True
-            except:
-                return False
-
-        with self._lock:
-            for i in range(2):
-                if save():
-                    return
-
-    def get_config(self, serverid):
-        conf = self.servers.get(serverid, None)
-        if conf is None:
-            conf = {}
-            self.servers[serverid] = conf
-
-        return conf
-
-    def get_join(self, serverid):
-        config = self.get_config(serverid)
-        return config.get('join', None)
-
-    def get_leave(self, serverid):
-        config = self.get_config(serverid)
-        return config.get('leave', None)
-
-    def get_colors(self, serverid):
-        config = self.servers.get(serverid, {})
-        if serverid not in self.servers:
-            self.servers[serverid] = config
-
-        colors = config.get('colors', {})
-        if 'colors' not in config:
-            config['colors'] = colors
-
-        return colors
-
-    def get_mute_whitelist(self, serverid):
-        config = self.get_config(serverid)
-        if 'unmutable' not in config:
-            config['unmutable'] = []
-
-        return config.get('unmutable', [])
-
-    def set_muted_role(self, serverid, roleid):
-        conf = self.get_config(serverid)
-        conf['muted_role'] = roleid
-
-        self.save_json()
 
 
 def setup(bot):

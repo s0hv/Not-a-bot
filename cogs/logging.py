@@ -22,8 +22,7 @@ class Logger(Cog):
         user_id = message.author.id
         message_id = message.id
         attachment = message.attachments[0].get('url') if message.attachments else None
-        print((shard, server, server_name, channel, channel_name, user, user_id,
-               message.content, message_id, attachment))
+        #print((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment))
 
         self.session.execute(sql, {'shard': shard,
                                    'server': server,

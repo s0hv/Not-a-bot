@@ -7,11 +7,6 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot.bot import Bot
 from bot.cooldown import CooldownManager
-from cogs import jojo, admin, botmod, utils, misc, hearthstone, audio
-from cogs.emotes import Emotes
-from cogs.management import Management
-from cogs.search import Search
-from cogs.voting import VoteManager
 from utils.utilities import (split_string, slots2dict, retry)
 
 logger = logging.getLogger('debug')
@@ -229,5 +224,38 @@ class NotABot(Bot):
         d['channel'] = msg.channel.mention
         message = message.format(name=str(user), message=content, **d)
         message = split_string(message)
+        for m in message:
+            await self.send_message(channel, m)
+
+    async def on_message_edit(self, before, after):
+        if before.author.bot:
+            return
+
+        management = self.get_cog('Management')
+        conf = management.get_config(before.server.id).get('on_edit', None)
+        if not conf:
+            return
+
+        channel = before.server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        bef_content = before.content
+        aft_content = after.content
+        if bef_content == aft_content:
+            return
+
+        user = before.author
+
+        message = conf['message']
+        d = slots2dict(user)
+        for e in ['name', 'before', 'after']:
+            d.pop(e, None)
+
+        d['channel'] = after.channel.mention
+        message = message.format(name=str(user), **d,
+                                 before=bef_content, after=aft_content)
+
+        message = split_string(message, maxlen=1960)
         for m in message:
             await self.send_message(channel, m)

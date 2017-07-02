@@ -79,6 +79,14 @@ class Group(Command, commands.Group):
         if self.owner_only:
             print('registered owner_only command %s' % self.name)
 
+    def command(self, *args, **kwargs):
+        def decorator(func):
+            result = command(*args, **kwargs)(func)
+            self.add_command(result)
+            return result
+
+        return decorator
+
 
 class ConnectionState(state.ConnectionState):
     def __init__(self, *args, **kwargs):

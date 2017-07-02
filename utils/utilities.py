@@ -263,7 +263,7 @@ def get_image_from_message(ctx, *messages):
     if len(ctx.message.attachments) > 0:
         image = ctx.message.attachments[0]['url']
     elif messages:
-        image = messages[0]
+        image = str(messages[0])
         if not test_url(image):
             if re.match('<@!?\d+>', image) and ctx.message.mentions:
                 image = ctx.message.mentions[0].avatar_url

@@ -64,6 +64,6 @@ if sfx_bot is not None:
 
 print('[INFO] Main bot starting up')
 logger.info('Starting bots')
-bot = NotABot(prefix='!', conf=config, pm_help=False, perms=permissions)
+bot = NotABot(prefix='!', conf=config, pm_help=False, perms=permissions, max_messages=10000)
 bot.run(config.token)
 

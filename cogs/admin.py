@@ -1,7 +1,9 @@
 from cogs.cog import Cog
 import asyncio
-from bot.bot import command
+from bot.bot import command, group
 import time
+from discord.ext.commands.core import GroupMixin
+
 
 class Admin(Cog):
     def __init__(self, bot):
@@ -24,6 +26,26 @@ class Admin(Cog):
 
         await self.bot.say(retval)
 
+    @group(name='t')
+    async def t(self):
+        print('t')
+        return
+
+    @t.group(name='tt')
+    async def tt(self):
+        print('tt')
+        return
+
+    @tt.command()
+    async def tt1(self):
+        print('tt1')
+        return
+
+    @t.command()
+    async def t1(self):
+        print('t1')
+        return
+
     @command(name='exec', pass_context=True, owner_only=True)
     async def exec_(self, ctx, *, message):
         try:
@@ -41,6 +63,29 @@ class Admin(Cog):
 
         await self.bot.say(retval)
 
+    def _recursively_remove_all_commands(self, command, bot=None):
+        commands = []
+        for _command in command.commands.copy().values():
+            if isinstance(_command, GroupMixin):
+                l = self._recursively_remove_all_commands(_command)
+                command.remove_command(_command.name)
+                commands.append(l)
+            else:
+                commands.append(command.remove_command(_command.name))
+
+        if bot:
+            bot.remove_command(command.name)
+        return command, commands
+
+    def _recursively_add_all_commands(self, commands, bot):
+        for command_ in commands:
+            if isinstance(command_, tuple):
+                command_, commands_ = command_
+                bot.add_command(command_)
+                self._recursively_add_all_commands(commands_, command_)
+            else:
+                bot.add_command(command_)
+
     @command(owner_only=True)
     async def reload(self, *, name):
         t = time.time()
@@ -52,11 +97,14 @@ class Admin(Cog):
             if not command:
                 return await self.bot.say('Could not reload %s because of an error\n%s' % (name, e))
             try:
-                self.c
-                self.bot.remove_command(command.name)
-                self.bot.add_command(command)
+                if isinstance(command, GroupMixin):
+                    commands = self._recursively_remove_all_commands(command, self.bot)
+                    self._recursively_add_all_commands([commands], self.bot)
+                else:
+                    self.bot.remove_command(command.name)
+                    self.bot.add_command(command)
             except Exception as e:
-                return await self.bot.say('Could not reload command %s because of an error\n%s' % (name, e))
+                return await self.bot.say('Could not reload command(s) %s because of an error\n%s' % (name, e))
 
         await self.bot.say('Reloaded {} in {:.02f}'.format(name, time.time()-t))
 

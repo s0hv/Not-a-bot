@@ -608,7 +608,7 @@ class Audio:
         return song_name, metadata
 
     @command(pass_context=True, no_pm=True)
-    @commands.cooldown(4, 4)
+    @commands.cooldown(1, 3)
     async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search youtube for them"""
@@ -654,7 +654,7 @@ class Audio:
                 return
 
     @command(pass_context=True)
-    @commands.cooldown(1, 3)
+    @commands.cooldown(1, 5)
     async def search(self, ctx, *, name):
         """Search for songs. Default site is youtube
         Supported sites: -yt Youtube, -sc Soundcloud"""

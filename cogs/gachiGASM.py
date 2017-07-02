@@ -8,7 +8,7 @@ class gachiGASM(Cog):
 
     @command()
     async def gachify(self, *, words):
-        return await self.bot.say(words.replace(' ', '♂'))
+        return await self.bot.say('♂' + words.replace(' ', '♂') + '♂')
 
 
 def setup(bot):

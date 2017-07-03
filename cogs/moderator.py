@@ -9,7 +9,7 @@ class Moderator(Cog):
         super().__init__(bot)
 
     @command(pass_context=True)
-    async def add_role(self, ctx, name, random_color=True):
+    async def add_role(self, ctx, name, random_color=True, mentionable=True):
         if ctx.message.server is None:
             return await self.bot.say('Cannot create roles in DM')
 
@@ -22,8 +22,13 @@ class Moderator(Cog):
         if random_color:
             color = discord.Color(randint(0, 16777215))
         try:
-            await self.bot.create_role(ctx.message.server, name=name, permissions=default_perms, colour=color)
+            await self.bot.create_role(ctx.message.server, name=name, permissions=default_perms,
+                                       colour=color, mentionable=mentionable)
         except Exception as e:
             return await self.bot.say('Could not create role because of an error\n```%s```' % e)
 
         await self.bot.say('Successfully created role %s' % name)
+
+
+def setup(bot):
+    bot.add_cog(Moderator(bot))

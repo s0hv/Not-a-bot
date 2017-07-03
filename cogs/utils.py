@@ -33,9 +33,9 @@ class Utilities(Cog):
         """Ping pong"""
         t = time.time()
 
-        msg = await self.bot.say('Ping!')
+        msg = await self.bot.say('Pong!')
         t = time.time() - t
-        await self.bot.edit_message(msg , 'Ping!\n🏓 took {:0.02f}'.format(t))
+        await self.bot.edit_message(msg , 'Pong!\n🏓 took {:.0f}ms'.format(t*1000))
 
 def setup(bot):
     bot.add_cog(Utilities(bot))

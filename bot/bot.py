@@ -135,6 +135,32 @@ class ConnectionState(state.ConnectionState):
         else:
             self.dispatch('uncached_message_edit', data)
 
+    def parse_message_delete(self, data):
+        message_id = data.get('id')
+        found = self._get_message(message_id)
+        if found is not None:
+            self.dispatch('message_delete', found)
+            self.messages.remove(found)
+        else:
+            self.dispatch('raw_message_delete', data)
+
+    def parse_message_delete_bulk(self, data):
+        message_ids = set(data.get('ids', []))
+        to_be_deleted = []
+        for msg in self.messages:
+            if msg.id in message_ids:
+                to_be_deleted.append(msg)
+                message_ids.remove(msg.id)
+
+        for msg in to_be_deleted:
+            self.messages.remove(msg)
+
+        if to_be_deleted:
+            self.dispatch('bulk_message_delete', to_be_deleted)
+        if message_ids:
+            self.dispatch('raw_bulk_message_delete', message_ids)
+
+
 
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
@@ -148,7 +174,7 @@ class Client(discord.Client):
                                           self._syncer, max_messages, loop=self.loop)
 
 
-class Bot(commands.Bot):
+class Bot(commands.Bot, Client):
     def __init__(self, prefix, config, perms=None, aiohttp=None, **options):
         if 'formatter' not in options:
             options['formatter'] = Formatter(width=150)

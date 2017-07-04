@@ -571,7 +571,7 @@ class Management:
 
         roles = server.roles
         colored = 0
-        for member in server.members:
+        for member in list(server.members):
             m_roles = member.roles
             found = list(filter(lambda r: r.id in color_ids, m_roles))
             if not found:

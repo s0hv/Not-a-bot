@@ -123,7 +123,7 @@ class BotAdmin(Cog):
     async def test(self, msg_id):
         session = self.bot.get_session
         result = session.execute('SELECT `message` FROM `messages` WHERE `message_id` = %s' % msg_id)
-        await self.bot.say(result)
+        await self.bot.say(result['message'])
 
     # TODO rework
     """

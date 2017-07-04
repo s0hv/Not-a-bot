@@ -12,6 +12,7 @@ from utils.utilities import (split_string, slots2dict, retry)
 logger = logging.getLogger('debug')
 
 initial_cogs = [
+    'cogs.botadmin',
     'cogs.admin',
     'cogs.audio',
     'cogs.botmod',

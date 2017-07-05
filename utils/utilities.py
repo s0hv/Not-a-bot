@@ -258,6 +258,12 @@ async def retry(f, *args, retries_=3, **kwargs):
     return e
 
 
+def get_emote(s):
+    emote = re.match('(?!<:\w+:)\d+(?=>)', s)
+    if emote:
+        return emote.group()
+
+
 def get_image_from_message(ctx, *messages):
     image = None
     if len(ctx.message.attachments) > 0:

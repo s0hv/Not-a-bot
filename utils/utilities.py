@@ -29,9 +29,10 @@ import shlex
 import subprocess
 import time
 from collections import OrderedDict
-
+from random import randint
 from validators import url as test_url
 
+import discord
 from bot.exceptions import NoCachedFileException
 
 logger = logging.getLogger('debug')
@@ -258,10 +259,22 @@ async def retry(f, *args, retries_=3, **kwargs):
     return e
 
 
-def get_emote(s):
-    emote = re.match('(?!<:\w+:)\d+(?=>)', s)
+def get_emote_id(s):
+    emote = re.match('(?:<:\w+:)(\d+)(?=>)', s)
     if emote:
-        return emote.group()
+        return emote.groups()[0]
+
+
+def get_emote_name(s):
+    emote = re.match('(?:<:)(\w+)(?::\d+)(?=>)', s)
+    if emote:
+        return emote.groups()[0]
+
+
+def get_emote_name_id(s):
+    emote = re.match('(?:<:)(\w+)(?::)(\d+)(?=>)', s)
+    if emote:
+        return emote.groups()
 
 
 def get_image_from_message(ctx, *messages):
@@ -289,3 +302,13 @@ def get_image_from_message(ctx, *messages):
                             image = member.avatar_url
 
     return image
+
+
+def random_color():
+    """
+    Create a random color to be used in discord
+    Returns:
+        Random discord.Color
+    """
+
+    return discord.Color(randint(0, 16777215))

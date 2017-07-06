@@ -1,6 +1,6 @@
 from cogs.cog import Cog
 from bot.bot import command
-from utils.utilities import split_string, emote_url_from_id, get_emote
+from utils.utilities import split_string, emote_url_from_id, get_emote_id
 import time
 
 
@@ -39,11 +39,11 @@ class Utilities(Cog):
 
     @command(ignore_extra=True, aliases=['e', 'emoji'])
     async def emote(self, emote: str):
-        emote = get_emote(emote)
+        emote = get_emote_id(emote)
         if emote is None:
             return await self.bot('You need to specify an emote. Default (unicode) emotes are not supported yet')
 
-        await self.bot.say(emote)
+        await self.bot.say(emote_url_from_id(emote))
 
 
 def setup(bot):

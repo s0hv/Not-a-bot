@@ -1,11 +1,13 @@
 import json
 import os
 import time
-
+import argparse
 from discord import User
 import asyncio
-
+import discord
 from bot.bot import command
+import sqlalchemy
+from utils.utilities import get_emote_name_id
 
 
 class Uservote:
@@ -43,33 +45,73 @@ class Vote:
 class VoteManager:
     def __init__(self, bot):
         self.bot = bot
-        self.path = os.path.join(os.getcwd(), 'data', 'voteMessages.json')
-        self.votes = {}
-        if os.path.exists(self.path):
-            with open(self.path) as f:
-                self.votes = json.load(f)
+        self.session = self.bot.get_session
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument('-title', nargs='+')
+        self.parser.add_argument('-time', default=None)
+        self.parser.add_argument('-emotes', default=None, nargs='+')
+        self.parser.add_argument('-description', default=None, nargs='+')
+        self.parser.add_argument('-strict', action='store_true')
+        self.parser.add_argument('-no_duplicate_votes', action='store_true')
 
     @command(pass_context=True, owner_only=True)
-    async def vote(self, ctx, message, *, votes):
+    async def vote(self, ctx, *, message):
         # TODO Add permission check
-        server = ctx.message.server
-        msg = await self.bot.say(message)
-        success = 0
-        for emote in votes.split(' '):
-            try:
-                await self.bot.add_reaction(msg, emote.strip('<>'))
-                success += 1
-            except Exception as e:
-                await self.bot.say('Error adding reaction%s\n%s' % (emote, e), delete_after=20)
+        message = '-title '+ message if not message.startswith('-t') else message
+        try:
+            parsed = self.parser.parse_args(message.split(' '))
+        except:
+            return await self.bot.say('Failed to parse arguments')
 
-        if success == 0:
+        if parsed.strict and not parsed.emotes:
+            return await self.bot.say('Cannot set strict mode without specifying any emotes')
+
+        emotes = []
+        failed = []
+        if parsed.emotes:
+            for emote in parsed.emotes:
+                name = get_emote_name_id(emote)
+                if name is None:
+                    failed.append(emote)
+                    continue
+
+                emotes.append(name)
+
+        if parsed.description:
+            description = ' '.join(parsed.description)
+        else:
+            description = discord.Embed.Empty
+
+        embed = discord.Embed(title=' '.join(parsed.title), description=description)
+        if parsed.time:
+            embed.add_field(name='Expires at', value=parsed.time)
+        msg = await self.bot.send_message(ctx.message.channel, embed=embed)
+
+        for emote in emotes:
             try:
-                await self.bot.delete_message(msg)
+                await self.bot.add_reaction(msg, '{}:{}'.format(*emote))
             except:
-                pass
+                failed.append(emote[0])
+        if failed:
+            await self.bot.say('Failed to get emotes `{}`'.format('` `'.join(failed)))
 
-            await self.bot.say('No reactions could be added to vote. Cancelling', delete_after=20)
-            return
+        sql = 'INSERT INTO `votes` (`server`, `strict`, `message`, `expires_in`, `ignore_dupes`) ' \
+              'VALUES (:server, :strict, :message, :expires_in, :ignore_dupes)'
+        d = {'server': ctx.message.server.id, 'strict': parsed.strict, 'message': msg.id, 'expires_in': parsed.time, 'ignore_dupes': parsed.no_duplicate_votes}
+        self.session.execute(sql, params=d)
+
+        if emotes:
+            # TODO db name as variable
+            sql = 'INSERT INTO `emotes` (`name`, `emote`, `server`, `vote_id`) VALUES '
+            values = []
+            for emote in emotes:
+                name, id = emote
+                values.append('("%s", %s, %s, %s)' % (name, id, ctx.message.server.id, msg.id))
+
+            sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
+            result = self.session.execute(sql)
+
+        self.session.commit()
 
     async def get_most_voted(self, msg):
         users_voted = []

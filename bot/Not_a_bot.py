@@ -203,6 +203,20 @@ class NotABot(Bot):
         elif remove and role in member.roles:
                 await retry(self.remove_roles, member, role)
 
+    @staticmethod
+    def _parse_on_delete(msg, conf):
+        content = msg.content
+        user = msg.author
+
+        message = conf['message']
+        d = slots2dict(user)
+        for e in ['name', 'message']:
+            d.pop(e, None)
+
+        d['channel'] = msg.channel.mention
+        message = message.format(name=str(user), message=content, **d)
+        return split_string(message)
+
     async def on_message_delete(self, msg):
         if msg.author.bot:
             return
@@ -231,6 +245,34 @@ class NotABot(Bot):
         message = split_string(message)
         for m in message:
             await self.send_message(channel, m)
+
+    async def raw_message_delete(self, data):
+        id = data.get('id')
+        if not id:
+            return
+
+        session = self.get_session
+        result = session.execute('SELECT `message` `user_id` `server` FROM `messages` WHERE `message_id` = %s' % id)
+        msg = result.first()
+        if not msg:
+            return
+
+        message, user_id, server_id = msg['message'], msg['user_id'], msg['server']
+        server = self.get_server(server_id)
+        if not server:
+            return
+
+        user = server.get_member(user_id)
+        if not user:
+            return
+
+        channel_id = session.execute('SELECT `on_delete_channel` FROM `servers` WHERE `server` = %s' % server_id).first()
+        if not channel_id:
+            return
+
+        channel = server.get_channel(channel_id['channel_id'])
+
+
 
     async def on_message_edit(self, before, after):
         if before.author.bot:

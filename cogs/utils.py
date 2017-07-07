@@ -2,7 +2,7 @@ from cogs.cog import Cog
 from bot.bot import command
 from utils.utilities import split_string, emote_url_from_id, get_emote_id
 import time
-import discord
+
 
 class Utilities(Cog):
     def __init__(self, bot):
@@ -54,7 +54,7 @@ class Utilities(Cog):
                 if predicate(member):
                     return member
 
-                if member.nickname and predicate(member.nickname):
+                if member.nick and predicate(member.nick):
                     return member
 
         found = filter_users(lambda u: str(u).startswith(user))

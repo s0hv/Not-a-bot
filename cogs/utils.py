@@ -2,7 +2,7 @@ from cogs.cog import Cog
 from bot.bot import command
 from utils.utilities import split_string, emote_url_from_id, get_emote_id
 import time
-
+import discord
 
 class Utilities(Cog):
     def __init__(self, bot):
@@ -44,6 +44,35 @@ class Utilities(Cog):
             return await self.bot('You need to specify an emote. Default (unicode) emotes are not supported yet')
 
         await self.bot.say(emote_url_from_id(emote))
+
+    @command(pass_context=True)
+    async def how2ping(self, ctx, *, user):
+        members = ctx.message.server.members
+
+        def filter_users(predicate):
+            for member in members:
+                if predicate(member):
+                    return member
+
+                if member.nickname and predicate(member.nickname):
+                    return member
+
+        found = filter_users(lambda u: str(u).startswith(user))
+        if found:
+            return await self.bot.say('`<@!{}>` user mention for {}'.format(found.id, str(found)))
+
+        found = filter_users(lambda u: user in str(u))
+
+        if found:
+            return await self.bot.say(
+                '`<@!{}>` user mention for {}'.format(found.id, str(found)))
+
+        else:
+            return await self.bot.say('No users found with %s' %user)
+
+
+
+
 
 
 def setup(bot):

@@ -31,12 +31,18 @@ import time
 from collections import OrderedDict
 from random import randint
 from validators import url as test_url
+from datetime import timedelta
+import re
 
 import discord
 from bot.exceptions import NoCachedFileException
 
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
+
+# https://stackoverflow.com/a/4628148/6046713
+# Added days and and aliases for names
+time_regex = re.compile(r'((?P<days>\d+?)(d|days))?((?P<hours>\d+?)(h|hours))?((?P<minutes>\d+?)(m|minutes))?((?P<seconds>\d+?)(s|seconds))?')
 
 
 def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
@@ -312,3 +318,15 @@ def random_color():
     """
 
     return discord.Color(randint(0, 16777215))
+
+
+# https://stackoverflow.com/a/4628148/6046713
+def parse_time(time_str):
+    parts = time_regex.match(time_str)
+    if not parts:
+        return
+
+    parts = parts.groupdict()
+    time_params = {name: int(param) for name, param in parts.items() if param}
+
+    return timedelta(**time_params)

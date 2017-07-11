@@ -42,7 +42,14 @@ audio = logging.getLogger('audio')
 
 # https://stackoverflow.com/a/4628148/6046713
 # Added days and and aliases for names
-time_regex = re.compile(r'((?P<days>\d+?)(d|days))?((?P<hours>\d+?)(h|hours))?((?P<minutes>\d+?)(m|minutes))?((?P<seconds>\d+?)(s|seconds))?')
+# Also fixed any string starting with the first option (e.g. 10dd would count as 10 days) being accepted
+time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|minutes)( |$))?((?P<seconds>\d+?) ?(s|seconds)( |$))?')
+
+
+class Object:
+    # Empty class to store variables
+    def __init__(self):
+        pass
 
 
 def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
@@ -330,3 +337,28 @@ def parse_time(time_str):
     time_params = {name: int(param) for name, param in parts.items() if param}
 
     return timedelta(**time_params)
+
+
+def datetime2sql(datetime):
+    return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(datetime)
+
+
+def timedelta2string(td):
+    # TODO fix this
+    return
+    if not td.total_seconds():
+        return '0 seconds'
+    s = ''
+    if td.days:
+        s += '{} days '.format(td.days)
+
+    if td.hours:
+        s += '{} hours '.format(td.hours)
+
+    if td.minutes:
+        s += '{} minutes '.format(td.minutes)
+
+    if td.seconds:
+        s += '{} seconds'.format(td.seconds)
+
+    return s.strip()

@@ -6,8 +6,13 @@ from discord import User
 import asyncio
 import discord
 from bot.bot import command
-import sqlalchemy
-from utils.utilities import get_emote_name_id
+from datetime import datetime, timedelta
+import re
+import operator
+from utils.utilities import get_emote_name_id, parse_time, datetime2sql, Object
+import logging
+
+logger = logging.getLogger('debug')
 
 
 class Uservote:
@@ -28,18 +33,119 @@ class Uservote:
         self._vote = emote
 
 
-class Vote:
-    def __init__(self, message, duration=None):
-        self.message = message
-        self.duration = duration or 0
-        self._created_at = time.time()
+class Poll:
+    def __init__(self, bot, message, channel, title, expires_at=None, strict=False,
+                 emotes=None, no_duplicate_votes=False, multiple_votes=False):
+        """
 
-        if not isinstance(self.duration, int) or not isinstance(self.duration, float):
-            raise ValueError('Duration must be int or float')
+        Args:
+            bot:
+            message: either `class`: discord.Message or int
+            channel:
+            title:
+            expires_at:
+            strict:
+            emotes:
+            no_duplicate_votes:
+        """
+        self._bot = bot
+        self.message = message
+        self.channel = channel
+        self.title = title
+        self.expires_at = expires_at
+        self.strict = strict
+        self.emotes = emotes
+        self.ignore_on_dupe = no_duplicate_votes
+        self.multiple_votes = multiple_votes
+        self._task = None
 
     @property
-    def created_at(self):
-        return self._created_at
+    def bot(self):
+        return self._bot
+
+    def start(self):
+        self._task = self.bot.loop.create_task(self._wait())
+
+    def stop(self):
+        if self._task:
+            try:
+                self._task.cancel()
+            except:
+                pass
+
+    async def _wait(self):
+        time_ = self.expires_at - datetime.utcnow()
+        time_ = time_.total_seconds()
+        if time_ > 0:
+            await asyncio.sleep(time_)
+
+        await self.count_votes()
+
+    async def count_votes(self):
+        if isinstance(self.message, discord.Message):
+            self.message = self.message.id
+
+        try:
+            chn = self.bot.get_channel(self.channel)
+            msg = await self.bot.get_message(chn, self.message)
+        except:
+            logger.exception('Failed to end poll')
+            channel = self.bot.get_channel(self.channel)
+            return await self.bot.send_message(channel, 'Failed to end poll.\nReason: Could not get the poll message')
+
+        votes = {}
+        for reaction in msg.reactions:
+            print(reaction.me, reaction.emoji)
+            users = await self.bot.get_reaction_users(reaction, limit=reaction.count)
+
+            for user in users:
+                if user.bot:
+                    continue
+
+                if self.ignore_on_dupe and user.id in votes:
+                    votes[user.id] = None
+                elif not self.multiple_votes:
+                    votes[user.id] = [str(reaction.emoji)]
+                else:
+                    if user.id in votes:
+                        votes[user.id] += (str(reaction.emoji), )
+                    else:
+                        votes[user.id] = [str(reaction.emoji)]
+
+        scores = {}
+        for u, reacts in votes.items():
+            if reacts is None:
+                continue
+
+            for r in reacts:
+                score = scores.get(r, 0)
+                scores[r] = score + 1
+
+        scores = sorted(scores.items(), key=operator.itemgetter(1))
+        biggest = 0
+
+        winners = []
+        for emote, score in scores:
+            if score >= biggest:
+                biggest = score
+                winners.append(emote)
+            else:
+                break
+
+        s = 'Poll ``{}`` ended\nWinner(s) are {} with the score of {}'.format(self.title,
+                                                                              ' '.join(winners),
+                                                                              biggest)
+        await self.bot.send_message(chn, s)
+
+        session = self.bot.get_session
+
+        sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
+        try:
+            session.execute(sql)
+            session.commit()
+        except:
+            logger.exception('Could not delete poll')
+            await self.bot.send_message(chn, 'Could not delete poll from database. The result might be recalculated')
 
 
 class VoteManager:
@@ -47,17 +153,20 @@ class VoteManager:
         self.bot = bot
         self.session = self.bot.get_session
         self.parser = argparse.ArgumentParser()
-        self.parser.add_argument('-title', nargs='+')
-        self.parser.add_argument('-time', default=None)
+        self.parser.add_argument('-header', nargs='+')
+        self.parser.add_argument('-time', default='60s', nargs='+')
         self.parser.add_argument('-emotes', default=None, nargs='+')
         self.parser.add_argument('-description', default=None, nargs='+')
         self.parser.add_argument('-strict', action='store_true')
         self.parser.add_argument('-no_duplicate_votes', action='store_true')
+        self.parser.add_argument('-allow_multiple_entries', action='store_true')
 
-    @command(pass_context=True, owner_only=True)
-    async def vote(self, ctx, *, message):
+    @command(pass_context=True, owner_only=True, aliases=['vote'])
+    async def poll(self, ctx, *, message):
         # TODO Add permission check
-        message = '-title '+ message if not message.startswith('-t') else message
+
+        # Add -header if it's not present so argparser can recognise the argument
+        message = '-header ' + message if not message.startswith('-t') else message
         try:
             parsed = self.parser.parse_args(message.split(' '))
         except:
@@ -66,52 +175,91 @@ class VoteManager:
         if parsed.strict and not parsed.emotes:
             return await self.bot.say('Cannot set strict mode without specifying any emotes')
 
+        expired_date = None
+        title = ' '.join(parsed.header)
+        if parsed.time:
+            expires_in = parse_time(' '.join(parsed.time))
+            if expires_in.total_seconds() == 0:
+                await self.bot.say('No time specified or time given is 0 seconds. Using default value of 60s')
+                expires_in = timedelta(seconds=60)
+            if expires_in.days > 7:
+                return await self.bot.say('Maximum time is 7 days')
+
+            now = datetime.utcnow()
+            expired_date = now + expires_in
+            sql_date = datetime2sql(expired_date)
+            parsed.time = sql_date
+
         emotes = []
         failed = []
         if parsed.emotes:
             for emote in parsed.emotes:
-                name = get_emote_name_id(emote)
-                if name is None:
-                    failed.append(emote)
+                if not emote.strip():
                     continue
 
-                emotes.append(name)
+                name = get_emote_name_id(emote)
+                if name is None:
+                    emotes.append(emote)
+                else:
+                    emotes.append(name)
 
         if parsed.description:
             description = ' '.join(parsed.description)
         else:
             description = discord.Embed.Empty
 
-        embed = discord.Embed(title=' '.join(parsed.title), description=description)
+        embed = discord.Embed(title=' '.join(parsed.header), description=description)
         if parsed.time:
-            embed.add_field(name='Expires at', value=parsed.time)
+            embed.add_field(name='Expires at',
+                            value='{}\nor in {}'.format(parsed.time, str(expires_in)))
         msg = await self.bot.send_message(ctx.message.channel, embed=embed)
 
+        # add reactions to message
         for emote in emotes:
             try:
-                await self.bot.add_reaction(msg, '{}:{}'.format(*emote))
+                emote = '{}:{}'.format(*emote) if isinstance(emote, tuple) else emote
+                await self.bot.add_reaction(msg, emote)
             except:
-                failed.append(emote[0])
+                failed.append(emote)
         if failed:
-            await self.bot.say('Failed to get emotes `{}`'.format('` `'.join(failed)))
+            await self.bot.say('Failed to get emotes `{}`'.format('` `'.join(failed)),
+                               delete_after=60)
 
-        sql = 'INSERT INTO `votes` (`server`, `strict`, `message`, `expires_in`, `ignore_dupes`) ' \
-              'VALUES (:server, :strict, :message, :expires_in, :ignore_dupes)'
-        d = {'server': ctx.message.server.id, 'strict': parsed.strict, 'message': msg.id, 'expires_in': parsed.time, 'ignore_dupes': parsed.no_duplicate_votes}
-        self.session.execute(sql, params=d)
+        sql = 'INSERT INTO `polls` (`server`, `strict`, `message`, `expires_in`, `ignore_on_dupe`, `multiple_votes`) ' \
+              'VALUES (:server, :strict, :message, :expires_in, :ignore_on_dupe, :multiple_votes)'
+        d = {'server': ctx.message.server.id, 'strict': parsed.strict, 'message': msg.id,
+             'expires_in': parsed.time, 'ignore_on_dupe': parsed.no_duplicate_votes,
+             'multiple_votes':parsed.allow_multiple_entries}
+        try:
+            self.session.execute(sql, params=d)
 
-        if emotes:
-            # TODO db name as variable
-            sql = 'INSERT INTO `emotes` (`name`, `emote`, `server`, `vote_id`) VALUES '
-            values = []
-            for emote in emotes:
-                name, id = emote
-                values.append('("%s", %s, %s, %s)' % (name, id, ctx.message.server.id, msg.id))
+            if emotes:
+                sql = 'INSERT INTO `emotes` (`name`, `emote`, `server`, `vote_id`) VALUES '
+                values = []
+                # We add all successfully parsed emotes even if the bot failed to
+                # add them so strict mode will count them in too
+                for emote in emotes:
+                    if not isinstance(emote, tuple):
+                        name, id = emote, 'NULL'
+                    else:
+                        name, id = emote
 
-            sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
-            result = self.session.execute(sql)
+                    values.append('("%s", %s, %s, %s)' % (name, id, ctx.message.server.id, msg.id))
 
-        self.session.commit()
+                if values:
+                    # If emote is already in the table update its name
+                    sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
+                    self.session.execute(sql)
+
+            self.session.commit()
+        except Exception as e:
+            logger.exception('Failed sql query')
+            return await self.bot.say('Failed to save poll. Exception has been logged')
+
+        poll = Poll(self.bot, msg, msg.channel.id, title, expires_at=expired_date, strict=parsed.strict,
+                    emotes=emotes, no_duplicate_votes=parsed.no_duplicate_votes,
+                    multiple_votes=parsed.allow_multiple_entries)
+        poll.start()
 
     async def get_most_voted(self, msg):
         users_voted = []

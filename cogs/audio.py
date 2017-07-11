@@ -72,13 +72,14 @@ def get_track_pos(duration, current_pos):
 
 
 class MusicPlayer:
-    def __init__(self, bot):
+    def __init__(self, bot, stop_state):
         self.play_next_song = asyncio.Event()  # Trigger for next song
         self.right_version = asyncio.Event()  # Determines if right version be played
         self.right_version_playing = asyncio.Event()
         self.voice = None  # Voice channel that this is connected to
         self.current = None  # Current song
         self.channel = None  # Channel where all the automated messages will be posted to
+        self.server = None
         self.gachi = bot.config.gachi
         self.bot = bot
         self.audio_player = None  # Main audio loop. Gets set when summon is called in :create_audio_task:
@@ -88,6 +89,7 @@ class MusicPlayer:
         self.volume_multiplier = bot.config.volume_multiplier
         self.messages = deque()
         self.bot.loop.create_task(self.websocket_check())
+        self.stop = stop_state
 
     def is_playing(self):
         if self.voice is None or self.current is None or self.player is None:
@@ -195,15 +197,13 @@ class MusicPlayer:
                 break
 
             if self.current is None or not self.current.seek:
-                """
                 users = self.voice.channel.voice_members
                 users = list(filter(lambda x: not x.bot, users))
                 if not users:
-                    await self.voice.disconnect()
+                    await self.stop(self)
                     self.change_status(self.bot.config.game)
                     self.voice = None
-                    break
-                """
+                    return
 
                 if self.playlist.peek() is None:
                     if self.autoplaylist:
@@ -358,7 +358,7 @@ class Audio:
     def get_voice_state(self, server):
         state = self.voice_states.get(server.id)
         if state is None:
-            state = MusicPlayer(self.bot)
+            state = MusicPlayer(self.bot, self.disconnect_voice)
             self.voice_states[server.id] = state
 
         return state
@@ -676,6 +676,7 @@ class Audio:
             await state.voice.move_to(summoned_channel)
 
         state.channel = ctx.message.channel
+        state.server = ctx.message.server
         state.playlist.channel = ctx.message.channel
         return True
 
@@ -896,6 +897,15 @@ class Audio:
         except Exception as e:
             print('[ERROR] Error while stopping voice.\n%s' % e)
 
+    async def disconnect_voice(self, state):
+        await self.stop_state(state)
+        try:
+            del self.voice_states[state.server.id]
+        except:
+            pass
+        if not self.voice_states:
+            await self.bot.change_presence(game=Game(name=self.bot.config.game))
+
     @command(pass_context=True, no_pm=True, aliases=['stop1'])
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
@@ -903,12 +913,10 @@ class Audio:
         """
         state = self.get_voice_state(ctx.message.server)
 
-        await self.stop_state(state)
-        del self.voice_states[ctx.message.server.id]
-        if not self.voice_states:
-            await self.bot.change_presence(game=Game(name=self.bot.config.game))
+        await self.disconnect_voice(state)
 
-        self.clear_cache()
+        if not self.voice_states:
+            self.clear_cache()
 
     @commands.cooldown(4, 4)
     @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'], level=2)

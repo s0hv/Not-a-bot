@@ -58,21 +58,18 @@ class Utilities(Cog):
                     return member
 
         found = filter_users(lambda u: str(u).startswith(user))
+        s = '`<@!{}>` {}'
         if found:
-            return await self.bot.say('`<@!{}>` user mention for {}'.format(found.id, str(found)))
+            return await self.bot.say(s.format(found.id, str(found)))
 
         found = filter_users(lambda u: user in str(u))
 
         if found:
             return await self.bot.say(
-                '`<@!{}>` user mention for {}'.format(found.id, str(found)))
+                s.format(found.id, str(found)))
 
         else:
-            return await self.bot.say('No users found with %s' %user)
-
-
-
-
+            return await self.bot.say('No users found with %s' % user)
 
 
 def setup(bot):

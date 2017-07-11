@@ -100,7 +100,7 @@ class NotABot(Bot):
 
         oshit = self.cdm.get_cooldown('oshit')
         imnew = self.cdm.get_cooldown('imnew')
-        if oshit and oshit.trigger(False) and message.content.lower() == 'o shit':
+        if oshit and oshit.trigger(False) and message.content.lower().strip() == 'o shit':
             msg = 'waddup'
             await self.send_message(message.channel, msg)
 

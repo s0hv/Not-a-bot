@@ -230,7 +230,7 @@ class VoteManager:
         embed = discord.Embed(title=' '.join(parsed.header), description=description)
         if parsed.time:
             embed.add_field(name='Expires at',
-                            value='{}\nor in {}'.format(parsed.time, str(expires_in)))
+                            value='{}\nor in {}\Current time{}'.format(parsed.time, str(expires_in), datetime.utcnow().ctime()))
         msg = await self.bot.send_message(ctx.message.channel, embed=embed)
 
         # add reactions to message

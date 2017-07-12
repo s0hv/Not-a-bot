@@ -163,6 +163,20 @@ class VoteManager:
 
     @command(pass_context=True, owner_only=True, aliases=['vote'])
     async def poll(self, ctx, *, message):
+        """
+        Create a poll. See help poll for arguments
+        Creates a poll that expires by default in 60 seconds
+        Examples of use: -poll title -d description -e <:gappyGoodShit:326946656023085056> 👌 -a
+        available arguments
+        `-d` `-description` Description for the poll
+        `-t` `-time` Time after which the poll is expired. Maximum time is 1 week
+        `-e` `-emotes` Optional emotes that are automatically added to the poll
+
+        These options require no arguments. Default values that are used when they aren't specified are marked in square brackets []
+        `-s` `-strict` [false] Only count emotes specified in the -emotes argument
+        `-n` `-no_duplicate_votes` [false] Ignores users who react to more than one emote
+        `-a` `-allow_multiple_entries` [false] Count all reactions from the user. Even if that user reacted with multiple emotes.
+        """
         # TODO Add permission check
 
         # Add -header if it's not present so argparser can recognise the argument
@@ -174,6 +188,9 @@ class VoteManager:
 
         if parsed.strict and not parsed.emotes:
             return await self.bot.say('Cannot set strict mode without specifying any emotes')
+
+        if parsed.no_duplicate_votes and parsed.allow_multiple_entries:
+            return await self.bot.say('Cannot have -n and -a specified at the same time. That would be dumb')
 
         expired_date = None
         title = ' '.join(parsed.header)

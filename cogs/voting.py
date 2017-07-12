@@ -54,7 +54,7 @@ class Poll:
         self.title = title
         self.expires_at = expires_at
         self.strict = strict
-        self.emotes = emotes
+        self.emotes = emotes or []
         self.ignore_on_dupe = no_duplicate_votes
         self.multiple_votes = multiple_votes
         self._task = None
@@ -95,7 +95,9 @@ class Poll:
 
         votes = {}
         for reaction in msg.reactions:
-            print(reaction.me, reaction.emoji)
+            if self.strict and str(reaction.emoji) not in self.emotes:
+                continue
+
             users = await self.bot.get_reaction_users(reaction, limit=reaction.count)
 
             for user in users:
@@ -250,6 +252,7 @@ class VoteManager:
         try:
             self.session.execute(sql, params=d)
 
+            emotes_list = []
             if emotes:
                 sql = 'INSERT INTO `emotes` (`name`, `emote`, `server`, `vote_id`) VALUES '
                 values = []
@@ -258,8 +261,10 @@ class VoteManager:
                 for emote in emotes:
                     if not isinstance(emote, tuple):
                         name, id = emote, 'NULL'
+                        emotes_list.append(name)
                     else:
                         name, id = emote
+                        emotes_list.append('<:{}:{}>'.format(name, id))
 
                     values.append('("%s", %s, %s, %s)' % (name, id, ctx.message.server.id, msg.id))
 
@@ -274,7 +279,7 @@ class VoteManager:
             return await self.bot.say('Failed to save poll. Exception has been logged')
 
         poll = Poll(self.bot, msg, msg.channel.id, title, expires_at=expired_date, strict=parsed.strict,
-                    emotes=emotes, no_duplicate_votes=parsed.no_duplicate_votes,
+                    emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
                     multiple_votes=parsed.allow_multiple_entries)
         poll.start()
 

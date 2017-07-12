@@ -661,7 +661,7 @@ class Formatter(HelpFormatter):
         self.command = command_or_bot
         return self.format(is_owner=is_owner)
 
-    def format(self, is_owner=False):
+    def format(self, is_owner=False, generic=False):
         """Handles the actual behaviour involved with formatting.
 
         To change the behaviour, this method should be overridden.
@@ -671,7 +671,10 @@ class Formatter(HelpFormatter):
         list
             A paginated output of the help command.
         """
-        self._paginator = Paginator(prefix='```Markdown\n')
+        if generic:
+            self._paginator = Paginator(prefix='```Markdown\n')
+        else:
+            self._paginator = Paginator(prefix='', suffix='')
 
         # we need a padding of ~80 or so
 

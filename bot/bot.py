@@ -391,8 +391,8 @@ class Bot(commands.Bot, Client):
             self.dispatch('command_error', exc, ctx)
 
     async def replace_role(self, member, replaced, roles):
-        replaced = list(map((lambda r: r.id if not isinstance(r, str) else r), replaced))
-        roles = (map((lambda r: r.id if not isinstance(r, str) else r), roles))
+        replaced = map((lambda r: r.id if not isinstance(r, str) else r), replaced)
+        roles = map((lambda r: r.id if not isinstance(r, str) else r), roles)
         new_roles = [r.id for r in member.roles]
         for role in replaced:
             if role in new_roles:

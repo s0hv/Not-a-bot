@@ -419,7 +419,7 @@ class Management:
             await self.bot.add_roles(users[0], mute_role)
             await self.bot.say('Muted user {}'.format(users[0].name))
         except:
-            await self.bot.say('Could not mute user {}'.format(users[0].name))
+            await self.bot.say('Could not mute user {}'.format(str(users[0])))
 
     @command(pass_context=True, owner_only=True)
     async def unmute(self, ctx, *user):

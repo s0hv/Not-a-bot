@@ -95,8 +95,11 @@ class Poll:
 
         votes = {}
         for reaction in msg.reactions:
-            if self.strict and str(reaction.emoji) not in self.emotes:
-                continue
+            if self.strict:
+                # Optimization LUL
+                id = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.id
+                if id not in self.emotes:
+                    continue
 
             users = await self.bot.get_reaction_users(reaction, limit=reaction.count)
 
@@ -128,15 +131,20 @@ class Poll:
 
         winners = []
         for emote, score in scores:
-            if score >= biggest:
+            if score > biggest:
                 biggest = score
+                winners = [emote]
+            elif score == biggest:
                 winners.append(emote)
             else:
                 break
 
-        s = 'Poll ``{}`` ended\nWinner(s) are {} with the score of {}'.format(self.title,
-                                                                              ' '.join(winners),
-                                                                              biggest)
+        if winners:
+            end = '\nWinner(s) are {} with the score of {}'.format(' '.join(winners), biggest)
+        else:
+            end = ' with no winners'
+
+        s = 'Poll ``{}`` ended{}'.format(self.title, end)
         await self.bot.send_message(chn, s)
 
         session = self.bot.get_session
@@ -264,7 +272,7 @@ class VoteManager:
                         emotes_list.append(name)
                     else:
                         name, id = emote
-                        emotes_list.append('<:{}:{}>'.format(name, id))
+                        emotes_list.append(id)
 
                     values.append('("%s", %s, %s, %s)' % (name, id, ctx.message.server.id, msg.id))
 

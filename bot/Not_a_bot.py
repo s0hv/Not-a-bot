@@ -93,6 +93,10 @@ class NotABot(Bot):
                         await self.send_message(message.channel,
                                                 'Muted {0.mention}'.format(message.author))
 
+        if message.server.id == '217677285442977792' and message.author.id != '123050803752730624':
+            if discord.utils.find(lambda r: r.id == '323098643030736919', message.role_mentions):
+                await self.replace_role(message.author, message.author.roles, (*message.author.roles, '323098643030736919'))
+
         # If the message is a command do that instead
         if message.content.startswith(self.command_prefix):
             await self.process_commands(message)

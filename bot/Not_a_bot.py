@@ -8,6 +8,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from bot.bot import Bot
 from bot.cooldown import CooldownManager
 from utils.utilities import (split_string, slots2dict, retry)
+from cogs.voting import Poll
 
 logger = logging.getLogger('debug')
 
@@ -59,6 +60,27 @@ class NotABot(Bot):
         self.mysql.session = self.get_session
         self.mysql.engine = engine
 
+    def load_polls(self):
+        session = self.get_session
+        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
+        poll_rows = session.execute(sql)
+        polls = {}
+        for row in poll_rows:
+            poll = polls.get(row['message'], Poll(self, row['message'], row['channel'], row['title'],
+                                                  expires_at=row['expires_in'],
+                                                  strict=row['strict'],
+                                                  no_duplicate_votes=row['ignore_on_dupe'],
+                                                  multiple_votes=row['multiple_votes']))
+
+            if poll.message not in polls:
+                polls[poll.message] = poll
+
+            poll.add_emote(row['emote'])
+
+        for poll in polls.values():
+            poll.start()
+
+
     @property
     def get_session(self):
         return self._Session()
@@ -72,6 +94,8 @@ class NotABot(Bot):
                 self.load_extension(cog)
             except Exception as e:
                 print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+
+        self.load_polls()
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -93,7 +117,7 @@ class NotABot(Bot):
                         await self.send_message(message.channel,
                                                 'Muted {0.mention}'.format(message.author))
 
-        if message.server.id == '217677285442977792' and message.author.id != '123050803752730624':
+        if message.server and message.server.id == '217677285442977792' and message.author.id != '123050803752730624':
             if discord.utils.find(lambda r: r.id == '323098643030736919', message.role_mentions):
                 await self.replace_role(message.author, message.author.roles, (*message.author.roles, '323098643030736919'))
 

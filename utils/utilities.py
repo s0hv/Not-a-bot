@@ -36,6 +36,7 @@ import re
 
 import discord
 from bot.exceptions import NoCachedFileException
+from datetime import datetime
 
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
@@ -341,24 +342,3 @@ def parse_time(time_str):
 
 def datetime2sql(datetime):
     return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(datetime)
-
-
-def timedelta2string(td):
-    # TODO fix this
-    return
-    if not td.total_seconds():
-        return '0 seconds'
-    s = ''
-    if td.days:
-        s += '{} days '.format(td.days)
-
-    if td.hours:
-        s += '{} hours '.format(td.hours)
-
-    if td.minutes:
-        s += '{} minutes '.format(td.minutes)
-
-    if td.seconds:
-        s += '{} seconds'.format(td.seconds)
-
-    return s.strip()

@@ -11,26 +11,10 @@ import re
 import operator
 from utils.utilities import get_emote_name_id, parse_time, datetime2sql, Object
 import logging
+from sqlalchemy import text
+
 
 logger = logging.getLogger('debug')
-
-
-class Uservote:
-    def __init__(self, user):
-        self.user = user
-        self._vote = None
-        self.valid = True
-
-    @property
-    def vote(self):
-        return self._vote
-
-    @vote.setter
-    def vote(self, emote):
-        if self._vote is not None:
-            self.valid = False
-
-        self._vote = emote
 
 
 class Poll:
@@ -49,12 +33,12 @@ class Poll:
             no_duplicate_votes:
         """
         self._bot = bot
-        self.message = message
-        self.channel = channel
+        self.message = str(message)
+        self.channel = str(channel)
         self.title = title
         self.expires_at = expires_at
         self.strict = strict
-        self.emotes = emotes or []
+        self._emotes = emotes or []
         self.ignore_on_dupe = no_duplicate_votes
         self.multiple_votes = multiple_votes
         self._task = None
@@ -62,6 +46,10 @@ class Poll:
     @property
     def bot(self):
         return self._bot
+
+    def add_emote(self, emote_id):
+        # Used when recreating the poll
+        self._emotes.append(emote_id)
 
     def start(self):
         self._task = self.bot.loop.create_task(self._wait())
@@ -97,8 +85,8 @@ class Poll:
         for reaction in msg.reactions:
             if self.strict:
                 # Optimization LUL
-                id = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.id
-                if id not in self.emotes:
+                id = ord(reaction.emoji) if isinstance(reaction.emoji, str) else reaction.emoji.id
+                if id not in self._emotes:
                     continue
 
             users = await self.bot.get_reaction_users(reaction, limit=reaction.count)
@@ -235,7 +223,7 @@ class VoteManager:
         else:
             description = discord.Embed.Empty
 
-        embed = discord.Embed(title=' '.join(parsed.header), description=description)
+        embed = discord.Embed(title=title, description=description)
         if parsed.time:
             embed.add_field(name='Expires at',
                             value='{}\nor in {}\nCurrent time {}'.format(parsed.time, str(expires_in), datetime.utcnow().ctime()))
@@ -252,37 +240,47 @@ class VoteManager:
             await self.bot.say('Failed to get emotes `{}`'.format('` `'.join(failed)),
                                delete_after=60)
 
-        sql = 'INSERT INTO `polls` (`server`, `strict`, `message`, `expires_in`, `ignore_on_dupe`, `multiple_votes`) ' \
-              'VALUES (:server, :strict, :message, :expires_in, :ignore_on_dupe, :multiple_votes)'
-        d = {'server': ctx.message.server.id, 'strict': parsed.strict, 'message': msg.id,
+        sql = 'INSERT INTO `polls` (`server`, `title`, `strict`, `message`, `channel`, `expires_in`, `ignore_on_dupe`, `multiple_votes`) ' \
+              'VALUES (:server, :title, :strict, :message, :channel, :expires_in, :ignore_on_dupe, :multiple_votes)'
+        d = {'server': ctx.message.server.id, 'title': title,
+             'strict': parsed.strict, 'message': msg.id, 'channel': ctx.message.channel.id,
              'expires_in': parsed.time, 'ignore_on_dupe': parsed.no_duplicate_votes,
              'multiple_votes':parsed.allow_multiple_entries}
         try:
-            self.session.execute(sql, params=d)
+            self.session.execute(text(sql), params=d)
 
             emotes_list = []
             if emotes:
-                sql = 'INSERT INTO `emotes` (`name`, `emote`, `server`, `vote_id`) VALUES '
+                sql = 'INSERT INTO `emotes` (`name`, `emote`, `server`) VALUES '
                 values = []
                 # We add all successfully parsed emotes even if the bot failed to
                 # add them so strict mode will count them in too
                 for emote in emotes:
                     if not isinstance(emote, tuple):
-                        name, id = emote, 'NULL'
-                        emotes_list.append(name)
+                        name, id = emote, ord(emote)
+                        emotes_list.append(id)
+                        server = 'NULL'
                     else:
                         name, id = emote
                         emotes_list.append(id)
+                        server = ctx.message.server.id
 
-                    values.append('("%s", %s, %s, %s)' % (name, id, ctx.message.server.id, msg.id))
+                    values.append('("%s", %s, %s)' % (name, id, server))
 
-                if values:
-                    # If emote is already in the table update its name
-                    sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
-                    self.session.execute(sql)
+                # If emote is already in the table update its name
+                sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
+                self.session.execute(text(sql))
+
+                sql = 'INSERT IGNORE INTO `pollEmotes` (`poll_id`, `emote_id`) VALUES '
+                values = []
+                for id in emotes_list:
+                    values.append('(%s, %s)' % (msg.id, id))
+
+                sql += ', '.join(values)
+                self.session.execute(text(sql))
 
             self.session.commit()
-        except Exception as e:
+        except:
             logger.exception('Failed sql query')
             return await self.bot.say('Failed to save poll. Exception has been logged')
 

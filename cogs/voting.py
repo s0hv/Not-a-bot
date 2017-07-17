@@ -33,7 +33,7 @@ class Poll:
             no_duplicate_votes:
         """
         self._bot = bot
-        self.message = str(message)
+        self.message = message
         self.channel = str(channel)
         self.title = title
         self.expires_at = expires_at
@@ -73,6 +73,7 @@ class Poll:
         if isinstance(self.message, discord.Message):
             self.message = self.message.id
 
+        self.message = str(self.message)
         try:
             chn = self.bot.get_channel(self.channel)
             msg = await self.bot.get_message(chn, self.message)
@@ -284,7 +285,7 @@ class VoteManager:
             logger.exception('Failed sql query')
             return await self.bot.say('Failed to save poll. Exception has been logged')
 
-        poll = Poll(self.bot, msg, msg.channel.id, title, expires_at=expired_date, strict=parsed.strict,
+        poll = Poll(self.bot, msg.id, msg.channel.id, title, expires_at=expired_date, strict=parsed.strict,
                     emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
                     multiple_votes=parsed.allow_multiple_entries)
         poll.start()

@@ -28,6 +28,8 @@ import traceback
 from collections import deque
 from random import shuffle, choice
 import logging
+from validators import url as valid_url
+
 
 try:
     from numpy import delete

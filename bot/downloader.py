@@ -61,11 +61,12 @@ class Downloader:
         self.unsafe_ytdl = youtube_dl.YoutubeDL(opts)
         self.unsafe_ytdl.params['outtmpl'] = os.path.join(self.dl_folder, self.unsafe_ytdl.params['outtmpl'])
 
-        self.info_ytdl =youtube_dl.YoutubeDL(opts)
+        self.info_ytdl = youtube_dl.YoutubeDL(opts)
         self.info_ytdl.params['extract_flat'] = True
 
     async def extract_info(self, loop, info=False, on_error=None, *args, **kwargs):
         ytdl = self.unsafe_ytdl
+        print('dl called', args, kwargs)
         if info:
             ytdl = self.info_ytdl
         if callable(on_error):
@@ -86,4 +87,5 @@ class Downloader:
             return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
 
     async def safe_extract_info(self, loop, *args, **kwargs):
+        print('dl called', args, kwargs)
         return await loop.run_in_executor(self.thread_pool, functools.partial(self.info_ytdl.extract_info, *args, **kwargs))

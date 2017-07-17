@@ -80,6 +80,7 @@ class MusicPlayer:
         self.current = None  # Current song
         self.channel = None  # Channel where all the automated messages will be posted to
         self.server = None
+        self.activity_check = None
         self.gachi = bot.config.gachi
         self.bot = bot
         self.audio_player = None  # Main audio loop. Gets set when summon is called in :create_audio_task:
@@ -122,6 +123,7 @@ class MusicPlayer:
 
     def create_audio_task(self):
         self.audio_player = self.bot.loop.create_task(self.play_audio())
+        self.activity_check = self.bot.loop.create_task(self._activity_check())
 
     @property
     def player(self):
@@ -190,6 +192,23 @@ class MusicPlayer:
         rms = pow(10, db / 20) * 32767
         return 1 / rms * self.volume_multiplier
 
+    async def _activity_check(self):
+        async def stop():
+            await self.stop(self)
+            self.voice = None
+
+        while True:
+            await asyncio.sleep(60)
+            if self.voice is None:
+                return await stop()
+
+            users = self.voice.channel.voice_members
+            users = list(filter(lambda x: not x.bot, users))
+            if not users:
+                await self.say('No voice activity. Disconnecting')
+                await stop()
+                return
+
     async def play_audio(self):
         while True:
             self.play_next_song.clear()
@@ -197,14 +216,6 @@ class MusicPlayer:
                 break
 
             if self.current is None or not self.current.seek:
-                users = self.voice.channel.voice_members
-                users = list(filter(lambda x: not x.bot, users))
-                if not users:
-                    await self.stop(self)
-                    self.change_status(self.bot.config.game)
-                    self.voice = None
-                    return
-
                 if self.playlist.peek() is None:
                     if self.autoplaylist:
                         self.current = await self.playlist.get_from_autoplaylist()
@@ -326,7 +337,7 @@ class MusicPlayer:
 
             self.player.stop()
 
-    async def say(self, message, timeout, channel=None):
+    async def say(self, message, timeout=None, channel=None):
         if channel is None:
             channel = self.channel
 

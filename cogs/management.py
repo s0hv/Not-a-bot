@@ -7,10 +7,13 @@ from threading import Lock
 import discord
 from colour import Color
 from discord.ext.commands import cooldown, BucketType
+from datetime import datetime
 
 from bot.bot import command
-from utils.utilities import slots2dict, split_string
+from utils.utilities import slots2dict, split_string, call_later, datetime2sql, parse_time
+import logging
 
+logger = logging.getLogger('debug')
 
 class ManagementHandler:
     def __init__(self, bot):
@@ -26,7 +29,13 @@ class ManagementHandler:
                 self.servers = json.load(f)
 
     @staticmethod
-    def format_on_edit(before, after, conf, check_equal=True):
+    def msg2dict(msg):
+        d = {}
+        attachments = [attachment['url'] for attachment in msg.attachments if 'url' in attachment]
+        d['attachments'] = ', '.join(attachments)
+        return d
+
+    def format_on_edit(self, before, after, conf, check_equal=True):
         bef_content = before.content
         aft_content = after.content
         if check_equal:
@@ -36,7 +45,8 @@ class ManagementHandler:
         user = before.author
 
         message = conf['message']
-        d = slots2dict(user)
+        d = self.msg2dict(before)
+        d = slots2dict(user, d)
         for e in ['name', 'before', 'after']:
             d.pop(e, None)
 
@@ -53,13 +63,13 @@ class ManagementHandler:
         message = conf['message'].format(user=str(member), **d)
         return message
 
-    @staticmethod
-    def format_on_delete(msg, conf):
+    def format_on_delete(self, msg, conf):
         content = msg.content
         user = msg.author
 
         message = conf['message']
-        d = slots2dict(user)
+        d = self.msg2dict(msg)
+        d = slots2dict(user, d)
         for e in ['name', 'message']:
             d.pop(e, None)
 
@@ -239,6 +249,114 @@ class Management:
         self.bot = bot
         self.utils = ManagementHandler(bot)
         self.bot.management = self.utils
+        self._load_timeouts()
+
+    def _load_timeouts(self):
+        session = self.bot.get_session
+        sql = 'SELECT * FROM `timeouts`'
+        rows = session.execute(sql)
+        for row in rows:
+            try:
+                print(datetime.utcnow(), row['expires_on'])
+                time = row['expires_on'] - datetime.utcnow()
+                print(time)
+                call_later(self.untimeout, self.bot.loop, time.total_seconds(),
+                           str(row['user']), str(row['server']))
+
+            except:
+                logger.exception('Could not untimeout %s' % row)
+
+    async def on_message_delete(self, msg):
+        if msg.author.bot or msg.channel.id == '336917918040326166':
+            return
+
+        conf = self.utils.get_config(msg.server.id).get('on_delete', None)
+        if conf is None:
+            return
+
+        channel = msg.server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        message = self.utils.format_on_delete(msg, conf)
+        message = split_string(message)
+        for m in message:
+            await self.bot.send_message(channel, m)
+
+    async def on_message_edit(self, before, after):
+        if before.author.bot or before.channel.id == '336917918040326166':
+            return
+
+        conf = self.utils.get_config(before.server.id).get('on_edit', None)
+        if not conf:
+            return
+
+        channel = before.server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        message = self.utils.format_on_edit(before, after, conf)
+        if message is None:
+            return
+
+        message = split_string(message, maxlen=1960)
+        for m in message:
+            await self.bot.send_message(channel, m)
+
+    async def on_member_join(self, member):
+        server = member.server
+        management = getattr(self, 'management', None)
+        if not management:
+            return
+
+        server_config = management.get_config(server.id)
+        if server_config is None:
+            return
+
+        conf = server_config.get('join', None)
+        if conf is None:
+            return
+
+        channel = server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        message = management.format_join_leave(member, conf)
+
+        await self.bot.send_message(channel, message)
+
+        if conf['add_color']:
+            colors = server_config.get('colors', {})
+
+            if colors and channel is not None:
+                role = None
+                for i in range(3):
+                    color = choice(list(colors.values()))
+                    roles = server.roles
+                    role = list(filter(lambda r: r.id == color, roles))
+                    if role:
+                        break
+
+                if role:
+                    await self.bot.add_roles(member, role[0])
+
+        if server.id == '217677285442977792':
+            await self.bot._wants_to_be_noticed(member, server, remove=False)
+
+    async def on_member_remove(self, member):
+        server = member.server
+        conf = self.utils.get_leave(server.id)
+        if conf is None:
+            return
+
+        channel = server.get_channel(conf['channel'])
+        if channel is None:
+            return
+
+        d = slots2dict(member)
+        d.pop('user', None)
+        message = conf['message'].format(user=str(member), **d)
+        await self.bot.send_message(channel, message)
 
     @command(pass_context=True)
     async def leave_message(self, ctx, channel, message=None):
@@ -398,28 +516,104 @@ class Management:
         self.utils.set_muted_role(server.id, role.id)
         await self.bot.say('Muted role set to {0.name}: {0.id}'.format(role))
 
-    @command(pass_context=True, owner_only=True)
-    async def mute(self, ctx, *user):
+    async def _mute_check(self, ctx, *user):
         server = ctx.message.server
         mute_role = self.utils.get_config(server.id).get('muted_role', None)
         if mute_role is None:
-            return await self.bot.say('No mute role set')
+            await self.bot.say('No mute role set')
+            return False
 
         users = ctx.message.mentions.copy()
         users.extend(self.utils.get_users_from_ids(server, *user))
 
         if not users:
-            return await self.bot.say('No user ids or mentions')
+            await self.bot.say('No user ids or mentions')
+            return False
 
         mute_role = discord.utils.find(lambda r: r.id == str(mute_role), server.roles)
         if mute_role is None:
-            return await self.bot.say('Could not find the muted role')
+            await self.bot.say('Could not find the muted role')
+            return False
+
+        return users, mute_role
+
+    @command(pass_context=True, owner_only=True)
+    async def mute(self, ctx, *user):
+        retval = await self._mute_check(ctx, user)
+        if isinstance(retval, tuple):
+            users, mute_role = retval
+        else:
+            return
 
         try:
             await self.bot.add_roles(users[0], mute_role)
             await self.bot.say('Muted user {}'.format(users[0].name))
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
+
+    async def untimeout(self, user, server):
+        mute_role = self.utils.get_config(server).get('muted_role', None)
+        if mute_role is None:
+            return
+
+        server = self.bot.get_server(server)
+        user = server.get_member(user)
+        if not user:
+            return
+
+        if discord.utils.find(lambda r: r.id == mute_role, user.roles):
+            try:
+                await self.bot.replace_role(user, user.roles,
+                                            [r for r in user.roles if r.id != mute_role])
+            except:
+                logger.exception('Could not autounmute user %s' % user.id)
+
+        try:
+            session = self.bot.get_session
+            sql = 'DELETE FROM `timeouts` WHERE `server` = %s AND `user` = %s' % (server.id, user.id)
+            session.execute(sql)
+            session.commit()
+        except:
+            logger.exception('Could not delete untimeout')
+
+    @command(pass_context=True, owner_only=True, aliases=['temp_mute'])
+    async def timeout(self, ctx, user, *, timeout):
+        retval = await self._mute_check(ctx, user)
+        if isinstance(retval, tuple):
+            users, mute_role = retval
+        else:
+            return
+
+        time = parse_time(timeout)
+        if not time:
+            return await self.bot.say('Invalid time string')
+
+        if time.days > 30:
+            return await self.bot.say("Timeout can't be longer than 30 days")
+
+        now = datetime.utcnow()
+        expires_on = datetime2sql(now + time)
+        user = users[0]
+        session = self.bot.get_session
+        try:
+            sql = 'INSERT INTO `timeouts` (`server`, `user`, `expires_on`) VALUES ' \
+                  '(:server, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=expires_on'
+
+            d = {'server': ctx.message.server.id, 'user': user.id, 'expires_on': expires_on}
+            session.execute(sql, params=d)
+            session.commit()
+        except:
+            logger.exception('Could not save timeout')
+            return await self.bot.say('Could not save timeout. Canceling action')
+
+        try:
+            await self.bot.add_roles(user, mute_role)
+            await self.bot.say('Muted user {}'.format(str(user)))
+        except:
+            await self.bot.say('Could not mute user {}'.format(str(users[0])))
+
+        call_later(self.untimeout, self.bot.loop,
+                   time.total_seconds(), user.id, ctx.message.server.id)
 
     @command(pass_context=True, owner_only=True)
     async def unmute(self, ctx, *user):

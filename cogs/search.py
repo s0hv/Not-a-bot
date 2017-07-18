@@ -51,12 +51,12 @@ class Search:
 
     @command(pass_context=True, level=1)
     async def image(self, ctx, *, query):
-        logger.debug('Image search query: {}'.format(query))
+        #logger.debug('Image search query: {}'.format(query))
         return await self.search(ctx, query, True)
 
     @command(pass_context=True, level=1)
     async def google(self, ctx, *, query):
-        logger.debug('Web search query: {}'.format(query))
+        #logger.debug('Web search query: {}'.format(query))
         return await self.search(ctx, query)
 
     async def search(self, ctx, query, image=False):

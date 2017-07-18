@@ -24,7 +24,7 @@ SOFTWARE.
 
 import logging
 import os
-import re
+import asyncio
 import shlex
 import subprocess
 import time
@@ -97,6 +97,7 @@ def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
 
         return splits
 
+    logger.debug('Could not split string {}'.format(to_split))
     raise NotImplementedError('This only works with dicts and strings for now')
 
 
@@ -245,17 +246,27 @@ def normalize_text(s):
     return s
 
 
-def slots2dict(obj):
+def slots2dict(obj, d: dict=None, replace=True):
     # Turns slots and @properties to a dict
-    d = {k: getattr(obj, k) for k in obj.__slots__}
+
+    if d is None:
+        d = {k: getattr(obj, k, None) for k in obj.__slots__}
+    else:
+        for k in obj.__slots__:
+            if not replace and k in d:
+                continue
+
+            d[k] = getattr(obj, k, None)
+
     for k in dir(obj):
-        if k.startswith('_'):
-            # We don't want any private methods
+        if k.startswith('_'):  # We don't want any private variables
             continue
 
         v = getattr(obj, k)
-        if not callable(v):
-            # Don't need methods here
+        if not callable(v):    # Don't need methods here
+            if not replace and k in d:
+                continue
+
             d[k] = v
 
     return d
@@ -342,3 +353,23 @@ def parse_time(time_str):
 
 def datetime2sql(datetime):
     return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(datetime)
+
+
+def call_later(func, loop, timeout, *args, **kwargs):
+    """
+    Call later for async functions
+    Args:
+        func: async function
+        loop: asyncio loop
+        timeout: how long to wait
+
+    Returns:
+        asyncio.Task
+    """
+    async def wait():
+        if timeout > 0:
+            await asyncio.sleep(timeout)
+
+        await func(*args, **kwargs)
+
+    return loop.create_task(wait())

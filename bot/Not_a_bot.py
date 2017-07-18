@@ -80,7 +80,6 @@ class NotABot(Bot):
         for poll in polls.values():
             poll.start()
 
-
     @property
     def get_session(self):
         return self._Session()
@@ -142,65 +141,6 @@ class NotABot(Bot):
         elif imnew and imnew.trigger(False) and message.content.lower().translate(self.hi_new) == 'hiimnew':
             await self.send_message(message.channel, 'Hi new, I\'m dad')
 
-    async def on_member_join(self, member):
-        server = member.server
-        management = getattr(self, 'management', None)
-        if not management:
-            return
-
-        server_config = management.get_config(server.id)
-        if server_config is None:
-            return
-
-        conf = server_config.get('join', None)
-        if conf is None:
-            return
-
-        channel = server.get_channel(conf['channel'])
-        if channel is None:
-            return
-
-        message = management.format_join_leave(member, conf)
-
-        await self.send_message(channel, message)
-
-        if conf['add_color']:
-            colors = server_config.get('colors', {})
-
-            if colors and channel is not None:
-                role = None
-                for i in range(3):
-                    color = choice(list(colors.values()))
-                    roles = server.roles
-                    role = list(filter(lambda r: r.id == color, roles))
-                    if role:
-                        break
-
-                if role:
-                    await self.add_roles(member, role[0])
-
-        if server.id == '217677285442977792':
-            await self._wants_to_be_noticed(member, server, remove=False)
-
-    async def on_member_remove(self, member):
-        management = getattr(self, 'management', None)
-        if not management:
-            return
-
-        server = member.server
-        conf = management.get_leave(server.id)
-        if conf is None:
-            return
-
-        channel = server.get_channel(conf['channel'])
-        if channel is None:
-            return
-
-        d = slots2dict(member)
-        d.pop('user', None)
-        message = conf['message'].format(user=str(member), **d)
-        await self.send_message(channel, message)
-
     async def on_member_update(self, before, after):
         server = after.server
         if server.id == '217677285442977792':
@@ -237,42 +177,14 @@ class NotABot(Bot):
         user = msg.author
 
         message = conf['message']
-        d = slots2dict(user)
+        d = slots2dict(msg)
+        d = slots2dict(user, d)
         for e in ['name', 'message']:
             d.pop(e, None)
 
         d['channel'] = msg.channel.mention
         message = message.format(name=str(user), message=content, **d)
         return split_string(message)
-
-    async def on_message_delete(self, msg):
-        if msg.author.bot:
-            return
-        management = getattr(self, 'management', None)
-        if not management:
-            return
-
-        conf = management.get_config(msg.server.id).get('on_delete', None)
-        if conf is None:
-            return
-
-        channel = msg.server.get_channel(conf['channel'])
-        if channel is None:
-            return
-
-        content = msg.content
-        user = msg.author
-
-        message = conf['message']
-        d = slots2dict(user)
-        for e in ['name', 'message']:
-            d.pop(e, None)
-
-        d['channel'] = msg.channel.mention
-        message = message.format(name=str(user), message=content, **d)
-        message = split_string(message)
-        for m in message:
-            await self.send_message(channel, m)
 
     async def raw_message_delete(self, data):
         id = data.get('id')
@@ -299,41 +211,3 @@ class NotABot(Bot):
             return
 
         channel = server.get_channel(channel_id['channel_id'])
-
-
-
-    async def on_message_edit(self, before, after):
-        if before.author.bot:
-            return
-
-        management = getattr(self, 'management', None)
-        if not management:
-            return
-
-        conf = management.get_config(before.server.id).get('on_edit', None)
-        if not conf:
-            return
-
-        channel = before.server.get_channel(conf['channel'])
-        if channel is None:
-            return
-
-        bef_content = before.content
-        aft_content = after.content
-        if bef_content == aft_content:
-            return
-
-        user = before.author
-
-        message = conf['message']
-        d = slots2dict(user)
-        for e in ['name', 'before', 'after']:
-            d.pop(e, None)
-
-        d['channel'] = after.channel.mention
-        message = message.format(name=str(user), **d,
-                                 before=bef_content, after=aft_content)
-
-        message = split_string(message, maxlen=1960)
-        for m in message:
-            await self.send_message(channel, m)

@@ -45,7 +45,7 @@ class Utilities(Cog):
 
         await self.bot.say(emote_url_from_id(emote))
 
-    @command(pass_context=True)
+    @command(pass_context=True, aliases=['howtoping'])
     async def how2ping(self, ctx, *, user):
         members = ctx.message.server.members
 

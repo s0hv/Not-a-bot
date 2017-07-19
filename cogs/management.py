@@ -305,11 +305,8 @@ class Management:
 
     async def on_member_join(self, member):
         server = member.server
-        management = getattr(self, 'management', None)
-        if not management:
-            return
 
-        server_config = management.get_config(server.id)
+        server_config = self.utils.get_config(server.id)
         if server_config is None:
             return
 
@@ -321,7 +318,7 @@ class Management:
         if channel is None:
             return
 
-        message = management.format_join_leave(member, conf)
+        message = self.utils.format_join_leave(member, conf)
 
         await self.bot.send_message(channel, message)
 
@@ -576,8 +573,20 @@ class Management:
         except:
             logger.exception('Could not delete untimeout')
 
-    @command(pass_context=True, owner_only=True, aliases=['temp_mute'])
+    @command(pass_context=True, aliases=['temp_mute'])
     async def timeout(self, ctx, user, *, timeout):
+        """Mute user for a specified amount of time
+         `timeout` is the duration of the mute.
+         The format is `n d|days` `n h|hours` `n m|minutes` `n s|seconds`
+         where at least one of them must be provided.
+         Maximum length for a timeout is 30 days
+        """
+        # Hardcoded whitelist for now
+        # Tem, QT, Honk, s0hvaperuna
+        whitelist = ['266236554572333058', '216903801582518273', '218753123659808768', '123050803752730624']
+        if ctx.message.author.id not in whitelist:
+            return await self.bot.say("You aren't whitelisted")
+
         retval = await self._mute_check(ctx, user)
         if isinstance(retval, tuple):
             users, mute_role = retval
@@ -608,7 +617,10 @@ class Management:
 
         try:
             await self.bot.add_roles(user, mute_role)
-            await self.bot.say('Muted user {}'.format(str(user)))
+            await self.bot.say('Muted user {} for {}'.format(str(user), time))
+            chn = self.bot.get_channel('252872751319089153')
+            if chn:
+                await self.bot.send_message(chn, 'Muted user {} for {}'.format(str(user), time))
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
 
@@ -820,7 +832,6 @@ class Management:
     async def reload_config(self):
         self.utils.reload_config()
         await self.bot.say('Reloaded config')
-
 
 
 def setup(bot):

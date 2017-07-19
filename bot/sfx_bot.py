@@ -25,12 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import aiohttp
-import discord
-import threading
 import asyncio
+import threading
+import time
 
-from bot import sfx_audio
+import discord
+
 from bot.bot import Bot
 
 
@@ -47,37 +47,32 @@ class SfxBot(threading.Thread):
         if self.permissions:
             self.permissions.sfx_bot = sfx_bot
 
-        audio = sfx_audio.Audio(sfx_bot, None)
-
         @sfx_bot.event
         async def on_ready():
             print('[INFO] Logged in as {0.user.name}'.format(sfx_bot))
             await sfx_bot.change_presence(
                 game=discord.Game(name=sfx_bot.config.sfx_game))
 
-        @sfx_bot.event
-        async def on_voice_state_update(before, after):
-            if before == sfx_bot.user:
-                return
+            sfx_bot.load_extension('cogs.sfx_audio')
 
+        @sfx_bot.command(owner_only=True)
+        async def reload(*, name):
+            t = time.time()
             try:
-                if before.voice.voice_channel == after.voice.voice_channel:
-                    return
+                cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
+                sfx_bot.unload_extension(cog_name)
+                sfx_bot.load_extension(cog_name)
+            except Exception as e:
+                    return await sfx_bot.say('Could not reload %s because of an error\n%s' % (name, e))
 
-                if after.voice.voice_channel == sfx_bot.voice_client_in(
-                        after.server).channel:
-                    await audio.on_join(after)
-
-                elif before.voice.voice_channel != after.voice.voice_channel and before.voice.voice_channel == sfx_bot.voice_client_in(
-                        after.server).channel:
-                    await audio.on_leave(after)
-            except:
-                pass
+            await sfx_bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time() - t) * 1000))
 
         @sfx_bot.command(pass_context=True, aliases=['shutdown2'], owner_only=True)
         async def shutdown(ctx):
             try:
-                await audio.shutdown()
+                audio = sfx_bot.get_cog('Audio')
+                if audio:
+                    await audio.shutdown()
                 for message in sfx_bot.timeout_messages.copy():
                     message.delete_now()
                     message.cancel_tasks()
@@ -89,7 +84,6 @@ class SfxBot(threading.Thread):
             finally:
                 await sfx_bot.close()
 
-        sfx_bot.add_cog(audio)
         sfx_bot.run(self.config.sfx_token)
 
     def run(self):

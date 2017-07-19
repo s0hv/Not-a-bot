@@ -161,7 +161,7 @@ class Audio:
 
         file = self._search_sfx('attention')
         if file:
-            state.add_to_queue(file)
+            state.add_to_queue(file[0])
 
         return True
 
@@ -195,16 +195,15 @@ class Audio:
         except Exception as e:
             print('[ERROR] Error while stopping sfx_bot.\n%s' % e)
 
-    @commands.cooldown(4, 4)
     @command(pass_context=True, no_pm=True)
+    @commands.cooldown(4, 4)
     async def sfx(self, ctx, *, name):
 
-        path = SFX_FOLDER
         file = self._search_sfx(name)
         if not file:
             return await self.bot.say('Invalid sound effect name')
 
-        file = os.path.join(path, file[0])
+        file = file[0]
 
         state = self.get_voice_state(ctx.message.server)
         if state.voice is None:
@@ -270,7 +269,7 @@ class Audio:
                 await self.bot.say_timeout("Couldn't find %s. Skipping it" % name, channel, 30)
                 continue
 
-            sfx_list += [os.path.join(SFX_FOLDER, sfx[0])]
+            sfx_list.append(sfx[0])
 
         if not sfx_list:
             return await self.bot.say_timeout('No sfx found', channel, 30)
@@ -317,7 +316,7 @@ class Audio:
             if not file:
                 file = [x for x in sfx if name in x]
 
-        return file
+        return [os.path.join(SFX_FOLDER, f) for f in file]
 
     @command(pass_context=True, no_pm=True)
     async def random_sfx(self, ctx, value):
@@ -408,6 +407,23 @@ class Audio:
 
         del self.voice_states[ctx.message.server.id]
 
+    async def on_voice_state_update(self, before, after):
+        if before == self.bot.user:
+            return
+
+        try:
+            if before.voice.voice_channel == after.voice.voice_channel:
+                return
+
+            if after.voice.voice_channel == self.bot.voice_client_in(
+                    after.server).channel:
+                await self.on_join(after)
+
+            elif before.voice.voice_channel != after.voice.voice_channel and before.voice.voice_channel == self.bot.voice_client_in(
+                    after.server).channel:
+                await self.on_leave(after)
+        except:
+            pass
     async def on_join(self, member):
         string = '%s joined the channel' % member.name
         path = os.path.join(TTS, 'join.mp3')
@@ -427,3 +443,7 @@ class Audio:
         state = self.get_voice_state(server)
 
         state.add_next(path)
+
+
+def setup(bot):
+    bot.add_cog(Audio(bot, None))

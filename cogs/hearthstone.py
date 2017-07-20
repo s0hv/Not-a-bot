@@ -36,7 +36,7 @@ class Hearthstone:
     @cooldown(1, 2)
     async def hs(self, *, name):
         headers = {'content-type': 'application/json', 'X-Mashape-Key': self.key}
-        async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/%s' % name,
+        async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/%s' % name,
                                    headers=headers) as r:
             if r.status == 200:
                 js = await r.json()

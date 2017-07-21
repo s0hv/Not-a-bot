@@ -86,6 +86,10 @@ class Poll:
         for reaction in msg.reactions:
             if self.strict:
                 # Optimization LUL
+                if isinstance(reaction.emoji, str):
+                    if len(reaction.emoji) > 1:
+                        continue
+
                 id = ord(reaction.emoji) if isinstance(reaction.emoji, str) else reaction.emoji.id
                 if id not in self._emotes:
                     continue
@@ -217,6 +221,9 @@ class VoteManager:
                 if name is None:
                     emotes.append(emote)
                 else:
+                    # TODO Better check for flag emotes
+                    if len(name) > 1:
+                        continue
                     emotes.append(name)
 
         if parsed.description:

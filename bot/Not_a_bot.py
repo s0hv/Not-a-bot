@@ -160,8 +160,8 @@ class NotABot(Bot):
 
     async def on_server_join(self, server):
         session = self.get_session
-        sql = 'INSERT INTO `servers` (`server`, `prefix`) ' \
-              'VALUES (%s, %s) ON DUPLICATE KEY IGNORE' % (server.id, self.command_prefix)
+        sql = 'INSERT INTO `servers` (`server`) ' \
+              'VALUES (%s) ON DUPLICATE KEY IGNORE' % server.id
         session.execute(sql)
         session.commit()
 
@@ -170,7 +170,7 @@ class NotABot(Bot):
         if not row:
             return
 
-        self.server_cache.update_server(server.id, **row)
+        self.server_cache.update_cached_server(server.id, **row)
 
     async def _wants_to_be_noticed(self, member, server, remove=True):
         role = list(filter(lambda r: r.id == '318762162552045568', server.roles))

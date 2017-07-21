@@ -38,8 +38,8 @@ from collections import deque
 
 import discord
 from aiohttp import ClientSession
-from discord import Object, InvalidArgument, ChannelType, ClientException, \
-    voice_client, Reaction
+from discord import (Object, InvalidArgument, ChannelType, ClientException,
+                     voice_client, Reaction)
 from discord import state
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError

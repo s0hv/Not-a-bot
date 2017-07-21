@@ -45,6 +45,8 @@ audio = logging.getLogger('audio')
 # Added days and and aliases for names
 # Also fixed any string starting with the first option (e.g. 10dd would count as 10 days) being accepted
 time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|minutes)( |$))?((?P<seconds>\d+?) ?(s|seconds)( |$))?')
+timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|minutes)( |$))?((?P<seconds>\d+?) ?(s|seconds)( |$))?(?P<reason>.*)+?',
+                        re.DOTALL)
 
 
 class Object:
@@ -349,6 +351,18 @@ def parse_time(time_str):
     time_params = {name: int(param) for name, param in parts.items() if param}
 
     return timedelta(**time_params)
+
+
+def parse_timeout(time_str):
+    parts = timeout_regex.match(time_str)
+    if not parts:
+        return
+
+    parts = parts.groupdict()
+    reason = parts.pop('reason')
+    time_params = {name: int(param) for name, param in parts.items() if param}
+
+    return timedelta(**time_params), reason
 
 
 def datetime2sql(datetime):

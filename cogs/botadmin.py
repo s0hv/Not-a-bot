@@ -125,6 +125,24 @@ class BotAdmin(Cog):
         result = session.execute('SELECT `message` FROM `messages` WHERE `message_id` = %s' % msg_id)
         await self.bot.say(result.first()['message'])
 
+    @command(owner_only=True)
+    async def cache_servers(self):
+        session = self.bot.get_session
+        for server in self.bot.servers:
+            sql = 'SELECT * FROM `servers` WHERE server=%s' % server.id
+            row = session.execute(sql).first()
+            if not row:
+                sql = 'INSERT INTO `servers` (`server`, `prefix`) ' \
+                      'VALUES (%s, "%s")' % (server.id, self.bot.command_prefix)
+                session.execute(sql)
+                session.commit()
+                d = {'prefix': self.bot.command_prefix}
+            else:
+                d = {**row}
+                del d['server']
+
+            self.bot.server_cache.update_server(server.id, **d)
+
     # TODO rework
     """
     async def check_commands(commands, level, channel):

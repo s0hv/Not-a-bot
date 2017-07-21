@@ -10,10 +10,11 @@ from discord.ext.commands import cooldown, BucketType
 from datetime import datetime
 
 from bot.bot import command
-from utils.utilities import slots2dict, split_string, call_later, datetime2sql, parse_time
+from utils.utilities import slots2dict, split_string, call_later, datetime2sql, parse_timeout
 import logging
 
 logger = logging.getLogger('debug')
+
 
 class ManagementHandler:
     def __init__(self, bot):
@@ -535,7 +536,7 @@ class Management:
         return users, mute_role
 
     @command(pass_context=True, owner_only=True)
-    async def mute(self, ctx, *user):
+    async def mute(self, ctx, user, *reason):
         retval = await self._mute_check(ctx, user)
         if isinstance(retval, tuple):
             users, mute_role = retval
@@ -543,8 +544,22 @@ class Management:
             return
 
         try:
-            await self.bot.add_roles(users[0], mute_role)
-            await self.bot.say('Muted user {}'.format(users[0].name))
+            server = ctx.message.server
+            user = users[0]
+            await self.bot.add_roles(user, mute_role)
+            await self.bot.say('Muted user {} `{}`'.format(user.name, user.id))
+            chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
+            if chn:
+                author = ctx.message.author
+                description = '{} muted {} {}'.format(author.mention, user, user.id)
+                embed = discord.Embed(title='🤐 Moderation action [MUTE]',
+                                      timestamp=datetime.utcnow(),
+                                      description=description)
+                reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
+                embed.add_field(name='Reason', value=reason)
+                embed.set_thumbnail(url=author.avatar_url or author.default_avatar_url)
+                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+                await self.bot.send_message(chn, embed=embed)
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
 
@@ -583,6 +598,8 @@ class Management:
         """
         # Hardcoded whitelist for now
         # Tem, QT, Honk, s0hvaperuna
+        if ctx.message.author.id != '123050803752730624':
+            return await self.bot.say('Under construction')
         whitelist = ['266236554572333058', '216903801582518273', '218753123659808768', '123050803752730624']
         if ctx.message.author.id not in whitelist:
             return await self.bot.say("You aren't whitelisted")
@@ -593,7 +610,7 @@ class Management:
         else:
             return
 
-        time = parse_time(timeout)
+        time, reason = parse_timeout(timeout)
         if not time:
             return await self.bot.say('Invalid time string')
 
@@ -615,12 +632,25 @@ class Management:
             logger.exception('Could not save timeout')
             return await self.bot.say('Could not save timeout. Canceling action')
 
+        server = ctx.message.server
         try:
             await self.bot.add_roles(user, mute_role)
             await self.bot.say('Muted user {} for {}'.format(str(user), time))
-            chn = self.bot.get_channel('252872751319089153')
+            chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
             if chn:
-                await self.bot.send_message(chn, 'Muted user {} for {}'.format(str(user), time))
+                author = ctx.message.author
+                description = '{} muted {} `{}` for {}'.format(author.mention,
+                                                               user, user.id, time)
+
+                embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
+                                      timestamp=datetime.utcnow(),
+                                      description=description)
+                reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
+                embed.add_field(name='Reason', value=reason)
+                embed.set_thumbnail(url=author.avatar_url or author.default_avatar_url)
+                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+
+                await self.bot.send_message(chn, embed=embed)
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
 

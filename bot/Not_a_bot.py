@@ -9,6 +9,7 @@ from bot.bot import Bot
 from bot.cooldown import CooldownManager
 from utils.utilities import (split_string, slots2dict, retry)
 from cogs.voting import Poll
+from bot.servercache import ServerCache
 
 logger = logging.getLogger('debug')
 
@@ -27,7 +28,8 @@ initial_cogs = [
     'cogs.voting',
     'cogs.logging',
     'cogs.gachiGASM',
-    'cogs.moderator']
+    'cogs.moderator',
+    'cogs.settings']
 
 
 class Object:
@@ -42,6 +44,7 @@ class NotABot(Bot):
         cdm.add_cooldown('oshit', 3, 8)
         cdm.add_cooldown('imnew', 3, 8)
         self.cdm = cdm
+        self._server_cache = ServerCache(self)
 
         if perms:
             perms.bot = self
@@ -83,6 +86,10 @@ class NotABot(Bot):
     @property
     def get_session(self):
         return self._Session()
+
+    @property
+    def server_cache(self):
+        return self._server_cache
 
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))
@@ -150,6 +157,20 @@ class NotABot(Bot):
                 return
 
             await self._wants_to_be_noticed(after, server)
+
+    async def on_server_join(self, server):
+        session = self.get_session
+        sql = 'INSERT INTO `servers` (`server`, `prefix`) ' \
+              'VALUES (%s, %s) ON DUPLICATE KEY IGNORE' % (server.id, self.command_prefix)
+        session.execute(sql)
+        session.commit()
+
+        sql = 'SELECT * FROM `servers` WHERE server=%s' % server.id
+        row = session.execute(sql).first()
+        if not row:
+            return
+
+        self.server_cache.update_server(server.id, **row)
 
     async def _wants_to_be_noticed(self, member, server, remove=True):
         role = list(filter(lambda r: r.id == '318762162552045568', server.roles))

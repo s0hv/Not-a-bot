@@ -33,7 +33,7 @@ class Hearthstone:
         self.client = client
 
     @command()
-    @cooldown(1, 2)
+    @cooldown(1, 5)
     async def hs(self, *, name):
         headers = {'content-type': 'application/json', 'X-Mashape-Key': self.key}
         async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/%s' % name,
@@ -41,7 +41,7 @@ class Hearthstone:
             if r.status == 200:
                 js = await r.json()
                 imgs = ''
-                for j in js:
+                for j in js[:10]:
                     try:
                         j['collectible']
                     except KeyError:

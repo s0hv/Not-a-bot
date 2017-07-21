@@ -161,7 +161,6 @@ class ConnectionState(state.ConnectionState):
             self.dispatch('raw_bulk_message_delete', message_ids)
 
 
-
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
         super().__init__(loop=loop, **options)

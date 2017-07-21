@@ -15,7 +15,7 @@ class Admin(Cog):
 
         everyone = ctx.message.server.default_role
         overwrite = channel.overwrites_for(everyone)
-        overwrite.send_messages = not locked
+        overwrite.send_messages = False if locked else None
         try:
             await self.bot.edit_channel_permissions(channel, everyone, overwrite)
         except Exception as e:

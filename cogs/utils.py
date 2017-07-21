@@ -71,6 +71,10 @@ class Utilities(Cog):
         else:
             return await self.bot.say('No users found with %s' % user)
 
+    @command(ignore_extra=True, aliases=['src', 'source_code'])
+    async def source(self):
+        await self.bot.say('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
+
 
 def setup(bot):
     bot.add_cog(Utilities(bot))

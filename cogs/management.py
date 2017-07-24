@@ -557,7 +557,7 @@ class Management:
                                       description=description)
                 reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
                 embed.add_field(name='Reason', value=reason)
-                embed.set_thumbnail(url=author.avatar_url or author.default_avatar_url)
+                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
                 await self.bot.send_message(chn, embed=embed)
         except:
@@ -647,7 +647,7 @@ class Management:
                                       description=description)
                 reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
                 embed.add_field(name='Reason', value=reason)
-                embed.set_thumbnail(url=author.avatar_url or author.default_avatar_url)
+                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
 
                 await self.bot.send_message(chn, embed=embed)

@@ -129,7 +129,7 @@ class Moderator(Cog):
     async def timeout(self, ctx, user, *, timeout):
         """Mute user for a specified amount of time
          `timeout` is the duration of the mute.
-         The format is `n d|days` `n h|hours` `n m|minutes` `n s|seconds`
+         The format is `n d|days` `n h|hours` `n m|minutes` `n s|seconds` `reason`
          where at least one of them must be provided.
          Maximum length for a timeout is 30 days
         """

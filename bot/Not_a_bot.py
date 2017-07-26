@@ -1,15 +1,19 @@
 import logging
-from random import choice
 
 import discord
+from discord.ext import commands
+from discord.ext.commands import CommandNotFound, CommandError
+from discord.ext.commands.view import StringView
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from bot.bot import Bot
+from bot.bot import Bot, Context
+from bot import exceptions
 from bot.cooldown import CooldownManager
-from utils.utilities import (split_string, slots2dict, retry)
-from cogs.voting import Poll
 from bot.servercache import ServerCache
+from cogs.voting import Poll
+from utils.utilities import (split_string, slots2dict, retry)
+from bot.globals import BlacklistTypes
 
 logger = logging.getLogger('debug')
 
@@ -29,7 +33,8 @@ initial_cogs = [
     'cogs.logging',
     'cogs.gachiGASM',
     'cogs.moderator',
-    'cogs.settings']
+    'cogs.settings',
+    'cogs.command_blacklist']
 
 
 class Object:
@@ -42,9 +47,10 @@ class NotABot(Bot):
         super().__init__(prefix, conf, perms, aiohttp, **options)
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
-        cdm.add_cooldown('imnew', 3, 8)
         self.cdm = cdm
         self._server_cache = ServerCache(self)
+        self._perm_values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4, 'channel': 0x8, 'server': 0x10}
+        self._perm_returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False, 16: True, 18: False}
 
         if perms:
             perms.bot = self
@@ -83,6 +89,31 @@ class NotABot(Bot):
         for poll in polls.values():
             poll.start()
 
+    def cache_servers(self):
+        servers = self.servers
+        sql = 'SELECT * FROM `servers`'
+        session = self.get_session
+        ids = set()
+        for row in session.execute(sql).fetchall():
+            d = {**row}
+            d.pop('server', None)
+            print(d)
+            self.server_cache.update_cached_server(str(row['server']), **d)
+            ids.add(str(row['server']))
+
+        new_servers = []
+        for server in servers:
+            if server.id in ids:
+                continue
+
+            new_servers.append('(%s)' % server.id)
+
+        if new_servers:
+            sql = 'INSERT INTO `servers` (`server`) VALUES ' + ', '.join(new_servers)
+            print(sql)
+            session.execute(sql)
+            session.commit()
+
     @property
     def get_session(self):
         return self._Session()
@@ -102,6 +133,7 @@ class NotABot(Bot):
                 print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
         self.load_polls()
+        self.cache_servers()
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -133,7 +165,6 @@ class NotABot(Bot):
             return
 
         oshit = self.cdm.get_cooldown('oshit')
-        imnew = self.cdm.get_cooldown('imnew')
         if oshit and oshit.trigger(False) and message.content.lower().strip() == 'o shit':
             msg = 'waddup'
             await self.send_message(message.channel, msg)
@@ -144,9 +175,6 @@ class NotABot(Bot):
             else:
                 await self.send_message(message.channel, 'dat boi')
             return
-
-        elif imnew and imnew.trigger(False) and message.content.lower().translate(self.hi_new) == 'hiimnew':
-            await self.send_message(message.channel, 'Hi new, I\'m dad')
 
     async def on_member_update(self, before, after):
         server = after.server
@@ -232,3 +260,139 @@ class NotABot(Bot):
             return
 
         channel = server.get_channel(channel_id['channel_id'])
+
+    def check_blacklist(self, command, user, ctx):
+        session = self.get_session
+        sql = 'SELECT * FROM `command_blacklist` WHERE type=%s AND %s ' \
+              'AND (user=%s OR user IS NULL) LIMIT 1' % (BlacklistTypes.GLOBAL, command, user.id)
+        rows = session.execute(sql).fetchall()
+
+        if rows:
+            return False
+
+        if ctx.message.server is None:
+            return True
+
+        channel = ctx.message.channel.id
+        if user.roles:
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: r.id, user.roles)))
+        else:
+            roles = 'role IS NULL'
+
+        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE server=%s AND %s ' \
+              'AND (user IS NULL OR user=%s) AND %s AND (channel IS NULL OR channel=%s)' % (user.server.id, command, user.id, roles, channel)
+        rows = session.execute(sql).fetchall()
+        if not rows:
+            return None
+
+        smallest = 18
+        """
+        Here are the returns
+            1 user AND whitelist
+            3 user AND blacklist
+            4 whitelist AND role
+            6 blacklist AND role
+            8 channel AND whitelist
+            10 channel AND blacklist
+            16 whitelist AND server
+            18 blacklist AND server
+        """
+
+        for row in rows:
+            if row['type'] == BlacklistTypes.WHITELIST:
+                v1 = self._perm_values['whitelist']
+            else:
+                v1 = self._perm_values['blacklist']
+
+            if row['user'] is not None:
+                v2 = self._perm_values['user']
+            elif row['role'] is not None:
+                v2 = self._perm_values['role']
+            elif row['channel'] is not None:
+                v2 = self._perm_values['channel']
+            else:
+                v2 = self._perm_values['server']
+
+            v = v1 | v2
+            if v < smallest:
+                smallest = v
+
+        return smallest
+
+
+    # ----------------------------
+    # - Overridden methods below -
+    # ----------------------------
+
+    async def process_commands(self, message):
+        _internal_channel = message.channel
+        _internal_author = message.author
+
+        view = StringView(message.content)
+        if self._skip_check(message.author, self.user):
+            return
+
+        prefix = await self._get_prefix(message)
+        invoked_prefix = prefix
+
+        if not isinstance(prefix, (tuple, list)):
+            if not view.skip_string(prefix):
+                return
+        else:
+            invoked_prefix = discord.utils.find(view.skip_string, prefix)
+            if invoked_prefix is None:
+                return
+
+        invoker = view.get_word()
+        tmp = {
+            'bot': self,
+            'invoked_with': invoker,
+            'message': message,
+            'view': view,
+            'prefix': invoked_prefix,
+            'user_permissions': None
+        }
+        if self.permissions:
+            tmp['user_permissions'] = self.permissions.get_permissions(id=message.author.id)
+        ctx = Context(**tmp)
+        del tmp
+
+        if invoker in self.commands:
+            command = self.commands[invoker]
+            if command.owner_only and self.owner != message.author.id:
+                command.dispatch_error(exceptions.PermissionError('Only the owner can use this command'), ctx)
+                return
+
+            try:
+                overwrite_perms = self.check_blacklist('(command="%s" OR command IS NULL)' % command, message.author, ctx)
+                if isinstance(overwrite_perms, int):
+                    if message.server.owner.id == message.author.id:
+                        overwrite_perms = True
+                    else:
+                        overwrite_perms = self._perm_returns.get(overwrite_perms, False)
+
+                ctx.override_perms = overwrite_perms
+            except Exception as e:
+                await self.on_command_error(e, ctx)
+                return
+
+            if ctx.override_perms is False:
+                return await self.send_message(message.channel, 'Command %s is blacklisted for you' % command.name)
+            elif ctx.override_perms is None and command.required_perms is not None:
+                perms = message.channel.permissions_for(message.author)
+                if not perms.is_superset(command.required_perms):
+                    req = [r[0] for r in command.required_perms if r[1]]
+                    return await self.send_message(message.channel, 'Invalid permissions. Required perms are %s' % ', '.join(req))
+
+            self.dispatch('command', command, ctx)
+            try:
+                await command.invoke(ctx)
+            except discord.ext.commands.errors.MissingRequiredArgument as e:
+                command.dispatch_error(exceptions.MissingRequiredArgument(e), ctx)
+            except CommandError as e:
+                ctx.command.dispatch_error(e, ctx)
+            else:
+                self.dispatch('command_completion', command, ctx)
+        elif invoker:
+            exc = CommandNotFound('Command "{}" is not found'.format(invoker))
+            self.dispatch('command_error', exc, ctx)

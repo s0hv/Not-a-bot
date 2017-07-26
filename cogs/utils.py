@@ -8,7 +8,7 @@ class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(name='commands', pass_context=True, ignore_extra=True)
+    @command(name='commands', pass_context=True, ignore_extra=True, enabled=False)
     async def bot_commands(self, ctx):
         s = ''
 

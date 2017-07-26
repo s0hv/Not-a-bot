@@ -7,13 +7,14 @@ from threading import Lock
 import discord
 from colour import Color
 from discord.ext.commands import cooldown, BucketType
-from datetime import datetime
 
 from bot.bot import command
-from utils.utilities import slots2dict, split_string, call_later, datetime2sql, parse_timeout
+from utils.utilities import slots2dict, split_string
 import logging
 
 logger = logging.getLogger('debug')
+manage_server = discord.Permissions(48)  # Manage server and channels
+color_perms = discord.Permissions(268435504)  # Manage server, channels and roles
 
 
 class ManagementHandler:
@@ -250,22 +251,6 @@ class Management:
         self.bot = bot
         self.utils = ManagementHandler(bot)
         self.bot.management = self.utils
-        self._load_timeouts()
-
-    def _load_timeouts(self):
-        session = self.bot.get_session
-        sql = 'SELECT * FROM `timeouts`'
-        rows = session.execute(sql)
-        for row in rows:
-            try:
-                print(datetime.utcnow(), row['expires_on'])
-                time = row['expires_on'] - datetime.utcnow()
-                print(time)
-                call_later(self.untimeout, self.bot.loop, time.total_seconds(),
-                           str(row['user']), str(row['server']))
-
-            except:
-                logger.exception('Could not untimeout %s' % row)
 
     async def on_message_delete(self, msg):
         if msg.author.bot or msg.channel.id == '336917918040326166':
@@ -356,7 +341,7 @@ class Management:
         message = conf['message'].format(user=str(member), **d)
         await self.bot.send_message(channel, message)
 
-    @command(pass_context=True)
+    @command(pass_context=True, required_perms=manage_server)
     async def leave_message(self, ctx, channel, message=None):
         if channel.lower() == 'off':
             self.utils.get_config(ctx.message.server.id).pop('leave', None)
@@ -379,7 +364,7 @@ class Management:
             await self.bot.say('New format failed with error "{}"\n'
                                'reverting back'.format(e))
 
-    @command(pass_context=True)
+    @command(pass_context=True, required_perms=manage_server)
     async def join_message(self, ctx, channel, message=None, add_color=False):
         if channel.lower() == 'off':
             self.utils.get_config(ctx.message.server.id).pop('join', None)
@@ -402,13 +387,8 @@ class Management:
             await self.bot.say('New format failed with error "{}"\n'
                                'reverting back'.format(e))
 
-    @command(pass_context=True)
+    @command(pass_context=True, required_perms=manage_server)
     async def on_edit_message(self, ctx, channel, *, message):
-        user = ctx.message.author
-        channel_ = ctx.message.channel
-        if not user.permissions_in(channel_).manage_channels:
-            return await self.bot.send_message(channel_, "You don't have manage channel permissions")
-
         if channel.lower() == 'off':
             self.utils.get_config(ctx.message.server.id).pop('on_edit', None)
             await self.bot.say('Removed on message edit config')
@@ -427,13 +407,8 @@ class Management:
             await self.bot.say('New format failed with error "{}"\n'
                                'reverting back'.format(e))
 
-    @command(pass_context=True)
+    @command(pass_context=True, required_perms=manage_server)
     async def on_delete_message(self, ctx, channel, message):
-        user = ctx.message.author
-        channel_ = ctx.message.channel
-        if not user.permissions_in(channel_).manage_channels:
-            return await self.bot.send_message(channel_, "You don't have manage channel permissions")
-
         if channel.lower() == 'off':
             self.utils.get_config(ctx.message.server.id).pop('on_delete', None)
             await self.bot.say('Removed on message delete config')
@@ -453,7 +428,7 @@ class Management:
             await self.bot.say('New format failed with error "{}"\n'
                                'reverting back'.format(e))
 
-    @command(pass_context=True, owner_only=True)
+    @command(pass_context=True, owner_only=True, required_perms=color_perms)
     async def delete_color(self, ctx, *, name):
         server = ctx.message.server
         colors = self.utils.get_colors(server.id)
@@ -477,7 +452,7 @@ class Management:
         self.utils.delete_color_from_json(name.lower(), server.id)
         await self.bot.say('Deleted color %s' % name)
 
-    @command(pass_context=True, owner_only=True)
+    @command(pass_context=True, owner_only=True, required_perms=color_perms)
     async def mute_whitelist(self, ctx, *roles):
         role_mentions = ctx.message.role_mentions.copy()
 
@@ -497,190 +472,7 @@ class Management:
         role_mentions = list(map(lambda r: r.name, role_mentions))
         await self.bot.say('Roles {} added to the whitelist'.format(', '.join(role_mentions)))
 
-    @command(pass_context=True, owner_only=True)
-    async def muted_role(self, ctx, *roles):
-        server = ctx.message.server
-        role_mentions = ctx.message.role_mentions
-        role_mentions.extend(self.utils.get_roles_from_ids(server.roles, *roles))
-        if not role_mentions:
-            return await self.bot.say('No role/role id specified')
-
-        whitelist = self.utils.get_mute_whitelist(server.id)
-        role = role_mentions[0]
-        if role.id in whitelist:
-            return await self.bot.say('Role is already in the mute whitelist. '
-                                      'Remove it from there first using !remove_mute_whitelist')
-
-        self.utils.set_muted_role(server.id, role.id)
-        await self.bot.say('Muted role set to {0.name}: {0.id}'.format(role))
-
-    async def _mute_check(self, ctx, *user):
-        server = ctx.message.server
-        mute_role = self.utils.get_config(server.id).get('muted_role', None)
-        if mute_role is None:
-            await self.bot.say('No mute role set')
-            return False
-
-        users = ctx.message.mentions.copy()
-        users.extend(self.utils.get_users_from_ids(server, *user))
-
-        if not users:
-            await self.bot.say('No user ids or mentions')
-            return False
-
-        mute_role = discord.utils.find(lambda r: r.id == str(mute_role), server.roles)
-        if mute_role is None:
-            await self.bot.say('Could not find the muted role')
-            return False
-
-        return users, mute_role
-
-    @command(pass_context=True, owner_only=True)
-    async def mute(self, ctx, user, *reason):
-        retval = await self._mute_check(ctx, user)
-        if isinstance(retval, tuple):
-            users, mute_role = retval
-        else:
-            return
-
-        try:
-            server = ctx.message.server
-            user = users[0]
-            await self.bot.add_roles(user, mute_role)
-            await self.bot.say('Muted user {} `{}`'.format(user.name, user.id))
-            chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
-            if chn:
-                author = ctx.message.author
-                description = '{} muted {} {}'.format(author.mention, user, user.id)
-                embed = discord.Embed(title='🤐 Moderation action [MUTE]',
-                                      timestamp=datetime.utcnow(),
-                                      description=description)
-                reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
-                embed.add_field(name='Reason', value=reason)
-                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
-                await self.bot.send_message(chn, embed=embed)
-        except:
-            await self.bot.say('Could not mute user {}'.format(str(users[0])))
-
-    async def untimeout(self, user, server):
-        mute_role = self.utils.get_config(server).get('muted_role', None)
-        if mute_role is None:
-            return
-
-        server = self.bot.get_server(server)
-        user = server.get_member(user)
-        if not user:
-            return
-
-        if discord.utils.find(lambda r: r.id == mute_role, user.roles):
-            try:
-                await self.bot.replace_role(user, user.roles,
-                                            [r for r in user.roles if r.id != mute_role])
-            except:
-                logger.exception('Could not autounmute user %s' % user.id)
-
-        try:
-            session = self.bot.get_session
-            sql = 'DELETE FROM `timeouts` WHERE `server` = %s AND `user` = %s' % (server.id, user.id)
-            session.execute(sql)
-            session.commit()
-        except:
-            logger.exception('Could not delete untimeout')
-
-    @command(pass_context=True, aliases=['temp_mute'])
-    async def timeout(self, ctx, user, *, timeout):
-        """Mute user for a specified amount of time
-         `timeout` is the duration of the mute.
-         The format is `n d|days` `n h|hours` `n m|minutes` `n s|seconds`
-         where at least one of them must be provided.
-         Maximum length for a timeout is 30 days
-        """
-        # Hardcoded whitelist for now
-        # Tem, QT, Honk, s0hvaperuna
-        if ctx.message.author.id != '123050803752730624':
-            return await self.bot.say('Under construction')
-        whitelist = ['266236554572333058', '216903801582518273', '218753123659808768', '123050803752730624']
-        if ctx.message.author.id not in whitelist:
-            return await self.bot.say("You aren't whitelisted")
-
-        retval = await self._mute_check(ctx, user)
-        if isinstance(retval, tuple):
-            users, mute_role = retval
-        else:
-            return
-
-        time, reason = parse_timeout(timeout)
-        if not time:
-            return await self.bot.say('Invalid time string')
-
-        if time.days > 30:
-            return await self.bot.say("Timeout can't be longer than 30 days")
-
-        now = datetime.utcnow()
-        expires_on = datetime2sql(now + time)
-        user = users[0]
-        session = self.bot.get_session
-        try:
-            sql = 'INSERT INTO `timeouts` (`server`, `user`, `expires_on`) VALUES ' \
-                  '(:server, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=expires_on'
-
-            d = {'server': ctx.message.server.id, 'user': user.id, 'expires_on': expires_on}
-            session.execute(sql, params=d)
-            session.commit()
-        except:
-            logger.exception('Could not save timeout')
-            return await self.bot.say('Could not save timeout. Canceling action')
-
-        server = ctx.message.server
-        try:
-            await self.bot.add_roles(user, mute_role)
-            await self.bot.say('Muted user {} for {}'.format(str(user), time))
-            chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
-            if chn:
-                author = ctx.message.author
-                description = '{} muted {} `{}` for {}'.format(author.mention,
-                                                               user, user.id, time)
-
-                embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
-                                      timestamp=datetime.utcnow(),
-                                      description=description)
-                reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
-                embed.add_field(name='Reason', value=reason)
-                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
-
-                await self.bot.send_message(chn, embed=embed)
-        except:
-            await self.bot.say('Could not mute user {}'.format(str(users[0])))
-
-        call_later(self.untimeout, self.bot.loop,
-                   time.total_seconds(), user.id, ctx.message.server.id)
-
-    @command(pass_context=True, owner_only=True)
-    async def unmute(self, ctx, *user):
-        server = ctx.message.server
-        mute_role = self.utils.get_config(server.id).get('muted_role', None)
-        if mute_role is None:
-            return await self.bot.say('No mute role set')
-
-        users = ctx.message.mentions.copy()
-        users.extend(self.utils.get_users_from_ids(server, *user))
-
-        if not users:
-            return await self.bot.say('No user ids or mentions')
-
-        mute_role = discord.utils.find(lambda r: r.id == str(mute_role), server.roles)
-        if mute_role is None:
-            return await self.bot.say('Could not find the muted role')
-
-        try:
-            await self.bot.remove_roles(users[0], mute_role, remove_manually=False)
-            await self.bot.say('Unmuted user {}'.format(users[0].name))
-        except:
-            await self.bot.say('Could not unmute user {}'.format(users[0].name))
-
-    @command(pass_context=True, owner_only=True)
+    @command(pass_context=True, owner_only=True, required_perms=color_perms)
     async def remove_mute_whitelist(self, ctx, *roles):
         role_mentions = ctx.message.role_mentions.copy()
 
@@ -723,7 +515,7 @@ class Management:
 
         await self.bot.send_message(ctx.message.channel, embed=embed)
 
-    @command(pass_context=True, owner_only=True)
+    @command(pass_context=True, owner_only=True, required_perms=color_perms)
     async def add_color(self, ctx, color, *, name):
         try:
             color = Color(color)

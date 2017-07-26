@@ -1,32 +1,52 @@
+from sqlalchemy import text
+
+
 class ServerCache:
     def __init__(self, bot):
         self._bot = bot
         self._servers = {}
+        self._int2str = ['on_edit_channel', 'on_delete_channel', 'modlog', 'mute_role']
 
     @property
     def bot(self):
         return self._bot
 
     def update_cached_server(self, server_id, **values):
+        """
+        Updates a servers cached values. None values are ignored
+        """
         settings = self.get_settings(server_id)
         for k, v in values.items():
+            if v is None:
+                continue
+
+            if k in self._int2str:
+                v = str(v)
+
             settings[k] = v
 
     def get_modlog(self, server_id):
         return self.get_settings(server_id).get('modlog', None)
 
-    def set_modlog(self, server_id, channel):
-        settings = self.get_settings(server_id)
-
-        sql = 'INSERT INTO `servers` (`server`, `modlog`) VALUES ({0}, {1}) ON DUPLICATE KEY UPDATE modlog={1}'.format(server_id, channel)
+    def set_value(self, server_id, name, value):
+        sql = 'INSERT INTO `servers` (`server`, `{0}`) VALUES ({1}, :{0}) ON DUPLICATE KEY UPDATE {0}=:{0}'.format(name, server_id)
         session = self.bot.get_session
-        session.execute(sql)
+        session.execute(text(sql), params={name: value})
         session.commit()
-        settings['modlog'] = channel
+        settings = self.get_settings(server_id)
+        settings[name] = value
+
+    def set_modlog(self, server_id, channel_id):
+        self.set_value(server_id, 'modlog', channel_id)
+
+    def set_mute_role(self, server_id, role_id):
+        self.set_value(server_id, 'mute_role', role_id)
+
+    def get_mute_role(self, server_id):
+        return self.get_settings(server_id).get('mute_role', None)
 
     def get_settings(self, server_id):
         settings = self[server_id]
-        print(server_id, settings)
         if not settings:
             settings = {}
             self[server_id] = settings

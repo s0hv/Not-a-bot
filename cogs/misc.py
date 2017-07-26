@@ -20,7 +20,7 @@ class Misc(Cog):
         """Says the text that was put as a parameter"""
         await self.bot.say('{0} {1}'.format(ctx.message.author.mention, words))
 
-    @command(pass_context=True, ignore_extra=True)
+    @command(pass_context=True, ignore_extra=True, enabled=False)
     async def twitchquote(self, ctx):
         """CURRENTLY BROKEN. Random twitch quote from twitchquotes.com"""
         await self.bot.send_message(ctx.message.channel, await memes.twitch_poems(self.bot.aiohttp_client))

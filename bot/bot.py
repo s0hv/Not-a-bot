@@ -61,10 +61,11 @@ log = logging.getLogger('discord')
 
 
 class Command(commands.Command):
-    def __init__(self, name, callback, level=0, owner_only=False, **kwargs):
+    def __init__(self, name, callback, **kwargs):
         super().__init__(name, callback, **kwargs)
-        self.level = level
-        self.owner_only = owner_only
+        self.level = kwargs.pop('level', 0)
+        self.owner_only = kwargs.pop('owner_only', False)
+        self.required_perms = kwargs.pop('required_perms', None)
         if self.owner_only:
             print('registered owner_only command %s' % name)
 
@@ -72,15 +73,22 @@ class Command(commands.Command):
 class Group(Command, commands.Group):
     def __init__(self, **attrs):
         self.invoke_without_command = attrs.pop('invoke_without_command', False)
+
         self.level = attrs.pop('level', 0)
         self.owner_only = attrs.pop('owner_only', False)
-
+        self.required_perms = attrs.pop('required_perms', None)
         super(Command, self).__init__(**attrs)
+
         if self.owner_only:
             print('registered owner_only command %s' % self.name)
 
     def command(self, *args, **kwargs):
         def decorator(func):
+            if 'owner_only' not in kwargs:
+                kwargs['owner_only'] = self.owner_only
+            if 'required_perms' not in kwargs:
+                kwargs['required_perms'] = self.required_perms
+
             result = command(*args, **kwargs)(func)
             self.add_command(result)
             return result
@@ -415,16 +423,29 @@ class Bot(commands.Bot, Client):
         return decorator
 
     async def add_roles(self, member, *roles):
-        await super().add_roles(member, *roles)
-        member.roles.extend(roles)
-
-    async def remove_roles(self, member, *roles, remove_manually=True):
-        await super().remove_roles(member, *roles)
+        new_roles = set()
         for r in roles:
+            id = r if isinstance(r, str) else r.id
+            new_roles.add(id)
+
+        for role in member.roles:
+            new_roles.add(role.id)
+
+        new_roles = list(new_roles)
+        await self._replace_roles(member, new_roles)
+        return new_roles
+
+    async def remove_roles(self, member, *roles, remove_manually=False):
+        new_roles = [r.id for r in member.roles]
+        for r in roles:
+            id = r if isinstance(r, str) else r.id
             try:
-                member.roles.remove(r)
+                new_roles.remove(id)
             except ValueError:
                 pass
+
+        await self._replace_roles(member, new_roles)
+        return new_roles
 
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):
@@ -478,31 +499,39 @@ class Bot(commands.Bot, Client):
         return voice
 
     async def reconnect_voice_client(self, server):
-        if server.id not in self.voice_clients:
+        if server.id not in self.voice_clients_:
             return
 
-        vc = self.voice_clients.pop(server.id)
+        vc = self.voice_clients_.get(server.id)
         _paused = False
 
         player = vc.player
-        if vc.is_playing:
+        if vc.is_playing():
             vc.pause()
             _paused = True
 
         try:
-            await vc.disconnect()
+            await vc.voice.disconnect()
         except:
             print("Error disconnecting during reconnect")
+            self.voice_clients_.pop(server.id)
             traceback.print_exc()
 
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(1)
 
         if player:
-            new_vc = await self.join_voice_channel(vc.channel)
+            new_vc = await self.join_voice_channel(vc.voice.channel)
             vc.reload_voice(new_vc)
 
-            if not vc.is_playing and _paused:
-                player.resume()
+            if _paused:
+                vc.resume()
+
+    @staticmethod
+    def get_role(server, role_id):
+        if role_id is None:
+            return
+        role_id = str(role_id)
+        return discord.utils.find(lambda r: r.id == role_id, server.roles)
 
 
 class VoiceClient(discord.VoiceClient):
@@ -644,11 +673,12 @@ def group(name=None, **attrs):
 
 
 class Context(commands.context.Context):
-    __slots__ = ['user_permissions']
+    __slots__ = ['user_permissions', 'override_perms']
 
     def __init__(self, **attrs):
         super().__init__(**attrs)
         self.user_permissions = attrs.pop('user_permissions', None)
+        self.override_perms = attrs.pop('override_perms', None)
 
 
 class Formatter(HelpFormatter):

@@ -70,3 +70,14 @@ if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autopla
     except Exception as e:
         print('[ERROR] Autoplaylist copying failed.\nReason: %s' % e)
 
+
+class BlacklistTypes:
+    GLOBAL = 0
+    WHITELIST = 1
+    BLACKLIST = 2
+
+    OPPOSITES = {WHITELIST: BLACKLIST, BLACKLIST: WHITELIST}
+
+    @classmethod
+    def get_opposite(cls, value):
+        return cls.OPPOSITES.get(value, 0)

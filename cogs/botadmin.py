@@ -143,116 +143,20 @@ class BotAdmin(Cog):
 
             self.bot.server_cache.update_server(server.id, **d)
 
-    # TODO rework
-    """
-    async def check_commands(commands, level, channel):
-        if commands is None:
+    @command(pass_context=True, owner_only=True)
+    async def reconnect_vc(self, ctx):
+        await self.bot.reconnect_voice_client(ctx.message.server)
+
+    @command(pass_context=True, owner_only=True)
+    async def force_skip(self, ctx):
+        vc = self.bot.voice_clients_.get(ctx.message.server.id, None)
+        if not vc:
             return
 
-        _commands = set()
-        for command in commands:
-            if command.strip() == '':
-                continue
-
-            if command not in bot.commands:
-                raise BotValueError('Command %s not found' % command)
-
-            c = commands[command]
-            if c.level > level:
-                await bot.say_timeout('Cannot add command %s because commands requires level %s and yours is %s', channel, 120)
-            _commands.add(c.name)
-
-        return ', '.join(_commands)
-
-    @bot.command(pass_context=True)
-    async def permission_options(ctx):
-        s = 'Permission group options and default values'
-        for k, v in PERMISSION_OPTIONS.items():
-            s += '\n{}={}'.format(k, v)
-
-        await bot.send_message(ctx.message.channel, s)
-
-    @bot.command(pass_context=True, level=5)
-    async def create_permissions(ctx, *args):
-        print(args, ctx)
-        user_permissions = ctx.user_permissions
-        args = ' '.join(args)
-        args = re.findall(r'([\w\d]+=[\w\d\s]+)(?= [\w\d]+=[\w\d\s]+|$)', args)  # Could be improve but I don't know how
-
-        kwargs = {}
-
-        for arg in args:
-            try:
-                k, v = arg.split('=')
-            except ValueError:
-                raise BotValueError('Value %s could not be parsed' % arg)
-
-            kwargs[k] = v.strip()
-
-        channel = ctx.message.channel
-        kwargs = parse_permissions(kwargs, user_permissions)
-        kwargs['whitelist'] = await check_commands(kwargs['whitelist'], user_permissions.level, channel)
-        kwargs['blacklist'] = await check_commands(kwargs['blacklist'], user_permissions.level, channel)
-
-        msg = 'Confirm the creation if a permission group with{}\ny/n'.format(kwargs)
-        await bot.say_timeout(msg, ctx.message.channel, 40)
-        msg = await bot.wait_for_message(timeout=30, author=ctx.message.author, channel=channel, check=y_n_check)
-
-        if msg is None or msg in ['n', 'no']:
-            return await bot.say_timeout('Cancelling', ctx.message.channel, 40)
-
-        bot.permissions.create_permissions_group(**kwargs)
-
-    @bot.command(pass_context=True, level=5)
-    async def set_permissions(ctx, group_name, *args):
-        group = bot.permissions.get_permission_group(group_name)
-        channel = ctx.message.channel
-        perms = ctx.user_permissions
-        if perms is None:
-            return
-
-        if group is None:
-            return await bot.say_timeout('Permission group %s not found' % group_name, channel, 60)
-
-        if group.level >= perms.level >= 0 and not perms.master_override:
-            raise BotException('Your level must be higher than the groups level')
-
-        if group.master_override and not perms.master_override:
-            raise BotException("You cannot set roles with master override on if you don't have it yourself")
-
-        u = ctx.message.mentions
-
-        users = []
-        if perms.master_override:
-            users = [(None, i) for i in u]
-        else:
-            for user in u:
-                users.append((bot.permissions.get_permissions(user.id), user))
-
-        for role in ctx.message.role_mentions:
-            usrs = bot.get_role_members(role, ctx.message.server)
-            for user in usrs:
-                if perms.master_override:
-                    users.append((None, user))
-                else:
-                    users.append((bot.permissions.get_permissions(user.id), user))
-
-        valid_users = []
-        for user_perms, user in users:
-            if perms.master_override:
-                valid_users.append(user)
-            elif 0 <= perms.level <= user_perms.level:
-                await bot.say('Cannot change permission of %s because your level is too low' % user.name)
-            else:
-                valid_users.append(user)
-
-        errors = bot.permissions.set_permissions(group, *valid_users)
-
-        for user, e in errors.items():
-            await bot.say('Could not change the permissions of %s because of an error. %s' % (user.name, e))
-
-        await bot.say('Permissions set for %s users' % len(valid_users))
-    """
+        vc.play_next_song.set()
+        vc.audio_player.cancel()
+        vc.activity_check.cancel()
+        vc.create_audio_task()
 
 
 def setup(bot):

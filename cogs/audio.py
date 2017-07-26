@@ -438,7 +438,7 @@ class Audio:
         """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
-    @command(name='q', pass_context=True, no_pm=True, ignore_extra=True, level=1)
+    @command(pass_context=True, aliases=['q'], no_pm=True, ignore_extra=True)
     async def queue_np(self, ctx):
         """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
@@ -501,14 +501,6 @@ class Audio:
         Returns:
             None
         """
-        try:
-            file = get_cached_song(current.filename)
-        except NoCachedFileException:
-            pass
-            #await self.bot.send_message(ctx.message.channel, "Cannot seek songs that haven't been cached")
-            #current.seek = False
-            #return
-
         if options is None:
             options = current.options
 
@@ -532,7 +524,7 @@ class Audio:
         state.current.player.start()
         state.current.seek = False
 
-    @command(pass_context=True, ignore_extra=True, no_pm=True, level=2)
+    @command(pass_context=True, ignore_extra=True, no_pm=True)
     async def speed(self, ctx, value: str):
         channel = ctx.message.channel
         try:
@@ -639,7 +631,7 @@ class Audio:
 
         return await state.playlist.add_song(song_name, maxlen=ctx.user_permissions.max_playlist_length, **metadata)
 
-    @command(pass_context=True, no_pm=True, level=2)
+    @command(pass_context=True, no_pm=True, enabled=False)
     async def play_playlist(self, ctx, *, playlist):
         """Queue a saved playlist"""
         state = self.get_voice_state(ctx.message.server)
@@ -692,7 +684,7 @@ class Audio:
         return True
 
     @commands.cooldown(4, 4)
-    @command(pass_context=True, no_pm=True, level=2)
+    @command(pass_context=True, no_pm=True)
     async def stereo(self, ctx, *, song_name: str):
         """
         Works the same way !play does
@@ -704,7 +696,7 @@ class Audio:
         options = {'filter': 'apulsator'}
         await self.play_song(ctx, song_name, **options)
 
-    @command(pass_context=True, no_pm=True, level=4)
+    @command(pass_context=True, no_pm=True)
     async def clear(self, ctx, *, items):
         """
         Clear the selected indexes from the playlist.
@@ -760,7 +752,7 @@ class Audio:
                                        ctx.message.channel, state.current.duration)
 
     @commands.cooldown(4, 4)
-    @command(name='playnow', pass_context=True, no_pm=True, level=2)
+    @command(name='playnow', pass_context=True, no_pm=True)
     async def play_now(self, ctx, *, song_name: str):
         """
         Sets a song to the priority queue which is played as soon as possible
@@ -785,7 +777,7 @@ class Audio:
         state.pause()
 
     @commands.cooldown(1, 60)
-    @command(pass_context=True, level=1)
+    @command(pass_context=True, enabled=False)
     async def save_playlist(self, ctx, *name):
         if name:
             name = ' '.join(name)
@@ -800,7 +792,7 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
         state.resume()
 
-    @command(name='bpm', pass_context=True, no_pm=True, ignore_extra=True, level=1)
+    @command(name='bpm', pass_context=True, no_pm=True, ignore_extra=True)
     async def bpm(self, ctx):
         """Gets the currently playing songs bpm using aubio"""
         if not aubio:
@@ -871,7 +863,7 @@ class Audio:
                 pass
             os.remove(tempfile)
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(1, 4)
     @command(pass_context=True, no_pm=True)
     async def shuffle(self, ctx):
         state = self.get_voice_state(ctx.message.server)
@@ -929,8 +921,8 @@ class Audio:
         if not self.voice_states:
             self.clear_cache()
 
-    @commands.cooldown(4, 4)
-    @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'], level=2)
+    @commands.cooldown(1, 4)
+    @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'])
     async def skip(self, ctx):
         """Skips the current song"""
         state = self.get_voice_state(ctx.message.server)
@@ -941,7 +933,7 @@ class Audio:
 
         await state.skip(ctx.message.author)
 
-    @commands.cooldown(1, 3)
+    @commands.cooldown(1, 10)
     @command(name='queue', pass_context=True, no_pm=True, aliases=['playlist'])
     async def playlist(self, ctx, index=None):
         """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song
@@ -1005,7 +997,7 @@ class Audio:
 
         return await self.bot.send_message(ctx.message.channel, 'The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, level=3)
+    @command(pass_context=True, no_pm=True, ignore_extra=True, enabled=False)
     async def ds(self, ctx):
         perms = ctx.user_permissions
         if command_usable(perms, self.skip) and command_usable(perms, self.delete_from_ap):
@@ -1034,7 +1026,7 @@ class Audio:
         else:
             await self.bot.send_message(ctx.message.channel, 'No videos are currently playing')
 
-    @command(name='volm', pass_context=True, no_pm=True, level=1)
+    @command(name='volm', pass_context=True, no_pm=True)
     async def vol_multiplier(self, ctx, value=None):
         state = self.get_voice_state(ctx.message.server)
         if not value:
@@ -1053,7 +1045,7 @@ class Audio:
         await self.bot.send_message(ctx.message.channel, 'Link to **{0.title}**: {0.webpage_url}'.format(current))
 
     @commands.cooldown(1, 4)
-    @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], level=3)
+    @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], enabled=False)
     async def delete_from_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if not name:
@@ -1071,7 +1063,7 @@ class Audio:
         await state.say('Added entry %s to the deletion list' % ' '.join(name), 30, ctx.message.channel)
 
     @commands.cooldown(1, 4)
-    @command(name='add', pass_context=True, no_pm=True, level=3)
+    @command(name='add', pass_context=True, no_pm=True, enabled=False)
     async def add_to_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if name:
@@ -1106,7 +1098,7 @@ class Audio:
         print('[INFO] Added entry %s' % name)
         await state.say('Added entry %s' % name, 30, ctx.message.channel)
 
-    @command(pass_context=True, no_pm=True, level=1)
+    @command(pass_context=True, no_pm=True)
     async def autoplaylist(self, ctx, option: str):
         """Set the autoplaylist on or off"""
         state = self.get_voice_state(ctx.message.server)

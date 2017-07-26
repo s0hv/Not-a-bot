@@ -387,3 +387,47 @@ def call_later(func, loop, timeout, *args, **kwargs):
         await func(*args, **kwargs)
 
     return loop.create_task(wait())
+
+
+def get_users_from_ids(server, *ids):
+    users = []
+    for i in ids:
+        try:
+            int(i)
+        except:
+            continue
+
+        user = server.get_member(i)
+        if user:
+            users.append(user)
+
+    return users
+
+
+def check_channel_mention(msg, word):
+    if msg.channel_mentions:
+        if word != msg.channel_mentions[0].mention:
+            return False
+        return True
+    return False
+
+
+def check_role_mention(msg, word, server):
+    if msg.raw_role_mentions:
+        id = msg.raw_role_mentions[0]
+        if id not in word:
+            return False
+        role = list(filter(lambda r: r.id == id, server.roles))
+        if not role:
+            return False
+        return role[0]
+    return False
+
+
+def check_user_mention(msg, word):
+    if msg.mentions:
+        if word != msg.mentions[0].mention:
+            return False
+        return True
+    return False
+

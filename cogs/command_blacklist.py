@@ -65,24 +65,36 @@ class CommandBlacklist(Cog):
         role = check_role_mention(msg, mention, server)
         where = 'server=%s AND command IS NULL AND NOT type=%s AND ' % (server.id, BlacklistTypes.GLOBAL)
         type_string = 'Blacklisted' if type == BlacklistTypes.BLACKLIST else 'Whitelisted'
+        type_string2 = 'blacklist' if type == BlacklistTypes.BLACKLIST else 'whitelist'
 
         if check_user_mention(msg, mention):
             userid = msg.mentions[0].id
-            await self._set_blacklist(where + 'user=%s' % userid, user=int(userid), **values)
-            await self.bot.say('%s all commands from user %s' % (type_string, msg.mentions[0]))
+            success = await self._set_blacklist(where + 'user=%s' % userid, user=int(userid), **values)
+            if success:
+                message = '%s all commands from user %s' % (type_string, msg.mentions[0])
+            elif success is None:
+                message = 'removed %s from user %s' % (type_string2, msg.mentions[0])
 
         elif role:
-            await self._set_blacklist(where + 'role=%s' % role.id, role=int(role.id), **values)
-            await self.bot.say('{0} all commands from role {1} `{1.id}`'.format(type_string, role))
+            success = await self._set_blacklist(where + 'role=%s' % role.id, role=int(role.id), **values)
+            if success:
+                message = '{0} all commands from role {1} `{1.id}`'.format(type_string, role)
+            elif success is None:
+                message = 'Removed {0} from role {1} `{1.id}`'.format(type_string2, role)
 
         elif check_channel_mention(msg, mention):
             channel = msg.channel_mentions[0]
-            await self._set_blacklist(where + 'channel=%s' % channel.id,
-                                      channel=int(channel.id), **values)
-            await self.bot.say('{0} all commands from channel {1} `{1.id}`'.format(type_string, channel))
+            success = await self._set_blacklist(where + 'channel=%s' % channel.id,
+                                                channel=int(channel.id), **values)
+            if success:
+                message = '{0} all commands from channel {1} `{1.id}`'.format(type_string, channel)
+            elif success is None:
+                message = 'Removed {0} from channel {1} `{1.id}`'.format(type_string2, channel)
+
         else:
             return False
 
+        await self.bot.say(message)
         return True
 
     @command(pass_context=True, required_perms=perms, ignore_extra=True, no_pm=True)

@@ -132,6 +132,7 @@ class Moderator(Cog):
          The format is `n d|days` `n h|hours` `n m|minutes` `n s|seconds` `reason`
          where at least one of them must be provided.
          Maximum length for a timeout is 30 days
+         e.g. `!timeout <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
         """
         retval = await self._mute_check(ctx, user)
         if isinstance(retval, tuple):

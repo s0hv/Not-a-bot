@@ -14,7 +14,7 @@ from bot.servercache import ServerCache
 from cogs.voting import Poll
 from utils.utilities import (split_string, slots2dict, retry)
 from bot.globals import BlacklistTypes
-
+from datetime import datetime
 logger = logging.getLogger('debug')
 
 initial_cogs = [
@@ -151,9 +151,16 @@ class NotABot(Bot):
                     role = discord.utils.find(lambda r: r.id == '322837972317896704',
                                               message.server.roles)
                     if role is not None:
+                        user = message.author
                         await self.add_roles(message.author, role)
-                        await self.send_message(message.channel,
-                                                'Muted {0.mention}'.format(message.author))
+                        d = 'Automuted user {0} `{0.id}`'.format(message.author)
+                        embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
+                        embed.add_field(name='Reason', value='Too many mentions in a message')
+                        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+                        embed.set_footer(text=str(self.user), icon_url=self.user.avatar_url or self.user.default_avatar_url)
+                        chn = message.server.get_channel(self.server_cache.get_modlog(message.server.id)) or message.channel
+                        await self.send_message(chn, embed=embed)
+                        return
 
         if message.server and message.server.id == '217677285442977792' and message.author.id != '123050803752730624':
             if discord.utils.find(lambda r: r.id == '323098643030736919', message.role_mentions):

@@ -150,8 +150,7 @@ class ManagementHandler:
         self.servers[server.id] = config
         self.save_json()
         config_ = json.dumps(config[key], ensure_ascii=False)
-        await self.bot.say_timeout('Current {} message config ```json\n{}```'.format(key, config_),
-                                   channel_, 120)
+        await self.bot.say('Current {} message config ```json\n{}```'.format(key, config_), delete_after=120)
 
         return config
 

@@ -365,4 +365,4 @@ class Playlist:
         if channel is None:
             channel = self.channel
 
-        return await self.bot.say_timeout(message, channel, duration)
+        return await self.bot.send_message(channel, message, delete_after=duration)

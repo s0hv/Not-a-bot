@@ -15,6 +15,7 @@ from cogs.voting import Poll
 from utils.utilities import (split_string, slots2dict, retry)
 from bot.globals import BlacklistTypes
 from datetime import datetime
+from bot.globals import Auth
 logger = logging.getLogger('debug')
 
 initial_cogs = [
@@ -326,6 +327,18 @@ class NotABot(Bot):
 
         return smallest
 
+    def _check_auth(self, user_id, auth_level):
+        session = self.get_session
+        sql = 'SELECT `auth_level` FROM `bot_staff` WHERE user=%s' % user_id
+        rows = session.execute(sql).fetchall()
+        if not rows:
+            return False
+
+        if rows[0]['auth_level'] >= auth_level:
+            return True
+        else:
+            return False
+
 
     # ----------------------------
     # - Overridden methods below -
@@ -371,25 +384,41 @@ class NotABot(Bot):
                 return
 
             try:
-                overwrite_perms = self.check_blacklist('(command="%s" OR command IS NULL)' % command, message.author, ctx)
-                if isinstance(overwrite_perms, int):
-                    if message.server.owner.id == message.author.id:
-                        overwrite_perms = True
-                    else:
-                        overwrite_perms = self._perm_returns.get(overwrite_perms, False)
+                cd = self.cdm.get_or_create(message.server.id, 1, 5)
+                if command.auth > 0:
+                    if not self._check_auth(message.author.id, command.auth):
+                        if cd.trigger(False):
+                            await self.send_message(message.channel, "You aren't authorized to use this command")
+                        return
 
-                ctx.override_perms = overwrite_perms
+                else:
+                    overwrite_perms = self.check_blacklist('(command="%s" OR command IS NULL)' % command, message.author, ctx)
+                    if isinstance(overwrite_perms, int):
+                        if message.server.owner.id == message.author.id:
+                            overwrite_perms = True
+                        else:
+                            overwrite_perms = self._perm_returns.get(overwrite_perms, False)
+
+                    if overwrite_perms is False:
+                        if cd.trigger(False):
+                            await self.send_message(message.channel,
+                                                    'Command %s is blacklisted for you' % command.name)
+                            return
+                    elif overwrite_perms is None and command.required_perms is not None:
+                        perms = message.channel.permissions_for(message.author)
+
+                        if not perms.is_superset(command.required_perms):
+                            if cd.trigger(False):
+                                req = [r[0] for r in command.required_perms if r[1]]
+                                await self.send_message(message.channel,
+                                                        'Invalid permissions. Required perms are %s' % ', '.join(req),
+                                                        delete_after=10)
+                            return
+
+                    ctx.override_perms = overwrite_perms
             except Exception as e:
                 await self.on_command_error(e, ctx)
                 return
-
-            if ctx.override_perms is False:
-                return await self.send_message(message.channel, 'Command %s is blacklisted for you' % command.name)
-            elif ctx.override_perms is None and command.required_perms is not None:
-                perms = message.channel.permissions_for(message.author)
-                if not perms.is_superset(command.required_perms):
-                    req = [r[0] for r in command.required_perms if r[1]]
-                    return await self.send_message(message.channel, 'Invalid permissions. Required perms are %s' % ', '.join(req))
 
             self.dispatch('command', command, ctx)
             try:

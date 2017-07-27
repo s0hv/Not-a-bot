@@ -52,14 +52,14 @@ class Search:
     @command(pass_context=True, owner_only=True)
     async def image(self, ctx, *, query):
         #logger.debug('Image search query: {}'.format(query))
-        return await self.search(ctx, query, True)
+        return await self._search(ctx, query, True)
 
     @command(pass_context=True, owner_only=True)
     async def google(self, ctx, *, query):
         #logger.debug('Web search query: {}'.format(query))
-        return await self.search(ctx, query)
+        return await self._search(ctx, query)
 
-    async def search(self, ctx, query, image=False):
+    async def _search(self, ctx, query, image=False):
         params = {'key': self.key,
                   'cx': self.cx,
                   'q': query}
@@ -75,22 +75,21 @@ class Search:
 
                 total_results = json['searchInformation']['totalResults']
                 if int(total_results) == 0:
-                    return await self.bot.say_timeout('No results with the keywords "{}"'.format(query),
-                                                      channel, 30)
+                    return await self.bot.say('No results with the keywords "{}"'.format(query))
 
                 if 'items' in json:
                     self.last_search.clear()
                     for item in json['items']:
                         self.last_search.append(SearchItem(**item))
 
-                return await self.bot.say_timeout(self.last_search.popleft(), channel)
+                return await self.bot.say(self.last_search.popleft())
 
     @command(pass_context=True, ignore_extra=True)
     async def next_result(self, ctx):
         try:
-            return await self.bot.say_timeout(self.last_search.popleft(), ctx.message.channel)
+            return await self.bot.say(self.last_search.popleft())
         except IndexError:
-            return await self.bot.say_timeout('No more results', ctx.message.channel, 60)
+            return await self.bot.say('No more results', delete_after=60)
 
 
 def setup(bot):

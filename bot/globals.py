@@ -81,3 +81,9 @@ class BlacklistTypes:
     @classmethod
     def get_opposite(cls, value):
         return cls.OPPOSITES.get(value, 0)
+
+
+class Auth:
+    NONE = 0
+    MOD = 1
+    ADMIN = 2

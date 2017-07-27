@@ -45,6 +45,7 @@ from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.ext.commands.view import StringView
+from bot.globals import Auth
 
 try:
     import uvloop
@@ -66,6 +67,7 @@ class Command(commands.Command):
         self.level = kwargs.pop('level', 0)
         self.owner_only = kwargs.pop('owner_only', False)
         self.required_perms = kwargs.pop('required_perms', None)
+        self.auth = kwargs.pop('auth', Auth.NONE)
         if self.owner_only:
             print('registered owner_only command %s' % name)
 
@@ -77,6 +79,7 @@ class Group(Command, commands.Group):
         self.level = attrs.pop('level', 0)
         self.owner_only = attrs.pop('owner_only', False)
         self.required_perms = attrs.pop('required_perms', None)
+        self.auth = attrs.pop('auth', Auth.NONE)
         super(Command, self).__init__(**attrs)
 
         if self.owner_only:
@@ -196,7 +199,6 @@ class Bot(commands.Bot, Client):
         self.aiohttp_client = aiohttp
         self.config = config
         self.permissions = perms
-        self.timeout_messages = deque()
         self.owner = config.owner
         self.voice_clients_ = {}
 
@@ -220,17 +222,15 @@ class Bot(commands.Bot, Client):
 
         channel = context.message.channel
         if type(exception) is commands.errors.CommandOnCooldown:
-            await self.say_timeout('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after),
-                                   channel, 20)
+            await self.send_message(channel, 'Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return
 
         if isinstance(exception.__cause__, exceptions.BotException):
-            await self.say_timeout(exception.__cause__.message, channel, 30)
+            await self.send_message(channel, exception.__cause__.message, delete_after=30)
             return
 
         if isinstance(exception.__cause__, commands.errors.MissingRequiredArgument):
-            return await self.say_timeout('Missing arguments. {}'.format(str(exception.__cause__)),
-                                          channel, 60)
+            return await self.send_message(channel, 'Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
 
         print('Ignoring exception in command {}'.format(context.command), file=sys.stderr)
         traceback.print_exception(type(exception), exception,
@@ -247,26 +247,32 @@ class Bot(commands.Bot, Client):
 
         return decorator
 
-    async def say_timeout(self, message, channel, timeout=None):
-        """
-        Say something with a timeout if delete_messages is True
+    async def send_message(self, destination, content=None, *, tts=False, embed=None, delete_after=None):
+        """Same as the default implementation except you can specify a time
+        after which the message is deleted"""
 
-        Args:
-            message: The message that the bot will send
-            channel: the channel the message will be sent to
-            timeout: How long will be waited before the message is deleted
+        channel_id, guild_id = await self._resolve_destination(destination)
 
-        Returns:
-            If timeout is None this returns the default message
-            returned by bot.send_message. Else a custom TimeoutMessage class will be returned
-        """
-        if not self.config.delete_messages:
-            timeout = None
+        content = str(content) if content is not None else None
 
-        message = await self.send_message(channel, message)
-        if timeout is not None:
-            message = TimeoutMessage(message, timeout, self, self.timeout_messages)
-            self.timeout_messages.append(message)
+        if embed is not None:
+            embed = embed.to_dict()
+
+        data = await self.http.send_message(channel_id, content, guild_id=guild_id,
+                                            tts=tts, embed=embed)
+        channel = self.get_channel(data.get('channel_id'))
+        message = self.connection._create_message(channel=channel, **data)
+
+        if delete_after is not None:
+            async def delete():
+                message_id = message.id
+                try:
+                    await asyncio.sleep(delete_after, loop=self.loop)
+                    await self.http.delete_message(channel_id, message_id, guild_id)
+                except asyncio.CancelledError:
+                    await self.http.delete_message(channel_id, message_id, guild_id)
+
+            discord.compat.create_task(delete(), loop=self.loop)
 
         return message
 

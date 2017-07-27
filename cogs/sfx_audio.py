@@ -243,7 +243,7 @@ class Audio:
                 try:
                     silence = float(silence)
                 except ValueError as e:
-                    await self.bot.say_timeout('Silence duration needs to be a number\n%s' % e, channel, 90)
+                    await self.bot.say('Silence duration needs to be a number\n%s' % e, delete_after=20)
                     continue
 
                 silences.append(('aevalsrc=0:d={}[s{}]'.format(silence, str(silenceidx)), idx))
@@ -254,7 +254,7 @@ class Audio:
                 try:
                     bpm = int(''.join(name.split('-')[:-1]))
                     if bpm <= 0:
-                        await self.bot.say_timeout('BPM needs to be bigger than 0', channel, 90)
+                        await self.bot.say('BPM needs to be bigger than 0', delete_after=20)
                         continue
 
                     silence = 60 / bpm
@@ -266,13 +266,13 @@ class Audio:
 
             sfx = self._search_sfx(name)
             if not sfx:
-                await self.bot.say_timeout("Couldn't find %s. Skipping it" % name, channel, 30)
+                await self.bot.say("Couldn't find %s. Skipping it" % name, delete_after=30)
                 continue
 
             sfx_list.append(sfx[0])
 
         if not sfx_list:
-            return await self.bot.say_timeout('No sfx found', channel, 30)
+            return await self.bot.say('No sfx found', delete_after=30)
 
         state = self.get_voice_state(ctx.message.server)
         if state.voice is None:
@@ -328,7 +328,7 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
         state.random_sfx_on = value
 
-        await self.bot.say_timeout('Random sfx set to %s' % values_rev.get(value), ctx.message.channel, 120)
+        await self.bot.say('Random sfx set to %s' % values_rev.get(value))
 
     @command(pass_context=True)
     async def sfxlist(self, ctx):

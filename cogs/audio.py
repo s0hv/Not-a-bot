@@ -31,6 +31,7 @@ import time
 from collections import deque
 from math import floor
 import argparse
+from bot.globals import Auth
 
 try:
     import aubio
@@ -341,7 +342,7 @@ class MusicPlayer:
         if channel is None:
             channel = self.channel
 
-        return await self.bot.say_timeout(message, channel, timeout)
+        return await self.bot.send_message(channel, message, delete_after=timeout)
 
     def pause(self):
         if self.is_playing():
@@ -530,17 +531,14 @@ class Audio:
         try:
             v = float(value)
             if v > 2 or v < 0.5:
-                return await self.bot.say_timeout('Value must be between 0.5 and 2',
-                                                  channel, 60)
+                return await self.bot.say('Value must be between 0.5 and 2', delete_after=20)
         except ValueError as e:
-            return await self.bot.say_timeout('{0} is not a number\n{1}'.format(value, e),
-                                              channel, 60)
+            return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
 
         state = self.get_voice_state(ctx.message.server)
         current = state.current
         if current is None:
-            return await self.bot.say_timeout('Not playing anything right now',
-                                              channel, 60)
+            return await self.bot.say('Not playing anything right now', delete_after=20)
         sec = state.player.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)
@@ -585,9 +583,9 @@ class Audio:
                 if not 0.5 <= speed >= 2.0:
                     filters.append('atempo={}'.format(args.speed))
                 else:
-                    await self.bot.say_timeout('Speed value must be between 0.5 and 2', channel, 90)
+                    await self.bot.send_message(channel, 'Speed value must be between 0.5 and 2', delete_after=90)
             except ValueError as e:
-                await self.bot.say_timeout('%s\nIgnoring options -speed' % e, channel, 90)
+                await self.bot.send_message(channel, '%s\nIgnoring options -speed' % e, delete_after=90)
 
         if args.stereo:
             if permissions is None:
@@ -737,7 +735,7 @@ class Audio:
 
             player.volume = value / 100
             state.volume = value / 100
-            await self.bot.say_timeout('Set the volume to {:.0%}'.format(player.volume), ctx.message.channel, 60)
+            await self.bot.say('Set the volume to {:.0%}'.format(player.volume), delete_after=60)
 
     @commands.cooldown(1, 4)
     @command(pass_context=True, no_pm=True, aliases=['np'])
@@ -748,8 +746,8 @@ class Audio:
             await self.bot.say('No songs currently in queue')
         else:
             tr_pos = get_track_pos(state.current.duration, state.player.duration)
-            await self.bot.say_timeout(str(state.current) + ' {0}'.format(tr_pos),
-                                       ctx.message.channel, state.current.duration)
+            await self.bot.send_message(ctx.message.channel,str(state.current) + ' {0}'.format(tr_pos),
+                                        delete_after=state.current.duration)
 
     @commands.cooldown(4, 4)
     @command(name='playnow', pass_context=True, no_pm=True)
@@ -796,7 +794,7 @@ class Audio:
     async def bpm(self, ctx):
         """Gets the currently playing songs bpm using aubio"""
         if not aubio:
-            return await self.bot.say_timeout('BPM is not supported', ctx.message.channel, 100)
+            return await self.bot.say('BPM is not supported', delete_after=20)
 
         state = self.get_voice_state(ctx.message.server)
         song = state.current
@@ -805,10 +803,10 @@ class Audio:
             return
 
         if song.bpm:
-            return await self.bot.say_timeout('BPM for {} is about **{}**'.format(song.title, song.bpm), channel, 90)
+            return await self.bot.say('BPM for {} is about **{}**'.format(song.title, song.bpm))
 
         if song.duration == 0:
-            return await self.bot.say_timeout('Cannot determine bpm because duration is 0', channel, 90)
+            return await self.bot.say('Cannot determine bpm because duration is 0', delete_after=90)
 
         import subprocess
         import shlex
@@ -820,7 +818,7 @@ class Audio:
             p = subprocess.Popen(args, stdout=subprocess.PIPE)
         except Exception as e:
             print(e)
-            return await self.bot.say_timeout('Error while getting bpm', channel, 60)
+            return await self.bot.say('Error while getting bpm', delete_after=20)
 
         from utils.utilities import write_wav
 
@@ -946,16 +944,16 @@ class Audio:
             try:
                 index = int(index)
             except ValueError:
-                return self.bot.say_timeout('Index must be an integer', channel, 60)
+                return self.bot.say('Index must be an integer', delete_after=20)
 
             time_left = self.list_length(state, index)
             if not time_left:
-                return await self.bot.say_timeout('Empty playlist')
+                return await self.bot.say('Empty playlist')
 
             try:
                 song = playlist[index - 1]
             except IndexError:
-                return await self.bot.say_timeout('No songs at that index', channel, 60)
+                return await self.bot.say('No songs at that index', delete_after=60)
 
             message = 'Time until **{0.title}** is played: {1[0]}m {1[1]}s'.format(song, divmod(floor(time_left), 60))
             return await self.bot.send_message(channel, message)
@@ -997,12 +995,10 @@ class Audio:
 
         return await self.bot.send_message(ctx.message.channel, 'The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, enabled=False)
+    @command(pass_context=True, no_pm=True, ignore_extra=True, auth=Auth.MOD)
     async def ds(self, ctx):
-        perms = ctx.user_permissions
-        if command_usable(perms, self.skip) and command_usable(perms, self.delete_from_ap):
-            await ctx.invoke(self.skip)
-            await ctx.invoke(self.delete_from_ap)
+        await ctx.invoke(self.delete_from_ap)
+        await ctx.invoke(self.skip)
 
     @staticmethod
     def list_length(state, index=None):
@@ -1036,7 +1032,7 @@ class Audio:
             state.volume_multiplier = value
             await self.bot.say('Volume multiplier set to %s' % str(value))
         except ValueError:
-            await self.bot.say_timeout('Value is not a number', ctx.message.channel, 30)
+            await self.bot.say('Value is not a number', delete_after=30)
 
     @command(pass_context=True, no_pm=True)
     async def link(self, ctx):
@@ -1045,7 +1041,7 @@ class Audio:
         await self.bot.send_message(ctx.message.channel, 'Link to **{0.title}**: {0.webpage_url}'.format(current))
 
     @commands.cooldown(1, 4)
-    @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], enabled=False)
+    @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], auth=Auth.MOD)
     async def delete_from_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if not name:
@@ -1062,8 +1058,7 @@ class Audio:
         print('[INFO] Added entry %s to the deletion list' % name)
         await state.say('Added entry %s to the deletion list' % ' '.join(name), 30, ctx.message.channel)
 
-    @commands.cooldown(1, 4)
-    @command(name='add', pass_context=True, no_pm=True, enabled=False)
+    @command(name='add', pass_context=True, no_pm=True, auth=Auth.MOD)
     async def add_to_ap(self, ctx, *name):
         state = self.get_voice_state(ctx.message.server)
         if name:
@@ -1085,7 +1080,7 @@ class Audio:
 
             links = await state.playlist.process_playlist(info)
             if links is None:
-                await self.bot.say_timeout('Incompatible playlist')
+                await self.bot.say('Incompatible playlist')
 
             data = '\n'.join(links)
 

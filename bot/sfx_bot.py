@@ -73,18 +73,29 @@ class SfxBot(threading.Thread):
                 audio = sfx_bot.get_cog('Audio')
                 if audio:
                     await audio.shutdown()
-                for message in sfx_bot.timeout_messages.copy():
-                    message.delete_now()
-                    message.cancel_tasks()
 
-                await sfx_bot.close()
-                sfx_bot.aiohttp_client.close()
+                pending = asyncio.Task.all_tasks(loop=sfx_bot.loop)
+                gathered = asyncio.gather(*pending, loop=sfx_bot.loop)
+                try:
+                    gathered.cancel()
+                    sfx_bot.loop.run_until_complete(gathered)
+
+                    # we want to retrieve any exceptions to make sure that
+                    # they don't nag us about it being un-retrieved.
+                    gathered.exception()
+                except:
+                    pass
+
             except Exception as e:
                 print('SFX bot shutdown error: %s' % e)
             finally:
-                await sfx_bot.close()
+                sfx_bot.loop.run_until_complete(sfx_bot.close())
 
-        sfx_bot.run(self.config.sfx_token)
+        @sfx_bot.command(pass_context=True)
+        async def test(ctx):
+            await sfx_bot.send_message(ctx.message.channel, 'test', delete_after=20)
+
+        sfx_bot.run(sfx_bot.config.sfx_token)
 
     def run(self):
         self._start()

@@ -62,7 +62,7 @@ def start(config, permissions):
         p = os.path.join(os.getcwd(), 'data', 'playlists')
         files = os.listdir(p)
         sort = filter(lambda f: os.path.isfile(os.path.join(p, f)), files)
-        await bot.say_timeout('Playlists: {}'.format(', '.join(sort)), ctx.message.channel)
+        await bot.send_message(ctx.message.channel, 'Playlists: {}'.format(', '.join(sort)))
 
 
     bot.add_cog(search)

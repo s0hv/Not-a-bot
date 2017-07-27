@@ -28,6 +28,15 @@ class CooldownManager:
     def get_cooldown(self, name):
         return self.cooldowns.get(name, None)
 
+    def get_or_create(self, name, rate, per):
+        if name not in self.cooldowns:
+            cd = Cooldown(name, rate, per)
+            self.cooldowns[name] = cd
+        else:
+            cd = self.cooldowns[name]
+
+        return cd
+
 
 class Cooldown:
     def __init__(self, name, rate, per):

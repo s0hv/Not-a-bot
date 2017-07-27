@@ -25,7 +25,7 @@ class BotMod(Cog):
         empty_file(ADD_AUTOPLAYLIST)
 
         amount = len(songs)
-        await self.bot.say_timeout('Added %s song(s) to autoplaylist' % amount, ctx.message.channel, 60)
+        await self.bot.say('Added %s song(s) to autoplaylist' % amount)
 
     @command(pass_context=True, ignore_extra=True, owner_only=True)
     async def delete_all(self, ctx):
@@ -47,8 +47,7 @@ class BotMod(Cog):
 
         empty_file(DELETE_AUTOPLAYLIST)
 
-        await self.bot.say_timeout('Successfully deleted {0} songs and failed {1}'.format(succeeded, failed),
-                              ctx.message.channel, 60)
+        await self.bot.say('Successfully deleted {0} songs and failed {1}'.format(succeeded, failed))
 
 
 def setup(bot):

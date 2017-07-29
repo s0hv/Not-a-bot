@@ -99,11 +99,7 @@ class BotAdmin(Cog):
             except:
                 pass
 
-            for message in self.bot.timeout_messages.copy():
-                await message.delete_now()
-                message.cancel_tasks()
-
-                self.bot.aiohttp_client.close()
+            self.bot.aiohttp_client.close()
 
         except Exception as e:
             print('[ERROR] Error while shutting down %s' % e)

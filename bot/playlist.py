@@ -24,12 +24,11 @@ SOFTWARE.
 
 import asyncio
 import os
-import traceback
 from collections import deque
 from random import shuffle, choice
 import logging
 from validators import url as valid_url
-
+import functools
 
 try:
     from numpy import delete
@@ -108,13 +107,14 @@ class Playlist:
         search_key = search_keys.get(site, 'ytsearch')
 
         query = '{0}{1}:{2}'.format(search_key, max_results, name)
-        info = await self.downloader.extract_info(self.bot.loop, url=query, info=True, on_error=self.failed_info, download=False)
+        info = await self.downloader.extract_info(self.bot.loop, url=query, on_error=self.failed_info, download=False, extract_flat=False)
         if info is None or 'entries' not in info:
             return await self.say('Search gave no results', 60, ctx.message.channel)
 
+        channel = ctx.message.channel
         async def _say(msg):
             nonlocal ctx, self
-            return await self.say(msg, channel=ctx.message.channel)
+            return await self.say(msg, channel=channel)
 
         def check(msg):
             msg = msg.content.lower().strip()
@@ -123,96 +123,121 @@ class Playlist:
         async def _wait_for_message():
             nonlocal ctx, self
             return await self.bot.wait_for_message(timeout=60, author=ctx.message.author,
-                                                   channel=ctx.message.channel,
+                                                   channel=channel,
                                                    check=check)
 
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
+        message = None
         for entry in info['entries']:
             if entry.get('id') is None:
                 new_url = entry.get('url')
             else:
                 new_url = url % entry['id']
 
-            message = await _say('Is this the right one? (`Y`/`N`/`STOP`) {}'.format(new_url))
+            s = 'Is this the right one? (`Y`/`N`/`STOP`) {}'.format(new_url)
+            if message is not None:
+                try:
+                    await self.bot.edit_message(message, s)
+                except:
+                    message = await _say(s)
+            else:
+                message = await _say(s)
 
             returned = await _wait_for_message()
             if returned is None or returned.content.lower() in 'stop':
-                await self.bot.delete_message(message)
-                await _say('Cancelling search')
+                try:
+                    await self.bot.delete_message(message)
+                    await _say('Cancelling search')
+                except:
+                    pass
                 return
 
             if returned.content.lower().strip() in ['n', 'no']:
-                await self.bot.delete_message(message)
                 continue
 
             if in_vc:
                 await self.bot.delete_message(message)
-                await self._add_url(new_url, ctx.message.channel, priority=priority)
+                await self._add_url(new_url, priority=priority, channel=channel)
             return True
 
         await _say('That was all of them. Max amount of results is %s' % max_results)
 
-    async def _add_url(self, url, channel=None, no_message=False, priority=False, **metadata):
+    async def _add_from_info(self, channel=None, priority=False, no_message=False, metadata=None, **info):
         try:
             if not channel:
                 channel = self.channel
+            if metadata is None:
+                metadata = {}
 
-            info = await self.downloader.extract_info(self.bot.loop, url=url, download=False)
             fname = self.downloader.safe_ytdl.prepare_filename(info)
             song = Song(playlist=self, filename=fname, config=self.bot.config, **metadata)
             song.info_from_dict(**info)
             await self._append_song(song, priority)
 
             if not no_message:
-                await self.say('Enqueued %s' % song.title, 20, channel)
+                await self.say('Enqueued %s' % song.title, 20, channel=channel)
 
         except Exception as e:
-            traceback.print_exc()
-            return await self.say('Error\n%s' % e)
+            logger.exception('Could not add song')
+            return await self.say('Error\n%s' % e, channel=channel)
 
-    async def add_song(self, name, no_message=False, maxlen=10, priority=False, **metadata):
+    async def _add_url(self, url, channel=None, no_message=False, priority=False, **metadata):
+        if not channel:
+            channel = self.channel
+
+        on_error = functools.partial(self.failed_info, channel=channel)
+        info = await self.downloader.extract_info(self.bot.loop, url=url, download=False, on_error=on_error)
+        if info is None:
+            return
+        self._add_from_info(channel=channel, priority=priority,
+                            no_message=no_message, metadata=metadata, **info)
+
+    async def add_song(self, name, no_message=False, maxlen=10, priority=False,
+                       channel=None, **metadata):
+
+        on_error = functools.partial(self.failed_info, channel=channel)
+
         try:
             self.adding_songs = True
-            info = await self.downloader.extract_info(self.bot.loop, url=name, info=True, on_error=self.failed_info, download=False)
+            if valid_url(name):
+                info = await self.downloader.extract_info(self.bot.loop, url=name, on_error=on_error, download=False)
+            else:
+                info = await self._search(name, on_error=on_error)
             if info is None:
                 if not no_message:
-                    return await self.say('No songs found or a problem with YoutbeDL that I cannot fix :(')
+                    return await self.say('No songs found or a problem with YoutbeDL that I cannot fix :(', channel=channel)
                 return
-
-            if 'url' in info and info['url'].startswith('ytsearch'):
-                info = await self._search(name, on_error=self.failed_info)
-                if info is None:
-                    return
 
             if 'entries' in info:
                 entries = info['entries']
                 size = len(entries)
                 if size > maxlen >= 0:  # Max playlist size
-                    await self.say('Playlist is too big. Max size is %s' % maxlen)
+                    await self.say('Playlist is too big. Max size is %s' % maxlen, channel=channel)
                     return
 
                 if entries[0]['ie_key'].lower() != 'youtube':
-                    await self.say('Only youtube playlists are currently supported')
+                    await self.say('Only youtube playlists are currently supported', channel=channel)
                     return
 
                 url = 'https://www.youtube.com/watch?v=%s'
                 title = info['title']
                 if priority:
-                    await self.say('Playlists queued with playnow will be reversed except for the first song', 60)
+                    await self.say('Playlists queued with playnow will be reversed except for the first song', 60, channel=channel)
 
-                await self.say('Processing %s songs' % size, 30)
+                await self.say('Processing %s songs' % size, 30, channel=channel)
                 songs = deque()
                 first = True
                 for entry in entries:
                     try:
-                        info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False, on_error=self.failed_info)
+                        info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False)
                     except Exception as e:
-                        await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e)
+                        if not no_message:
+                            await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e, channel=channel)
                         continue
 
                     if info is None:
                         if not no_message:
-                            await self.say('Failed to process %s' % entry.get('title', entry['id']))
+                            await self.say('Failed to process %s' % entry.get('title', entry['id']), channel=channel)
                         continue
 
                     song = Song(playlist=self, config=self.bot.config, **metadata)
@@ -238,50 +263,51 @@ class Playlist:
                         message = 'Enqueued playlist %s to the top' % title
                     else:
                         message = 'Enqueued playlist %s' % title
-                    return await self.say(message, 60)
+                    return await self.say(message, 60, channel=channel)
 
             else:
-                await self._add_url(info['webpage_url'], no_message=no_message,
-                                    priority=priority, **metadata)
+                await self._add_from_info(priority=priority, channel=channel,
+                                          no_message=no_message, metadata=metadata, **info)
 
         finally:
             self.adding_songs = False
 
-    async def add_from_song(self, song, priority=False):
+    async def add_from_song(self, song, priority=False, channel=None):
         await self._append_song(song, priority)
         if priority:
-            await self.say('Enqueued {} to the top of the queue'.format(song))
+            await self.say('Enqueued {} to the top of the queue'.format(song), channel=channel)
         else:
-            await self.say('Enqueued {}'.format(song))
+            await self.say('Enqueued {}'.format(song), channel=channel)
 
     async def add_from_playlist(self, name, channel=None):
         lines = read_lines(os.path.join(self.playlist_path, name))
         if lines is None:
             return await self.say('Invalid playlist name')
 
-        await self.say('Processing % songs' % lines, 60, channel)
+        await self.say('Processing %s songs' % lines, 60, channel=channel)
         for line in lines:
             await self._add_url(line, no_message=True)
 
-        await self.say('Equeued %s' % name)
+        await self.say('Enqueued %s' % name, channel=channel)
 
     async def current_to_file(self, name=None, channel=None):
         if name == 'autoplaylist.txt':
             return await self.say('autoplaylist.txt is not a valid name')
 
         if not self.playlist:
-            return await self.say('Empty playlist', 60, channel)
+            return await self.say('Empty playlist', 60, channel=channel)
         lines = [song.webpage_url for song in self.playlist]
 
         if not name:
             name = 'playlist-{}'.format(timestamp())
         file = os.path.join(self.playlist_path, name)
         write_playlist(file, lines)
-        await self.say('Playlist %s created' % name, 90, channel)
+        await self.say('Playlist %s created' % name, 90, channel=channel)
 
     async def _search(self, name, **kwargs):
-        info = await self.downloader.extract_info(self.bot.loop, url=name, download=False, **kwargs)
-        return info['entries'][0]
+        info = await self.downloader.extract_info(self.bot.loop, extract_flat=False, url=name, download=False, **kwargs)
+        if 'entries' in info:
+            return info['entries'][0]
 
     def on_stop(self):
         if self.peek() is not None:
@@ -290,14 +316,14 @@ class Playlist:
             self.not_empty.clear()
 
     async def extract_info(self, name, on_error=None):
-        return await self.downloader.extract_info(self.bot.loop, url=name, download=False, on_error=on_error, info=True)
+        return await self.downloader.extract_info(self.bot.loop, url=name, download=False, on_error=on_error)
 
-    async def process_playlist(self, info):
+    async def process_playlist(self, info, channel=None):
         if 'entries' in info:
             entries = info['entries']
 
             if entries[0]['ie_key'].lower() != 'youtube':
-                await self.say('Only youtube playlists are currently supported')
+                await self.say('Only youtube playlists are currently supported', channel=channel)
                 return
 
             links = []
@@ -307,8 +333,8 @@ class Playlist:
 
             return links
 
-    async def failed_info(self, e):
-        await self.say("Couldn't get the requested video\n%s" % e)
+    async def failed_info(self, e, channel=None):
+        await self.say("Couldn't get the requested video\n%s" % e, channel=channel)
 
     async def _append_song(self, song, priority=False):
         if not self.playlist or priority:
@@ -365,4 +391,7 @@ class Playlist:
         if channel is None:
             channel = self.channel
 
-        return await self.bot.send_message(channel, message, delete_after=duration)
+        try:
+            return await self.bot.send_message(channel, message, delete_after=duration)
+        except:
+            pass

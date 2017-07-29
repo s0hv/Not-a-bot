@@ -25,6 +25,7 @@ SOFTWARE.
 import asyncio
 import logging
 import os
+import time
 
 logger = logging.getLogger('audio')
 
@@ -33,7 +34,7 @@ class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'uploader',
                  'playlist', 'seek', 'success', 'filename', 'before_options',
                  'options', 'dl_folder', '_downloading', 'on_ready', 'player',
-                 'logger', 'bpm', 'config']
+                 'logger', 'bpm', 'config', 'requested_by', 'last_update']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')
@@ -42,6 +43,7 @@ class Song:
         self.id = kwargs.pop('id', None)
         self.duration = kwargs.pop('duration', 0)
         self.uploader = kwargs.pop('uploader', 'None')
+        self.requested_by = kwargs.pop('requested_by', None)
         self.playlist = playlist
         self.seek = False
         self.success = False
@@ -60,40 +62,62 @@ class Song:
         self.on_ready = asyncio.Event()
         self.player = None
         self.bpm = None
+        self.last_update = 0
 
     @classmethod
-    def from_song(cls, song):
+    def from_song(cls, song, **kwargs):
         s = Song(**{k: getattr(song, k, None) for k in song.__slots__})
-        s.filename = song.filename
         s.bpm = song.bpm
+        for k in kwargs:
+            if k in song.__slots__:
+                setattr(s, k, kwargs[k])
+
         return s
 
     def __str__(self):
         string = '**{0.title}**'
         return string.format(self)
 
+    @property
     def long_str(self):
-        string = '**{0.title}** uploaded by {0.uploader}'
+        string = '**{0.title}**'
+        if self.requested_by:
+            string += ' enqueued by {0.requested_by}'
         return string.format(self)
 
     def info_from_dict(self, **kwargs):
-        self.title = kwargs.pop('title', self.title)
-        self.url = kwargs.pop('url', self.url)
-        self.webpage_url = kwargs.pop('webpage_url', self.webpage_url)
-        self.id = kwargs.pop('id', self.id)
-        self.duration = kwargs.pop('duration', self.duration)
-        self.uploader = kwargs.pop('uploader', self.uploader)
-        self.before_options = kwargs.pop('before_options', self.before_options)
-        self.options = kwargs.pop('options', self.options)
+        self.title = kwargs.get('title', self.title)
+        self.url = kwargs.get('url', self.url)
+        self.webpage_url = kwargs.get('webpage_url', self.webpage_url)
+        self.id = kwargs.get('id', self.id)
+        self.duration = kwargs.get('duration', self.duration)
+        self.uploader = kwargs.get('uploader', self.uploader)
+        self.before_options = kwargs.get('before_options', self.before_options)
+        self.options = kwargs.get('options', self.options)
+
+        if 'url' in kwargs:
+            self.last_update = time.time()
+            self.success = True
+
+        if self.playlist.bot.config.download:
+            self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(**kwargs)
+        else:
+            self.filename = self.url
 
     async def download(self):
         if self._downloading or self.success:
+            self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
             return
 
         self._downloading = True
-        logger.debug('Started downloading %s' % self.long_str())
+        logger.debug('Started downloading %s' % self.long_str)
         try:
             dl = self.config.download
+
+            if not dl and time.time() - self.last_update < 7200:
+                logger.debug('Skipping new dl')
+                return
+
             loop = self.playlist.bot.loop
             if dl:
                 if not os.path.exists(self.dl_folder):
@@ -133,11 +157,6 @@ class Song:
 
             self.info_from_dict(**info)
             print('[INFO] Downloaded', self.webpage_url)
-            if dl:
-                self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(info)
-            else:
-                self.filename = self.url
-
             logger.debug('Filename set to {}'.format(self.filename))
             self.success = True
             return

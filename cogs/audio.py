@@ -90,7 +90,6 @@ class MusicPlayer:
         self.autoplaylist = bot.config.autoplaylist
         self.volume_multiplier = bot.config.volume_multiplier
         self.messages = deque()
-        self.bot.loop.create_task(self.websocket_check())
         self.stop = stop_state
 
     def is_playing(self):
@@ -125,6 +124,7 @@ class MusicPlayer:
     def create_audio_task(self):
         self.audio_player = self.bot.loop.create_task(self.play_audio())
         self.activity_check = self.bot.loop.create_task(self._activity_check())
+        self.bot.loop.create_task(self.websocket_check())
 
     @property
     def player(self):
@@ -270,7 +270,10 @@ class MusicPlayer:
             self.current.player.volume = volume
             if not self.current.seek:
                 dur = get_track_pos(self.current.duration, 0)
-                await self.say('Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume), self.current.duration)
+                s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume)
+                if self.current.requested_by:
+                    s += ' enqueued by %s' % self.current.requested_by
+                await self.say(s, self.current.duration)
 
             print(self.player)
             logger.debug(self.player)
@@ -457,7 +460,8 @@ class Audio:
         if state is None or not state.is_playing():
             return
 
-        await state.playlist.add_from_song(Song.from_song(state.current), priority)
+        await state.playlist.add_from_song(Song.from_song(state.current), priority,
+                                           channel=ctx.message.channel)
 
     @commands.cooldown(4, 4)
     @command(pass_context=True)
@@ -525,28 +529,6 @@ class Audio:
         state.current.player.start()
         state.current.seek = False
 
-    @command(pass_context=True, ignore_extra=True, no_pm=True)
-    async def speed(self, ctx, value: str):
-        channel = ctx.message.channel
-        try:
-            v = float(value)
-            if v > 2 or v < 0.5:
-                return await self.bot.say('Value must be between 0.5 and 2', delete_after=20)
-        except ValueError as e:
-            return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
-
-        state = self.get_voice_state(ctx.message.server)
-        current = state.current
-        if current is None:
-            return await self.bot.say('Not playing anything right now', delete_after=20)
-        sec = state.player.duration
-        logger.debug('seeking with timestamp {}'.format(sec))
-        seek = self._seek_from_timestamp(sec)
-        options = self._parse_filters(current.options, 'atempo', value)
-        logger.debug('Filters parsed. Returned: {}'.format(options))
-
-        await self._seek(ctx, state, current, seek, options=options)
-
     def get_args(self, s):
         args = []
         if not s.startswith('-'):
@@ -567,29 +549,35 @@ class Audio:
 
         return args, ' '.join(s[len(args):])
 
-    async def _parse_play(self, string, ctx, metadata=None, permissions=None):
+    async def _parse_play(self, string, ctx, metadata=None, dont_parse=False):
         options = {}
         filters = []
         channel = ctx.message.channel
         if metadata and 'filter' in metadata:
-            filters.append(metadata['filter'])
+            fltr = metadata['filter']
+            if isinstance(fltr, str):
+                filters.append(fltr)
+            else:
+                filters.extend(fltr)
 
-        args, s = self.get_args(string)
-        args, unknown = self.argparser.parse_known_args(args)
-        song_name = ' '.join(unknown) + s
-        if args.speed:
-            try:
-                speed = float(args.speed)
-                if not 0.5 <= speed >= 2.0:
-                    filters.append('atempo={}'.format(args.speed))
-                else:
-                    await self.bot.send_message(channel, 'Speed value must be between 0.5 and 2', delete_after=90)
-            except ValueError as e:
-                await self.bot.send_message(channel, '%s\nIgnoring options -speed' % e, delete_after=90)
+        if not dont_parse:
+            args, s = self.get_args(string)
+            args, unknown = self.argparser.parse_known_args(args)
+            song_name = ' '.join(unknown) + s
+            if args.speed:
+                try:
+                    speed = float(args.speed)
+                    if not 0.5 <= speed >= 2.0:
+                        filters.append('atempo={}'.format(args.speed))
+                    else:
+                        await self.bot.send_message(channel, 'Speed value must be between 0.5 and 2', delete_after=90)
+                except ValueError as e:
+                    await self.bot.send_message(channel, '%s\nIgnoring options -speed' % e, delete_after=90)
 
-        if args.stereo:
-            if permissions is None:
+            if args.stereo:
                 filters.append('apulsator')
+        else:
+            song_name = string
 
         if filters:
             options['options'] = '-filter:a "{}"'.format(', '.join(filters))
@@ -605,6 +593,9 @@ class Audio:
         else:
             metadata = options
 
+        if 'requested_by' not in metadata:
+            metadata['requested_by'] = ctx.message.author
+
         logger.debug('Parse play returned {0}, {1}'.format(song_name, metadata))
         return song_name, metadata
 
@@ -615,19 +606,22 @@ class Audio:
         if you put keywords it will search youtube for them"""
         return await self.play_song(ctx, song_name)
 
-    async def play_song(self, ctx, song_name, **metadata):
+    async def play_song(self, ctx, song_name, priority=False, dont_parse=False,
+                        **metadata):
         state = self.get_voice_state(ctx.message.server)
 
         if state.voice is None:
             success = await ctx.invoke(self.summon)
             if not success:
+                print('[DEBUG] Failed to join vc')
                 return
 
-        song_name, metadata = await self._parse_play(song_name, ctx, metadata)
-        if ctx.user_permissions.level < 2:
-            metadata = {}
+        song_name, metadata = await self._parse_play(song_name, ctx, metadata,
+                                                     dont_parse=dont_parse)
 
-        return await state.playlist.add_song(song_name, maxlen=ctx.user_permissions.max_playlist_length, **metadata)
+        return await state.playlist.add_song(song_name, maxlen=10,
+                                             channel=ctx.message.channel,
+                                             priority=priority, **metadata)
 
     @command(pass_context=True, no_pm=True, enabled=False)
     async def play_playlist(self, ctx, *, playlist):
@@ -666,7 +660,7 @@ class Audio:
         """Summons the bot to join your voice channel."""
         summoned_channel = ctx.message.author.voice_channel
         if summoned_channel is None:
-            await self.bot.send_message(ctx.message.channel, 'You are not in a voice channel')
+            await self.bot.say('You are not in a voice channel')
             return False
 
         state = self.get_voice_state(ctx.message.server)
@@ -681,18 +675,50 @@ class Audio:
         state.playlist.channel = ctx.message.channel
         return True
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(1, 5, commands.BucketType.server)
+    @command(pass_context=True, ignore_extra=True, no_pm=True)
+    async def speed(self, ctx, value: str):
+        try:
+            v = float(value)
+            if v > 2 or v < 0.5:
+                return await self.bot.say('Value must be between 0.5 and 2', delete_after=20)
+        except ValueError as e:
+            return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
+
+        state = self.get_voice_state(ctx.message.server)
+        current = state.current
+        if current is None:
+            return await self.bot.say('Not playing anything right now', delete_after=20)
+        sec = state.player.duration
+        logger.debug('seeking with timestamp {}'.format(sec))
+        seek = self._seek_from_timestamp(sec)
+        options = self._parse_filters(current.options, 'atempo', value)
+        logger.debug('Filters parsed. Returned: {}'.format(options))
+
+        await self._seek(ctx, state, current, seek, options=options)
+
+    @commands.cooldown(2, 5)
     @command(pass_context=True, no_pm=True)
     async def stereo(self, ctx, *, song_name: str):
-        """
-        Works the same way !play does
-        <<--
-         -->>
-         <<--
-         -->>
+        """ Works almost the same way !play does
+        Default stereo type is sine.
+        All available modes are `sine`, `triangle`, `square`, `sawup` and `sawdown`
+        To set a different mode start your command parameters with -mode song_name
+        e.g. `!stereo -square stereo cancer music` would use the square mode
          """
-        options = {'filter': 'apulsator'}
-        await self.play_song(ctx, song_name, **options)
+        words = song_name.split(' ')
+
+        mode = 'sine'
+        if len(words) > 1 and words[0].startswith('-'):
+            s = words[0][1:]
+            if s in ['sine', 'triangle', 'square', 'sawup', 'sawdown']:
+                mode = s
+                song_name = ' '.join(words[1:])
+        else:
+            song_name = ' '.join(words)
+
+        options = {'filter': 'apulsator=mode=%s' % mode}
+        await self.play_song(ctx, song_name, dont_parse=True, **options)
 
     @command(pass_context=True, no_pm=True)
     async def clear(self, ctx, *, items):
@@ -746,8 +772,8 @@ class Audio:
             await self.bot.say('No songs currently in queue')
         else:
             tr_pos = get_track_pos(state.current.duration, state.player.duration)
-            await self.bot.send_message(ctx.message.channel,str(state.current) + ' {0}'.format(tr_pos),
-                                        delete_after=state.current.duration)
+            await self.bot.say(state.current.long_str + ' {0}'.format(tr_pos),
+                               delete_after=state.current.duration)
 
     @commands.cooldown(4, 4)
     @command(name='playnow', pass_context=True, no_pm=True)
@@ -762,10 +788,7 @@ class Audio:
             if not success:
                 return
 
-        song_name, metadata = await self._parse_play(song_name, ctx)
-        await state.playlist.add_song(song_name, priority=True,
-                                      maxlen=ctx.user_permission.max_playlist_length,
-                                      **metadata)
+        await self.play_song(ctx, song_name, priority=True)
 
     @commands.cooldown(4, 4)
     @command(pass_context=True, no_pm=True, aliases=['p'])
@@ -993,7 +1016,7 @@ class Audio:
         minutes, seconds = divmod(floor(time_left), 60)
         hours, minutes = divmod(minutes, 60)
 
-        return await self.bot.send_message(ctx.message.channel, 'The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
+        return await self.bot.say('The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, auth=Auth.MOD)
     async def ds(self, ctx):
@@ -1018,9 +1041,9 @@ class Audio:
         if state.is_playing():
             dur = state.player.duration
             msg = get_track_pos(state.current.duration, dur)
-            await self.bot.send_message(ctx.message.channel, msg)
+            await self.bot.say(msg)
         else:
-            await self.bot.send_message(ctx.message.channel, 'No videos are currently playing')
+            await self.bot.say('No songs are currently playing')
 
     @command(name='volm', pass_context=True, no_pm=True)
     async def vol_multiplier(self, ctx, value=None):
@@ -1067,18 +1090,21 @@ class Audio:
             current = state.current
             if current is None or current.webpage_url is None:
                 print('[INFO] No name specified in add_to')
-                await state.say('No song to add', 30, ctx.message.channel)
+                await self.bot.say('No song to add', delete_after=30)
                 return
 
             data = current.webpage_url
             name = data
 
         elif 'playlist' in name:
-            info = await state.playlist.extract_info(name)
+            async def on_error(e):
+                await self.bot.say('Failed to get playlist %s' % e)
+
+            info = await state.playlist.extract_info(name, on_error=on_error)
             if info is None:
                 return
 
-            links = await state.playlist.process_playlist(info)
+            links = await state.playlist.process_playlist(info, channel=ctx.message.channel)
             if links is None:
                 await self.bot.say('Incompatible playlist')
 

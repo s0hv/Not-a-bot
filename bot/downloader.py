@@ -44,7 +44,8 @@ opts = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    'nooverwrites': True
+    'nooverwrites': True,
+    'extract_flat': 'in_playlist'
 }
 
 youtube_dl.utils.bug_reports_message = lambda: ''
@@ -61,14 +62,16 @@ class Downloader:
         self.unsafe_ytdl = youtube_dl.YoutubeDL(opts)
         self.unsafe_ytdl.params['outtmpl'] = os.path.join(self.dl_folder, self.unsafe_ytdl.params['outtmpl'])
 
-        self.info_ytdl = youtube_dl.YoutubeDL(opts)
-        self.info_ytdl.params['extract_flat'] = True
+        self.non_flat_ytdl = youtube_dl.YoutubeDL(opts)
+        self.non_flat_ytdl.params['extract_flat'] = False
 
-    async def extract_info(self, loop, info=False, on_error=None, *args, **kwargs):
-        ytdl = self.unsafe_ytdl
+    async def extract_info(self, loop, on_error=None, extract_flat=True, *args, **kwargs):
+        if extract_flat:
+            ytdl = self.unsafe_ytdl
+        else:
+            ytdl = self.non_flat_ytdl
+
         print('dl called', args, kwargs)
-        if info:
-            ytdl = self.info_ytdl
         if callable(on_error):
             try:
                 return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
@@ -88,4 +91,4 @@ class Downloader:
 
     async def safe_extract_info(self, loop, *args, **kwargs):
         print('dl called', args, kwargs)
-        return await loop.run_in_executor(self.thread_pool, functools.partial(self.info_ytdl.extract_info, *args, **kwargs))
+        return await loop.run_in_executor(self.thread_pool, functools.partial(self.safe_ytdl.extract_info, *args, **kwargs))

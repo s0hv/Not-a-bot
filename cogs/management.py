@@ -266,7 +266,10 @@ class Management:
         message = self.utils.format_on_delete(msg, conf)
         message = split_string(message)
         for m in message:
-            await self.bot.send_message(channel, m)
+            try:
+                await self.bot.send_message(channel, m)
+            except:
+                await self.bot.send_message(self.bot.get_channel('252872751319089153'), '{} posted spam string'.format(msg.author))
 
     async def on_message_edit(self, before, after):
         if before.author.bot or before.channel.id == '336917918040326166':

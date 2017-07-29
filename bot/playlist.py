@@ -107,7 +107,7 @@ class Playlist:
         search_key = search_keys.get(site, 'ytsearch')
 
         query = '{0}{1}:{2}'.format(search_key, max_results, name)
-        info = await self.downloader.extract_info(self.bot.loop, url=query, on_error=self.failed_info, download=False, extract_flat=False)
+        info = await self.downloader.extract_info(self.bot.loop, url=query, on_error=self.failed_info, download=False)
         if info is None or 'entries' not in info:
             return await self.say('Search gave no results', 60, ctx.message.channel)
 

@@ -11,18 +11,18 @@ class Logger(Cog):
             return
 
         sql = "INSERT INTO `messages` (`shard`, `server`, `server_name`, `channel`, `channel_name`, `user`, `user_id`, `message`, `message_id`, `attachment`) " \
-              "VALUES (:shard, :server, :server_name, channel, :channel_name, :user, :user_id, :message, :message_id, :attachment)"
+              "VALUES (:shard, :server, :server_name, :channel, :channel_name, :user, :user_id, :message, :message_id, :attachment)"
         is_pm = message.channel.is_private
         shard = self.bot.shard_id
-        server = message.server.id if not is_pm else None
+        server = int(message.server.id) if not is_pm else None
         server_name = message.server.name if not is_pm else 'DM'
-        channel = message.channel.id if not is_pm else None
+        channel = int(message.channel.id) if not is_pm else None
         channel_name = message.channel.name if not is_pm else None
         user = str(message.author)
-        user_id = message.author.id
-        message_id = message.id
+        user_id = int(message.author.id)
+        message_id = int(message.id)
         attachment = message.attachments[0].get('url') if message.attachments else None
-        #print((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment))
+        # print((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment))
 
         self.session.execute(sql, {'shard': shard,
                                    'server': server,

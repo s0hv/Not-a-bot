@@ -431,3 +431,20 @@ def check_user_mention(msg, word):
         return True
     return False
 
+
+def get_avatar(user):
+    return user.avatar_url or user.default_avatar_url
+
+
+def get_user_id(s):
+    regex = re.compile(r'(?:<@!?)?(\d+)(?:>)?')
+    match = regex.match(s)
+    if match:
+        return match.groups()[0]
+
+
+def get_channel_id(s):
+    regex = re.compile(r'(?:<#)?(\d+)(?:>)?')
+    match = regex.match(s)
+    if match:
+        return match.groups()[0]

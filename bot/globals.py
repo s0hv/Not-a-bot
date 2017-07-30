@@ -26,6 +26,7 @@ import os
 from os.path import join
 from pathlib import Path
 import shutil
+from discord import Permissions
 
 try:
     _wd = Path(__file__).parent.parent.__str__()
@@ -87,3 +88,9 @@ class Auth:
     NONE = 0
     MOD = 1
     ADMIN = 2
+
+
+class Perms:
+    MANAGE_ROLES = Permissions(268435456)
+    MANAGE_ROLE_CHANNEL = Permissions(268435472)
+    MANAGE_MESSAGES = Permissions(8192 )

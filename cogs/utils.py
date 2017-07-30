@@ -1,5 +1,6 @@
 from cogs.cog import Cog
 from bot.bot import command
+from discord.ext.commands import cooldown
 from utils.utilities import split_string, emote_url_from_id, get_emote_id
 import time
 
@@ -45,9 +46,13 @@ class Utilities(Cog):
 
         await self.bot.say(emote_url_from_id(emote))
 
+    @cooldown(1, 3)
     @command(pass_context=True, aliases=['howtoping'])
     async def how2ping(self, ctx, *, user):
-        members = ctx.message.server.members
+        if ctx.message.server:
+            members = ctx.message.server.members
+        else:
+            members = self.bot.get_all_members()
 
         def filter_users(predicate):
             for member in members:

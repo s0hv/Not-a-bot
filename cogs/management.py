@@ -340,7 +340,7 @@ class Management:
 
         d = slots2dict(member)
         d.pop('user', None)
-        roles = ''
+        roles = ' '
         for r in member.roles:
             roles += str(r) + ', '
         logger.debug('Member roles before leaving' + roles)

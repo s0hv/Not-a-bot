@@ -55,7 +55,6 @@ except ImportError:
 
 
 from bot import exceptions
-from bot.message import TimeoutMessage
 from bot.permissions import check_permission
 
 log = logging.getLogger('discord')
@@ -74,8 +73,6 @@ class Command(commands.Command):
 
 class Group(Command, commands.Group):
     def __init__(self, **attrs):
-        self.invoke_without_command = attrs.pop('invoke_without_command', False)
-
         self.level = attrs.pop('level', 0)
         self.owner_only = attrs.pop('owner_only', False)
         self.required_perms = attrs.pop('required_perms', None)
@@ -84,6 +81,14 @@ class Group(Command, commands.Group):
 
         if self.owner_only:
             print('registered owner_only command %s' % self.name)
+
+    def group(self, *args, **kwargs):
+        def decorator(func):
+            result = group(*args, **kwargs)(func)
+            self.add_command(result)
+            return result
+
+        return decorator
 
     def command(self, *args, **kwargs):
         def decorator(func):
@@ -315,11 +320,10 @@ class Bot(commands.Bot, Client):
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
             command_ = self.commands.get(name)
             if command_ is None:
-                await self.send_message(destination,
-                                        self.command_not_found.format(name))
+                await self.send_message(destination, self.command_not_found.format(name))
                 return
 
-            for key in commands[1:]:
+            for key in commands_[1:]:
                 try:
                     key = commands.bot._mention_pattern.sub(repl, key)
                     command_ = command_.commands.get(key)
@@ -452,6 +456,9 @@ class Bot(commands.Bot, Client):
 
         await self._replace_roles(member, new_roles)
         return new_roles
+
+    async def bulk_delete(self, channel_id, message_ids):
+        await self.http.delete_messages(channel_id, message_ids)
 
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):

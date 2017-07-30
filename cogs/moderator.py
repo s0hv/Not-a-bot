@@ -1,14 +1,17 @@
 from cogs.cog import Cog
-from bot.bot import command
+from bot.bot import command, group
 from random import randint
 import discord
-from utils.utilities import get_users_from_ids, call_later, parse_timeout, datetime2sql
-from datetime import datetime
+from utils.utilities import (get_users_from_ids, call_later, parse_timeout,
+                             datetime2sql, get_avatar, get_user_id, get_channel_id)
+from datetime import datetime, timedelta
 import logging
+from bot.globals import Perms
 
-logger = logging.getLevelName('debug')
+
+logger = logging.getLogger('debug')
 manage_roles = discord.Permissions(268435456)
-lock_perms = discord.Permissions(268435472 )
+lock_perms = discord.Permissions(268435472)
 
 
 class Moderator(Cog):
@@ -32,7 +35,7 @@ class Moderator(Cog):
 
     # Required perms: manage roles
     @command(pass_context=True, required_perms=manage_roles)
-    async def add_role(self, ctx, name, random_color=True, mentionable=True):
+    async def add_role(self, ctx, name, random_color=True, mentionable=True, hoist=False):
         if ctx.message.server is None:
             return await self.bot.say('Cannot create roles in DM')
 
@@ -42,7 +45,7 @@ class Moderator(Cog):
             color = discord.Color(randint(0, 16777215))
         try:
             await self.bot.create_role(ctx.message.server, name=name, permissions=default_perms,
-                                       colour=color, mentionable=mentionable)
+                                       colour=color, mentionable=mentionable, hoist=hoist)
         except Exception as e:
             return await self.bot.say('Could not create role because of an error\n```%s```' % e)
 
@@ -173,12 +176,12 @@ class Moderator(Cog):
                                                                user, user.id, time)
 
                 embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
-                                      timestamp=datetime.utcnow(),
+                                      timestamp=datetime.utcnow() + time,
                                       description=description)
                 reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
                 embed.add_field(name='Reason', value=reason)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+                embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
 
                 await self.bot.send_message(chn, embed=embed)
         except:
@@ -231,14 +234,167 @@ class Moderator(Cog):
         except:
             pass
 
+    @staticmethod
+    def purge_embed(ctx, messages, users: set=None, multiple_channels=False):
+        author = ctx.message.author
+        if not multiple_channels:
+            d = '%s removed %s messages in %s' % (author.mention, len(messages), ctx.message.channel.mention)
+        else:
+            d = '%s removed %s messages' % (author.mention, len(messages))
+
+        if users is None:
+            users = set()
+            for m in messages:
+                if isinstance(m, discord.Message):
+                    users.add(m.author.mention)
+                elif isinstance(m, dict):
+                    try:
+                        users.add('<@!{}>'.format(m['user_id']))
+                    except KeyError:
+                        pass
+
+        value = ''
+        last_index = len(users) - 1
+        for idx, u in enumerate(list(users)):
+            if idx == 0:
+                value += u
+                continue
+
+            if idx == last_index:
+                user = ' and ' + u
+            else:
+                user = ', ' + u
+
+            if len(user) + len(value) > 1000:
+                value += 'and %s more users' % len(users)
+                break
+            else:
+                value += user
+            users.remove(u)
+
+        embed = discord.Embed(title='🗑 Moderation action [PURGE]', timestamp=datetime.utcnow(), description=d)
+        embed.add_field(name='Deleted messages from', value=value)
+        embed.set_thumbnail(url=get_avatar(author))
+        embed.set_footer(text=str(author), icon_url=get_avatar(author))
+        return embed
+
+    @group(pass_context=True, required_perms=Perms.MANAGE_MESSAGES, invoke_without_command=True, no_pm=True)
+    async def purge(self, ctx, max_messages=100):
+        channel = ctx.message.channel
+        messages = await self.bot.purge_from(channel, limit=max_messages)
+
+        modlog = self.bot.get_channel(self.bot.server_cache.get_modlog(ctx.message.server.id))
+        if not modlog:
+            return
+
+        embed = self.purge_embed(ctx, messages)
+        await self.bot.send_message(modlog, embed=embed)
+
+    @purge.command(name='from', pass_context=True, required_perms=Perms.MANAGE_MESSAGES,
+                   no_pm=True, ignore_extra=True)
+    async def from_(self, ctx, mention, max_messages: str=100, channel=None):
+        """
+        Delete messages from a user
+        `mention` The user mention or id of the user we want to purge messages from
+
+        [OPTIONAL]
+        `max_messages` Maximum amount of messages that can be deleted. Defaults to 100 and max value is 300.
+        `channel` Channel if or mention where you want the messages to be purged from. If not set will delete messages from any channel the bot has access to.
+        """
+        user = get_user_id(mention)
+        server = ctx.message.server
+        # We have checked the members channel perms but we need to be sure the
+        # perms are global when no channel is specified
+        if channel is None and not ctx.message.author.server_permissions.manage_messages and not ctx.override_perms:
+            return await self.bot.say("You don't have the permission to purge from all channels")
+
+        try:
+            max_messages = int(max_messages)
+        except ValueError:
+            return await self.bot.say('%s is not a valid integer' % max_messages)
+
+        max_messages = min(300, max_messages)
+
+        if channel is not None:
+            channel = get_channel_id(channel)
+            channel = server.get_channel(channel)
+
+        t = datetime.utcnow() - timedelta(days=14)
+        t = datetime2sql(t)
+        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE server=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (server.id, user, t)
+
+        if channel is not None:
+            sql += 'AND channel=%s ' % channel.id
+
+        sql += 'ORDER BY `message_id` DESC LIMIT %s' % max_messages
+        session = self.bot.get_session
+
+        modlog = self.get_modlog(server)
+        rows = session.execute(sql).fetchall()
+        if not rows:
+            if channel is None:
+                return await self.bot.say("Could not find any messages by `%s`. Alternative method will only delete messages from a channel which wasn't specified" % mention)
+
+            messages = await self.bot.purge_from(channel, limit=min(max_messages, 100),
+                                                 check=lambda m: m.author.id == user)
+
+            if modlog and messages:
+                embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user})
+                await self.bot.send_message(modlog, embed=embed)
+
+            return
+
+        channel_messages = {}
+        for r in rows:
+            if r['channel'] not in channel_messages:
+                l = []
+                channel_messages[r['channel']] = l
+            else:
+                l = channel_messages[r['channel']]
+
+            l.append(str(r['message_id']))
+
+        ids = []
+        for k in channel_messages:
+            try:
+                await self.delete_messages(k, channel_messages[k])
+            except:
+                logger.exception('Could not delete messages')
+            else:
+                ids.extend(channel_messages[k])
+
+        if ids:
+            sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join(ids)
+            try:
+                session.execute(sql)
+                session.commit()
+            except:
+                logger.exception('Could not delete messages from database')
+
+            if modlog:
+                embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
+                await self.bot.send_message(modlog, embed=embed)
+
     @command(pass_context=True, ignore_extra=True, required_perms=lock_perms)
     async def lock(self, ctx):
+        """Set send_messages permission override of everyone to false on current channel"""
         await self._set_channel_lock(ctx, True)
 
     @command(pass_context=True, ignore_extra=True, required_perms=lock_perms)
     async def unlock(self, ctx):
+        """Set send_messages permission override on current channel to default position"""
         await self._set_channel_lock(ctx, False)
+
+    async def delete_messages(self, channel_id, message_ids):
+        """Delete messages in bulk and take the message limit into account"""
+        step = 100
+        for idx in range(0, len(message_ids), step):
+            await self.bot.bulk_delete(channel_id, message_ids[idx:idx+step])
+
+    def get_modlog(self, server):
+        return server.get_channel(self.bot.server_cache.get_modlog(server.id))
 
 
 def setup(bot):
     bot.add_cog(Moderator(bot))
+

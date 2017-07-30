@@ -340,7 +340,11 @@ class Management:
 
         d = slots2dict(member)
         d.pop('user', None)
-        logger.debug('Member roles before leaving' + ', '.join(member.roles))
+        roles = ''
+        for r in member.roles:
+            roles += str(r) + ', '
+        logger.debug('Member roles before leaving' + roles)
+
         message = conf['message'].format(user=str(member), **d)
         await self.bot.send_message(channel, message)
 

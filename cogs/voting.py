@@ -1,18 +1,15 @@
-import json
-import os
-import time
 import argparse
-from discord import User
 import asyncio
-import discord
-from bot.bot import command
-from datetime import datetime, timedelta
-import re
-import operator
-from utils.utilities import get_emote_name_id, parse_time, datetime2sql, Object
 import logging
+import operator
+from datetime import datetime, timedelta
+
+import discord
 from sqlalchemy import text
 
+from bot.bot import command
+from utils.utilities import (get_emote_name_id, parse_time, datetime2sql,
+                             get_avatar)
 
 logger = logging.getLogger('debug')
 
@@ -183,7 +180,7 @@ class VoteManager:
         # TODO Add permission check
 
         # Add -header if it's not present so argparser can recognise the argument
-        message = '-header ' + message if not message.startswith('-t') else message
+        message = '-header ' + message if not message.startswith('-h') else message
         try:
             parsed = self.parser.parse_args(message.split(' '))
         except:
@@ -195,20 +192,18 @@ class VoteManager:
         if parsed.no_duplicate_votes and parsed.allow_multiple_entries:
             return await self.bot.say('Cannot have -n and -a specified at the same time. That would be dumb')
 
-        expired_date = None
         title = ' '.join(parsed.header)
-        if parsed.time:
-            expires_in = parse_time(' '.join(parsed.time))
-            if expires_in.total_seconds() == 0:
-                await self.bot.say('No time specified or time given is 0 seconds. Using default value of 60s')
-                expires_in = timedelta(seconds=60)
-            if expires_in.days > 7:
-                return await self.bot.say('Maximum time is 7 days')
+        expires_in = parse_time(' '.join(parsed.time))
+        if expires_in.total_seconds() == 0:
+            await self.bot.say('No time specified or time given is 0 seconds. Using default value of 60s')
+            expires_in = timedelta(seconds=60)
+        if expires_in.days > 7:
+            return await self.bot.say('Maximum time is 7 days')
 
-            now = datetime.utcnow()
-            expired_date = now + expires_in
-            sql_date = datetime2sql(expired_date)
-            parsed.time = sql_date
+        now = datetime.utcnow()
+        expired_date = now + expires_in
+        sql_date = datetime2sql(expired_date)
+        parsed.time = sql_date
 
         emotes = []
         failed = []
@@ -231,10 +226,25 @@ class VoteManager:
         else:
             description = discord.Embed.Empty
 
-        embed = discord.Embed(title=title, description=description)
+        embed = discord.Embed(title=title, description=description, timestamp=expired_date)
         if parsed.time:
-            embed.add_field(name='Expires at',
-                            value='{}\nor in {}\nCurrent time {}'.format(parsed.time, str(expires_in), datetime.utcnow().ctime()))
+            embed.add_field(name='Valid for',
+                            value='%s' % str(expires_in))
+        embed.set_footer(text='Expires at', icon_url=get_avatar(ctx.message.author))
+
+        options = ''
+        if parsed.strict:
+            options += 'Strict mode on. Only specified emotes are counted\n'
+
+        if parsed.no_duplicate_votes:
+            options += 'Voting for more than one valid option will invalidate your vote'
+
+        if parsed.allow_multiple_entries:
+            options += 'All all valid votes are counted from a user'
+
+        if options:
+            embed.add_field(name='Modifiers', value=options)
+
         msg = await self.bot.send_message(ctx.message.channel, embed=embed)
 
         # add reactions to message
@@ -253,7 +263,7 @@ class VoteManager:
         d = {'server': ctx.message.server.id, 'title': title,
              'strict': parsed.strict, 'message': msg.id, 'channel': ctx.message.channel.id,
              'expires_in': parsed.time, 'ignore_on_dupe': parsed.no_duplicate_votes,
-             'multiple_votes':parsed.allow_multiple_entries}
+             'multiple_votes': parsed.allow_multiple_entries}
         try:
             self.session.execute(text(sql), params=d)
 
@@ -296,36 +306,6 @@ class VoteManager:
                     emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
                     multiple_votes=parsed.allow_multiple_entries)
         poll.start()
-
-    async def get_most_voted(self, msg):
-        users_voted = []
-        votes = {}
-        reactions = msg.reactions
-        if not reactions:
-            return
-
-        for emote, users in reactions:
-            votes_ = 0
-            for user in list(users):
-                if user not in users_voted:
-                    users_voted.append(user)
-                    votes_ += 1
-
-            votes[emote] = votes_
-
-        print(votes)
-        emote = max(votes.keys(), key=lambda key: votes[key])
-        return emote, votes[emote]
-
-    def add_message(self, message):
-        votes = self.get_vote_messages(message.server.id)
-        votes[message.id] = time.time()
-
-    def get_vote_messages(self, serverid):
-        if serverid not in self.votes:
-            self.votes[serverid] = {}
-
-        return self.votes[serverid]
 
 
 def setup(bot):

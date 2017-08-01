@@ -619,7 +619,8 @@ class Audio:
         song_name, metadata = await self._parse_play(song_name, ctx, metadata,
                                                      dont_parse=dont_parse)
 
-        return await state.playlist.add_song(song_name, maxlen=10,
+        maxlen = -1 if ctx.message.author.id == self.bot.config.owner else 10
+        return await state.playlist.add_song(song_name, maxlen=maxlen,
                                              channel=ctx.message.channel,
                                              priority=priority, **metadata)
 

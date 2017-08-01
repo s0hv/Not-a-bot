@@ -15,19 +15,13 @@ logger = logging.getLogger('debug')
 
 
 class Poll:
-    def __init__(self, bot, message, channel, title, expires_at=None, strict=False,
-                 emotes=None, no_duplicate_votes=False, multiple_votes=False):
+    def __init__(self, bot, message, channel, title, expires_at=None,
+                 strict=False, emotes=None, no_duplicate_votes=False,
+                 multiple_votes=False, max_winners=1):
         """
-
         Args:
-            bot:
             message: either `class`: discord.Message or int
-            channel:
-            title:
-            expires_at:
-            strict:
-            emotes:
-            no_duplicate_votes:
+            others explained in VoteManager
         """
         self._bot = bot
         self.message = message
@@ -38,6 +32,7 @@ class Poll:
         self._emotes = emotes or []
         self.ignore_on_dupe = no_duplicate_votes
         self.multiple_votes = multiple_votes
+        self.max_winners = max_winners
         self._task = None
 
     @property
@@ -59,10 +54,13 @@ class Poll:
                 pass
 
     async def _wait(self):
-        time_ = self.expires_at - datetime.utcnow()
-        time_ = time_.total_seconds()
-        if time_ > 0:
-            await asyncio.sleep(time_)
+        try:
+            time_ = self.expires_at - datetime.utcnow()
+            time_ = time_.total_seconds()
+            if time_ > 0:
+                await asyncio.sleep(time_)
+        except asyncio.CancelledError:
+            pass
 
         await self.count_votes()
 
@@ -116,21 +114,31 @@ class Poll:
                 score = scores.get(r, 0)
                 scores[r] = score + 1
 
-        scores = sorted(scores.items(), key=operator.itemgetter(1))
-        biggest = 0
+        scores = sorted(scores.items(), key=operator.itemgetter(1),  reverse=True)
+        if scores:
+            current_winners = []
+            winners = 0
+            current_score = -1
+            end = '\nWinner(s) are '
+            for emote, score in scores:
+                if score > current_score:
+                    current_score = score
+                    current_winners.append(emote)
+                elif score == current_score:
+                    current_winners.append(emote)
+                elif self.max_winners > winners and current_score >= score:
+                    if current_score > score:
+                        end += '{} with the score of {} '.format(' '.join(current_winners), current_score)
+                        current_winners = []
+                        current_score = score
 
-        winners = []
-        for emote, score in scores:
-            if score > biggest:
-                biggest = score
-                winners = [emote]
-            elif score == biggest:
-                winners.append(emote)
-            else:
-                break
+                    current_winners.append(emote)
+                else:
+                    break
 
-        if winners:
-            end = '\nWinner(s) are {} with the score of {}'.format(' '.join(winners), biggest)
+                winners += 1
+
+            end += '{} with the score of {}'.format(' '.join(current_winners), current_score)
         else:
             end = ' with no winners'
 
@@ -157,6 +165,7 @@ class VoteManager:
         self.parser.add_argument('-time', default='60s', nargs='+')
         self.parser.add_argument('-emotes', default=None, nargs='+')
         self.parser.add_argument('-description', default=None, nargs='+')
+        self.parser.add_argument('-max_winners', default=1, type=int)
         self.parser.add_argument('-strict', action='store_true')
         self.parser.add_argument('-no_duplicate_votes', action='store_true')
         self.parser.add_argument('-allow_multiple_entries', action='store_true')
@@ -173,6 +182,7 @@ class VoteManager:
         `-e` `-emotes` Optional emotes that are automatically added to the poll
 
         These options require no arguments. Default values that are used when they aren't specified are marked in square brackets []
+        `m` `max_winners` [1] Maximum amount of winners. It might be more in case of a draw
         `-s` `-strict` [false] Only count emotes specified in the -emotes argument
         `-n` `-no_duplicate_votes` [false] Ignores users who react to more than one emote
         `-a` `-allow_multiple_entries` [false] Count all reactions from the user. Even if that user reacted with multiple emotes.
@@ -191,6 +201,11 @@ class VoteManager:
 
         if parsed.no_duplicate_votes and parsed.allow_multiple_entries:
             return await self.bot.say('Cannot have -n and -a specified at the same time. That would be dumb')
+
+        if parsed.max_winners < 1:
+            return await self.bot.say('Max winners needs to be an integer bigger than 0')
+
+        parsed.max_winners = min(parsed.max_winners, 20)
 
         title = ' '.join(parsed.header)
         expires_in = parse_time(' '.join(parsed.time))
@@ -237,10 +252,13 @@ class VoteManager:
             options += 'Strict mode on. Only specified emotes are counted\n'
 
         if parsed.no_duplicate_votes:
-            options += 'Voting for more than one valid option will invalidate your vote'
+            options += 'Voting for more than one valid option will invalidate your vote\n'
 
         if parsed.allow_multiple_entries:
-            options += 'All all valid votes are counted from a user'
+            options += 'All all valid votes are counted from a user\n'
+
+        if parsed.max_winners > 1:
+            options += 'Max amount of winners %s (might be more in case of a tie)' % parsed.max_winners
 
         if options:
             embed.add_field(name='Modifiers', value=options)
@@ -258,12 +276,12 @@ class VoteManager:
             await self.bot.say('Failed to get emotes `{}`'.format('` `'.join(failed)),
                                delete_after=60)
 
-        sql = 'INSERT INTO `polls` (`server`, `title`, `strict`, `message`, `channel`, `expires_in`, `ignore_on_dupe`, `multiple_votes`) ' \
-              'VALUES (:server, :title, :strict, :message, :channel, :expires_in, :ignore_on_dupe, :multiple_votes)'
+        sql = 'INSERT INTO `polls` (`server`, `title`, `strict`, `message`, `channel`, `expires_in`, `ignore_on_dupe`, `multiple_votes`, `max_winners`) ' \
+              'VALUES (:server, :title, :strict, :message, :channel, :expires_in, :ignore_on_dupe, :multiple_votes, :max_winners)'
         d = {'server': ctx.message.server.id, 'title': title,
              'strict': parsed.strict, 'message': msg.id, 'channel': ctx.message.channel.id,
              'expires_in': parsed.time, 'ignore_on_dupe': parsed.no_duplicate_votes,
-             'multiple_votes': parsed.allow_multiple_entries}
+             'multiple_votes': parsed.allow_multiple_entries, 'max_winners': parsed.max_winners}
         try:
             self.session.execute(text(sql), params=d)
 
@@ -304,7 +322,7 @@ class VoteManager:
 
         poll = Poll(self.bot, msg.id, msg.channel.id, title, expires_at=expired_date, strict=parsed.strict,
                     emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
-                    multiple_votes=parsed.allow_multiple_entries)
+                    multiple_votes=parsed.allow_multiple_entries, max_winners=parsed.max_winners)
         poll.start()
 
 

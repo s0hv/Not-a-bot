@@ -448,3 +448,20 @@ def get_channel_id(s):
     match = regex.match(s)
     if match:
         return match.groups()[0]
+
+
+def seconds2str(seconds):
+    seconds = int(round(seconds, 0))
+    m, s = divmod(seconds, 60)
+    h, m = divmod(m, 60)
+
+    def check_plural(string, i):
+        if i != 1:
+            return str(i) + ' ' + string + 's '
+        return str(i) + ' ' + string
+
+    h = check_plural('hour', h) if h else ''
+    m = check_plural('minute', m) if m else ''
+    s = check_plural('second', s) if s else ''
+
+    return h + m + s

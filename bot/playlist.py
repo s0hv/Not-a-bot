@@ -23,12 +23,15 @@ SOFTWARE.
 """
 
 import asyncio
+import functools
+import logging
+import discord
 import os
+import time
 from collections import deque
 from random import shuffle, choice
-import logging
+
 from validators import url as valid_url
-import functools
 
 try:
     from numpy import delete
@@ -39,7 +42,7 @@ except ImportError:
 from bot.downloader import Downloader
 from bot.song import Song
 from bot.globals import CACHE, PLAYLISTS
-from utils.utilities import read_lines, write_playlist, timestamp
+from utils.utilities import read_lines, write_playlist, timestamp, seconds2str
 
 
 logger = logging.getLogger('audio')
@@ -224,20 +227,54 @@ class Playlist:
                 if priority:
                     await self.say('Playlists queued with playnow will be reversed except for the first song', 60, channel=channel)
 
-                await self.say('Processing %s songs' % size, 30, channel=channel)
+                message = await self.say('Processing %s songs' % size, channel=channel)
+                t = time.time()
                 songs = deque()
                 first = True
+                progress = 0
+
+                async def progress_info():
+                    nonlocal message
+
+                    while progress <= size:
+                        await asyncio.sleep(3)
+                        try:
+                            t2 = time.time() - t
+                            eta = progress/t2
+                            if eta == 0:
+                                eta = 'Undefined'
+                            else:
+                                eta = seconds2str(max(size/eta - t2, 0))
+
+                            s = 'Loading playlist. Progress {}/{}\nETA {}'.format(progress, size, eta)
+                            message = await self.bot.edit_message(message, s)
+                        except asyncio.CancelledError:
+                            await self.bot.delete_message(message)
+                        except:
+                            return
+
+                    await self.bot.delete_message(message)
+
+                task = discord.compat.create_task(progress_info(), loop=self.bot.loop)
                 for entry in entries:
+                    progress += 1
+
                     try:
                         info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False)
                     except Exception as e:
-                        if not no_message:
-                            await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e, channel=channel)
+                        try:
+                            if not no_message:
+                                await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e, channel=channel)
+                        except:
+                            pass
                         continue
 
                     if info is None:
-                        if not no_message:
-                            await self.say('Failed to process %s' % entry.get('title', entry['id']), channel=channel)
+                        try:
+                            if not no_message:
+                                await self.say('Failed to process %s' % entry.get('title', entry['id']), channel=channel)
+                        except:
+                            pass
                         continue
 
                     song = Song(playlist=self, config=self.bot.config, **metadata)
@@ -252,6 +289,8 @@ class Playlist:
                         else:
                             songs.append(song)
 
+                task.cancel()
+
                 if songs:
                     await self._append_song(songs.popleft(), priority=priority)
                     songs.reverse()
@@ -260,10 +299,10 @@ class Playlist:
 
                 if not no_message:
                     if priority:
-                        message = 'Enqueued playlist %s to the top' % title
+                        msg = 'Enqueued playlist %s to the top' % title
                     else:
-                        message = 'Enqueued playlist %s' % title
-                    return await self.say(message, 60, channel=channel)
+                        msg = 'Enqueued playlist %s' % title
+                    return await self.say(msg, 60, channel=channel)
 
             else:
                 await self._add_from_info(priority=priority, channel=channel,

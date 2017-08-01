@@ -46,7 +46,7 @@ class Utilities(Cog):
 
         await self.bot.say(emote_url_from_id(emote))
 
-    @cooldown(1, 3)
+    @cooldown(1, 1)
     @command(pass_context=True, aliases=['howtoping'])
     async def how2ping(self, ctx, *, user):
         if ctx.message.server:
@@ -61,6 +61,12 @@ class Utilities(Cog):
 
                 if member.nick and predicate(member.nick):
                     return member
+
+        if ctx.message.raw_role_mentions:
+            i = len(ctx.invoked_with) + len(ctx.prefix) + 1
+
+            user = ctx.message.clean_content[i:]
+            user = user[user.find('@')+1:]
 
         found = filter_users(lambda u: str(u).startswith(user))
         s = '`<@!{}>` {}'

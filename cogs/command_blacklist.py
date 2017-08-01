@@ -58,7 +58,7 @@ class CommandBlacklist(Cog):
                     await self.bot.say('Could not find command %s' % command_)
                 continue
 
-            await _blacklist(command)
+            await _blacklist(command.name)
 
     async def _set_all_commands(self, server, msg, mention, type=BlacklistTypes.BLACKLIST):
         values = {'command': None, 'server': int(server.id), 'type': type}

@@ -43,23 +43,23 @@ from bot.globals import Auth
 logger = logging.getLogger('debug')
 
 initial_cogs = [
-    'cogs.botadmin',
     'cogs.admin',
     'cogs.audio',
+    'cogs.botadmin',
     'cogs.botmod',
+    'cogs.command_blacklist',
     'cogs.emotes',
+    'cogs.gachiGASM',
     'cogs.hearthstone',
     'cogs.jojo',
+    'cogs.logging',
     'cogs.management',
     'cogs.misc',
-    'cogs.search',
-    'cogs.utils',
-    'cogs.voting',
-    'cogs.logging',
-    'cogs.gachiGASM',
     'cogs.moderator',
+    'cogs.search',
     'cogs.settings',
-    'cogs.command_blacklist']
+    'cogs.utils',
+    'cogs.voting']
 
 
 class Object:
@@ -76,6 +76,9 @@ class NotABot(Bot):
         self._server_cache = ServerCache(self)
         self._perm_values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4, 'channel': 0x8, 'server': 0x10}
         self._perm_returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False, 16: True, 18: False}
+        self._blacklist_messages = {3: 'Command has been blacklisted for you',
+                                    6: 'Command has been blacklisted for a role you have',
+                                    10: None, 18: None}
 
         if perms:
             perms.bot = self
@@ -417,6 +420,7 @@ class NotABot(Bot):
 
                 else:
                     overwrite_perms = self.check_blacklist('(command="%s" OR command IS NULL)' % command, message.author, ctx)
+                    msg = self._blacklist_messages.get(overwrite_perms, None)
                     if isinstance(overwrite_perms, int):
                         if message.server.owner.id == message.author.id:
                             overwrite_perms = True
@@ -424,10 +428,9 @@ class NotABot(Bot):
                             overwrite_perms = self._perm_returns.get(overwrite_perms, False)
 
                     if overwrite_perms is False:
-                        if cd.trigger(False):
-                            await self.send_message(message.channel,
-                                                    'Command %s is blacklisted for you' % command.name)
-                            return
+                        if msg is not None and cd.trigger(False):
+                            await self.send_message(message.channel, msg)
+                        return
                     elif overwrite_perms is None and command.required_perms is not None:
                         perms = message.channel.permissions_for(message.author)
 

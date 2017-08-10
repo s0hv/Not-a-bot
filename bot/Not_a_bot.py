@@ -59,7 +59,8 @@ initial_cogs = [
     'cogs.search',
     'cogs.settings',
     'cogs.utils',
-    'cogs.voting']
+    'cogs.voting',
+    'cogs.server']
 
 
 class Object:

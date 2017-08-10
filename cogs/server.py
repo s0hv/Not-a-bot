@@ -22,3 +22,7 @@ class Server(Cog):
         s += '```'
 
         await self.bot.say(s)
+
+
+def setup(bot):
+    bot.add_cog(Server(bot))

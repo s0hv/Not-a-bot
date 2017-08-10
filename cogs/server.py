@@ -27,7 +27,7 @@ class Server(Cog):
         p = page*10
         for idx, u in enumerate(sorted_users[p-10:p]):
             added += 1
-            s += '{}. {} with {} roles\n'.format(idx + p-10, u, len(u.roles) - 1)
+            s += '{}. {} with {} roles\n'.format(idx + p-9, u, len(u.roles) - 1)
 
         if added == 0:
             return await self.bot.say('Page out of range')

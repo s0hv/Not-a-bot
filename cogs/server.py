@@ -17,7 +17,7 @@ class Server(Cog):
         s = 'Leaderboards for **%s**\n\n```md\n' % server.name
 
         for idx, u in enumerate(sorted_users[:10]):
-            s += '#{} {} with {} roles\n'.format(idx + 1, u, len(u.roles))
+            s += '{}. {} with {} roles\n'.format(idx + 1, u, len(u.roles) - 1)
 
         s += '```'
 

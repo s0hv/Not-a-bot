@@ -24,9 +24,9 @@ class Server(Cog):
         s = 'Leaderboards for **%s**\n\n```md\n' % server.name
 
         added = 0
-        for idx, u in enumerate(sorted_users[page-1:page+10]):
+        for idx, u in enumerate(sorted_users[page*10-10:page*10]):
             added += 1
-            s += '{}. {} with {} roles\n'.format(idx + 1, u, len(u.roles) - 1)
+            s += '{}. {} with {} roles\n'.format(idx + page, u, len(u.roles) - 1)
 
         if added == 0:
             return await self.bot.say('Page out of range')

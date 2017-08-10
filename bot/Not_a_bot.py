@@ -426,18 +426,17 @@ class NotABot(Bot):
                             overwrite_perms = self._perm_returns.get(overwrite_perms, False)
 
                     if overwrite_perms is False:
-                        if msg is not None and cd.trigger(False):
+                        if msg is not None:
                             await self.send_message(message.channel, msg)
                         return
                     elif overwrite_perms is None and command.required_perms is not None:
                         perms = message.channel.permissions_for(message.author)
 
                         if not perms.is_superset(command.required_perms):
-                            if cd.trigger(False):
-                                req = [r[0] for r in command.required_perms if r[1]]
-                                await self.send_message(message.channel,
-                                                        'Invalid permissions. Required perms are %s' % ', '.join(req),
-                                                        delete_after=10)
+                            req = [r[0] for r in command.required_perms if r[1]]
+                            await self.send_message(message.channel,
+                                                    'Invalid permissions. Required perms are %s' % ', '.join(req),
+                                                    delete_after=15)
                             return
 
                     ctx.override_perms = overwrite_perms

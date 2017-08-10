@@ -411,11 +411,9 @@ class NotABot(Bot):
                 return
 
             try:
-                cd = self.cdm.get_or_create(message.server.id, 1, 5)
                 if command.auth > 0:
                     if not self._check_auth(message.author.id, command.auth):
-                        if cd.trigger(False):
-                            await self.send_message(message.channel, "You aren't authorized to use this command")
+                        await self.send_message(message.channel, "You aren't authorized to use this command")
                         return
 
                 else:

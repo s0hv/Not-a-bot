@@ -1,5 +1,5 @@
 from cogs.cog import Cog
-from bot.bot import command
+from bot.bot import command, group
 from discord.ext.commands import cooldown
 from sqlalchemy import text
 from bot.globals import BlacklistTypes
@@ -15,7 +15,7 @@ class CommandBlacklist(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(pass_context=True, ignore_extra=True, no_pm=True, required_perms=perms)
+    @group(pass_context=True, ignore_extra=True, no_pm=True, required_perms=perms, invoke_without_command=True,)
     @cooldown(1, 5)
     async def blacklist(self, ctx, command_: str, mention=None):
         msg = ctx.message
@@ -59,6 +59,24 @@ class CommandBlacklist(Cog):
                 continue
 
             await _blacklist(command.name)
+
+    @blacklist.command(ignore_extra=True, no_pm=True, pass_context=True)
+    async def toggle(self, ctx):
+        """
+        Disable all commands on this server (owner will still be able to use them)
+        Whitelisting commands also overrides this rule
+        """
+        server = ctx.message.server
+        values = {'command': None, 'server': int(server.id), 'type': BlacklistTypes.BLACKLIST}
+        success = await self._set_blacklist('server=%s AND command IS NULL AND NOT type=%s' % (server.id, BlacklistTypes.GLOBAL), **values)
+        if success:
+            msg = 'All commands disabled on this server for non whitelisted users'
+        elif success is None:
+            msg = 'Commands are usable on this server again'
+        else:
+            return
+
+        await self.bot.say(msg)
 
     async def _set_all_commands(self, server, msg, mention, type=BlacklistTypes.BLACKLIST):
         values = {'command': None, 'server': int(server.id), 'type': type}

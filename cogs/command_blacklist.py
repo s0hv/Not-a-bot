@@ -66,6 +66,7 @@ class CommandBlacklist(Cog):
         Disable all commands on this server (owner will still be able to use them)
         Whitelisting commands also overrides this rule
         """
+
         server = ctx.message.server
         values = {'command': None, 'server': int(server.id), 'type': BlacklistTypes.BLACKLIST}
         where = 'server=%s AND command IS NULL AND NOT type=%s AND user IS NULL AND role IS NULL AND channel IS NULL' % (server.id, BlacklistTypes.GLOBAL)

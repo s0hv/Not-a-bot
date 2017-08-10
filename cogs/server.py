@@ -31,6 +31,12 @@ class Server(Cog):
 
         if added == 0:
             return await self.bot.say('Page out of range')
+
+        try:
+            idx = sorted_users.index(ctx.message.author) + 1
+            s += '\nYour rank is {} with {} roles\n'.format(idx, len(ctx.message.author.roles) - 1)
+        except:
+            pass
         s += '```'
 
         await self.bot.say(s)

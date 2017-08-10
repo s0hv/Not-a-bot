@@ -68,7 +68,8 @@ class CommandBlacklist(Cog):
         """
         server = ctx.message.server
         values = {'command': None, 'server': int(server.id), 'type': BlacklistTypes.BLACKLIST}
-        success = await self._set_blacklist('server=%s AND command IS NULL AND NOT type=%s' % (server.id, BlacklistTypes.GLOBAL), **values)
+        where = 'server=%s AND command IS NULL AND NOT type=%s AND user IS NULL AND role IS NULL AND channel IS NULL' % (server.id, BlacklistTypes.GLOBAL)
+        success = await self._set_blacklist(where, **values)
         if success:
             msg = 'All commands disabled on this server for non whitelisted users'
         elif success is None:

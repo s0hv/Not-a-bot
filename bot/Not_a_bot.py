@@ -69,8 +69,8 @@ class Object:
 
 
 class NotABot(Bot):
-    def __init__(self, prefix, conf, perms=None, aiohttp=None, **options):
-        super().__init__(prefix, conf, perms, aiohttp, **options)
+    def __init__(self, prefix, conf, aiohttp=None, **options):
+        super().__init__(prefix, conf, aiohttp, **options)
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
         self.cdm = cdm
@@ -80,9 +80,6 @@ class NotABot(Bot):
         self._blacklist_messages = {3: 'Command has been blacklisted for you',
                                     6: 'Command has been blacklisted for a role you have',
                                     10: None, 18: None}
-
-        if perms:
-            perms.bot = self
 
         self.hi_new = {ord(c): '' for c in ", '"}
         self._setup()

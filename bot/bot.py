@@ -55,7 +55,6 @@ except ImportError:
 
 
 from bot import exceptions
-from bot.permissions import check_permission
 
 log = logging.getLogger('discord')
 
@@ -190,7 +189,7 @@ class Client(discord.Client):
 
 
 class Bot(commands.Bot, Client):
-    def __init__(self, prefix, config, perms=None, aiohttp=None, **options):
+    def __init__(self, prefix, config, aiohttp=None, **options):
         if 'formatter' not in options:
             options['formatter'] = Formatter(width=150)
 
@@ -203,7 +202,6 @@ class Bot(commands.Bot, Client):
 
         self.aiohttp_client = aiohttp
         self.config = config
-        self.permissions = perms
         self.owner = config.owner
         self.voice_clients_ = {}
 
@@ -374,10 +372,8 @@ class Bot(commands.Bot, Client):
             'message': message,
             'view': view,
             'prefix': invoked_prefix,
-            'user_permissions': None
         }
-        if self.permissions:
-            tmp['user_permissions'] = self.permissions.get_permissions(id=message.author.id)
+
         ctx = Context(**tmp)
         del tmp
 
@@ -386,13 +382,6 @@ class Bot(commands.Bot, Client):
             if command.owner_only and self.owner != message.author.id:
                 command.dispatch_error(exceptions.PermissionError('Only the owner can use this command'), ctx)
                 return
-
-            if self.permissions:
-                try:
-                    check_permission(ctx, command)
-                except Exception as e:
-                    await self.on_command_error(e, ctx)
-                    return
 
             self.dispatch('command', command, ctx)
             try:

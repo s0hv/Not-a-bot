@@ -398,10 +398,7 @@ class NotABot(Bot):
             'message': message,
             'view': view,
             'prefix': invoked_prefix,
-            'user_permissions': None
         }
-        if self.permissions:
-            tmp['user_permissions'] = self.permissions.get_permissions(id=message.author.id)
         ctx = Context(**tmp)
         del tmp
 

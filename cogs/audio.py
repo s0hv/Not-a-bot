@@ -41,13 +41,11 @@ except ImportError:
 from discord import Game
 from discord.ext import commands
 
-from bot.exceptions import NoCachedFileException
 from bot.playlist import Playlist
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.song import Song
 from bot.bot import command
-from bot.permissions import command_usable
-from utils.utilities import mean_volume, get_cached_song
+from utils.utilities import mean_volume
 
 logger = logging.getLogger('audio')
 logger.setLevel(logging.DEBUG)

@@ -31,7 +31,6 @@ from bot.Not_a_bot import NotABot
 import discord
 
 from bot.config import Config
-from bot.permissions import Permissions
 
 
 discord_logger = logging.getLogger('discord')

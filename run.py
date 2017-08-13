@@ -46,7 +46,6 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 config = Config()
-permissions = Permissions(config.owner)
 
 if not discord.opus.is_loaded():
     discord.opus.load_opus('opus')
@@ -63,6 +62,6 @@ if sfx_bot is not None:
 
 print('[INFO] Main bot starting up')
 logger.info('Starting bots')
-bot = NotABot(prefix='!', conf=config, pm_help=False, perms=permissions, max_messages=10000)
+bot = NotABot(prefix='!', conf=config, pm_help=False, max_messages=10000)
 bot.run(config.token)
 

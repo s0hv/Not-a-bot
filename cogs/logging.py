@@ -38,6 +38,22 @@ class Logger(Cog):
 
         self.session.commit()
 
+    async def on_member_join(self, member):
+        sql = "INSERT INTO `join_leave` (`user_id`, `server`, `value`) VALUES " \
+              "(:user_id, :server, :value) ON DUPLICATE KEY UPDATE value=1"
+
+        self.session.execute(sql, {'user_id': member.id,
+                                   'server': member.server.id,
+                                   'value': 1})
+
+    async def on_member_remove(self, member):
+        sql = "INSERT INTO `join_leave` (`user_id`, `server`, `value`) VALUES " \
+              "(:user_id, :server, :value) ON DUPLICATE KEY UPDATE value=-1"
+
+        self.session.execute(sql, {'user_id': member.id,
+                                   'server': member.server.id,
+                                   'value': -1})
+
 
 def setup(bot):
     bot.add_cog(Logger(bot))

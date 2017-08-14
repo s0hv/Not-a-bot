@@ -68,6 +68,7 @@ class Poll:
         if isinstance(self.message, discord.Message):
             self.message = self.message.id
 
+        session = self.bot.get_session
         self.message = str(self.message)
         try:
             chn = self.bot.get_channel(self.channel)
@@ -75,6 +76,12 @@ class Poll:
         except:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)
+            sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
+            try:
+                session.execute(sql)
+                session.commit()
+            except:
+                logger.exception('Could not delete poll')
             return await self.bot.send_message(channel, 'Failed to end poll.\nReason: Could not get the poll message')
 
         votes = {}
@@ -144,8 +151,6 @@ class Poll:
 
         s = 'Poll ``{}`` ended{}'.format(self.title, end)
         await self.bot.send_message(chn, s)
-
-        session = self.bot.get_session
 
         sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
         try:

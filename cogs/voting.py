@@ -194,7 +194,7 @@ class VoteManager:
         `-e` `-emotes` Optional emotes that are automatically added to the poll
 
         These options require no arguments. Default values that are used when they aren't specified are marked in square brackets []
-        `m` `max_winners` [1] Maximum amount of winners. It might be more in case of a draw
+        `-m` `-max_winners` [1] Maximum amount of winners. It might be more in case of a draw
         `-s` `-strict` [false] Only count emotes specified in the -emotes argument
         `-n` `-no_duplicate_votes` [false] Ignores users who react to more than one emote
         `-a` `-allow_multiple_entries` [false] Count all reactions from the user. Even if that user reacted with multiple emotes.
@@ -241,11 +241,11 @@ class VoteManager:
 
                 name = get_emote_name_id(emote)
                 if name is None:
-                    emotes.append(emote)
-                else:
                     # TODO Better check for flag emotes
                     if len(name) > 1:
                         continue
+                    emotes.append(emote)
+                else:
                     emotes.append(name)
 
         if parsed.description:

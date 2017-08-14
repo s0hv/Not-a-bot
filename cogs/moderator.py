@@ -17,6 +17,7 @@ lock_perms = discord.Permissions(268435472)
 class Moderator(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self.timeouts = {}
         self._load_timeouts()
 
     def _load_timeouts(self):
@@ -27,8 +28,22 @@ class Moderator(Cog):
             try:
                 print(datetime.utcnow(), row['expires_on'])
                 time = row['expires_on'] - datetime.utcnow()
-                call_later(self.untimeout, self.bot.loop, time.total_seconds(),
-                           str(row['user']), str(row['server']))
+                server = str(row['server'])
+                user = str(row['user'])
+
+                task = call_later(self.untimeout, self.bot.loop, time.total_seconds(),
+                                  user, server)
+
+                if server not in self.timeouts:
+                    server_timeouts = {}
+                    self.timeouts[server] = server_timeouts
+                else:
+                    server_timeouts = self.timeouts.get(server)
+
+                server_timeouts[user] = task
+
+
+
 
             except:
                 logger.exception('Could not untimeout %s' % row)
@@ -187,8 +202,20 @@ class Moderator(Cog):
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
 
-        call_later(self.untimeout, self.bot.loop,
-                   time.total_seconds(), user.id, ctx.message.server.id)
+        task = call_later(self.untimeout, self.bot.loop,
+                          time.total_seconds(), user.id, ctx.message.server.id)
+
+        t = self.timeouts.get(server.id, {}).get(user, None)
+        if t:
+            t.cancel()
+
+        if server not in self.timeouts:
+            server_timeouts = {}
+            self.timeouts[server] = server_timeouts
+        else:
+            server_timeouts = self.timeouts.get(server)
+
+        server_timeouts[user] = task
 
     @command(pass_context=True, required_perms=manage_roles)
     async def unmute(self, ctx, *user):

@@ -34,6 +34,7 @@ class Poll:
         self.multiple_votes = multiple_votes
         self.max_winners = max_winners
         self._task = None
+        self._stopper = asyncio.Event()
 
     @property
     def bot(self):
@@ -44,6 +45,7 @@ class Poll:
         self._emotes.append(emote_id)
 
     def start(self):
+        self._stopper.clear()
         self._task = self.bot.loop.create_task(self._wait())
 
     def stop(self):
@@ -53,14 +55,19 @@ class Poll:
             except:
                 pass
 
+    def count_now(self):
+        self._stopper.set()
+
     async def _wait(self):
         try:
             time_ = self.expires_at - datetime.utcnow()
             time_ = time_.total_seconds()
             if time_ > 0:
-                await asyncio.sleep(time_)
-        except asyncio.CancelledError:
+                await asyncio.wait_for(self._stopper.wait(), timeout=time_, loop=self.bot.loop)
+        except asyncio.TimeoutError:
             pass
+        except asyncio.CancelledError:
+            return
 
         await self.count_votes()
 

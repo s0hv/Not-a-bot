@@ -402,6 +402,29 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
                 await self.bot.send_message(modlog, embed=embed)
 
+    @command(pass_context=True, no_pm=True, ignore_extra=True)
+    async def softban(self, ctx, user, message_days=1):
+        user_ = get_user_id(user)
+        server = ctx.message.server
+        member = server.get_member(user_)
+        if member is None:
+            return await self.bot.say('User %s could not be found' % user)
+
+        if not (1 <= message_days <= 7):
+            return await self.bot.say('Message days must be between 1 and 7')
+
+        try:
+            await self.bot.ban(member, message_days)
+        except discord.Forbidden:
+            return await self.bot.say("The bot doesn't have ban perms")
+        except:
+            return await self.bot.say('Something went wrong while trying to ban. Try again')
+
+        try:
+            await self.bot.unban(server, member)
+        except:
+            return await self.bot.say('Failed to unban after ban')
+
     @command(pass_context=True, ignore_extra=True, required_perms=lock_perms)
     async def lock(self, ctx):
         """Set send_messages permission override of everyone to false on current channel"""

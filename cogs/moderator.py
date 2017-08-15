@@ -402,7 +402,7 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
                 await self.bot.send_message(modlog, embed=embed)
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True)
+    @command(pass_context=True, no_pm=True, ignore_extra=True, required_perms=discord.Permissions(4))
     async def softban(self, ctx, user, message_days=1):
         user_ = get_user_id(user)
         server = ctx.message.server

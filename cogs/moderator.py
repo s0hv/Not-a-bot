@@ -306,7 +306,7 @@ class Moderator(Cog):
         return embed
 
     @group(pass_context=True, required_perms=Perms.MANAGE_MESSAGES, invoke_without_command=True, no_pm=True)
-    async def purge(self, ctx, max_messages=100):
+    async def purge(self, ctx, max_messages=10):
         channel = ctx.message.channel
         messages = await self.bot.purge_from(channel, limit=max_messages)
 
@@ -319,7 +319,7 @@ class Moderator(Cog):
 
     @purge.command(name='from', pass_context=True, required_perms=Perms.MANAGE_MESSAGES,
                    no_pm=True, ignore_extra=True)
-    async def from_(self, ctx, mention, max_messages: str=100, channel=None):
+    async def from_(self, ctx, mention, max_messages: str=10, channel=None):
         """
         Delete messages from a user
         `mention` The user mention or id of the user we want to purge messages from

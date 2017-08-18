@@ -256,7 +256,7 @@ class MusicPlayer:
                                                                       before_options=self.current.before_options,
                                                                       options=self.current.options)
 
-            if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str):
+            if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str) and not self.current.is_live:
                 db = mean_volume(file)
                 if db is None or abs(db) < 0.1:
                     volume = self.volume

@@ -34,7 +34,7 @@ class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'uploader',
                  'playlist', 'seek', 'success', 'filename', 'before_options',
                  'options', 'dl_folder', '_downloading', 'on_ready', 'player',
-                 'logger', 'bpm', 'config', 'requested_by', 'last_update']
+                 'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')
@@ -44,6 +44,7 @@ class Song:
         self.duration = kwargs.pop('duration', 0)
         self.uploader = kwargs.pop('uploader', 'None')
         self.requested_by = kwargs.pop('requested_by', None)
+        self.is_live = kwargs.pop('is_live', True)
         self.playlist = playlist
         self.seek = False
         self.success = False

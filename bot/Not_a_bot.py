@@ -167,7 +167,7 @@ class NotABot(Bot):
             self._random_color = self.loop.create_task(self._random_color_task())
 
     async def _random_color_task(self):
-        server = self.get_server('')
+        server = self.get_server('217677285442977792')
         if not server:
             return
 

@@ -36,10 +36,11 @@ from bot import exceptions
 from bot.cooldown import CooldownManager
 from bot.servercache import ServerCache
 from cogs.voting import Poll
-from utils.utilities import (split_string, slots2dict, retry)
+from utils.utilities import (split_string, slots2dict, retry, random_color)
 from bot.globals import BlacklistTypes
 from datetime import datetime
 from bot.globals import Auth
+import asyncio
 logger = logging.getLogger('debug')
 
 initial_cogs = [
@@ -75,6 +76,7 @@ class NotABot(Bot):
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
         self.cdm = cdm
+        self._random_color = None
         self._server_cache = ServerCache(self)
         self._perm_values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4, 'channel': 0x8, 'server': 0x10}
         self._perm_returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False, 16: True, 18: False}
@@ -151,7 +153,7 @@ class NotABot(Bot):
 
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))
-        await self.change_presence(game=discord.Game(name=self.config.game))
+        await self.change_presence(game=discord.Game(name=self.config.game, type=1))
 
         for cog in initial_cogs:
             try:
@@ -161,6 +163,28 @@ class NotABot(Bot):
 
         self.load_polls()
         self.cache_servers()
+        if self._random_color is None:
+            self._random_color = self.loop.create_task(self._random_color_task())
+
+    async def _random_color_task(self):
+        server = self.get_server('')
+        if not server:
+            return
+
+        role = server.get_role('348208141541834773')
+        if not role:
+            return
+
+        while True:
+            try:
+                await asyncio.sleep(600)
+            except asyncio.CancelledError:
+                return
+
+            try:
+                await self.edit_role(server, role, color=random_color())
+            except:
+                pass
 
     async def on_message(self, message):
         await self.wait_until_ready()

@@ -5,6 +5,7 @@ from utils.imagetools import resize_keep_aspect_ratio, image_from_url
 from PIL import Image
 from io import BytesIO
 from discord.ext.commands import cooldown
+import os
 
 
 class Fun(Cog):
@@ -14,7 +15,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(5, 5)
     async def anime_deaths(self, ctx, image):
-        path = r'data\templates\saddest-anime-deaths.png'
+        path = os.path.join('data', 'templates', 'saddest-anime-deaths.png')
         img = get_image_from_message(ctx, image)
         if img is None:
             return await self.bot.say('No image found from %s' % image)
@@ -43,7 +44,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(5, 5)
     async def anime_deaths2(self, ctx, image):
-        path = r'data\templates\saddest-anime-deaths2.png'
+        path = os.path.join('data', 'templates', 'saddest-anime-deaths2.png')
         img = get_image_from_message(ctx, image)
         if img is None:
             return await self.bot.say('No image found from %s' % image)

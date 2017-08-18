@@ -49,6 +49,7 @@ initial_cogs = [
     'cogs.botmod',
     'cogs.command_blacklist',
     'cogs.emotes',
+    'cogs.fun',
     'cogs.gachiGASM',
     'cogs.hearthstone',
     'cogs.jojo',

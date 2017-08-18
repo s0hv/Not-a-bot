@@ -312,7 +312,7 @@ def get_image_from_message(ctx, *messages):
         image = str(messages[0])
         if not test_url(image):
             if re.match('<@!?\d+>', image) and ctx.message.mentions:
-                image = ctx.message.mentions[0].avatar_url
+                image = get_avatar(ctx.message.mentions[0])
             elif re.match('<:\w+:\d+>', image):
                 image = emote_url_from_id(
                     re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
@@ -320,13 +320,13 @@ def get_image_from_message(ctx, *messages):
                 try:
                     int(image)
                 except:
-                    image = None
+                    return
                 else:
-                    server = ctx.message.server
-                    if server:
-                        member = server.get_member(image)
-                        if member:
-                            image = member.avatar_url
+                    user = discord.utils.find(lambda u: u.id == image, ctx.bot.get_all_members())
+                    if not user:
+                        return
+
+                    image = get_avatar(user)
 
     return image
 

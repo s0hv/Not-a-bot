@@ -171,7 +171,7 @@ class NotABot(Bot):
         if not server:
             return
 
-        role = server.get_role('348208141541834773')
+        role = self.get_role(server, '348208141541834773')
         if not role:
             return
 

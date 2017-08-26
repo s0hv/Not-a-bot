@@ -95,6 +95,7 @@ class Song:
         self.uploader = kwargs.get('uploader', self.uploader)
         self.before_options = kwargs.get('before_options', self.before_options)
         self.options = kwargs.get('options', self.options)
+        self.is_live = kwargs.pop('is_live', True)
 
         if 'url' in kwargs:
             self.last_update = time.time()

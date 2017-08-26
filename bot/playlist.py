@@ -192,8 +192,8 @@ class Playlist:
         info = await self.downloader.extract_info(self.bot.loop, url=url, download=False, on_error=on_error)
         if info is None:
             return
-        self._add_from_info(channel=channel, priority=priority,
-                            no_message=no_message, metadata=metadata, **info)
+        await self._add_from_info(channel=channel, priority=priority,
+                                  no_message=no_message, metadata=metadata, **info)
 
     async def add_song(self, name, no_message=False, maxlen=10, priority=False,
                        channel=None, **metadata):

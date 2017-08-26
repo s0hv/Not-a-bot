@@ -20,7 +20,7 @@ class Stats(Cog):
 
         roles = []
         server = message.server
-        for role_id in message.raw_role_mentions:
+        for role_id in set(message.raw_role_mentions):
             role = self.bot.get_role(server, role_id)
             if role:
                 roles.append(role)

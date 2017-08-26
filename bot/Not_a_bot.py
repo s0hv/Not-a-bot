@@ -194,7 +194,7 @@ class NotABot(Bot):
 
         management = getattr(self, 'management', None)
 
-        if message.server and message.server.id == '217677285442977792' and management:
+        if message.server and message.server.id == '217677285442977792' and management and message.channel.id != '322839372913311744':
             if len(message.mentions) + len(message.role_mentions) > 10:
                 whitelist = self.management.get_mute_whitelist(message.server.id)
                 invulnerable = discord.utils.find(lambda r: r.id in whitelist,

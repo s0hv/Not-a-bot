@@ -36,7 +36,10 @@ class Utilities(Cog):
 
         msg = await self.bot.say('Pong!')
         t = time.time() - t
-        await self.bot.edit_message(msg , 'Pong!\n🏓 took {:.0f}ms'.format(t*1000))
+        sql_t = time.time()
+        self.bot.get_session.execute('SELECT 1').fetchall()
+        sql_t = time.time() - sql_t
+        await self.bot.edit_message(msg, 'Pong!\n🏓 took {:.0f}ms\nDatabase ping {:.0f}ms'.format(t*1000, sql_t*1000))
 
     @command(ignore_extra=True, aliases=['e', 'emoji'])
     async def emote(self, emote: str):

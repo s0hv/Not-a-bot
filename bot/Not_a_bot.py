@@ -60,6 +60,7 @@ initial_cogs = [
     'cogs.moderator',
     'cogs.search',
     'cogs.settings',
+    'cogs.stats',
     'cogs.utils',
     'cogs.voting',
     'cogs.server']

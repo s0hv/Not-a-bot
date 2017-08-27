@@ -314,7 +314,7 @@ class CommandBlacklist(Cog):
             elif row['role'] is not None:
                 v2 = self.perm_values['role']
             else:
-                return None
+                continue
 
             v = v1 | v2
             if v < smallest:

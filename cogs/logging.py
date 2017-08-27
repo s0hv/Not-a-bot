@@ -22,7 +22,7 @@ class Logger(Cog):
         user_id = int(message.author.id)
         message_id = int(message.id)
         message_content = None if not is_pm else message.content  # BOI I need to know if my bot is abused in dms
-        #attachment = message.attachments[0].get('url') if message.attachments else None
+        attachment = message.attachments[0].get('url') if message.attachments else None
         # print((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment))
 
         self.session.execute(sql, {'shard': shard,
@@ -34,7 +34,7 @@ class Logger(Cog):
                                    'user_id': user_id,
                                    'message': message_content,
                                    'message_id': message_id,
-                                   'attachment': None})
+                                   'attachment': attachment})
 
         self.session.commit()
 

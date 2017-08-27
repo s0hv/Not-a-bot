@@ -323,8 +323,8 @@ class CommandBlacklist(Cog):
 
         return smallest_row
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, owner_only=True)
-    #@cooldown(1, 30)
+    @command(pass_context=True, no_pm=True, ignore_extra=True)
+    @cooldown(1, 30)
     async def commands(self, ctx):
         server = ctx.message.server
         user = ctx.message.author

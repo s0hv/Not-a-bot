@@ -333,7 +333,7 @@ class CommandBlacklist(Cog):
         else:
             roles = 'role IS NULL'
 
-        where = 'server=%s AND (user=%s or user IS NULL) AND channel IS NULL AND %s)' % (server.id, user.id, roles)
+        where = 'server=%s AND (user=%s or user IS NULL) AND channel IS NULL AND %s' % (server.id, user.id, roles)
 
         rows = self.get_rows(where)
 

@@ -431,6 +431,9 @@ class NotABot(Bot):
                 command.dispatch_error(exceptions.PermissionError('Only the owner can use this command'), ctx)
                 return
 
+            if command.no_pm and message.server is None:
+                return
+
             try:
                 if command.auth > 0:
                     if not self._check_auth(message.author.id, command.auth):

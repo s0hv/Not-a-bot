@@ -358,7 +358,7 @@ class CommandBlacklist(Cog):
 
             # Don't want channel or server specific blacklists
             if row is None:
-                pass
+                continue
 
             if row['type'] == BlacklistTypes.WHITELIST:
                 whitelist.append(name)

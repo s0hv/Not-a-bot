@@ -3,7 +3,7 @@ from bot.bot import command, group
 from discord.ext.commands import cooldown
 from sqlalchemy import text
 from bot.globals import BlacklistTypes
-from utils.utilities import check_channel_mention, check_role_mention, check_user_mention
+from utils.utilities import check_channel_mention, check_role_mention, check_user_mention, split_string
 import logging
 import discord
 
@@ -14,6 +14,10 @@ perms = discord.Permissions(8)
 class CommandBlacklist(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+
+    @property
+    def perm_values(self):
+        return self.bot._perm_values
 
     @group(pass_context=True, ignore_extra=True, no_pm=True, required_perms=perms, invoke_without_command=True,)
     @cooldown(1, 5)
@@ -286,6 +290,96 @@ class CommandBlacklist(Cog):
     async def test_perms(self, ctx, command):
         u = ctx.message.mentions[0] if ctx.message.mentions else ctx.message.author
         await self.bot.say(self.check_blacklist(command, u, ctx))
+
+    def get_rows(self, whereclause, select='*'):
+        session = self.bot.get_session
+        sql = 'SELECT %s FROM `command_blacklist` WHERE %s' % (select, whereclause)
+        rows = session.execute(sql).fetchall()
+        return rows
+
+    def get_applying_perm(self, command_rows):
+        smallest = 18
+        smallest_row = None
+        for row in command_rows:
+            if row['type'] == BlacklistTypes.GLOBAL:
+                return False
+
+            if row['type'] == BlacklistTypes.WHITELIST:
+                v1 = self.perm_values['whitelist']
+            else:
+                v1 = self.perm_values['blacklist']
+
+            if row['user'] is not None:
+                v2 = self.perm_values['user']
+            elif row['role'] is not None:
+                v2 = self.perm_values['role']
+            else:
+                return None
+
+            v = v1 | v2
+            if v < smallest:
+                smallest = v
+                smallest_row = row
+
+        return smallest_row
+
+    @command(pass_context=True, no_pm=True, ignore_extra=True, owner_only=True)
+    #@cooldown(1, 30)
+    async def commands(self, ctx):
+        server = ctx.message.server
+        user = ctx.message.author
+        if user.roles:
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: r.id, user.roles)))
+        else:
+            roles = 'role IS NULL'
+
+        where = 'server=%s AND (user=%s or user IS NULL) AND channel IS NULL AND %s)' % (server.id, user.id, roles)
+
+        rows = self.get_rows(where)
+
+        commands = {}
+        for row in rows:
+            name = row['command']
+
+            if name in commands:
+                commands[name].append(row)
+            else:
+                commands[name] = [row]
+
+        whitelist = []
+        blacklist = []
+        global_blacklist = []
+        for name, rows in commands.items():
+            row = self.get_applying_perm(rows)
+            name = '`%s`' % name
+            if row is False:
+                global_blacklist.append(name)
+                continue
+
+            if row['type'] == BlacklistTypes.WHITELIST:
+                whitelist.append(name)
+
+            elif row['type'] == BlacklistTypes.BLACKLIST:
+                blacklist.append(name)
+
+        s = ''
+        if whitelist:
+            s += 'Your whitelisted commands\n' + '\n'.join(whitelist) + '\n\n'
+
+        if blacklist:
+            s += 'Commands blacklisted from you\n' + '\n'.join(blacklist) + '\n\n'
+
+        if global_blacklist:
+            s += 'Commands globally blacklisted from you\n' + '\n'.join(global_blacklist) + '\n\n'
+
+        if not s:
+            s = 'You have no special perms set up on the server {}'.format(server.name)
+        else:
+            s += 'Your perms on server {}\nChannel specific perms are not checked'.format(server.name)
+
+        s = split_string(s, maxlen=2000, splitter='\n')
+        for ss in s:
+            await self.bot.send_message(user, ss)
 
     def check_blacklist(self, command, user, ctx):
         session = self.bot.get_session

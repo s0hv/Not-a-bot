@@ -46,6 +46,7 @@ logger = logging.getLogger('debug')
 initial_cogs = [
     'cogs.admin',
     'cogs.audio',
+    'cogs.autoresponds',
     'cogs.botadmin',
     'cogs.botmod',
     'cogs.command_blacklist',

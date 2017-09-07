@@ -265,6 +265,8 @@ class VoteManager:
 
         if parsed.no_duplicate_votes:
             options += 'Voting for more than one valid option will invalidate your vote\n'
+        elif not parsed.allow_multiple_entries:
+            options += 'If user votes multiple times only 1 reaction is counted'
 
         if parsed.allow_multiple_entries:
             options += 'All all valid votes are counted from a user\n'

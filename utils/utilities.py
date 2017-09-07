@@ -424,6 +424,23 @@ def check_role_mention(msg, word, server):
     return False
 
 
+def get_role(role, roles, name_matching=False):
+    try:
+        int(role)
+        role_id = role
+    except:
+        role_id = get_role_id(role)
+
+        if role_id is None and name_matching:
+            for role_ in roles:
+                if role_.name == role:
+                    return role_
+        elif role_id is None:
+            return
+
+    return discord.utils.find(lambda r: r.id == role_id, roles)
+
+
 def check_user_mention(msg, word):
     if msg.mentions:
         if word != msg.mentions[0].mention:
@@ -434,6 +451,13 @@ def check_user_mention(msg, word):
 
 def get_avatar(user):
     return user.avatar_url or user.default_avatar_url
+
+
+def get_role_id(s):
+    regex = re.compile(r'(?:<@&)?(\d+)(?:>)?(?: |$)')
+    match = regex.match(s)
+    if match:
+        return match.groups()[0]
 
 
 def get_user_id(s):

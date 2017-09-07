@@ -242,7 +242,7 @@ class VoteManager:
                 name = get_emote_name_id(emote)
                 if name is None:
                     # TODO Better check for flag emotes
-                    if len(name) > 1:
+                    if len(emote) > 1:
                         continue
                     emotes.append(emote)
                 else:

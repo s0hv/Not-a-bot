@@ -37,6 +37,7 @@ import traceback
 from collections import deque
 
 import discord
+from discord.http import Route
 from aiohttp import ClientSession
 from discord import (Object, InvalidArgument, ChannelType, ClientException,
                      voice_client, Reaction)
@@ -427,12 +428,45 @@ class Bot(commands.Bot, Client):
             id = r if isinstance(r, str) else r.id
             new_roles.add(id)
 
+        before = len(new_roles)
         for role in member.roles:
             new_roles.add(role.id)
+
+        if before == len(new_roles):
+            return new_roles  # No new roles added so why bother making a post
 
         new_roles = list(new_roles)
         await self._replace_roles(member, new_roles)
         return new_roles
+
+    async def add_role(self, user, role, server=None, reason=None):
+        if not isinstance(user, str):
+            user_id = user.id
+            server_id = user.server.id
+
+        else:
+            user_id = user
+            server_id = server.id if not isinstance(server, str) else server
+
+        role_id = role.id if not isinstance(role, str) else role
+
+        # audit log reasons are put in the header of the request which would
+        # require subclassing because you can't modify the headers any other way
+        # headers={'X-Audit-Log-Reason': reason}
+        await self.http.add_role(server_id, user_id, role_id)
+
+    async def remove_role(self, user, role, server):
+        if not isinstance(user, str):
+            user_id = user.id
+            server_id = user.server.id
+
+        else:
+            user_id = user
+            server_id = server.id if not isinstance(server, str) else server
+
+        role_id = role.id if not isinstance(role, str) else role
+
+        await self.http.remove_role(server_id, user_id, role_id)
 
     async def remove_roles(self, member, *roles, remove_manually=False):
         new_roles = [r.id for r in member.roles]

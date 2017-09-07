@@ -45,6 +45,15 @@ class ServerCache:
     def get_mute_role(self, server_id):
         return self.get_settings(server_id).get('mute_role', None)
 
+    def set_keeproles(self, server_id, value):
+        self.set_value(server_id, 'keeproles', value)
+
+    def keeproles(self, server_id):
+        if self.get_settings(server_id).get('keeproles', 0):
+            return True
+        else:
+            return False
+
     def get_settings(self, server_id):
         settings = self[server_id]
         if not settings:

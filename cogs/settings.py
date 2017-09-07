@@ -9,6 +9,10 @@ class Settings(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
+    @property
+    def cache(self):
+        return self.bot.server_cache
+
     # Required perms for all settings commands: Manage server
     @group(required_perms=discord.Permissions(32))
     async def settings(self):
@@ -66,6 +70,16 @@ class Settings(Cog):
 
         self.bot.server_cache.set_mute_role(server.id, role.id)
         await self.bot.say('Muted role set to {0} `{0.id}`'.format(role))
+
+    @cooldown(1, 5)
+    @settings.command(pass_context=True, ignore_extra=True)
+    async def keeproles(self, ctx, boolean: bool=None):
+        server = ctx.message.server
+        if boolean is None:
+            return await self.bot.say('Current keeproles value: %s' % self.cache.keeproles(server.id))
+
+        self.cache.set_keeproles(server.id, boolean)
+        await self.bot.say('Keeproles set to %s' % boolean)
 
 
 def setup(bot):

@@ -237,8 +237,8 @@ class Playlist:
                     nonlocal message
 
                     while progress <= size:
-                        await asyncio.sleep(3)
                         try:
+                            await asyncio.sleep(3)
                             t2 = time.time() - t
                             eta = progress/t2
                             if eta == 0:
@@ -256,17 +256,21 @@ class Playlist:
                     await self.bot.delete_message(message)
 
                 task = discord.compat.create_task(progress_info(), loop=self.bot.loop)
+                async def on_error(err):
+                    try:
+                        if not no_message:
+                            await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e, channel=channel)
+                    except:
+                        pass
+
+                    return False
+
                 for entry in entries:
                     progress += 1
 
-                    try:
-                        info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False)
-                    except Exception as e:
-                        try:
-                            if not no_message:
-                                await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e, channel=channel)
-                        except:
-                            pass
+                    info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False,
+                                                              on_error=on_error)
+                    if info is False:
                         continue
 
                     if info is None:

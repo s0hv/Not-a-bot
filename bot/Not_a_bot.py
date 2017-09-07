@@ -22,7 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import asyncio
 import logging
+from datetime import datetime
 
 import discord
 from discord.ext import commands
@@ -31,22 +33,22 @@ from discord.ext.commands.view import StringView
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from bot.bot import Bot, Context
 from bot import exceptions
+from bot.bot import Bot, Context
 from bot.cooldown import CooldownManager
+from bot.dbutil import DatabaseUtils
+from bot.globals import BlacklistTypes
 from bot.servercache import ServerCache
 from cogs.voting import Poll
 from utils.utilities import (split_string, slots2dict, retry, random_color)
-from bot.globals import BlacklistTypes
-from datetime import datetime
-from bot.globals import Auth
-import asyncio
+
 logger = logging.getLogger('debug')
 
 initial_cogs = [
     'cogs.admin',
     'cogs.audio',
     'cogs.autoresponds',
+    'cogs.autoroles',
     'cogs.botadmin',
     'cogs.botmod',
     'cogs.command_blacklist',
@@ -60,11 +62,12 @@ initial_cogs = [
     'cogs.misc',
     'cogs.moderator',
     'cogs.search',
+    'cogs.server',
+    'cogs.server_specific',
     'cogs.settings',
     'cogs.stats',
     'cogs.utils',
-    'cogs.voting',
-    'cogs.server']
+    'cogs.voting']
 
 
 class Object:
@@ -87,6 +90,7 @@ class NotABot(Bot):
                                     10: None, 18: None}
 
         self.hi_new = {ord(c): '' for c in ", '"}
+        self.dbutil = DatabaseUtils(self)
         self._setup()
 
     def _setup(self):
@@ -141,7 +145,6 @@ class NotABot(Bot):
 
         if new_servers:
             sql = 'INSERT INTO `servers` (`server`) VALUES ' + ', '.join(new_servers)
-            print(sql)
             session.execute(sql)
             session.commit()
 
@@ -186,7 +189,9 @@ class NotABot(Bot):
             try:
                 await self.edit_role(server, role, color=random_color())
             except:
-                pass
+                role = self.get_role(server, '348208141541834773')
+                if role is None:
+                    return
 
     async def on_message(self, message):
         await self.wait_until_ready()
@@ -205,7 +210,7 @@ class NotABot(Bot):
                                               message.server.roles)
                     if role is not None:
                         user = message.author
-                        await self.add_roles(message.author, role)
+                        await self.add_role(message.author, role)
                         d = 'Automuted user {0} `{0.id}`'.format(message.author)
                         embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
                         embed.add_field(name='Reason', value='Too many mentions in a message')
@@ -214,10 +219,6 @@ class NotABot(Bot):
                         chn = message.server.get_channel(self.server_cache.get_modlog(message.server.id)) or message.channel
                         await self.send_message(chn, embed=embed)
                         return
-
-        if message.server and message.server.id == '217677285442977792' and message.author.id != '123050803752730624':
-            if discord.utils.find(lambda r: r.id == '323098643030736919', message.role_mentions):
-                await self.replace_role(message.author, message.author.roles, (*message.author.roles, '323098643030736919'))
 
         # If the message is a command do that instead
         if message.content.startswith(self.command_prefix):
@@ -236,20 +237,10 @@ class NotABot(Bot):
                 await self.send_message(message.channel, 'dat boi')
             return
 
-    async def on_member_update(self, before, after):
-        server = after.server
-        if server.id == '217677285442977792':
-            name = before.name if not before.nick else before.nick
-            name2 = after.name if not after.nick else after.nick
-            if name == name2:
-                return
-
-            await self._wants_to_be_noticed(after, server)
-
     async def on_server_join(self, server):
         session = self.get_session
-        sql = 'INSERT INTO `servers` (`server`) ' \
-              'VALUES (%s) ON DUPLICATE KEY IGNORE' % server.id
+        sql = 'INSERT IGNORE INTO `servers` (`server`) ' \
+              'VALUES (%s)' % server.id
         session.execute(sql)
         session.commit()
 
@@ -271,7 +262,7 @@ class NotABot(Bot):
         if ord(name[0]) <= 46:
             for i in range(0, 2):
                 try:
-                    await self.add_roles(member, role)
+                    await self.add_role(member, role)
                 except:
                     pass
                 else:

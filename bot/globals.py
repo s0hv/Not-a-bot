@@ -93,4 +93,5 @@ class Auth:
 class Perms:
     MANAGE_ROLES = Permissions(268435456)
     MANAGE_ROLE_CHANNEL = Permissions(268435472)
-    MANAGE_MESSAGES = Permissions(8192 )
+    MANAGE_MESSAGES = Permissions(8192)
+    ADMIN = Permissions(8)

@@ -22,6 +22,7 @@ data/audio/cache/
 
 # Test files
 yttest.py
+wiki_colors.py
 test.py
 sfxtest.py
 test.txt
@@ -31,3 +32,4 @@ db.db
 battletags.json
 data/servers.json
 data/images/
+

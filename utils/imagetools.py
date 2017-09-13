@@ -340,6 +340,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
     buffer = BytesIO(bytearray(buf))
     return Image.open(buffer)
 
+
 async def image_from_url(url, client):
     try:
         async with client.get(url) as r:

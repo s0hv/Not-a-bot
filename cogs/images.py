@@ -85,6 +85,7 @@ class Fun(Cog):
         if img is None:
             return await self.bot.say('Could not extract image from {}.'.format(image))
 
+        img = img.convert("RGBA")
         await self.bot.send_typing(ctx.message.channel)
         x, y = 820, 396
         w, h = 355, 505

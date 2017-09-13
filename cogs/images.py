@@ -24,6 +24,7 @@ class Fun(Cog):
         if img is None:
             return await self.bot.say('Could not extract image from {}.'.format(image))
 
+        await self.bot.send_typing(ctx.message.channel)
         x, y = 9, 10
         w, h = 854, 480
         template = Image.open(path)
@@ -53,6 +54,7 @@ class Fun(Cog):
         if img is None:
             return await self.bot.say('Could not extract image from {}.'.format(image))
 
+        await self.bot.send_typing(ctx.message.channel)
         x, y = 9, 10
         w, h = 854, 480
         template = Image.open(path)
@@ -83,6 +85,7 @@ class Fun(Cog):
         if img is None:
             return await self.bot.say('Could not extract image from {}.'.format(image))
 
+        await self.bot.send_typing(ctx.message.channel)
         x, y = 820, 396
         w, h = 355, 505
         rotation = -22

@@ -135,7 +135,7 @@ class Colors(Cog):
 
         ids = self._colors.get(server.id).keys()
         roles = [r for r in roles if r not in ids]
-        roles.append(id)
+        roles.append(str(id))
         try:
             await self.bot.add_roles(ctx.message.author, roles)
         except discord.DiscordException as e:

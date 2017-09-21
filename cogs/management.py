@@ -323,7 +323,7 @@ class Management:
                         break
 
                 if role:
-                    await self.bot.add_roles(member, role[0])
+                    await self.bot.add_role(member, role[0])
 
         if server.id == '217677285442977792':
             await self.bot._wants_to_be_noticed(member, server, remove=False)
@@ -522,32 +522,6 @@ class Management:
 
         await self.bot.send_message(ctx.message.channel, embed=embed)
 
-    @command(pass_context=True, owner_only=True, required_perms=color_perms)
-    async def add_color(self, ctx, color, *, name):
-        try:
-            color = Color(color)
-        except (ValueError, AttributeError):
-            return await self.bot.say('Color %s is invalid' % color)
-
-        try:
-            color = color.get_hex_l()
-            if color.startswith('#'):
-                color = color[1:]
-
-            color = discord.Color(int(color, 16))
-            everyone = ctx.message.server.default_role
-            perms = discord.Permissions(everyone.permissions.value)
-            role = await self.bot.create_role(ctx.message.server, name=name,
-                                              colour=color,
-                                              permissions=perms,
-                                              mentionable=False, hoist=False)
-        except Exception as e:
-            print('[ERROR] Exception while creating role. %s' % e)
-            return await self.bot.say('Could not create role')
-
-        self.utils.add_color_to_json(name.lower(), ctx.message.server.id, role.id)
-        await self.bot.say('Color %s added' % name)
-
     @command(pass_context=True, owner_only=True)
     async def test2(self, ctx, mention, role1, role2, replaced):
         mention = ctx.message.server.get_member(mention)
@@ -568,47 +542,17 @@ class Management:
                 print('skipping %s %s' % (name, color_id))
                 continue
 
-            lab = convert_color(sRGBColor(*role.color.to_tuple()), LabColor)
-            sql = 'INSERT INTO `colors` (`id`, `name`, `color`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
-                  '(:id, :name, :color, :lab_l, :lab_a, :lab_b)'
+            lab = convert_color(sRGBColor(*role.color.to_tuple(), is_upscaled=True), LabColor)
+            sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
+                  '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
             session.execute(sql, params={'id': int(color_id),
                                          'name': name,
-                                         'color': role.color.value,
+                                         'value': role.color.value,
                                          'lab_l': lab.lab_l,
                                          'lab_a': lab.lab_a,
                                          'lab_b': lab.lab_b})
 
         session.commit()
-
-    @command(pass_context=True, aliases=['colour'])
-    async def color(self, ctx, *, color):
-        server = ctx.message.server
-        roles = server.roles
-        color = color.lower()
-        colors = self.utils.get_colors(server.id)
-        color_id = colors.get(color, None)
-        role_ = list(filter(lambda r: r.id == color_id, roles))
-        if not role_:
-            return await self.bot.say('Color %s not found. Use !colors for all the available colors.' % color)
-
-        role_ = role_[0]
-        _roles = []
-        for role in ctx.message.author.roles:
-            v = colors.values()
-            if role.id in v and role != role_:
-                _roles.append(role)
-
-        try:
-            await self.bot.replace_role(ctx.message.author, _roles, (role_,))
-        except Exception as e:
-            print(e)
-            await self.bot.say('Failed to change color')
-        else:
-            await self.bot.say('Color set to %s' % color)
-
-    @command(pass_context=True)
-    async def colors(self, ctx):
-        await self.bot.say('Available colors: {}'.format(', '.join(self.utils.get_colors(ctx.message.server.id).keys())))
 
     @command(pass_context=True, owner_only=True)
     async def check_colors(self, ctx):

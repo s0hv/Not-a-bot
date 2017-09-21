@@ -13,6 +13,8 @@ for row in rows:
     name = row.find('a')
     if name:
         name = name.text
+    else:
+        continue
     color = row.find('p').get('title')
 
     d = {}
@@ -28,7 +30,7 @@ for row in rows:
     d['hsv'] = hsv_
     d['rgb'] = [int(s) for s in rgb[4:-1].split(',')]
     d['hex'] = hex_
-    colors[name] = d
+    colors[name.lower()] = d
 
 with open('color_names.json', 'w') as f:
     json.dump(colors, f, indent=4)

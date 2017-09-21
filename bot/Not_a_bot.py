@@ -51,6 +51,7 @@ initial_cogs = [
     'cogs.autoroles',
     'cogs.botadmin',
     'cogs.botmod',
+    'cogs.colors',
     'cogs.command_blacklist',
     'cogs.emotes',
     'cogs.gachiGASM',
@@ -269,7 +270,7 @@ class NotABot(Bot):
                     break
 
         elif remove and role in member.roles:
-                await retry(self.remove_roles, member, role)
+                await retry(self.remove_role, member, role)
 
     @staticmethod
     def _parse_on_delete(msg, conf):

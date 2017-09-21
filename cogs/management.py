@@ -633,6 +633,29 @@ class Management:
         self.utils.reload_config()
         await self.bot.say('Reloaded config')
 
+    @command(pass_context=True, no_pm=True)
+    @cooldown(1, 3)
+    async def default_role(self, ctx):
+        """Temporary fix to easily get default role"""
+        server = ctx.message.server
+        if server.id != '217677285442977792':
+             return
+
+        role = self.bot.get_role(server, '352099343953559563')
+        if not role:
+            return await self.bot.say('Default role not found')
+
+        member = ctx.message.author
+        if role in member.roles:
+            return await self.bot.say('You already have the default role')
+
+        try:
+            await self.bot.add_role(member, role)
+        except:
+            return await self.bot.say('Failed to add default role. Try again in a bit')
+
+        await self.bot.say('You now have the default role')
+
 
 def setup(bot):
     bot.add_cog(Management(bot))

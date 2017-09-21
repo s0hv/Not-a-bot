@@ -273,13 +273,14 @@ def slots2dict(obj, d: dict=None, replace=True):
 
     return d
 
+
 async def retry(f, *args, retries_=3, **kwargs):
     e = None
     for i in range(0, retries_):
         try:
             retval = await f(*args, **kwargs)
-        except Exception as e:
-            e = e
+        except Exception as e_:
+            e = e_
         else:
             return retval
 

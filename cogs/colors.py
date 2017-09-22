@@ -248,6 +248,9 @@ class Colors(Cog):
                 if fields == 25:
                     current_embed += 1
 
+        if switch == 0:
+            embeds[current_embed].add_field(name=field_title, value=field_value)
+
         chn = ctx.message.channel
         for embed in embeds:
             await self.bot.send_message(chn, embed=embed)

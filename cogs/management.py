@@ -536,6 +536,32 @@ class Management:
         session.commit()
 
     @command(pass_context=True, owner_only=True)
+    async def convert_color(self, ctx, color_id, name):
+        from colormath.color_conversions import convert_color
+        from colormath.color_objects import LabColor, sRGBColor
+
+        server = ctx.message.server
+        session = self.bot.get_session
+        self.bot.dbutil.add_roles(color_id, server.id)
+        role = self.bot.get_role(server, str(color_id))
+        if not role:
+            return
+
+        lab = convert_color(
+            sRGBColor(*role.color.to_tuple(), is_upscaled=True), LabColor)
+        sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
+              '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
+        session.execute(sql, params={'id': int(color_id),
+                                     'name': name,
+                                     'value': role.color.value,
+                                     'lab_l': lab.lab_l,
+                                     'lab_a': lab.lab_a,
+                                     'lab_b': lab.lab_b})
+
+        session.commit()
+        await self.bot.say('k')
+
+    @command(pass_context=True, owner_only=True)
     async def check_colors(self, ctx):
         server = ctx.message.server
         removed = self.utils.remove_removed_colors(server.id)

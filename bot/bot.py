@@ -428,12 +428,8 @@ class Bot(commands.Bot, Client):
             id = r if isinstance(r, str) else r.id
             new_roles.add(id)
 
-        before = len(new_roles)
         for role in member.roles:
             new_roles.add(role.id)
-
-        if before == len(new_roles):
-            return new_roles  # No new roles added so why bother making a post
 
         new_roles = list(new_roles)
         await self._replace_roles(member, new_roles)

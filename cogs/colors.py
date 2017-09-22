@@ -135,7 +135,8 @@ class Colors(Cog):
 
         ids = self._colors.get(server.id).keys()
         roles = [r for r in roles if r not in ids]
-        roles.append(str(id))
+        roles.append(id)
+        print(roles)
         try:
             await self.bot.add_roles(ctx.message.author, *roles)
         except discord.DiscordException as e:
@@ -205,7 +206,6 @@ class Colors(Cog):
             self._colors[server.id][color_role.id] = color_
         else:
             self._colors[server.id] = {color_role.id: color_}
-
 
 def setup(bot):
     bot.add_cog(Colors(bot))

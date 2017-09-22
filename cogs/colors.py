@@ -100,7 +100,6 @@ class Colors(Cog):
         similarity = 0
         for c in colors.values():
             d = 100 - delta_e_cie2000(c.lab, color)
-            print(d)
             if d > similarity:
                 similarity = d
                 closest_match = c
@@ -135,7 +134,7 @@ class Colors(Cog):
 
         ids = self._colors.get(server.id).keys()
         roles = [r for r in roles if r not in ids]
-        roles.append(id)
+        roles.append(str(id))
         print(roles)
         try:
             await self.bot.add_roles(ctx.message.author, *roles)

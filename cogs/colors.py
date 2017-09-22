@@ -248,7 +248,7 @@ class Colors(Cog):
                 if fields == 25:
                     current_embed += 1
 
-        if switch == 0:
+        if switch == 1:
             embeds[current_embed].add_field(name=field_title, value=field_value)
 
         chn = ctx.message.channel

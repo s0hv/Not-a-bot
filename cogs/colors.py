@@ -6,8 +6,10 @@ from colormath.color_conversions import convert_color
 from colormath.color_objects import LabColor, sRGBColor
 from colormath.color_diff import delta_e_cie2000
 from colour import Color as Colour
+from math import ceil
 
 from bot.bot import command
+from discord.ext.commands import cooldown
 from cogs.cog import Cog
 from utils.utilities import split_string
 import logging
@@ -58,7 +60,7 @@ class Colors(Cog):
             server_id = str(int(server))
         except:
             server_id = server.id
-
+        id = str(id)
         color = Color(id, name, value, server_id, (lab_l, lab_a, lab_b))
 
         if server_id in self._colors:
@@ -107,14 +109,26 @@ class Colors(Cog):
         return closest_match, similarity
 
     @command(pass_context=True, no_pm=True)
+    @cooldown(1, 2)
     async def color(self, ctx, *color):
-        if not color:
-            # TODO say users current color
-            pass
-
         server = ctx.message.server
-        if not self._colors.get(server.id, None):
+        colors = self._colors.get(server.id, None)
+        if not colors:
             return await self.bot.say("This server doesn't have any color roles")
+
+        ids = set(colors.keys())
+        roles = set([r.id for r in ctx.message.author.roles])
+        if not color:
+            user_colors = roles.intersection(ids)
+            if not user_colors:
+                return await self.bot.say("You don't have a color role")
+
+            if len(user_colors) > 1:
+                return await self.bot.say('You have multiple color roles <:gappyThinking:356797999986245643>')
+
+            else:
+                name = colors.get(user_colors.pop())
+                return await self.bot.say('Your current color is %s. Use !colors to see a list of colors in this server. To also see the role colors use !show_colors' % name)
 
         color = ' '.join(color)
         color_ = self.get_color(color, server.id)
@@ -127,22 +141,21 @@ class Colors(Cog):
             return await self.bot.say('Could not find color {0}. Color closest to '
                                       '{0} is {1} with {2:.02f}% similarity'.format(color, color_.name, similarity))
 
-        roles = [r.id for r in ctx.message.author.roles]
         id, color = color_
         if id in roles:
             return await self.bot.say('You already have that color')
 
-        ids = self._colors.get(server.id).keys()
-        roles = [r for r in roles if r not in ids]
-        roles.append(str(id))
+        roles = roles.difference(ids)
+        roles.add(id)
         try:
-            await self.bot.add_roles(ctx.message.author, *roles)
+            await self.bot.replace_roles(ctx.message.author, *roles)
         except discord.DiscordException as e:
-            return await self.bot.say('Failed to add color because of an error\n\n```\n%s```' % e)
+            return await self.bot.say('Failed to set color because of an error\n\n```\n%s```' % e)
 
         await self.bot.say('Color set to %s' % color.name)
 
     @command(pass_context=True, no_pm=True)
+    @cooldown(1, 1)
     async def colors(self, ctx):
         server = ctx.message.server
         colors = self._colors.get(server.id)
@@ -162,6 +175,7 @@ class Colors(Cog):
             await self.bot.say(msg)
 
     @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES)
+    @cooldown(1, 2)
     async def add_color(self, ctx, color: str, *name):
         if not name:
             name = color
@@ -204,6 +218,40 @@ class Colors(Cog):
             self._colors[server.id][color_role.id] = color_
         else:
             self._colors[server.id] = {color_role.id: color_}
+
+    @command(pass_context=True, no_pm=True)
+    @cooldown(1, 4)
+    async def show_colors(self, ctx):
+        server = ctx.message.server
+        colors = self._colors.get(server.id, None)
+        if not colors:
+            return await self.bot.say("This server doesn't have any colors")
+
+        embed_count = ceil(len(colors)/50)
+
+        switch = 0
+        current_embed = 0
+        fields = 0
+        embeds = [discord.Embed() for i in range(embed_count)]
+        for color in colors.values():
+            if switch == 0:
+                field_title = str(color)
+                field_value = '<@&%s>' % color.role_id
+                switch = 1
+            elif switch == 1:
+                field_title += ' --- ' + str(color)
+                field_value += '    <@&%s>' % color.role_id
+                switch = 0
+                embeds[current_embed].add_field(name=field_title, value=field_value)
+                fields += 1
+
+                if fields == 25:
+                    current_embed += 1
+
+        chn = ctx.message.channel
+        for embed in embeds:
+            await self.bot.send_message(chn, embed=embed)
+
 
 def setup(bot):
     bot.add_cog(Colors(bot))

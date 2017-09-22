@@ -435,6 +435,14 @@ class Bot(commands.Bot, Client):
         await self._replace_roles(member, new_roles)
         return new_roles
 
+    async def replace_roles(self, member, *roles):
+        new_roles = set()
+        for role in roles:
+            id = role if isinstance(role, str) else role.id
+            new_roles.add(id)
+
+        await self._replace_roles(member, list(new_roles))
+
     async def add_role(self, user, role, server=None, reason=None):
         if not isinstance(user, str):
             user_id = user.id

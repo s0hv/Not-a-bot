@@ -503,25 +503,6 @@ class Management:
         self.utils.save_json()
         await self.bot.say('Roles {} removed from the whitelist'.format(', '.join(removed)))
 
-    @command(pass_context=True, ignore_extra=True)
-    async def show_colors(self, ctx, color: str=None):
-        embed = discord.Embed(title='Colors')
-        colors = self.utils.get_colors(ctx.message.server.id)
-        if color is not None:
-            key = discord.utils.find(lambda key: key.lower() == color.lower(), colors)
-            if key is not None:
-                colors = {key: colors[key]}
-            else:
-                colors = None
-
-        if not colors:
-            return await self.bot.say('No colors found')
-
-        for name, role in colors.items():
-            embed.add_field(name=name, value='<@&%s>' % role)
-
-        await self.bot.send_message(ctx.message.channel, embed=embed)
-
     @command(pass_context=True, owner_only=True)
     async def test2(self, ctx, mention, role1, role2, replaced):
         mention = ctx.message.server.get_member(mention)

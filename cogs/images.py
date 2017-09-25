@@ -6,11 +6,14 @@ from PIL import Image
 from io import BytesIO
 from discord.ext.commands import cooldown
 import os
+from random import randint
+from selenium.webdriver import PhantomJS
 
 
 class Fun(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self.driver = PhantomJS(self.bot.config.phantomjs)
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(5, 5)
@@ -106,6 +109,26 @@ class Fun(Cog):
         template.save(file, format='PNG')
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
+
+    @command(pass_context=True, ignore_extra=True)
+    async def pokefusion(self, ctx):
+        r1 = randint(1, 386)
+        r2 = randint(1, 386)
+        while r1 == r2:
+            r2 = randint(1, 386)
+
+        url = 'http://pokefusion.japeal.com/%s/%s' % (r1, r2)
+        self.driver.get(url)
+        img = BytesIO(self.driver.get_screenshot_as_png())
+        img.seek(0)
+        img = Image.open(img)
+        img = img.crop((185, 367, 455, 637))
+        file = BytesIO()
+        img.save(file, 'PNG')
+        file.seek(0)
+        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png')
+
+
 
 
 def setup(bot):

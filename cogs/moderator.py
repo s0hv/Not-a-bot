@@ -148,7 +148,7 @@ class Moderator(Cog):
 
         if self.bot.get_role(server, mute_role):
             try:
-                await self.bot.remove_roles(user, mute_role)
+                await self.bot.remove_role(user, mute_role)
             except:
                 logger.exception('Could not autounmute user %s' % user.id)
         self.remove_timeout(user.id, server.id)
@@ -219,6 +219,7 @@ class Moderator(Cog):
         task = call_later(self.untimeout, self.bot.loop,
                           time.total_seconds(), user.id, ctx.message.server.id)
 
+        server = server.id
         if server not in self.timeouts:
             server_timeouts = {}
             self.timeouts[server] = server_timeouts
@@ -246,7 +247,7 @@ class Moderator(Cog):
             return await self.bot.say('Could not find the muted role')
 
         try:
-            await self.bot.remove_roles(users[0], mute_role)
+            await self.bot.remove_role(users[0], mute_role)
         except:
             await self.bot.say('Could not unmute user {}'.format(users[0]))
         else:

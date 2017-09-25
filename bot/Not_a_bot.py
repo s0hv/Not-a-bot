@@ -83,6 +83,7 @@ class NotABot(Bot):
         cdm.add_cooldown('oshit', 3, 8)
         self.cdm = cdm
         self._random_color = None
+        self.polls = {}
         self._server_cache = ServerCache(self)
         self._perm_values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4, 'channel': 0x8, 'server': 0x10}
         self._perm_returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False, 16: True, 18: False}
@@ -104,26 +105,6 @@ class NotABot(Bot):
         self.mysql = Object()
         self.mysql.session = self.get_session
         self.mysql.engine = engine
-
-    def load_polls(self):
-        session = self.get_session
-        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
-        poll_rows = session.execute(sql)
-        polls = {}
-        for row in poll_rows:
-            poll = polls.get(row['message'], Poll(self, row['message'], row['channel'], row['title'],
-                                                  expires_at=row['expires_in'],
-                                                  strict=row['strict'],
-                                                  no_duplicate_votes=row['ignore_on_dupe'],
-                                                  multiple_votes=row['multiple_votes']))
-
-            if poll.message not in polls:
-                polls[poll.message] = poll
-
-            poll.add_emote(row['emote'])
-
-        for poll in polls.values():
-            poll.start()
 
     def cache_servers(self):
         servers = self.servers
@@ -167,7 +148,6 @@ class NotABot(Bot):
             except Exception as e:
                 print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
-        self.load_polls()
         self.cache_servers()
         if self._random_color is None:
             self._random_color = self.loop.create_task(self._random_color_task())

@@ -459,7 +459,7 @@ class Bot(commands.Bot, Client):
         # headers={'X-Audit-Log-Reason': reason}
         await self.http.add_role(server_id, user_id, role_id)
 
-    async def remove_role(self, user, role, server):
+    async def remove_role(self, user, role, server=None):
         if not isinstance(user, str):
             user_id = user.id
             server_id = user.server.id

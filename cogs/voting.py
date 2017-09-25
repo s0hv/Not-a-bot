@@ -17,7 +17,7 @@ logger = logging.getLogger('debug')
 class Poll:
     def __init__(self, bot, message, channel, title, expires_at=None,
                  strict=False, emotes=None, no_duplicate_votes=False,
-                 multiple_votes=False, max_winners=1):
+                 multiple_votes=False, max_winners=1, after=None):
         """
         Args:
             message: either `class`: discord.Message or int
@@ -35,6 +35,7 @@ class Poll:
         self.max_winners = max_winners
         self._task = None
         self._stopper = asyncio.Event()
+        self._after = after
 
     @property
     def bot(self):
@@ -47,6 +48,8 @@ class Poll:
     def start(self):
         self._stopper.clear()
         self._task = self.bot.loop.create_task(self._wait())
+        if callable(self._after):
+            self._task.add_done_callback(self._after)
 
     def stop(self):
         if self._task:
@@ -80,6 +83,7 @@ class Poll:
         try:
             chn = self.bot.get_channel(self.channel)
             msg = await self.bot.get_message(chn, self.message)
+            chn = self.bot.get_channel('252872751319089153')
         except:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)
@@ -165,13 +169,15 @@ class Poll:
             session.commit()
         except:
             logger.exception('Could not delete poll')
-            await self.bot.send_message(chn, 'Could not delete poll from database. The result might be recalculated')
+            await self.bot.send_message(chn, 'Could not delete poll from database. The poll result might be recalculated')
 
 
 class VoteManager:
     def __init__(self, bot):
         self.bot = bot
         self.session = self.bot.get_session
+        self.polls = self.bot.polls
+        self.load_polls()
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument('-header', nargs='+')
         self.parser.add_argument('-time', default='60s', nargs='+')
@@ -181,6 +187,123 @@ class VoteManager:
         self.parser.add_argument('-strict', action='store_true')
         self.parser.add_argument('-no_duplicate_votes', action='store_true')
         self.parser.add_argument('-allow_multiple_entries', action='store_true')
+
+    def load_polls(self):
+        session = self.session
+        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
+        poll_rows = session.execute(sql)
+        polls = {}
+        for row in poll_rows:
+            poll = polls.get(row['message'], Poll(self.bot, row['message'], row['channel'], row['title'],
+                                                  expires_at=row['expires_in'],
+                                                  strict=row['strict'],
+                                                  no_duplicate_votes=row['ignore_on_dupe'],
+                                                  multiple_votes=row['multiple_votes'],
+                                                  after=lambda f: self.polls.pop(row['message'], None)))
+
+            r = self.polls.get(row['message'])
+            if r:
+                r.stop()
+
+            polls[row['message']] = poll
+            poll.add_emote(row['emote'])
+
+        for poll in polls.values():
+            self.polls[int(poll.message)] = poll
+            poll.start()
+
+    @command(owner_only=True, pass_context=True)
+    async def recalculate(self, ctx, msg_id, channel_id, *, message):
+        # Add -header if it's not present so argparser can recognise the argument
+        message = '-header ' + message if not message.startswith('-h') else message
+        try:
+            parsed = self.parser.parse_args(message.split(' '))
+        except:
+            return await self.bot.say('Failed to parse arguments')
+
+        if parsed.strict and not parsed.emotes:
+            return await self.bot.say('Cannot set strict mode without specifying any emotes')
+
+        if parsed.no_duplicate_votes and parsed.allow_multiple_entries:
+            return await self.bot.say('Cannot have -n and -a specified at the same time. That would be dumb')
+
+        if parsed.max_winners < 1:
+            return await self.bot.say('Max winners needs to be an integer bigger than 0')
+
+        parsed.max_winners = min(parsed.max_winners, 20)
+
+        title = ' '.join(parsed.header)
+        expires_in = parse_time(' '.join(parsed.time))
+        if expires_in.total_seconds() == 0:
+            await self.bot.say('No time specified or time given is 0 seconds. Using default value of 60s')
+            expires_in = timedelta(seconds=60)
+        if expires_in.days > 7:
+            return await self.bot.say('Maximum time is 7 days')
+
+        now = datetime.utcnow()
+        expired_date = now + expires_in
+        sql_date = datetime2sql(expired_date)
+        parsed.time = sql_date
+
+        emotes = []
+        failed = []
+        if parsed.emotes:
+            for emote in parsed.emotes:
+                if not emote.strip():
+                    continue
+
+                name = get_emote_name_id(emote)
+                if name is None:
+                    # TODO Better check for flag emotes
+                    if len(emote) > 1:
+                        continue
+                    emotes.append(emote)
+                else:
+                    emotes.append(name)
+
+        if parsed.description:
+            description = ' '.join(parsed.description)
+        else:
+            description = discord.Embed.Empty
+
+        embed = discord.Embed(title=title, description=description, timestamp=expired_date)
+        if parsed.time:
+            embed.add_field(name='Valid for',
+                            value='%s' % str(expires_in))
+        embed.set_footer(text='Expires at', icon_url=get_avatar(ctx.message.author))
+
+        options = ''
+        if parsed.strict:
+            options += 'Strict mode on. Only specified emotes are counted\n'
+
+        if parsed.no_duplicate_votes:
+            options += 'Voting for more than one valid option will invalidate your vote\n'
+        elif not parsed.allow_multiple_entries:
+            options += 'If user votes multiple times only 1 reaction is counted'
+
+        if parsed.allow_multiple_entries:
+            options += 'All all valid votes are counted from a user\n'
+
+        if parsed.max_winners > 1:
+            options += 'Max amount of winners %s (might be more in case of a tie)' % parsed.max_winners
+
+        if options:
+            embed.add_field(name='Modifiers', value=options)
+
+        emotes_list = []
+        for emote in emotes:
+            if not isinstance(emote, tuple):
+                id = ord(emote)
+                emotes_list.append(id)
+            else:
+                name, id = emote
+                emotes_list.append(id)
+
+        poll = Poll(self.bot, msg_id, channel_id, title, expires_at=expired_date, strict=parsed.strict,
+                    emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
+                    multiple_votes=parsed.allow_multiple_entries, max_winners=parsed.max_winners)
+
+        await poll.count_votes()
 
     @command(pass_context=True, owner_only=True, aliases=['vote'])
     async def poll(self, ctx, *, message):
@@ -336,8 +459,10 @@ class VoteManager:
 
         poll = Poll(self.bot, msg.id, msg.channel.id, title, expires_at=expired_date, strict=parsed.strict,
                     emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
-                    multiple_votes=parsed.allow_multiple_entries, max_winners=parsed.max_winners)
+                    multiple_votes=parsed.allow_multiple_entries, max_winners=parsed.max_winners,
+                    after=lambda f: self.polls.pop(msg.id, None))
         poll.start()
+        self.polls[int(msg.id)] = poll
 
 
 def setup(bot):

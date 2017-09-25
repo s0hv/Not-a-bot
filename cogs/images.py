@@ -1,19 +1,27 @@
-from cogs.cog import Cog
-from bot.bot import command
-from utils.utilities import get_image_from_message
-from utils.imagetools import resize_keep_aspect_ratio, image_from_url
-from PIL import Image
-from io import BytesIO
 import os
+from asyncio import Queue
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+from io import BytesIO
 from random import randint
+
+from PIL import Image
+from discord.ext.commands import cooldown
 from selenium.webdriver import PhantomJS
-from discord.ext.commands import cooldown, BucketType
+
+from bot.bot import command
+from cogs.cog import Cog
+from utils.imagetools import resize_keep_aspect_ratio, image_from_url
+from utils.utilities import get_image_from_message
 
 
 class Fun(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.driver = PhantomJS(self.bot.config.phantomjs)
+        self.threadpool = ThreadPoolExecutor(3)
+        self.queue = Queue()
+        self.queue.put_nowait(1)
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(5, 5)
@@ -110,6 +118,12 @@ class Fun(Cog):
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
 
+    async def get_url(self, url):
+        """After visiting the url remember to put 1 item in self.queue"""
+        await self.queue.get()
+        f = partial(self.driver.get, url)
+        await self.bot.loop.run_in_executor(self.threadpool, f)
+
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2)
     async def pokefusion(self, ctx):
@@ -119,8 +133,9 @@ class Fun(Cog):
             r2 = randint(1, 386)
 
         url = 'http://pokefusion.japeal.com/%s/%s' % (r1, r2)
-        self.driver.get(url)
+        await self.get_url(url)
         img = BytesIO(self.driver.get_screenshot_as_png())
+        self.queue.put_nowait(1)
         img.seek(0)
         img = Image.open(img)
         img = img.crop((185, 367, 455, 637))

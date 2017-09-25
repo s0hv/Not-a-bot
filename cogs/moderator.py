@@ -219,7 +219,6 @@ class Moderator(Cog):
         task = call_later(self.untimeout, self.bot.loop,
                           time.total_seconds(), user.id, ctx.message.server.id)
 
-        server = server.id
         if server not in self.timeouts:
             server_timeouts = {}
             self.timeouts[server] = server_timeouts

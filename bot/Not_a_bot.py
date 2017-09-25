@@ -84,6 +84,7 @@ class NotABot(Bot):
         self.cdm = cdm
         self._random_color = None
         self.polls = {}
+        self.timeouts = {}
         self._server_cache = ServerCache(self)
         self._perm_values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4, 'channel': 0x8, 'server': 0x10}
         self._perm_returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False, 16: True, 18: False}

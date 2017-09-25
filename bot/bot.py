@@ -487,6 +487,16 @@ class Bot(commands.Bot, Client):
     async def bulk_delete(self, channel_id, message_ids):
         await self.http.delete_messages(channel_id, message_ids)
 
+    async def delete_message(self, message, channel=None):
+        if not isinstance(message, str):
+            message_id = message.id
+            channel_id = message.channel.id
+        else:
+            message_id = message
+            channel_id = channel if isinstance(channel, str) else channel.id
+
+        await self.http.delete_message(channel_id, message_id)
+
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):
             channel = self.get_channel(channel.id)

@@ -17,7 +17,7 @@ lock_perms = discord.Permissions(268435472)
 class Moderator(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.timeouts = {}
+        self.timeouts = self.bot.timeouts
         self._load_timeouts()
 
     def _load_timeouts(self):
@@ -40,10 +40,12 @@ class Moderator(Cog):
                 else:
                     server_timeouts = self.timeouts.get(server)
 
+                t = server_timeouts.get(user)
+                if t:
+                    t.cancel()
+
                 server_timeouts[user] = task
-
-
-
+                task.add_done_callback(lambda f: server_timeouts.pop(user, None))
 
             except:
                 logger.exception('Could not untimeout %s' % row)
@@ -95,12 +97,18 @@ class Moderator(Cog):
         else:
             return
 
+        server = ctx.message.server
         try:
-            server = ctx.message.server
             user = users[0]
-            await self.bot.add_roles(user, mute_role)
+            await self.bot.add_role(user, mute_role)
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
+
+        server_timeouts = self.timeouts.get(server.id, {})
+        task = server_timeouts.get(user.id)
+        if task:
+            task.cancel()
+            self.remove_timeout(user.id, server.id)
 
         try:
             await self.bot.say('Muted user {} `{}`'.format(user.name, user.id))
@@ -119,6 +127,15 @@ class Moderator(Cog):
         except:
             pass
 
+    def remove_timeout(self, user_id, server_id):
+        try:
+            session = self.bot.get_session
+            sql = 'DELETE FROM `timeouts` WHERE `server` = %s AND `user` = %s' % (server_id, user_id)
+            session.execute(sql)
+            session.commit()
+        except:
+            logger.exception('Could not delete untimeout')
+
     async def untimeout(self, user, server_id):
         mute_role = self.bot.server_cache.get_mute_role(server_id)
         if mute_role is None:
@@ -134,14 +151,7 @@ class Moderator(Cog):
                 await self.bot.remove_roles(user, mute_role)
             except:
                 logger.exception('Could not autounmute user %s' % user.id)
-
-        try:
-            session = self.bot.get_session
-            sql = 'DELETE FROM `timeouts` WHERE `server` = %s AND `user` = %s' % (server.id, user.id)
-            session.execute(sql)
-            session.commit()
-        except:
-            logger.exception('Could not delete untimeout')
+        self.remove_timeout(user.id, server.id)
 
     @command(pass_context=True, aliases=['temp_mute'], required_perms=manage_roles)
     async def timeout(self, ctx, user, *, timeout):
@@ -181,8 +191,12 @@ class Moderator(Cog):
             return await self.bot.say('Could not save timeout. Canceling action')
 
         server = ctx.message.server
+        t = self.timeouts.get(server.id, {}).get(user.id)
+        if t:
+            t.cancel()
+
         try:
-            await self.bot.add_roles(user, mute_role)
+            await self.bot.add_role(user, mute_role)
             await self.bot.say('Muted user {} for {}'.format(str(user), time))
             chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
             if chn:
@@ -205,17 +219,14 @@ class Moderator(Cog):
         task = call_later(self.untimeout, self.bot.loop,
                           time.total_seconds(), user.id, ctx.message.server.id)
 
-        t = self.timeouts.get(server.id, {}).get(user, None)
-        if t:
-            t.cancel()
-
         if server not in self.timeouts:
             server_timeouts = {}
             self.timeouts[server] = server_timeouts
         else:
             server_timeouts = self.timeouts.get(server)
 
-        server_timeouts[user] = task
+        server_timeouts[user.id] = task
+        task.add_done_callback(lambda f: server_timeouts.pop(user.id, None))
 
     @command(pass_context=True, required_perms=manage_roles)
     async def unmute(self, ctx, *user):
@@ -384,7 +395,10 @@ class Moderator(Cog):
         ids = []
         for k in channel_messages:
             try:
-                await self.delete_messages(k, channel_messages[k])
+                if len(channel_messages[k]) == 1:
+                    await self.bot.delete_message(channel_messages[k][0], str(k))
+                else:
+                    await self.delete_messages(k, channel_messages[k])
             except:
                 logger.exception('Could not delete messages')
             else:

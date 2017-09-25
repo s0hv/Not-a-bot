@@ -383,7 +383,10 @@ def call_later(func, loop, timeout, *args, **kwargs):
     """
     async def wait():
         if timeout > 0:
-            await asyncio.sleep(timeout)
+            try:
+                await asyncio.sleep(timeout)
+            except asyncio.CancelledError:
+                return
 
         await func(*args, **kwargs)
 

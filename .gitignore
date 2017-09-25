@@ -9,6 +9,7 @@ data/playlists/add_autoplaylist.txt
 data/playlists/AutoIT/
 data/playlists/k/
 data/playlists/playlists_backup/
+data/playlists/test
 
 # Audio files
 data/audio/sfx/
@@ -27,9 +28,16 @@ test.py
 sfxtest.py
 test.txt
 db.db
+color_data.json
+test.png
 
 # Auto-generated files
 battletags.json
 data/servers.json
 data/images/
+data/temp/
 
+bot/__pycache__/Not_a_bot.cpython-35.pyc
+bot/__pycache__/cooldown.cpython-35.pyc
+cogs/__pycache__/
+utils/__pycache__/imagetools.cpython-35.pyc

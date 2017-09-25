@@ -129,7 +129,5 @@ class Fun(Cog):
         await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png')
 
 
-
-
 def setup(bot):
     bot.add_cog(Fun(bot))

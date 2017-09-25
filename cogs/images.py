@@ -4,10 +4,10 @@ from utils.utilities import get_image_from_message
 from utils.imagetools import resize_keep_aspect_ratio, image_from_url
 from PIL import Image
 from io import BytesIO
-from discord.ext.commands import cooldown
 import os
 from random import randint
 from selenium.webdriver import PhantomJS
+from discord.ext.commands import cooldown, BucketType
 
 
 class Fun(Cog):
@@ -111,6 +111,7 @@ class Fun(Cog):
         await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
 
     @command(pass_context=True, ignore_extra=True)
+    @cooldown(2, 2)
     async def pokefusion(self, ctx):
         r1 = randint(1, 386)
         r2 = randint(1, 386)

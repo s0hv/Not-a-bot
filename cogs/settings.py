@@ -4,6 +4,7 @@ from discord.ext.commands import cooldown
 from bot.bot import group, command
 from cogs.cog import Cog
 from utils.utilities import get_channel_id, split_string
+from bot.globals import Perms
 
 
 class Settings(Cog):
@@ -83,7 +84,7 @@ class Settings(Cog):
         await self.bot.say('Keeproles set to %s' % boolean)
 
     @cooldown(1, 5)
-    @command(pass_context=True)
+    @command(pass_context=True, required_perms=Perms.MANAGE_ROLE_CHANNEL)
     async def automute_blacklist(self, ctx, *, channels):
         server = ctx.message.server
         ids = []

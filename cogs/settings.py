@@ -100,9 +100,11 @@ class Settings(Cog):
 
             else:
                 failed.append(channel)
-        s = "Couldn't find channels %s" % ', '.join(failed)
-        for msg in split_string(s, maxlen=2000, splitter=', '):
-            await self.bot.say(msg)
+
+        if failed:
+            s = "Couldn't find channels %s" % ', '.join(failed)
+            for msg in split_string(s, maxlen=2000, splitter=', '):
+                await self.bot.say(msg)
 
         session = self.bot.get_session
         sql = 'SELECT * FROM `automute_blacklist` WHERE server_id=%s' % server.id

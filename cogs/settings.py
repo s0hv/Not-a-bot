@@ -85,7 +85,7 @@ class Settings(Cog):
 
     @cooldown(1, 5)
     @command(pass_context=True, required_perms=Perms.MANAGE_ROLE_CHANNEL)
-    async def automute_blacklist(self, ctx, *, channels):
+    async def automute_blacklist(self, ctx, *channels):
         server = ctx.message.server
         ids = []
         failed = []

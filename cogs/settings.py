@@ -1,8 +1,9 @@
 import discord
 from discord.ext.commands import cooldown
 
-from bot.bot import group
+from bot.bot import group, command
 from cogs.cog import Cog
+from utils.utilities import get_channel_id, split_string
 
 
 class Settings(Cog):
@@ -80,6 +81,66 @@ class Settings(Cog):
 
         self.cache.set_keeproles(server.id, boolean)
         await self.bot.say('Keeproles set to %s' % boolean)
+
+    @cooldown(1, 5)
+    @command(pass_context=True)
+    async def automute_blacklist(self, ctx, *, channels):
+        server = ctx.message.server
+        ids = []
+        failed = []
+        for channel in channels:
+            channel_id = get_channel_id(channel)
+            if channel_id:
+                channel = self.bot.get_channel(channel_id)
+                if channel.server.id == server.id:
+                    ids.append(channel.id)
+                else:
+                    failed.append(channel.id)
+
+            else:
+                failed.append(channel)
+        s = "Couldn't find channels %s" % ', '.join(failed)
+        for msg in split_string(s, maxlen=2000, splitter=', '):
+            await self.bot.say(msg)
+
+        session = self.bot.get_session
+        sql = 'SELECT * FROM `automute_blacklist` WHERE server_id=%s' % server.id
+        try:
+            rows = session.execute(sql).fetchall
+        except:
+            return await self.bot.say('Failed to get old blacklist')
+
+        delete = []
+        for row in rows:
+            if row['channel_id'] in ids:
+                ids.remove(row['channel_id'])
+                delete.append(row['channel_id'])
+
+        if delete:
+            sql = 'DELETE FROM `automute_blacklist` WHERE channel_id IN ' + '(%s)' % ', '.join(delete)
+            try:
+                session.execute(sql)
+                session.commit()
+            except:
+                await self.bot.say('Failed to remove automute blacklist')
+            else:
+                s = split_string('Automute blacklist was removed from %s' % ' '.join(map(lambda cid: '<#%s>' % cid, delete)))
+                for msg in s:
+                    await self.bot.say(msg)
+
+        if ids:
+            sql = 'INSERT INTO `automute_blacklist` (`channel_id`, `server_id`) VALUES '
+            sql += ', '.join(map(lambda id: '(%s, %s)' % (id, server.id), ids))
+            try:
+                session.execute(sql)
+                session.commit()
+            except:
+                await self.bot.say('Failed to add automute blacklist')
+
+            else:
+                s = split_string('Automute is now blacklisted in %s' % ' '.join(map(lambda cid: '<#%s>' % cid, ids)))
+                for msg in s:
+                    await self.bot.say(msg)
 
 
 def setup(bot):

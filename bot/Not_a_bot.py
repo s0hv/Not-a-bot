@@ -184,23 +184,25 @@ class NotABot(Bot):
 
         if message.server and message.server.id == '217677285442977792' and management and message.channel.id != '322839372913311744':
             if len(message.mentions) + len(message.role_mentions) > 10:
-                whitelist = self.management.get_mute_whitelist(message.server.id)
-                invulnerable = discord.utils.find(lambda r: r.id in whitelist,
+                sql = 'SELECT * FROM `automute_blacklist` WHERE channel_id=%s' % message.channel.id
+                if not self.get_session.execute(sql).first():
+                    whitelist = self.management.get_mute_whitelist(message.server.id)
+                    invulnerable = discord.utils.find(lambda r: r.id in whitelist,
+                                                      message.server.roles)
+                    if invulnerable is None or invulnerable not in message.author.roles:
+                        role = discord.utils.find(lambda r: r.id == '322837972317896704',
                                                   message.server.roles)
-                if invulnerable is None or invulnerable not in message.author.roles:
-                    role = discord.utils.find(lambda r: r.id == '322837972317896704',
-                                              message.server.roles)
-                    if role is not None:
-                        user = message.author
-                        await self.add_role(message.author, role)
-                        d = 'Automuted user {0} `{0.id}`'.format(message.author)
-                        embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
-                        embed.add_field(name='Reason', value='Too many mentions in a message')
-                        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                        embed.set_footer(text=str(self.user), icon_url=self.user.avatar_url or self.user.default_avatar_url)
-                        chn = message.server.get_channel(self.server_cache.get_modlog(message.server.id)) or message.channel
-                        await self.send_message(chn, embed=embed)
-                        return
+                        if role is not None:
+                            user = message.author
+                            await self.add_role(message.author, role)
+                            d = 'Automuted user {0} `{0.id}`'.format(message.author)
+                            embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
+                            embed.add_field(name='Reason', value='Too many mentions in a message')
+                            embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+                            embed.set_footer(text=str(self.user), icon_url=self.user.avatar_url or self.user.default_avatar_url)
+                            chn = message.server.get_channel(self.server_cache.get_modlog(message.server.id)) or message.channel
+                            await self.send_message(chn, embed=embed)
+                            return
 
         # If the message is a command do that instead
         if message.content.startswith(self.command_prefix):

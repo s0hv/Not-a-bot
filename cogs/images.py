@@ -83,9 +83,12 @@ class Fun(Cog):
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
 
-    @command(pass_context=True, ignore_extra=True)
+    @command(pass_context=True, ignore_extra=True, usage="""""")
     @cooldown(2, 5)
-    async def trap(self, ctx, image):
+    async def trap(self, ctx, image=None):
+        """Is it a trap?
+
+        """
         path = os.path.join('data', 'templates', 'is_it_a_trap.png')
         path2 = os.path.join('data', 'templates', 'is_it_a_trap_layer.png')
         img = get_image_from_message(ctx, image)
@@ -119,7 +122,10 @@ class Fun(Cog):
         await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
 
     async def get_url(self, url):
-        """After visiting the url remember to put 1 item in self.queue"""
+        # Attempt at making phantomjs async friendly
+        # After visiting the url remember to put 1 item in self.queue
+        # Otherwise the browser will be locked
+
         await self.queue.get()
         f = partial(self.driver.get, url)
         await self.bot.loop.run_in_executor(self.threadpool, f)
@@ -127,12 +133,14 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2)
     async def pokefusion(self, ctx):
-        r1 = randint(1, 386)
+        """Gets a random pokemon fusion from http://pokefusion.japeal.com"""
+        r1 = randint(1, 386)  # Biggest id atm for gen 3 is 386
         r2 = randint(1, 386)
         while r1 == r2:
             r2 = randint(1, 386)
 
         url = 'http://pokefusion.japeal.com/%s/%s' % (r1, r2)
+        await self.bot.send_typing(ctx.message.channel)
         await self.get_url(url)
         img = BytesIO(self.driver.get_screenshot_as_png())
         self.queue.put_nowait(1)
@@ -142,7 +150,7 @@ class Fun(Cog):
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png')
+        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png', content=url)
 
 
 def setup(bot):

@@ -83,7 +83,6 @@ class Poll:
         try:
             chn = self.bot.get_channel(self.channel)
             msg = await self.bot.get_message(chn, self.message)
-            chn = self.bot.get_channel('252872751319089153')
         except:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)

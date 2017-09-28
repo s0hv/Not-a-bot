@@ -92,9 +92,9 @@ class Settings(Cog):
         for channel in channels:
             channel_id = get_channel_id(channel)
             if channel_id:
-                channel = self.bot.get_channel(channel_id)
-                if not channel or channel.server.id != server.id:
-                    failed.append(channel.id)
+                channel_ = self.bot.get_channel(channel_id)
+                if not channel_ or channel_.server.id != server.id:
+                    failed.append(channel)
                 else:
                     ids.append(channel.id)
 

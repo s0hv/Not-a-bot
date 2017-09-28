@@ -62,19 +62,25 @@ log = logging.getLogger('discord')
 
 class Command(commands.Command):
     def __init__(self, name, callback, **kwargs):
-        super(Command, self).__init__(name=name, callback=callback, **kwargs)
+        super().__init__(name, callback, **kwargs)
         self.level = kwargs.pop('level', 0)
         self.owner_only = kwargs.pop('owner_only', False)
         self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
-        self.usage = kwargs.pop('usage', None)
         if self.owner_only:
             print('registered owner_only command %s' % name)
 
 
 class Group(Command, commands.Group):
     def __init__(self, **attrs):
-        super(Group, self).__init__(**attrs)
+        self.level = attrs.pop('level', 0)
+        self.owner_only = attrs.pop('owner_only', False)
+        self.required_perms = attrs.pop('required_perms', None)
+        self.auth = attrs.pop('auth', Auth.NONE)
+        super(Command, self).__init__(**attrs)
+
+        if self.owner_only:
+            print('registered owner_only command %s' % self.name)
 
     def group(self, *args, **kwargs):
         def decorator(func):
@@ -339,7 +345,7 @@ class Bot(commands.Bot, Client):
                 destination = ctx.message.author
 
         for page in pages:
-            await self.send_message(destination, embed=page)
+            await self.send_message(destination, page)
 
     async def process_commands(self, message):
         _internal_channel = message.channel
@@ -726,10 +732,6 @@ class Context(commands.context.Context):
 
 
 class Formatter(HelpFormatter):
-    Generic = 0
-    Cog = 1
-    Command = 2
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

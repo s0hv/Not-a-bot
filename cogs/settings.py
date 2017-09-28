@@ -85,11 +85,11 @@ class Settings(Cog):
 
     @cooldown(1, 5)
     @command(pass_context=True, required_perms=Perms.MANAGE_ROLE_CHANNEL)
-    async def automute_blacklist(self, ctx, *channels):
+    async def automute_blacklist(self, ctx, *, channels):
         server = ctx.message.server
         ids = []
         failed = []
-        for channel in channels:
+        for channel in channels.split(' '):
             channel_id = get_channel_id(channel)
             if channel_id:
                 channel_ = self.bot.get_channel(channel_id)
@@ -107,7 +107,7 @@ class Settings(Cog):
         session = self.bot.get_session
         sql = 'SELECT * FROM `automute_blacklist` WHERE server_id=%s' % server.id
         try:
-            rows = session.execute(sql).fetchall
+            rows = session.execute(sql).fetchall()
         except:
             return await self.bot.say('Failed to get old blacklist')
 

@@ -96,7 +96,7 @@ class Settings(Cog):
                 if not channel_ or channel_.server.id != server.id:
                     failed.append(channel)
                 else:
-                    ids.append(channel.id)
+                    ids.append(channel_.id)
 
             else:
                 failed.append(channel)

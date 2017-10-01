@@ -93,7 +93,7 @@ class NotABot(Bot):
                                     10: None, 18: None}
 
         self.hi_new = {ord(c): '' for c in ", '"}
-        self.dbutil = DatabaseUtils(self)
+        self._dbutil = DatabaseUtils(self)
         self._setup()
 
     def _setup(self):
@@ -138,6 +138,14 @@ class NotABot(Bot):
     @property
     def server_cache(self):
         return self._server_cache
+
+    @property
+    def dbutil(self):
+        return self._dbutil
+
+    @property
+    def dbutils(self):
+        return self._dbutil
 
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))

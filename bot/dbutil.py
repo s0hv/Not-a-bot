@@ -10,7 +10,7 @@ class DatabaseUtils:
     def bot(self):
         return self._bot
 
-    def add_roles(self, role_ids, server_id):
+    def add_roles(self, server_id, *role_ids):
         session = self.bot.get_session
         sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES '
         l = len(role_ids) - 1
@@ -41,7 +41,7 @@ class DatabaseUtils:
         return True
 
     def add_user_roles(self, role_ids, user_id, server_id):
-        if not self.add_roles(role_ids, server_id):
+        if not self.add_roles(server_id, *role_ids):
             return
         if not self.add_user(user_id):
             return

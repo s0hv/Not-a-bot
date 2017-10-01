@@ -55,6 +55,25 @@ class Colors(Cog):
 
             self._add_color(**row)
 
+    def _add_color2db(self, color):
+        self.bot.dbutils.add_roles(color.server_id, color.role_id)
+        sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
+              '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
+        session = self.bot.get_session
+        try:
+            session.execute(sql, params={'id': color.role_id,
+                                         'name': color.name,
+                                         'value': color.value,
+                                         'lab_l': color.lab.lab_l,
+                                         'lab_a': color.lab.lab_a,
+                                         'lab_b': color.lab.lab_b})
+            session.commit()
+        except:
+            logger.exception('Failed to add color to db')
+            return False
+        else:
+            return True
+
     def _add_color(self, server, id, name, value, lab_l, lab_a, lab_b):
         try:
             server_id = str(int(server))
@@ -197,8 +216,8 @@ class Colors(Cog):
 
         perms = discord.Permissions(server.default_role.permissions.value)
         try:
-            color_role = await self.bot.create_role(server, name=name, perms=perms,
-                                                    color=discord.Colour(value))
+            color_role = await self.bot.create_role(server, name=name, permissions=perms,
+                                                    colour=discord.Colour(value))
         except discord.DiscordException as e:
             return await self.bot.say('Failed to add color because of an error\n```%s```' % e)
         except:
@@ -206,6 +225,10 @@ class Colors(Cog):
             return await self.bot.say('Failed to add color because of an error')
 
         color_ = Color(color_role.id, name, value, server.id, color)
+        success = self._add_color2db(color)
+        if not success:
+            return await self.bot.say('Failed to add color')
+
         if self._colors.get(server.id):
             role = self.bot.get_role(server, self._colors[server.id].keys()[0])
 

@@ -516,7 +516,7 @@ class Management:
         server = ctx.message.server
         colors = self.utils.get_colors(server.id)
         session = self.bot.get_session
-        self.bot.dbutil.add_roles(colors.values(), server.id)
+        self.bot.dbutil.add_roles(server.id, *colors.values())
         for name, color_id in colors.items():
             role = self.bot.get_role(server, str(color_id))
             if not role:
@@ -542,7 +542,7 @@ class Management:
 
         server = ctx.message.server
         session = self.bot.get_session
-        self.bot.dbutil.add_roles(color_id, server.id)
+        self.bot.dbutil.add_roles(server.id, color_id)
         role = self.bot.get_role(server, str(color_id))
         if not role:
             return

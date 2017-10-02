@@ -198,25 +198,28 @@ class Colors(Cog):
     async def add_color(self, ctx, color: str, *name):
         if not name:
             name = color
+        else:
+            name = ' '.join(name)
 
         rgb = self.match_color(color)
 
         server = ctx.message.server
-        color = sRGBColor(*rgb, is_upscaled=True)
+        color = sRGBColor(*rgb)
+        print(color.get_rgb_hex())
         value = int(color.get_rgb_hex()[1:], 16)
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(server.id, {}).items())
         if r:
             k, r = r
-            if self.bot.get_role(server, r.id):
+            if self.bot.get_role(server, r.role_id):
                 return await self.bot.say('This color already exists')
             else:
                 self._colors.pop(k, None)
 
         color = convert_color(color, LabColor)
 
-        perms = discord.Permissions(server.default_role.permissions.value)
+        default_perms = ctx.message.server.default_role.permissions
         try:
-            color_role = await self.bot.create_role(server, name=name, permissions=perms,
+            color_role = await self.bot.create_role(server, name=name, permissions=default_perms,
                                                     colour=discord.Colour(value))
         except discord.DiscordException as e:
             return await self.bot.say('Failed to add color because of an error\n```%s```' % e)
@@ -225,12 +228,12 @@ class Colors(Cog):
             return await self.bot.say('Failed to add color because of an error')
 
         color_ = Color(color_role.id, name, value, server.id, color)
-        success = self._add_color2db(color)
+        success = self._add_color2db(color_)
         if not success:
             return await self.bot.say('Failed to add color')
 
         if self._colors.get(server.id):
-            role = self.bot.get_role(server, self._colors[server.id].keys()[0])
+            role = self.bot.get_role(server, list(self._colors[server.id].keys())[0])
 
             if role:
                 try:

@@ -143,7 +143,7 @@ class Colors(Cog):
                 return await self.bot.say("You don't have a color role")
 
             if len(user_colors) > 1:
-                return await self.bot.say('You have multiple color roles <:gappyThinking:356797999986245643>')
+                return await self.bot.say('You have multiple color roles <:gappyThinking:358523789170180097>')
 
             else:
                 name = colors.get(user_colors.pop())

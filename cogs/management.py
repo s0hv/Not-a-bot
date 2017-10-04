@@ -436,30 +436,6 @@ class Management:
                                'reverting back'.format(e))
 
     @command(pass_context=True, owner_only=True, required_perms=color_perms)
-    async def delete_color(self, ctx, *, name):
-        server = ctx.message.server
-        colors = self.utils.get_colors(server.id)
-        color = colors.get(name, None)
-        if not color:
-            return await self.bot.say('Color %s not found' % name)
-
-        v = colors.values()
-        role = discord.utils.find(lambda r: r.id == color, server.roles)
-        list(filter(lambda r: r.id in v, ctx.message.server.roles))
-
-        if not role:
-            return await self.bot.say('Color %s not found' % name)
-
-        try:
-            await self.bot.delete_role(server, role)
-        except Exception as e:
-            await self.bot.say('Could not delete color %s\n%s' % (name, e))
-            return
-
-        self.utils.delete_color_from_json(name.lower(), server.id)
-        await self.bot.say('Deleted color %s' % name)
-
-    @command(pass_context=True, owner_only=True, required_perms=color_perms)
     async def mute_whitelist(self, ctx, *roles):
         role_mentions = ctx.message.role_mentions.copy()
 

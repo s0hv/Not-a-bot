@@ -89,6 +89,12 @@ class Colors(Cog):
 
         return color
 
+    def _delete_color(self, server_id, role_id):
+        try:
+            del self._colors[server_id][role_id]
+        except KeyError:
+            pass
+
     def get_color(self, name, server_id):
         name = name.lower()
         return discord.utils.find(lambda n: str(n[1]).lower() == name,
@@ -126,6 +132,9 @@ class Colors(Cog):
                 closest_match = c
 
         return closest_match, similarity
+
+    async def server_role_delete(self, role):
+        self._delete_color(role.server.id, role.id)
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 2)
@@ -194,7 +203,7 @@ class Colors(Cog):
             await self.bot.say(msg)
 
     @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES)
-    @cooldown(1, 2)
+    @cooldown(1, 3)
     async def add_color(self, ctx, color: str, *name):
         if not name:
             name = color
@@ -244,6 +253,30 @@ class Colors(Cog):
             self._colors[server.id][color_role.id] = color_
         else:
             self._colors[server.id] = {color_role.id: color_}
+
+    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['del_color'])
+    @cooldown(1, 3)
+    async def delete_color(self, ctx, *, name):
+        server = ctx.message.server
+        color = self.get_color(name, server.id)
+        if not color:
+            return await self.bot.say("Couldn't find color %s" % name)
+
+        role = self.bot.get_role(server, color.role_id)
+        if not role:
+            self.bot.dbutils.delete_role(color.role_id, server.id)
+            self._delete_color(server.id, color.role_id)
+            await self.bot.say('Removed color %s' % color)
+            return
+
+        try:
+            await self.bot.delete_role(role)
+        except discord.DiscordException as e:
+            return await self.bot.say('Failed to remove color because of an error\n```%s```' % e)
+        except:
+            return await self.bot.say('Failed to remove color because of an error')
+
+        await self.bot.say('Removed color %s' % color)
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 4)

@@ -243,6 +243,9 @@ class NotABot(Bot):
 
         self.server_cache.update_cached_server(server.id, **row)
 
+    async def on_server_role_delete(self, role):
+        self.dbutils.delete_role(role.id, role.server.id)
+
     async def _wants_to_be_noticed(self, member, server, remove=True):
         role = list(filter(lambda r: r.id == '318762162552045568', server.roles))
         if not role:

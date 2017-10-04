@@ -172,7 +172,7 @@ class NotABot(Bot):
 
         while True:
             try:
-                await asyncio.sleep(600)
+                await asyncio.sleep(3600)
             except asyncio.CancelledError:
                 return
 

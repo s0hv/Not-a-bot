@@ -62,25 +62,19 @@ log = logging.getLogger('discord')
 
 class Command(commands.Command):
     def __init__(self, name, callback, **kwargs):
-        super().__init__(name, callback, **kwargs)
+        super(Command, self).__init__(name=name, callback=callback, **kwargs)
         self.level = kwargs.pop('level', 0)
         self.owner_only = kwargs.pop('owner_only', False)
         self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
+        self.usage = kwargs.pop('usage', None)
         if self.owner_only:
             print('registered owner_only command %s' % name)
 
 
 class Group(Command, commands.Group):
     def __init__(self, **attrs):
-        self.level = attrs.pop('level', 0)
-        self.owner_only = attrs.pop('owner_only', False)
-        self.required_perms = attrs.pop('required_perms', None)
-        self.auth = attrs.pop('auth', Auth.NONE)
-        super(Command, self).__init__(**attrs)
-
-        if self.owner_only:
-            print('registered owner_only command %s' % self.name)
+        super(Group, self).__init__(**attrs)
 
     def group(self, *args, **kwargs):
         def decorator(func):
@@ -345,7 +339,7 @@ class Bot(commands.Bot, Client):
                 destination = ctx.message.author
 
         for page in pages:
-            await self.send_message(destination, page)
+            await self.send_message(destination, embed=page)
 
     async def process_commands(self, message):
         _internal_channel = message.channel
@@ -453,6 +447,8 @@ class Bot(commands.Bot, Client):
             server_id = server.id if not isinstance(server, str) else server
 
         role_id = role.id if not isinstance(role, str) else role
+        user = discord.utils.get(self.get_server(server_id).members, id=user_id)
+        return await self.add_roles(user, role)
 
         # audit log reasons are put in the header of the request which would
         # require subclassing because you can't modify the headers any other way
@@ -470,6 +466,8 @@ class Bot(commands.Bot, Client):
 
         role_id = role.id if not isinstance(role, str) else role
 
+        user = discord.utils.get(self.get_server(server_id).members, id=user_id)
+        return await self.remove_roles(user, role)
         await self.http.remove_role(server_id, user_id, role_id)
 
     async def remove_roles(self, member, *roles, remove_manually=False):
@@ -732,6 +730,10 @@ class Context(commands.context.Context):
 
 
 class Formatter(HelpFormatter):
+    Generic = 0
+    Cog = 1
+    Command = 2
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 

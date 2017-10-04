@@ -416,7 +416,7 @@ class Audio:
     @staticmethod
     def _parse_filters(options: str, filter_name: str, value: str):
         logger.debug('Parsing filters: {0}, {1}, {2}'.format(options, filter_name,value))
-        matches = re.findall('%s=\w*' % filter_name, options)
+        matches = re.findall(r'(?: |,|^)(%s=\w*.+?)(?:,|$)' % filter_name, options)
         logger.debug('Filter matches: {}'.format(matches))
         if matches:
             options.replace(matches[0].strip(), '{0}={1}'.format(filter_name, value))
@@ -696,7 +696,31 @@ class Audio:
 
         await self._seek(ctx, state, current, seek, options=options)
 
-    @commands.cooldown(2, 5)
+    @commands.cooldown(1, 5, commands.BucketType.server)
+    @command(pass_context=True, ignore_extra=True, no_pm=True)
+    async def bass(self, ctx, value: str):
+        try:
+            v = int(value)
+            if -30 < v < 30:
+                return await self.bot.say('Value must be between -30 and 30', delete_after=20)
+        except ValueError as e:
+            return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
+
+        state = self.get_voice_state(ctx.message.server)
+        current = state.current
+        if current is None:
+            return await self.bot.say('Not playing anything right now', delete_after=20)
+
+        sec = state.player.duration
+        logger.debug('seeking with timestamp {}'.format(sec))
+        seek = self._seek_from_timestamp(sec)
+        value = 'g=%s' % value
+        options = self._parse_filters(current.options, 'bass', value)
+        logger.debug('Filters parsed. Returned: {}'.format(options))
+
+        await self._seek(ctx, state, current, seek, options=options)
+
+    @commands.cooldown(2, 5, commands.BucketType.server)
     @command(pass_context=True, no_pm=True)
     async def stereo(self, ctx, *, song_name: str):
         """ Works almost the same way !play does

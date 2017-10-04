@@ -58,6 +58,7 @@ except ImportError:
 from bot import exceptions
 
 log = logging.getLogger('discord')
+logger = logging.getLogger('debug')
 
 
 class Command(commands.Command):
@@ -417,6 +418,7 @@ class Bot(commands.Bot, Client):
         return decorator
 
     async def add_roles(self, member, *roles):
+        logger.debug('Adding roles %s to %s' % (' '.join(roles), member))
         new_roles = set()
         for r in roles:
             id = r if isinstance(r, str) else r.id

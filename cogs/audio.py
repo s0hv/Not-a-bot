@@ -699,6 +699,8 @@ class Audio:
     @commands.cooldown(1, 5, commands.BucketType.server)
     @command(pass_context=True, ignore_extra=True, no_pm=True)
     async def bass(self, ctx, value: str):
+        """Add bass boost or decrease to a song.
+        Value can range between -100 and 100"""
         try:
             v = int(value)
             if not (-100 <= v <= 100):

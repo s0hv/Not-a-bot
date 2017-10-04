@@ -179,35 +179,25 @@ class Moderator(Cog):
         expires_on = datetime2sql(now + time)
         user = users[0]
         session = self.bot.get_session
-        import time as tt
         try:
-            t1 = tt.time()
             sql = 'INSERT INTO `timeouts` (`server`, `user`, `expires_on`) VALUES ' \
                   '(:server, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=expires_on'
 
             d = {'server': ctx.message.server.id, 'user': user.id, 'expires_on': expires_on}
             session.execute(sql, params=d)
             session.commit()
-            logger.debug('SQL query took %s seconds' % (tt.time()-t1))
         except:
             logger.exception('Could not save timeout')
             return await self.bot.say('Could not save timeout. Canceling action')
 
-        t1 = tt.time()
         server = ctx.message.server
         t = self.timeouts.get(server.id, {}).get(user.id)
         if t:
             t.cancel()
 
-        logger.debug('Cancelled old task in %s seconds' % (tt.time()-t1))
         try:
-            t1 = tt.time()
             await self.bot.add_role(user, mute_role)
-            logger.debug('Muted user in %s seconds' % (tt.time()-t1))
-            t1 = tt.time()
             await self.bot.say('Muted user {} for {}'.format(str(user), time))
-            logger.debug('Sent confirmation in %s seconds' % (tt.time()-t1))
-            t1 = tt.time()
             chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
             if chn:
                 author = ctx.message.author
@@ -223,8 +213,6 @@ class Moderator(Cog):
                 embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
 
                 await self.bot.send_message(chn, embed=embed)
-
-            logger.debug('Sent embed in %s seconds' % (tt.time()-t1))
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
 

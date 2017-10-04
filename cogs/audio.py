@@ -701,8 +701,8 @@ class Audio:
     async def bass(self, ctx, value: str):
         try:
             v = int(value)
-            if not (-30 < v < 30):
-                return await self.bot.say('Value must be between -30 and 30', delete_after=20)
+            if not (-100 <= v <= 100):
+                return await self.bot.say('Value must be between -100 and 100', delete_after=20)
         except ValueError as e:
             return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
 

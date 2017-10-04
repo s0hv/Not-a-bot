@@ -100,7 +100,7 @@ class Moderator(Cog):
         server = ctx.message.server
         try:
             user = users[0]
-            await self.bot.add_roles(user, mute_role)
+            await self.bot.add_role(user, mute_role)
         except:
             await self.bot.say('Could not mute user {}'.format(str(users[0])))
 
@@ -196,7 +196,7 @@ class Moderator(Cog):
             t.cancel()
 
         try:
-            await self.bot.add_roles(user, mute_role)
+            await self.bot.add_role(user, mute_role)
             await self.bot.say('Muted user {} for {}'.format(str(user), time))
             chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
             if chn:

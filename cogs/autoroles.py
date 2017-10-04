@@ -18,7 +18,8 @@ class AutoRoles(Cog):
     async def on_message(self, message):
         if message.server and message.server.id == '217677285442977792' and message.author.id != '123050803752730624':
             if discord.utils.find(lambda r: r.id == '323098643030736919', message.role_mentions):
-                await self.bot.add_role(message.author, '323098643030736919')
+                if not discord.utils.get(message.author.roles, id='323098643030736919'):
+                    await self.bot.add_role(message.author, '323098643030736919')
 
     async def on_member_update(self, before, after):
         server = after.server

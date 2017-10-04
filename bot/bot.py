@@ -450,7 +450,6 @@ class Bot(commands.Bot, Client):
 
         role_id = role.id if not isinstance(role, str) else role
         user = discord.utils.get(self.get_server(server_id).members, id=user_id)
-        return await self.add_roles(user, role)
 
         # audit log reasons are put in the header of the request which would
         # require subclassing because you can't modify the headers any other way
@@ -469,7 +468,6 @@ class Bot(commands.Bot, Client):
         role_id = role.id if not isinstance(role, str) else role
 
         user = discord.utils.get(self.get_server(server_id).members, id=user_id)
-        return await self.remove_roles(user, role)
         await self.http.remove_role(server_id, user_id, role_id)
 
     async def remove_roles(self, member, *roles, remove_manually=False):

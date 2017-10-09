@@ -39,7 +39,6 @@ from bot.cooldown import CooldownManager
 from bot.dbutil import DatabaseUtils
 from bot.globals import BlacklistTypes
 from bot.servercache import ServerCache
-from cogs.voting import Poll
 from utils.utilities import (split_string, slots2dict, retry, random_color)
 
 logger = logging.getLogger('debug')

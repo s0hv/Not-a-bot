@@ -700,11 +700,11 @@ class Audio:
     @command(pass_context=True, ignore_extra=True, no_pm=True)
     async def bass(self, ctx, value: str):
         """Add bass boost or decrease to a song.
-        Value can range between -100 and 100"""
+        Value can range between -60 and 60"""
         try:
             v = int(value)
-            if not (-100 <= v <= 100):
-                return await self.bot.say('Value must be between -100 and 100', delete_after=20)
+            if not (-60 <= v <= 60):
+                return await self.bot.say('Value must be between -60 and 60', delete_after=20)
         except ValueError as e:
             return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
 

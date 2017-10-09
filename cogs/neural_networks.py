@@ -37,7 +37,7 @@ class NNLogger(Cog):
             return
 
         # Remove zalgo text
-        content = unzalgo(content)
+        content = unzalgo.unzalgo(content)
 
         # Emotes as just names
         content = self.emote_regex.sub(r'\1', content)

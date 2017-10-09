@@ -51,3 +51,7 @@ class NNLogger(Cog):
             session.commit()
         except:
             logger.exception('Failed to log message to nn table')
+
+
+def setup(bot):
+    bot.add_cog(NNLogger(bot))

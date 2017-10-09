@@ -47,6 +47,7 @@ class Fun(Cog):
         if new_h != h:
             y += int((h - new_h) / 2)
 
+        img = img.convert("RGBA")
         template.paste(img, (x, y), img)
         file = BytesIO()
         template.save(file, format='PNG')
@@ -77,6 +78,7 @@ class Fun(Cog):
         if new_h != h:
             y += int((h - new_h) / 2)
 
+        img = img.convert("RGBA")
         template.paste(img, (x, y), img)
         file = BytesIO()
         template.save(file, format='PNG')

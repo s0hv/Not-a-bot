@@ -61,6 +61,7 @@ initial_cogs = [
     'cogs.management',
     'cogs.misc',
     'cogs.moderator',
+    'cogs.neural_networks',
     'cogs.search',
     'cogs.server',
     'cogs.server_specific',

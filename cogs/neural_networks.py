@@ -1,19 +1,21 @@
 from cogs.cog import Cog
 import re
 import logging
+from utils import unzalgo
 
 logger = logging.getLogger('debug')
+
 
 class NNLogger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._prefixes = {'.', '!', 't!', '?', '!!'}
+        self._prefixes = {'.', '!', 't!', '?', '!!', '+'}
         self._prefixes.add(self.bot.command_prefix)
         self.emote_regex = re.compile(r'<:(\w+):\d+>')
 
     @staticmethod
     def alnum(s):
-        return ''.join(filter(str.isalnum, s))
+        return ' '.join([''.join(filter(str.isalnum, ss)) for ss in s.split(' ')])
 
     async def on_message(self, msg):
         # Only one channel for now
@@ -24,18 +26,18 @@ class NNLogger(Cog):
         if msg.author.bot:
             return
 
+        # Gets the content like you see in the client
+        content = msg.clean_content
+
         # No need to log bot commands
         if list(filter(lambda prefix: content.startswith(prefix), self._prefixes)):
             return
-
-        # Gets the content like you see in the client
-        content = msg.clean_content
 
         if not content:
             return
 
         # Remove zalgo text
-        content = self.alnum(content)
+        content = unzalgo(content)
 
         # Emotes as just names
         content = self.emote_regex.sub(r'\1', content)

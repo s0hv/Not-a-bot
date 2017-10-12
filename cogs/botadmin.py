@@ -1,8 +1,14 @@
-from cogs.cog import Cog
 import asyncio
-from bot.bot import command, group
+import logging
 import time
+from importlib import reload, import_module
+
 from discord.ext.commands.core import GroupMixin
+
+from bot.bot import command
+from cogs.cog import Cog
+
+logger = logging.getLogger('debug')
 
 
 class BotAdmin(Cog):
@@ -17,8 +23,7 @@ class BotAdmin(Cog):
                 retval = await retval
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception('Failed to eval')
             retval = 'Exception\n%s' % e
 
         if not retval:
@@ -34,8 +39,7 @@ class BotAdmin(Cog):
                 retval = await retval
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.exception('Failed to eval')
             retval = 'Exception\n%s' % e
 
         if not retval:
@@ -153,6 +157,14 @@ class BotAdmin(Cog):
         vc.audio_player.cancel()
         vc.activity_check.cancel()
         vc.create_audio_task()
+
+    @command(owner_only=True)
+    async def reload_module(self, module_name):
+        try:
+            reload(import_module(module_name))
+        except Exception as e:
+            return await self.bot.say('Failed to reload module %s because of an error\n```%s```' % (module_name, e))
+        await self.bot.say('Reloaded module %s' % module_name)
 
 
 def setup(bot):

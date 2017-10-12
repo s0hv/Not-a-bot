@@ -37,7 +37,6 @@ import traceback
 from collections import deque
 
 import discord
-from discord.http import Route
 from aiohttp import ClientSession
 from discord import (Object, InvalidArgument, ChannelType, ClientException,
                      voice_client, Reaction)
@@ -47,6 +46,7 @@ from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.ext.commands.view import StringView
 from bot.globals import Auth
+from bot.formatter import Formatter
 
 try:
     import uvloop
@@ -729,7 +729,7 @@ class Context(commands.context.Context):
         self.override_perms = attrs.pop('override_perms', None)
 
 
-class Formatter(HelpFormatter):
+class FormatterDeprecated(HelpFormatter):
     Generic = 0
     Cog = 1
     Command = 2

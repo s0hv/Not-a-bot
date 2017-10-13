@@ -119,7 +119,7 @@ class Moderator(Cog):
                 embed = discord.Embed(title='🤐 Moderation action [MUTE]',
                                       timestamp=datetime.utcnow(),
                                       description=description)
-                reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
+                reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
                 embed.add_field(name='Reason', value=reason)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
@@ -207,7 +207,7 @@ class Moderator(Cog):
                 embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
                                       timestamp=datetime.utcnow() + time,
                                       description=description)
-                reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:334717902962032640>'
+                reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
                 embed.add_field(name='Reason', value=reason)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)

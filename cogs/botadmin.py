@@ -116,7 +116,6 @@ class BotAdmin(Cog):
         if server.id == '217677285442977792':
             await self.bot.request_offline_members(server)
             for member in list(server.members):
-                print(member.name)
                 await self.bot._wants_to_be_noticed(member, server)
 
     @command(owner_only=True)

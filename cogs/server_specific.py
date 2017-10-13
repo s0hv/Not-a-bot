@@ -121,7 +121,7 @@ class ServerSpecific(Cog):
         if not target_role_:
             return await self.bot.say('Could not find role %s' % target_role, delete_after=30)
 
-        if not self.dbutil.add_roles((target_role_.id, role_.id), server.id):
+        if not self.dbutil.add_roles(server.id, target_role_.id, role_.id):
             return await self.bot.say('Could not add roles to database')
 
         sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role_id`, `server_id`) VALUES ' \

@@ -13,6 +13,7 @@ from bot.bot import command
 from cogs.cog import Cog
 from utils.utilities import emote_url_from_id, get_emote_id
 from utils.utilities import random_color, get_avatar
+from email.utils import formatdate as format_rfc2822
 
 logger = logging.getLogger('debug')
 
@@ -20,7 +21,7 @@ logger = logging.getLogger('debug')
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._runtime = re.compile(r'(?P<days>\d*(?:-))?(?P<hours>\d\d):(?P<minutes>\d\d):(?P<seconds>\d\d)')
+        self._runtime = re.compile(r'(?P<days>\d*(?:-))?(?P<hours>\d\d)+?:(?P<minutes>\d\d):(?P<seconds>\d\d)')
 
     @command(ignore_extra=True)
     async def ping(self):
@@ -106,7 +107,15 @@ class Utilities(Cog):
         servers = len(self.bot.servers)
         try:
             # use pmap to find the memory usage of this process and turn it to megabytes
-            memory_usage = subprocess.check_output(shlex.split('pmap %s | grep -Po "total +\K([0-9])+(?=K)"' % pid))
+            # Since shlex doesn't care about pipes | I have to do this
+            s1 = subprocess.Popen(shlex.split('pmap %s' % os.getpid()),
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE)
+            s2 = subprocess.Popen(
+                shlex.split('grep -Po "total +\K([0-9])+(?=K)"'),
+                stdin=s1.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            s1.stdin.close()
+            memory_usage = s2.communicate()[0].decode('utf-8')
             memory_usage = str(round(int(memory_usage)/1024, 1)) + 'MB'
         except:
             logger.exception('Failed to get mem usage')
@@ -114,7 +123,7 @@ class Utilities(Cog):
 
         try:
             # Get the last time a successful pull was done
-            last_updated = subprocess.check_output(shlex.split('date -d "$(stat -c %y .git/refs/heads/master)" -R'))
+            last_updated = format_rfc2822(os.stat('.git/refs/heads/master').st_mtime, localtime=True)
         except:
             logger.exception('Failed to get last updated')
             last_updated = 'N/A'

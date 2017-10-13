@@ -1,15 +1,20 @@
-from cogs.cog import Cog
-from bot.bot import command
-from discord.ext.commands import cooldown
-from utils.utilities import split_string, emote_url_from_id, get_emote_id
-import time
-import discord
+import logging
 import os
-import subprocess
-import shlex
-import sys
 import re
+import shlex
+import subprocess
+import sys
+import time
+
+import discord
+from discord.ext.commands import cooldown
+
+from bot.bot import command
+from cogs.cog import Cog
+from utils.utilities import emote_url_from_id, get_emote_id
 from utils.utilities import random_color, get_avatar
+
+logger = logging.getLogger('debug')
 
 
 class Utilities(Cog):
@@ -92,7 +97,7 @@ class Utilities(Cog):
                 if d['days']:
                     uptime = '{days}d ' + uptime
 
-                    uptime = uptime.format(d)
+                uptime = uptime.format(d)
 
         else:
             uptime = "%s uptime support isn't implemented" % sys.platform
@@ -104,12 +109,14 @@ class Utilities(Cog):
             memory_usage = subprocess.check_output(shlex.split('pmap %s | grep -Po "total +\K([0-9])+(?=K)"' % pid))
             memory_usage = str(round(int(memory_usage)/1024, 1)) + 'MB'
         except:
+            logger.exception('Failed to get mem usage')
             memory_usage = 'N/A'
 
         try:
             # Get the last time a successful pull was done
             last_updated = subprocess.check_output(shlex.split('date -d "$(stat -c %y .git/refs/heads/master)" -R'))
         except:
+            logger.exception('Failed to get last updated')
             last_updated = 'N/A'
 
         embed = discord.Embed(title='Stats', colour=random_color())

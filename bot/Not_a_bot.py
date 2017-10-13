@@ -149,7 +149,7 @@ class NotABot(Bot):
 
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))
-        await self.change_presence(game=discord.Game(name=self.config.game, type=1))
+        await self.change_presence(game=discord.Game(name=self.config.game))
 
         for cog in initial_cogs:
             try:

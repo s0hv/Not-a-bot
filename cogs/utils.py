@@ -95,6 +95,7 @@ class Utilities(Cog):
             if match:
                 uptime = '{hours}h {minutes}m {seconds}s'
                 d = match.groupdict()
+                d = {k: v.lstrip('0') for k, v in d.items() if v}
                 if d['days']:
                     uptime = '{days}d ' + uptime
 

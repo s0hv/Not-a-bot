@@ -100,7 +100,7 @@ class Utilities(Cog):
             if match:
                 uptime = '{hours}h {minutes}m {seconds}s'
                 d = match.groupdict()
-                d = {k: self._unpad_zero(v) for k, v in d.items() if v}
+                d = {k: self._unpad_zero(v) for k, v in d.items()}
                 if d['days']:
                     uptime = '{days}d ' + uptime
 

@@ -90,7 +90,7 @@ class Utilities(Cog):
 
         # We have a lot of linux only cmd commands here so most things won't show values on other OSs
         if sys.platform == 'linux':
-            uptime = subprocess.check_output(shlex.split('ps -o etime= -p "%s"' % pid)).decode('utf-8')
+            uptime = subprocess.check_output(shlex.split('ps -o etime= -p "%s"' % pid)).decode('utf-8').strip()
             match = self._runtime.match(uptime)
             if match:
                 uptime = '{hours}h {minutes}m {seconds}s'

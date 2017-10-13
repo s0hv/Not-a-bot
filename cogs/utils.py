@@ -83,6 +83,11 @@ class Utilities(Cog):
     async def source(self):
         await self.bot.say('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
 
+    def _unpad_zero(self, value):
+        if not isinstance(value, str):
+            return
+        return value.lstrip('0')
+
     @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'], pass_context=True)
     async def stats(self, ctx):
         """Get info about this bot"""
@@ -95,7 +100,7 @@ class Utilities(Cog):
             if match:
                 uptime = '{hours}h {minutes}m {seconds}s'
                 d = match.groupdict()
-                d = {k: v.lstrip('0') for k, v in d.items() if v}
+                d = {k: self._unpad_zero(v) for k, v in d.items() if v}
                 if d['days']:
                     uptime = '{days}d ' + uptime
 

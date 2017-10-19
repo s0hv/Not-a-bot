@@ -174,7 +174,7 @@ class Fun(Cog):
                 url = 'http://pokefusion.japeal.com/{0[value]}/{1[value]}'.format(poke1, poke2)
 
                 color_poke = None
-                if b_color and random() < 0.3:
+                if b_color and random() < 0.4:
                     b_color.click()
                     color_poke = self.driver.execute_script(script % 's3')
 

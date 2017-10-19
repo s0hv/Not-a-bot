@@ -155,6 +155,7 @@ class Fun(Cog):
             try:
                 await self.bot.send_typing(ctx.message.channel)
                 if not self.driver.current_url.startswith('http://pokefusion.japeal.com'):
+                    logger.debug('Current url is %s. Switching to the correct one' % self.driver.current_url)
                     await self.get_url('http://pokefusion.japeal.com/')
                     self.driver.switch_to.frame('inneriframe')
 
@@ -181,7 +182,9 @@ class Fun(Cog):
                     color_poke = None
 
                 if color_poke:
-                    s += ' using the color palette of {0[text]\n{1}/{0[value]}}'.format(color_poke, url)
+                    s += ' using the color palette of {0[text]}\n{1}/{0[value]}'.format(color_poke, url)
+                else:
+                    s += '\n' + url
 
                 img = BytesIO(self.driver.get_screenshot_as_png())
             except:

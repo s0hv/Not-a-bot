@@ -169,7 +169,7 @@ class Fun(Cog):
                 script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
                 poke1 = self.driver.execute_script(script % 's1')
                 poke2 = self.driver.execute_script(script % 's2')
-                s = 'Fusion of {0[text]} and {1[text}'.format(poke1, poke2)
+                s = 'Fusion of {0[text]} and {1[text]}'.format(poke1, poke2)
                 url = 'http://pokefusion.japeal.com/{0[value]}/{1[value]}'.format(poke1, poke2)
 
                 color_poke = None

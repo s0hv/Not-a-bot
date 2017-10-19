@@ -151,7 +151,7 @@ class Fun(Cog):
     @cooldown(2, 2)
     async def pokefusion(self, ctx):
         """Gets a random pokemon fusion from http://pokefusion.japeal.com"""
-        async with self._driver_lock.acquire():
+        async with self._driver_lock:
             try:
                 await self.bot.send_typing(ctx.message.channel)
                 if not self.driver.current_url.startswith('http://pokefusion.japeal.com'):

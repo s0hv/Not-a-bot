@@ -1,18 +1,22 @@
+import logging
 import os
-from asyncio import Queue
+from asyncio import Queue, Lock
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from io import BytesIO
-from random import randint
+from random import randint, random
 
 from PIL import Image
 from discord.ext.commands import cooldown
 from selenium.webdriver import PhantomJS
+from selenium.webdriver.support.select import Select
 
 from bot.bot import command
 from cogs.cog import Cog
 from utils.imagetools import resize_keep_aspect_ratio, image_from_url
 from utils.utilities import get_image_from_message
+
+logger = logging.getLogger('debug')
 
 
 class Fun(Cog):
@@ -20,6 +24,7 @@ class Fun(Cog):
         super().__init__(bot)
         self.driver = PhantomJS(self.bot.config.phantomjs)
         self.threadpool = ThreadPoolExecutor(3)
+        self._driver_lock = Lock()
         self.queue = Queue()
         self.queue.put_nowait(1)
 
@@ -128,31 +133,70 @@ class Fun(Cog):
         # After visiting the url remember to put 1 item in self.queue
         # Otherwise the browser will be locked
 
-        await self.queue.get()
+        # If lock is not locked lock it until this operation finishes
+        unlock = False
+        if not self._driver_lock.locked():
+            await self._driver_lock.acquire()
+            unlock = True
+
         f = partial(self.driver.get, url)
         await self.bot.loop.run_in_executor(self.threadpool, f)
+        if unlock:
+            try:
+                self._driver_lock.release()
+            except RuntimeError:
+                pass
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2)
     async def pokefusion(self, ctx):
         """Gets a random pokemon fusion from http://pokefusion.japeal.com"""
-        r1 = randint(1, 386)  # Biggest id atm for gen 3 is 386
-        r2 = randint(1, 386)
-        while r1 == r2:
-            r2 = randint(1, 386)
+        async with self._driver_lock.acquire():
+            try:
+                await self.bot.send_typing(ctx.message.channel)
+                if not self.driver.current_url.startswith('http://pokefusion.japeal.com'):
+                    await self.get_url('http://pokefusion.japeal.com/')
+                    self.driver.switch_to.frame('inneriframe')
 
-        url = 'http://pokefusion.japeal.com/%s/%s' % (r1, r2)
-        await self.bot.send_typing(ctx.message.channel)
-        await self.get_url(url)
-        img = BytesIO(self.driver.get_screenshot_as_png())
-        self.queue.put_nowait(1)
+                b1 = self.driver.find_element_by_id('myButtonR')
+                b2 = self.driver.find_element_by_id('myButtonL')
+                b_color = self.driver.find_element_by_id('myButtonColor')
+                if b1:
+                    b1.click()
+                if b2:
+                    b2.click()
+
+                script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
+                poke1 = self.driver.execute_script(script % 's1')
+                poke2 = self.driver.execute_script(script % 's2')
+                s = 'Fusion of {0[text]} and {1[text}'.format(poke1, poke2)
+                url = 'http://pokefusion.japeal.com/{0[value]}/{1[value]}'.format(poke1, poke2)
+
+                color_poke = None
+                if b_color and random() < 0.3:
+                    b_color.click()
+                    color_poke = self.driver.execute_script(script % 's3')
+
+                if color_poke and color_poke['text'].lower() == 'none':
+                    color_poke = None
+
+                if color_poke:
+                    s += ' using the color palette of {0[text]\n{1}/{0[value]}}'.format(color_poke, url)
+
+                img = BytesIO(self.driver.get_screenshot_as_png())
+            except:
+                logger.exception('Failed to get pokefusion. Refreshing page')
+                await self.get_url('http://pokefusion.japeal.com/')
+                self.driver.switch_to.frame('inneriframe')
+                return await self.bot.say('Failed to fuse pokemon')
+
         img.seek(0)
         img = Image.open(img)
-        img = img.crop((185, 367, 455, 637))
+        img = img.crop((141, 465, 502, 740))
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png', content=url)
+        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png', content=s)
 
 
 def setup(bot):

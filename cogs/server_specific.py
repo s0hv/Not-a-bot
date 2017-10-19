@@ -113,6 +113,9 @@ class ServerSpecific(Cog):
     @cooldown(2, 4)
     async def add_grant(self, ctx, role, target_role):
         server = ctx.message.server
+        if server.id not in ('217677285442977792', '353927534439825429'):
+            return
+
         role_ = get_role(role, server.roles)
         if not role_:
             return await self.bot.say('Could not find role %s' % role, delete_after=30)
@@ -140,6 +143,9 @@ class ServerSpecific(Cog):
     @cooldown(2, 4)
     async def remove_grant(self, ctx, role, target_role):
         server = ctx.message.server
+        if server.id not in ('217677285442977792', '353927534439825429'):
+            return
+
         role_ = get_role(role, server.roles)
         if not role_:
             return await self.bot.say('Could not find role %s' % role, delete_after=30)

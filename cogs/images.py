@@ -173,7 +173,7 @@ class Fun(Cog):
                     await self.get_url('http://pokefusion.japeal.com/')
                     self.driver.switch_to.frame('inneriframe')
 
-                self.driver.execute_script(clicker)
+                clicker()
                 poke1 = self.driver.execute_script(script % 's1')
                 poke2 = self.driver.execute_script(script % 's2')
                 color = self.driver.execute_script(script % 's3')

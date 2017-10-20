@@ -151,6 +151,20 @@ class Fun(Cog):
     @cooldown(2, 2)
     async def pokefusion(self, ctx):
         """Gets a random pokemon fusion from http://pokefusion.japeal.com"""
+
+        script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
+        if random() < 0.4:
+            btn = 'myButtonALL'
+
+            def clicker():
+                self.driver.find_element_by_id(btn).click()
+        else:
+            btn = 'myButtonLR'
+
+            def clicker():
+                self.driver.execute_script("document.getElementById('s3').value = 0;")
+                self.driver.find_element_by_id(btn).click()
+
         async with self._driver_lock:
             try:
                 await self.bot.send_typing(ctx.message.channel)
@@ -159,32 +173,10 @@ class Fun(Cog):
                     await self.get_url('http://pokefusion.japeal.com/')
                     self.driver.switch_to.frame('inneriframe')
 
-                b1 = self.driver.find_element_by_id('myButtonR')
-                b2 = self.driver.find_element_by_id('myButtonL')
-                b_color = self.driver.find_element_by_id('myButtonColor')
-                if b1:
-                    b1.click()
-                if b2:
-                    b2.click()
-
-                script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
+                self.driver.execute_script(clicker)
                 poke1 = self.driver.execute_script(script % 's1')
                 poke2 = self.driver.execute_script(script % 's2')
-                s = 'Fusion of {0[text]} and {1[text]}'.format(poke1, poke2)
-                url = 'http://pokefusion.japeal.com/{0[value]}/{1[value]}'.format(poke1, poke2)
-
-                color_poke = None
-                if b_color and random() < 0.4:
-                    b_color.click()
-                    color_poke = self.driver.execute_script(script % 's3')
-
-                if color_poke and color_poke['text'].lower() == 'none':
-                    color_poke = None
-
-                if color_poke:
-                    s += ' using the color palette of {0[text]}\n{1}/{0[value]}'.format(color_poke, url)
-                else:
-                    s += '\n' + url
+                color = self.driver.execute_script(script % 's3')
 
                 img = BytesIO(self.driver.get_screenshot_as_png())
             except:
@@ -192,6 +184,19 @@ class Fun(Cog):
                 await self.get_url('http://pokefusion.japeal.com/')
                 self.driver.switch_to.frame('inneriframe')
                 return await self.bot.say('Failed to fuse pokemon')
+
+        s = 'Fusion of {0[text]} and {1[text]}'.format(poke2, poke1)
+        url = 'http://pokefusion.japeal.com/{0[value]}/{1[value]}'.format(poke2,
+                                                                          poke1)
+
+        if color and color['text'].lower() == 'none':
+            color = None
+
+        if color:
+            s += ' using the color palette of {0[text]}\n{1}/{0[value]}'.format(
+                color, url)
+        else:
+            s += '\n' + url
 
         img.seek(0)
         img = Image.open(img)

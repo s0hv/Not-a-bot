@@ -151,16 +151,17 @@ class NotABot(Bot):
     def dbutils(self):
         return self._dbutil
 
-    async def on_ready(self):
-        print('[INFO] Logged in as {0.user.name}'.format(self))
-        await self.change_presence(game=discord.Game(name=self.config.game))
-
+    async def _load_cogs(self):
         for cog in initial_cogs:
             try:
                 self.load_extension(cog)
             except Exception as e:
                 print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
+    async def on_ready(self):
+        print('[INFO] Logged in as {0.user.name}'.format(self))
+        await self.change_presence(game=discord.Game(name=self.config.game))
+        asyncio.ensure_future(self._load_cogs(), loop=self.loop)
         self.cache_servers()
         if self._random_color is None:
             self._random_color = self.loop.create_task(self._random_color_task())

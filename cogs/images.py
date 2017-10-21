@@ -166,9 +166,8 @@ class Fun(Cog):
                 return
             max_value = self.driver.execute_script('return document.getElementById("s1").options.length')
 
-        # Values are reversed so we can just press the switch button to render the image
-        # Directly calling setIframeSource() doesn't give enough time to render before screenshot
-        values = {2: poke1, 1: poke2, 3: color_poke}
+
+        values = {1: poke1, 2: poke2, 3: color_poke}
         user_set = {}
         script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
         if random() < 0.4:
@@ -196,7 +195,7 @@ class Fun(Cog):
                     v = values.get(k)
                     if v:
                         set_max_value()
-                        value = await get_int(poke1)
+                        value = await get_int(v)
                         if value is None:
                             return
 
@@ -206,13 +205,20 @@ class Fun(Cog):
                         user_set[k] = value
 
                 if user_set:
+                    # We keep the old chance for random color
+                    if 3 not in user_set and random() <= 0.4:
+                        user_set[3] = 0
                     user_set = {k: user_set.get(k, randint(1, max_value)) for k in values.keys()}
+
                     s = ''
                     for k in user_set:
                         s += "document.getElementById('s%s').value=%s;" % (k, user_set[k])
 
                     def clicker():
                         self.driver.execute_script(s)
+                        # We switch the places to render the image and also to
+                        # make the order of the fusion correct or it would fuse
+                        # poke2 with poke1
                         self.driver.find_element_by_id('myButtonS').click()
 
                 clicker()

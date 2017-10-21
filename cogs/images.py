@@ -164,7 +164,7 @@ class Fun(Cog):
             nonlocal max_value
             if max_value is not None:
                 return
-            max_value = self.driver.execute_script('document.getElementById("s1").options.length')
+            max_value = self.driver.execute_script('return document.getElementById("s1").options.length')
 
         # Values are reversed so we can just press the switch button to render the image
         # Directly calling setIframeSource() doesn't give enough time to render before screenshot

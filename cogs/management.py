@@ -509,7 +509,10 @@ class Management:
                                          'lab_a': lab.lab_a,
                                          'lab_b': lab.lab_b})
 
-        session.commit()
+        try:
+            session.commit()
+        except:
+            session.rollback()
 
     @command(pass_context=True, owner_only=True)
     async def convert_color(self, ctx, color_id, name):
@@ -527,14 +530,17 @@ class Management:
             sRGBColor(*role.color.to_tuple(), is_upscaled=True), LabColor)
         sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
               '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
-        session.execute(sql, params={'id': int(color_id),
-                                     'name': name,
-                                     'value': role.color.value,
-                                     'lab_l': lab.lab_l,
-                                     'lab_a': lab.lab_a,
-                                     'lab_b': lab.lab_b})
+        try:
+            session.execute(sql, params={'id': int(color_id),
+                                         'name': name,
+                                         'value': role.color.value,
+                                         'lab_l': lab.lab_l,
+                                         'lab_a': lab.lab_a,
+                                         'lab_b': lab.lab_b})
 
-        session.commit()
+            session.commit()
+        except:
+            session.rollback()
         await self.bot.say('k')
 
     @command(pass_context=True, owner_only=True)

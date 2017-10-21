@@ -23,6 +23,7 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to add roles')
             return False
 
@@ -35,6 +36,7 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to add user')
             return False
 
@@ -58,6 +60,7 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to add roles foreign keys')
             return False
 
@@ -71,6 +74,7 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to delete roles')
 
     def delete_role(self, role_id, server_id):
@@ -80,6 +84,7 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Could not delete role %s' % role_id)
 
     def delete_user_roles(self, user_id):
@@ -89,4 +94,5 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Could not delete user roles')

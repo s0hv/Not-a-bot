@@ -211,7 +211,12 @@ class CommandBlacklist(Cog):
                 await self.bot.say('Failed to set %s' % type_string)
                 return False
 
-        session.commit()
+        try:
+            session.commit()
+        except:
+            session.rollback()
+            logger.exception('Failed to set blacklist')
+            return False
         return True
 
     async def _add_user_blacklist(self, command_name, user, server):

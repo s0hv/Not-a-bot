@@ -134,6 +134,7 @@ class ServerSpecific(Cog):
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to add grant role')
             return await self.bot.say('Failed to add perms. Exception logged')
 
@@ -160,6 +161,7 @@ class ServerSpecific(Cog):
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to remove grant role')
             return await self.bot.say('Failed to remove perms. Exception logged')
 

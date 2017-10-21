@@ -25,34 +25,47 @@ class Logger(Cog):
         attachment = message.attachments[0].get('url') if message.attachments else None
         # print((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment))
 
-        self.session.execute(sql, {'shard': shard,
-                                   'server': server,
-                                   'server_name': server_name,
-                                   'channel': channel,
-                                   'channel_name': channel_name,
-                                   'user': user,
-                                   'user_id': user_id,
-                                   'message': message_content,
-                                   'message_id': message_id,
-                                   'attachment': attachment})
+        try:
+            self.session.execute(sql, {'shard': shard,
+                                       'server': server,
+                                       'server_name': server_name,
+                                       'channel': channel,
+                                       'channel_name': channel_name,
+                                       'user': user,
+                                       'user_id': user_id,
+                                       'message': message_content,
+                                       'message_id': message_id,
+                                       'attachment': attachment})
 
-        self.session.commit()
+            self.session.commit()
+        except:
+            self.session.rollback()
+            self.session.close()
+            self.session = self.bot.get_session
 
     async def on_member_join(self, member):
         sql = "INSERT INTO `join_leave` (`user_id`, `server`, `value`) VALUES " \
               "(:user_id, :server, :value) ON DUPLICATE KEY UPDATE value=1"
 
-        self.session.execute(sql, {'user_id': member.id,
-                                   'server': member.server.id,
-                                   'value': 1})
+        try:
+            self.session.execute(sql, {'user_id': member.id,
+                                       'server': member.server.id,
+                                       'value': 1})
+            self.session.commit()
+        except:
+            self.session.rollback()
 
     async def on_member_remove(self, member):
         sql = "INSERT INTO `join_leave` (`user_id`, `server`, `value`) VALUES " \
               "(:user_id, :server, :value) ON DUPLICATE KEY UPDATE value=-1"
 
-        self.session.execute(sql, {'user_id': member.id,
-                                   'server': member.server.id,
-                                   'value': -1})
+        try:
+            self.session.execute(sql, {'user_id': member.id,
+                                       'server': member.server.id,
+                                       'value': -1})
+            self.session.commit()
+        except:
+            self.session.rollback()
 
 
 def setup(bot):

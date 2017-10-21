@@ -91,6 +91,7 @@ class Poll:
                 session.execute(sql)
                 session.commit()
             except:
+                session.rollback()
                 logger.exception('Could not delete poll')
             return await self.bot.send_message(channel, 'Failed to end poll.\nReason: Could not get the poll message')
 
@@ -167,6 +168,7 @@ class Poll:
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Could not delete poll')
             await self.bot.send_message(chn, 'Could not delete poll from database. The poll result might be recalculated')
 
@@ -174,7 +176,6 @@ class Poll:
 class VoteManager:
     def __init__(self, bot):
         self.bot = bot
-        self.session = self.bot.get_session
         self.polls = self.bot.polls
         self.load_polls()
         self.parser = argparse.ArgumentParser()
@@ -188,7 +189,7 @@ class VoteManager:
         self.parser.add_argument('-allow_multiple_entries', action='store_true')
 
     def load_polls(self):
-        session = self.session
+        session = self.bot.get_session
         sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
         poll_rows = session.execute(sql)
         polls = {}
@@ -418,8 +419,10 @@ class VoteManager:
              'strict': parsed.strict, 'message': msg.id, 'channel': ctx.message.channel.id,
              'expires_in': parsed.time, 'ignore_on_dupe': parsed.no_duplicate_votes,
              'multiple_votes': parsed.allow_multiple_entries, 'max_winners': parsed.max_winners}
+
+        session = self.bot.get_session
         try:
-            self.session.execute(text(sql), params=d)
+            session.execute(text(sql), params=d)
 
             emotes_list = []
             if emotes:
@@ -441,7 +444,7 @@ class VoteManager:
 
                 # If emote is already in the table update its name
                 sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
-                self.session.execute(text(sql))
+                session.execute(text(sql))
 
                 sql = 'INSERT IGNORE INTO `pollEmotes` (`poll_id`, `emote_id`) VALUES '
                 values = []
@@ -449,10 +452,11 @@ class VoteManager:
                     values.append('(%s, %s)' % (msg.id, id))
 
                 sql += ', '.join(values)
-                self.session.execute(text(sql))
+                session.execute(text(sql))
 
-            self.session.commit()
+            session.commit()
         except:
+            session.rollback()
             logger.exception('Failed sql query')
             return await self.bot.say('Failed to save poll. Exception has been logged')
 

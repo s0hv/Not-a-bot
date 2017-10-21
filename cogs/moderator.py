@@ -128,12 +128,13 @@ class Moderator(Cog):
             pass
 
     def remove_timeout(self, user_id, server_id):
+        session = self.bot.get_session
         try:
-            session = self.bot.get_session
             sql = 'DELETE FROM `timeouts` WHERE `server` = %s AND `user` = %s' % (server_id, user_id)
             session.execute(sql)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Could not delete untimeout')
 
     async def untimeout(self, user, server_id):
@@ -187,6 +188,7 @@ class Moderator(Cog):
             session.execute(sql, params=d)
             session.commit()
         except:
+            session.rollback()
             logger.exception('Could not save timeout')
             return await self.bot.say('Could not save timeout. Canceling action')
 
@@ -410,6 +412,7 @@ class Moderator(Cog):
                 session.execute(sql)
                 session.commit()
             except:
+                session.rollback()
                 logger.exception('Could not delete messages from database')
 
             if modlog:

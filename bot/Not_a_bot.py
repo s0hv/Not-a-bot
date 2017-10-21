@@ -128,8 +128,12 @@ class NotABot(Bot):
 
         if new_servers:
             sql = 'INSERT INTO `servers` (`server`) VALUES ' + ', '.join(new_servers)
-            session.execute(sql)
-            session.commit()
+            try:
+                session.execute(sql)
+                session.commit()
+            except:
+                session.rollback()
+                logger.exception('Failed to add new servers to db')
 
     @property
     def get_session(self):
@@ -233,8 +237,12 @@ class NotABot(Bot):
         session = self.get_session
         sql = 'INSERT IGNORE INTO `servers` (`server`) ' \
               'VALUES (%s)' % server.id
-        session.execute(sql)
-        session.commit()
+        try:
+            session.execute(sql)
+            session.commit()
+        except:
+            session.rollback()
+            logger.exception('Failed to add new server')
 
         sql = 'SELECT * FROM `servers` WHERE server=%s' % server.id
         row = session.execute(sql).first()

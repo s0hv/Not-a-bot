@@ -69,6 +69,7 @@ class Colors(Cog):
                                          'lab_b': color.lab.lab_b})
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to add color to db')
             return False
         else:

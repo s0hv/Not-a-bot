@@ -133,8 +133,13 @@ class BotAdmin(Cog):
             if not row:
                 sql = 'INSERT INTO `servers` (`server`, `prefix`) ' \
                       'VALUES (%s, "%s")' % (server.id, self.bot.command_prefix)
-                session.execute(sql)
-                session.commit()
+                try:
+                    session.execute(sql)
+                    session.commit()
+                except:
+                    session.rollback()
+                    logger.exception('Failed to cache server')
+
                 d = {'prefix': self.bot.command_prefix}
             else:
                 d = {**row}

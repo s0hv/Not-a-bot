@@ -31,10 +31,16 @@ class ServerCache:
     def set_value(self, server_id, name, value):
         sql = 'INSERT INTO `servers` (`server`, `{0}`) VALUES ({1}, :{0}) ON DUPLICATE KEY UPDATE {0}=:{0}'.format(name, server_id)
         session = self.bot.get_session
-        session.execute(text(sql), params={name: value})
-        session.commit()
+        try:
+            session.execute(text(sql), params={name: value})
+            session.commit()
+            success = True
+        except:
+            session.rollback()
+            success = False
         settings = self.get_settings(server_id)
         settings[name] = value
+        return success
 
     def set_modlog(self, server_id, channel_id):
         self.set_value(server_id, 'modlog', channel_id)

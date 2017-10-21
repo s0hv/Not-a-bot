@@ -52,6 +52,7 @@ class NNLogger(Cog):
             session.execute(sql, params={'message': content})
             session.commit()
         except:
+            session.rollback()
             logger.exception('Failed to log message to nn table')
 
 

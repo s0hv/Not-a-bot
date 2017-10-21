@@ -125,6 +125,7 @@ class Settings(Cog):
                 session.execute(sql)
                 session.commit()
             except:
+                session.rollback()
                 await self.bot.say('Failed to remove automute blacklist')
             else:
                 s = split_string('Automute blacklist was removed from %s' % ' '.join(map(lambda cid: '<#%s>' % cid, delete)))
@@ -138,6 +139,7 @@ class Settings(Cog):
                 session.execute(sql)
                 session.commit()
             except:
+                session.rollback()
                 await self.bot.say('Failed to add automute blacklist')
 
             else:

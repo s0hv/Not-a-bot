@@ -4,12 +4,12 @@ from sqlalchemy import text
 from bot.bot import command
 import discord
 from discord.ext.commands import cooldown
-
+import logging
+logger = logging.getLogger('debug')
 
 class Stats(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.session = bot.get_session
 
     async def on_message(self, message):
         if message.server is None:
@@ -44,14 +44,21 @@ class Stats(Cog):
             sql += ', '
 
         sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=role_name'
-        self.session.execute(sql)
+        session = self.bot.get_session
+        try:
+            session.execute(sql)
+            session.commit()
+        except:
+            session.rollback()
+            logger.exception('Failed to save mention stats')
 
     @command(pass_context=True, no_pm=True)
     @cooldown(10, 1)
     async def mention_stats(self, ctx):
         server = ctx.message.server
         sql = 'SELECT * FROM `mention_stats` WHERE server=%s ORDER BY amount DESC LIMIT 10' % server.id
-        rows = self.session.execute(sql).fetchall()
+        session = self.bot.get_session
+        rows = session.execute(sql).fetchall()
         if not rows:
             return await self.bot.say('No role mentions logged on this server')
 

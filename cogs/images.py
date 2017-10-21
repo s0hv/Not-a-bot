@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from io import BytesIO
 from random import randint, random
-
 from PIL import Image
 from discord.ext.commands import cooldown
 from selenium.webdriver import PhantomJS
@@ -149,9 +148,28 @@ class Fun(Cog):
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2)
-    async def pokefusion(self, ctx):
+    async def pokefusion(self, ctx, poke1=None, poke2=None, color_poke=None):
         """Gets a random pokemon fusion from http://pokefusion.japeal.com"""
 
+        async def get_int(s):
+            try:
+                return int(s[:5])
+            except ValueError:
+                await self.bot.say('%s is not a valid number')
+                return
+
+        max_value = None
+
+        def set_max_value():
+            nonlocal max_value
+            if max_value is not None:
+                return
+            max_value = self.driver.execute_script('document.getElementById("s1").options.length')
+
+        # Values are reversed so we can just press the switch button to render the image
+        # Directly calling setIframeSource() doesn't give enough time to render before screenshot
+        values = {2: poke1, 1: poke2, 3: color_poke}
+        user_set = {}
         script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
         if random() < 0.4:
             btn = 'myButtonALL'
@@ -170,8 +188,32 @@ class Fun(Cog):
                 await self.bot.send_typing(ctx.message.channel)
                 if not self.driver.current_url.startswith('http://pokefusion.japeal.com'):
                     logger.debug('Current url is %s. Switching to the correct one' % self.driver.current_url)
-                    await self.get_url('http://pokefusion.japeal.com/')
-                    self.driver.switch_to.frame('inneriframe')
+                    # We need to use this url so it doesn't render the whole site
+                    # That improves performance a lot when getting the screenshot
+                    await self.get_url('http://pokefusion.japeal.com/PKMSelectorV3.php?ver=2.0&p1=0&p2=0&c=0')
+
+                for k in values:
+                    v = values.get(k)
+                    if v:
+                        set_max_value()
+                        value = await get_int(poke1)
+                        if value is None:
+                            return
+
+                        if not (0 < value < max_value):
+                            return await self.bot.say('Value must be between 1 and %s' % (max_value - 1))
+
+                        user_set[k] = value
+
+                if user_set:
+                    user_set = {k: user_set.get(k, randint(1, max_value)) for k in values.keys()}
+                    s = ''
+                    for k in user_set:
+                        s += "document.getElementById('s%s').value=%s;" % (k, user_set[k])
+
+                    def clicker():
+                        self.driver.execute_script(s)
+                        self.driver.find_element_by_id('myButtonS').click()
 
                 clicker()
                 poke1 = self.driver.execute_script(script % 's1')
@@ -181,8 +223,7 @@ class Fun(Cog):
                 img = BytesIO(self.driver.get_screenshot_as_png())
             except:
                 logger.exception('Failed to get pokefusion. Refreshing page')
-                await self.get_url('http://pokefusion.japeal.com/')
-                self.driver.switch_to.frame('inneriframe')
+                await self.get_url('http://pokefusion.japeal.com/PKMSelectorV3.php?ver=2.0&p1=0&p2=0&c=0')
                 return await self.bot.say('Failed to fuse pokemon')
 
         s = 'Fusion of {0[text]} and {1[text]}'.format(poke2, poke1)

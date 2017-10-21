@@ -241,7 +241,7 @@ class Fun(Cog):
 
         img.seek(0)
         img = Image.open(img)
-        img = img.crop((141, 465, 502, 740))
+        img = img.crop((132, 204, 491, 478))
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)

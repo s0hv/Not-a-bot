@@ -29,11 +29,14 @@ class Fun(Cog):
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(5, 5)
-    async def anime_deaths(self, ctx, image):
+    async def anime_deaths(self, ctx, image=None):
         path = os.path.join('data', 'templates', 'saddest-anime-deaths.png')
         img = get_image_from_message(ctx, image)
         if img is None:
-            return await self.bot.say('No image found from %s' % image)
+            if image is not None:
+                return await self.bot.say('No image found from %s' % image)
+            else:
+                return await self.bot.say('Please input a mention, emote or an image when using the command')
 
         img = await image_from_url(img, self.bot.aiohttp_client)
         if img is None:
@@ -60,11 +63,14 @@ class Fun(Cog):
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(5, 5)
-    async def anime_deaths2(self, ctx, image):
+    async def anime_deaths2(self, ctx, image=None):
         path = os.path.join('data', 'templates', 'saddest-anime-deaths2.png')
         img = get_image_from_message(ctx, image)
         if img is None:
-            return await self.bot.say('No image found from %s' % image)
+            if image is not None:
+                return await self.bot.say('No image found from %s' % image)
+            else:
+                return await self.bot.say('Please input a mention, emote or an image when using the command')
 
         img = await image_from_url(img, self.bot.aiohttp_client)
         if img is None:
@@ -93,18 +99,20 @@ class Fun(Cog):
     @cooldown(2, 5)
     async def trap(self, ctx, image=None):
         """Is it a trap?
-
         """
-        path = os.path.join('data', 'templates', 'is_it_a_trap.png')
-        path2 = os.path.join('data', 'templates', 'is_it_a_trap_layer.png')
         img = get_image_from_message(ctx, image)
         if img is None:
-            return await self.bot.say('No image found from %s' % image)
+            if image is not None:
+                return await self.bot.say('No image found from %s' % image)
+            else:
+                return await self.bot.say('Please input a mention, emote or an image when using the command')
 
         img = await image_from_url(img, self.bot.aiohttp_client)
         if img is None:
             return await self.bot.say('Could not extract image from {}.'.format(image))
 
+        path = os.path.join('data', 'templates', 'is_it_a_trap.png')
+        path2 = os.path.join('data', 'templates', 'is_it_a_trap_layer.png')
         img = img.convert("RGBA")
         await self.bot.send_typing(ctx.message.channel)
         x, y = 820, 396
@@ -149,13 +157,21 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2)
     async def pokefusion(self, ctx, poke1=None, poke2=None, color_poke=None):
-        """Gets a random pokemon fusion from http://pokefusion.japeal.com"""
+        """
+        Gets a random pokemon fusion from http://pokefusion.japeal.com
+        You can specify the wanted fusion by specifying their pokedex index.
+        Unspecified parameters will be randomized.
+        By default if color_poke isn't given it has a random chance to be a random value.
+        If you don't want this to happen set it as 0.
+        e.g. `!pokefusion 1 2 0`
+        Passing % as a parameter will randomize that value
+        """
 
         async def get_int(s):
             try:
                 return int(s[:5])
             except ValueError:
-                await self.bot.say('%s is not a valid number')
+                await self.bot.say('%s is not a valid number' % s)
                 return
 
         max_value = None
@@ -165,7 +181,6 @@ class Fun(Cog):
             if max_value is not None:
                 return
             max_value = self.driver.execute_script('return document.getElementById("s1").options.length')
-
 
         values = {1: poke1, 2: poke2, 3: color_poke}
         user_set = {}
@@ -195,14 +210,19 @@ class Fun(Cog):
                     v = values.get(k)
                     if v:
                         set_max_value()
-                        value = await get_int(v)
-                        if value is None:
-                            return
+                        if v != '%':
+                            value = await get_int(v)
+                            if value is None:
+                                return
 
-                        if not (0 < value < max_value):
-                            return await self.bot.say('Value must be between 1 and %s' % (max_value - 1))
+                            min_val = 0 if k == 3 else 1
+                            if not (min_val <= value < max_value):
+                                return await self.bot.say('Value must be between %s and %s' % (min_val, max_value - 1))
 
-                        user_set[k] = value
+                            user_set[k] = value
+
+                        if v == '%' and k == 3:
+                            user_set[k] = randint(1, max_value)
 
                 if user_set:
                     # We keep the old chance for random color

@@ -6,6 +6,9 @@ from bot.bot import command
 from bot.globals import Perms
 from cogs.cog import Cog
 from utils.utilities import get_role, get_user_id
+import subprocess
+import shlex
+import asyncio
 
 logger = logging.getLogger('debug')
 
@@ -166,6 +169,23 @@ class ServerSpecific(Cog):
             return await self.bot.say('Failed to remove perms. Exception logged')
 
         await self.bot.say('👌')
+
+    @command(pass_context=True)
+    @cooldown(1, 2)
+    async def text(self, ctx):
+        server = ctx.message.server
+        if server.id not in ('217677285442977792', '353927534439825429'):
+            return
+
+        p = '/home/pi/neural_networks/torch-rnn/cv/checkpoint_pi.t7'
+        script = '/home/pi/neural_networks/torch-rnn/sample.lua'
+        cmd = 'th %s -checkpoint %s -length 100 -gpu -1' % (script, p)
+        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
+        while p.poll() is None:
+            await asyncio.sleep(1)
+
+        out, err = p.communicate()
+        await self.bot.say(out)
 
 
 def setup(bot):

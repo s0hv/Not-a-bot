@@ -171,7 +171,7 @@ class ServerSpecific(Cog):
         await self.bot.say('👌')
 
     @command(pass_context=True)
-    @cooldown(1, 2)
+    @cooldown(1, 3)
     async def text(self, ctx):
         server = ctx.message.server
         if server.id not in ('217677285442977792', '353927534439825429'):
@@ -179,13 +179,14 @@ class ServerSpecific(Cog):
 
         p = '/home/pi/neural_networks/torch-rnn/cv/checkpoint_pi.t7'
         script = '/home/pi/neural_networks/torch-rnn/sample.lua'
-        cmd = '/home/pi/torch/install/bin/th %s -checkpoint %s -length 100 -gpu -1' % (script, p)
+        cmd = '/home/pi/torch/install/bin/th %s -checkpoint %s -length 200 -gpu -1' % (script, p)
         p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='/home/pi/neural_networks/torch-rnn/')
+        await self.bot.send_typing(ctx.message.channel)
         while p.poll() is None:
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.2)
 
         out, err = p.communicate()
-        await self.bot.say(out.decode('utf-8') + err.decode('utf-8'))
+        await self.bot.say(out.decode('utf-8'))
 
 
 def setup(bot):

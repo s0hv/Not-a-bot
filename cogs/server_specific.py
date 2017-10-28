@@ -180,12 +180,12 @@ class ServerSpecific(Cog):
         p = '/home/pi/neural_networks/torch-rnn/cv/checkpoint_pi.t7'
         script = '/home/pi/neural_networks/torch-rnn/sample.lua'
         cmd = '/home/pi/torch/install/bin/th %s -checkpoint %s -length 100 -gpu -1' % (script, p)
-        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
+        p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         while p.poll() is None:
             await asyncio.sleep(1)
 
         out, err = p.communicate()
-        await self.bot.say(out)
+        await self.bot.say(out.decode('utf-8') + err.decode('utf-8'))
 
 
 def setup(bot):

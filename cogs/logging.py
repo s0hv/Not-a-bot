@@ -10,8 +10,8 @@ class Logger(Cog):
         if message.author == self.bot.user:
             return
 
-        sql = "INSERT INTO `messages` (`shard`, `server`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`) " \
-              "VALUES (:shard, :server, :channel, :user, :user_id, :message, :message_id, :attachment)"
+        sql = "INSERT INTO `messages` (`shard`, `server`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
+              "VALUES (:shard, :server, :channel, :user, :user_id, :message, :message_id, :attachment, :time)"
         is_pm = message.channel.is_private
         shard = self.bot.shard_id
         server = int(message.server.id) if not is_pm else None
@@ -33,7 +33,8 @@ class Logger(Cog):
                                        'user_id': user_id,
                                        'message': message_content,
                                        'message_id': message_id,
-                                       'attachment': attachment})
+                                       'attachment': attachment,
+                                       'time': message.timestamp})
 
             self.session.commit()
         except:

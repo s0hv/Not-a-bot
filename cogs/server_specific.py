@@ -57,11 +57,11 @@ class ServerSpecific(Cog):
         if not target_user:
             return await self.bot.say("User %s wasn't found" % user, delete_after=30)
 
-        role = get_role(role, server.roles, True)
-        if not role:
+        role_ = get_role(role, server.roles, True)
+        if not role_:
             return await self.bot.say('Role %s not found' % role)
 
-        role_id = role.id
+        role_id = role_.id
 
         can_grant = await self._check_role_grant(author, role_id, server.id)
         if can_grant is None:
@@ -93,11 +93,11 @@ class ServerSpecific(Cog):
         if not target_user:
             return await self.bot.say("User %s wasn't found" % user, delete_after=30)
 
-        role = get_role(role, server.roles, True)
-        if not role:
+        role_ = get_role(role, server.roles, True)
+        if not role_:
             return await self.bot.say('Role %s not found' % role)
 
-        role_id = role.id
+        role_id = role_.id
 
         can_grant = await self._check_role_grant(author, role_id, server.id)
         if can_grant is None:

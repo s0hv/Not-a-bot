@@ -3,7 +3,8 @@ from bot.bot import command, group
 from random import randint
 import discord
 from utils.utilities import (get_users_from_ids, call_later, parse_timeout,
-                             datetime2sql, get_avatar, get_user_id, get_channel_id)
+                             datetime2sql, get_avatar, get_user_id, get_channel_id,
+                             find_user, seconds2str)
 from datetime import datetime, timedelta
 import logging
 from bot.globals import Perms
@@ -253,6 +254,37 @@ class Moderator(Cog):
             await self.bot.say('Could not unmute user {}'.format(users[0]))
         else:
             await self.bot.say('Unmuted user {}'.format(users[0]))
+            t = self.timeouts.get(server.id, {}).get(users[0].id)
+            if t:
+                t.cancel()
+
+    @command(pass_context=True, no_pm=True)
+    async def unmute_when(self, ctx, *user):
+        server = ctx.message.server
+        if user:
+            member = find_user(' '.join(user), server.members, case_sensitive=True, ctx=ctx)
+        else:
+            member = ctx.message.author
+
+        if not member:
+            return await self.bot.say('User %s not found' % ' '.join(user))
+        muted_role = self.bot.server_cache.get_mute_role(server.id)
+        if not muted_role:
+            return await self.bot.say('No mute role set on this server')
+
+        muted_role = int(muted_role)
+        if not list(filter(lambda r: int(r.id) == muted_role, member.roles)):
+            return await self.bot.say('%s is not muted' % member)
+
+        sql = 'SELECT expires_on FROM `timeouts` WHERE server=%s AND user=%s' % (server.id, member.id)
+        session = self.bot.get_session
+
+        row = session.execute(sql).first()
+        if not row:
+            return await self.bot.say('User %s is permamuted' % str(member))
+
+        delta = row['expires_on'] - datetime.utcnow()
+        await self.bot.say('Timeout for %s expires in %s' % (member, seconds2str(delta.total_seconds())))
 
     # Only use this inside commands
     async def _set_channel_lock(self, ctx, locked: bool):

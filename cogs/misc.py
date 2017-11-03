@@ -1,6 +1,8 @@
 from bot.bot import command
 from cogs.cog import Cog
 from utils import wolfram, memes
+from utils.utilities import bool_check
+from discord.ext.commands import cooldown
 
 
 class Misc(Cog):
@@ -8,6 +10,7 @@ class Misc(Cog):
         super().__init__(bot)
 
     @command(pass_context=True)
+    @cooldown(1, 2)
     async def math(self, ctx, *, query):
         """Queries a math problem to be solved by wolfram alpha"""
         await self.bot.send_message(ctx.message.channel,
@@ -20,10 +23,11 @@ class Misc(Cog):
         """Says the text that was put as a parameter"""
         await self.bot.say('{0} {1}'.format(ctx.message.author.mention, words))
 
-    @command(pass_context=True, ignore_extra=True, enabled=False)
-    async def twitchquote(self, ctx):
-        """CURRENTLY BROKEN. Random twitch quote from twitchquotes.com"""
-        await self.bot.send_message(ctx.message.channel, await memes.twitch_poems(self.bot.aiohttp_client))
+    @command(ignore_extra=True, aliases=['twitchquotes'])
+    @cooldown(1, 1)
+    async def twitchquote(self, tts=None):
+        """Random twitch quote from twitchquotes.com"""
+        await self.bot.say(await memes.twitch_poems(self.bot.aiohttp_client), tts=bool_check(str(tts)))
 
 
 def setup(bot):

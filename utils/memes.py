@@ -24,6 +24,7 @@ SOFTWARE.
 
 from bs4 import BeautifulSoup
 
+
 async def twitch_poems(client):
     url = 'http://www.twitchquotes.com/random'
     async with client.get(url) as r:

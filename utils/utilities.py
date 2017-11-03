@@ -213,6 +213,11 @@ def y_n_check(msg):
     return msg in ['y', 'yes', 'n', 'no']
 
 
+def bool_check(s):
+    msg = s.lower().strip()
+    return msg in ['y', 'yes', 'true', 'on']
+
+
 def check_negative(n):
     if n < 0:
         return -1
@@ -482,14 +487,53 @@ def seconds2str(seconds):
     seconds = int(round(seconds, 0))
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
 
     def check_plural(string, i):
         if i != 1:
-            return str(i) + ' ' + string + 's '
-        return str(i) + ' ' + string
+            return '%s %ss ' % (str(i), string)
+        return '%s %s ' % (str(i), string)
 
+    d = check_plural('day', d) if d else ''
     h = check_plural('hour', h) if h else ''
     m = check_plural('minute', m) if m else ''
     s = check_plural('second', s) if s else ''
 
-    return h + m + s
+    return d + h + m + s.strip()
+
+
+def find_user(s, members, case_sensitive=False, ctx=None):
+    if not s:
+        return
+    if ctx:
+        # if ctx is present check mentions first
+        if ctx.message.mentions and ctx.message.mentions[0].mention == s.split(' ')[0].replace('!', ''):
+            return ctx.message.mentions[0]
+
+        try:
+            uid = int(s)
+        except:
+            pass
+        else:
+            found = list(filter(lambda u: int(u.id) == uid, members))
+            if found:
+                return found[0]
+
+    def filter_users(predicate):
+        for member in members:
+            if predicate(member):
+                return member
+
+            if member.nick and predicate(member.nick):
+                return member
+
+    p = lambda u: str(u).startswith(s) if case_sensitive else lambda u: str(u).lower().startswith(s)
+    found = filter_users(p)
+    s = '`<@!{}>` {}'
+    if found:
+        return found
+
+    p = lambda u: s in str(u) if case_sensitive else lambda u: s in str(u).lower()
+    found = filter_users(p)
+
+    return found

@@ -44,7 +44,7 @@ async def math(calculation, client, key):
                 return "I don't even math"
 
             pods = soup.find_all('pod', primary='true')
-            answers = 'No answer...'
+            answers = None
             for pod in pods:
                 try:
                     txt = pod.find('plaintext').text
@@ -52,4 +52,4 @@ async def math(calculation, client, key):
                 except Exception as e:
                     print('[ERROR] Error while getting wolfram answer %s' % e)
                     pass
-            return answers
+            return answers or 'No answer...'

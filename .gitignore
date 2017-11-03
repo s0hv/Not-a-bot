@@ -12,10 +12,7 @@ data/playlists/playlists_backup/
 data/playlists/test
 
 # Audio files
-data/audio/sfx/
-data/audio/to_be_edited/
-data/audio/cache/
-
+data/audio/
 
 # Used for testing or logging
 *.log
@@ -23,7 +20,6 @@ data/audio/cache/
 
 # Test files
 yttest.py
-wiki_colors.py
 test.py
 sfxtest.py
 test.txt
@@ -41,3 +37,7 @@ bot/__pycache__/Not_a_bot.cpython-35.pyc
 bot/__pycache__/cooldown.cpython-35.pyc
 cogs/__pycache__/
 utils/__pycache__/imagetools.cpython-35.pyc
+bot/__pycache__/dbutil.cpython-35.pyc
+bot/__pycache__/formatter.cpython-35.pyc
+bot/__pycache__/servercache.cpython-35.pyc
+text.txt

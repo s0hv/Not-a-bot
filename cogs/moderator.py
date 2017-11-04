@@ -183,7 +183,7 @@ class Moderator(Cog):
         session = self.bot.get_session
         try:
             sql = 'INSERT INTO `timeouts` (`server`, `user`, `expires_on`) VALUES ' \
-                  '(:server, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=expires_on'
+                  '(:server, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
 
             d = {'server': ctx.message.server.id, 'user': user.id, 'expires_on': expires_on}
             session.execute(sql, params=d)

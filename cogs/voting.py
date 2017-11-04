@@ -443,7 +443,7 @@ class VoteManager:
                     values.append('("%s", %s, %s)' % (name, id, server))
 
                 # If emote is already in the table update its name
-                sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=name'
+                sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=VALUES(name)'
                 session.execute(text(sql))
 
                 sql = 'INSERT IGNORE INTO `pollEmotes` (`poll_id`, `emote_id`) VALUES '

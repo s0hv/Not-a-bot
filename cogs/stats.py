@@ -43,7 +43,7 @@ class Stats(Cog):
 
             sql += ', '
 
-        sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=role_name'
+        sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=VALUES(role_name)'
         session = self.bot.get_session
         try:
             session.execute(sql)

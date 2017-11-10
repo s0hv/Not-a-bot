@@ -306,7 +306,10 @@ class Management:
         if channel is None:
             return
 
-        message = self.utils.format_join_leave(member, conf)
+        if member.id == '287664210152783873':
+            message = 'Cease the tag %s' % member.mention
+        else:
+            message = self.utils.format_join_leave(member, conf)
 
         await self.bot.send_message(channel, message)
 

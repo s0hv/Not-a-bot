@@ -369,7 +369,7 @@ class JoJo:
             except:
                 logger.exception('Could not create image')
                 return await self.bot.say('`{}` Could not create picture because of an error.'.format(name))
-
+        plt.close(fig)
         stat_img = stat_img.resize((int(stat_img.width * 0.85),
                                     int(stat_img.height * 0.85)),
                                    Image.BILINEAR)

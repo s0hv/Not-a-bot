@@ -1,6 +1,6 @@
 from bot.bot import command
 from cogs.cog import Cog
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 
 
 class Server(Cog):
@@ -8,7 +8,7 @@ class Server(Cog):
         super().__init__(bot)
 
     @command(no_pm=True, pass_context=True)
-    @cooldown(1, 20)
+    @cooldown(1, 20, type=BucketType.user)
     async def top(self, ctx, page: str='1'):
         try:
             page = int(page)

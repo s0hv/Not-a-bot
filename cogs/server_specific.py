@@ -1,6 +1,6 @@
 import logging
 
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 
 from bot.bot import command
 from bot.globals import Perms
@@ -41,7 +41,7 @@ class ServerSpecific(Cog):
         return True
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(2, 4)
+    @cooldown(1, 4, type=BucketType.user)
     async def grant(self, ctx, user, *, role):
         """"""
         server = ctx.message.server
@@ -77,7 +77,7 @@ class ServerSpecific(Cog):
         await self.bot.say('👌')
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(2, 4)
+    @cooldown(2, 4, type=BucketType.user)
     async def ungrant(self, ctx, user, *, role):
         """"""
         server = ctx.message.server
@@ -113,7 +113,7 @@ class ServerSpecific(Cog):
         await self.bot.say('👌')
 
     @command(pass_context=True, required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
-    @cooldown(2, 4)
+    @cooldown(2, 4, type=BucketType.server)
     async def add_grant(self, ctx, role, target_role):
         server = ctx.message.server
         if server.id not in ('217677285442977792', '353927534439825429'):
@@ -144,7 +144,7 @@ class ServerSpecific(Cog):
         await self.bot.say('👌')
 
     @command(pass_context=True, required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
-    @cooldown(2, 4)
+    @cooldown(1, 4, type=BucketType.user)
     async def remove_grant(self, ctx, role, target_role):
         server = ctx.message.server
         if server.id not in ('217677285442977792', '353927534439825429'):
@@ -171,7 +171,7 @@ class ServerSpecific(Cog):
         await self.bot.say('👌')
 
     @command(pass_context=True)
-    @cooldown(1, 3)
+    @cooldown(1, 3, type=BucketType.server)
     async def text(self, ctx):
         server = ctx.message.server
         if server.id not in ('217677285442977792', '353927534439825429'):

@@ -1,6 +1,6 @@
 from cogs.cog import Cog
 from bot.bot import command, group
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 from sqlalchemy import text
 from bot.globals import BlacklistTypes
 from utils.utilities import check_channel_mention, check_role_mention, check_user_mention, split_string
@@ -20,7 +20,7 @@ class CommandBlacklist(Cog):
         return self.bot._perm_values
 
     @group(pass_context=True, ignore_extra=True, no_pm=True, required_perms=perms, invoke_without_command=True,)
-    @cooldown(1, 5)
+    @cooldown(1, 5, type=BucketType.server)
     async def blacklist(self, ctx, command_: str, mention=None):
         msg = ctx.message
         server = msg.server
@@ -122,7 +122,7 @@ class CommandBlacklist(Cog):
         return True
 
     @command(pass_context=True, required_perms=perms, ignore_extra=True, no_pm=True)
-    @cooldown(1, 5)
+    @cooldown(1, 5, type=BucketType.server)
     async def whitelist(self, ctx, command_: str, mention=None):
         msg = ctx.message
         server = msg.server
@@ -329,7 +329,7 @@ class CommandBlacklist(Cog):
         return smallest_row
 
     @command(pass_context=True, no_pm=True, ignore_extra=True)
-    @cooldown(1, 30)
+    @cooldown(1, 30, type=BucketType.user)
     async def commands(self, ctx):
         server = ctx.message.server
         user = ctx.message.author

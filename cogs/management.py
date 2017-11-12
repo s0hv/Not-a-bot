@@ -590,7 +590,7 @@ class Management:
         await self.bot.say('Colored %s users without color role' % colored)
 
     @command(name='roles', pass_context=True, ignore_extra=True)
-    @cooldown(1, 5, BucketType.server)
+    @cooldown(1, 5, type=BucketType.server)
     async def get_roles(self, ctx, page=''):
         server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
         print_all = page.lower() == 'all'
@@ -626,7 +626,7 @@ class Management:
         await self.bot.say('Reloaded config')
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(1, 3)
+    @cooldown(1, 3, type=BucketType.user)
     async def default_role(self, ctx):
         """Temporary fix to easily get default role"""
         server = ctx.message.server

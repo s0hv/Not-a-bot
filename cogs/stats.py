@@ -3,7 +3,7 @@ from sqlalchemy.dialects import mysql
 from sqlalchemy import text
 from bot.bot import command
 import discord
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 import logging
 logger = logging.getLogger('debug')
 
@@ -54,7 +54,7 @@ class Stats(Cog):
             logger.exception('Failed to save mention stats')
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(10, 1)
+    @cooldown(2, 5, type=BucketType.server)
     async def mention_stats(self, ctx):
         server = ctx.message.server
         sql = 'SELECT * FROM `mention_stats` WHERE server=%s ORDER BY amount DESC LIMIT 10' % server.id

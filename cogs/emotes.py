@@ -34,7 +34,7 @@ class Emotes:
 
         return e[:-len(delim)]
 
-    @cooldown(1, 10, commands.BucketType.server)
+    @cooldown(1, 10, type=commands.BucketType.server)
     @group(pass_context=True)
     async def emotes(self, ctx):
         server = ctx.message.server
@@ -56,7 +56,7 @@ class Emotes:
             for s in strings:
                 await self.bot.say(s)
 
-    @cooldown(1, 10, commands.BucketType.server)
+    @cooldown(1, 10, type=commands.BucketType.server)
     @emotes.command(name='global', pass_context=True)
     async def global_(self, ctx, include_name=True, delim='\n'):
         server = ctx.message.server
@@ -67,7 +67,7 @@ class Emotes:
         for s in split_string(s, maxlen=2000, splitter=delim):
             await self.bot.say(s)
 
-    @cooldown(1, 10, commands.BucketType.server)
+    @cooldown(1, 10, type=commands.BucketType.server)
     @emotes.command(name='local', pass_context=True)
     async def local_(self, ctx, include_name=True, delim='\n'):
         server = ctx.message.server

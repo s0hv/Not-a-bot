@@ -196,7 +196,7 @@ class Audio:
             print('[ERROR] Error while stopping sfx_bot.\n%s' % e)
 
     @command(pass_context=True, no_pm=True)
-    @commands.cooldown(4, 4)
+    @commands.cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx, *, name):
 
         file = self._search_sfx(name)

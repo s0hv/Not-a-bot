@@ -7,7 +7,7 @@ import sys
 import time
 
 import discord
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 
 from bot.bot import command
 from cogs.cog import Cog
@@ -43,7 +43,7 @@ class Utilities(Cog):
 
         await self.bot.say(emote_url_from_id(emote))
 
-    @cooldown(1, 1)
+    @cooldown(1, 1, type=BucketType.user)
     @command(pass_context=True, aliases=['howtoping'])
     async def how2ping(self, ctx, *, user):
         if ctx.message.server:

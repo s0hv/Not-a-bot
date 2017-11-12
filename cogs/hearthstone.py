@@ -23,7 +23,7 @@ SOFTWARE.
 """
 
 from bot.bot import command
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 
 
 class Hearthstone:
@@ -33,7 +33,7 @@ class Hearthstone:
         self.client = client
 
     @command()
-    @cooldown(1, 5)
+    @cooldown(1, 5, type=BucketType.user)
     async def hs(self, *, name):
         headers = {'content-type': 'application/json', 'X-Mashape-Key': self.key}
         async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/%s' % name,

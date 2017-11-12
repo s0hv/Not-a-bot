@@ -9,7 +9,7 @@ from colour import Color as Colour
 from math import ceil
 
 from bot.bot import command
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 from cogs.cog import Cog
 from utils.utilities import split_string
 import logging
@@ -138,7 +138,7 @@ class Colors(Cog):
         self._delete_color(role.server.id, role.id)
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(1, 2)
+    @cooldown(1, 2, type=BucketType.user)
     async def color(self, ctx, *color):
         server = ctx.message.server
         colors = self._colors.get(server.id, None)
@@ -184,7 +184,7 @@ class Colors(Cog):
         await self.bot.say('Color set to %s' % color.name)
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(1, 1)
+    @cooldown(1, 1, type=BucketType.server)
     async def colors(self, ctx):
         server = ctx.message.server
         colors = self._colors.get(server.id)
@@ -204,7 +204,7 @@ class Colors(Cog):
             await self.bot.say(msg)
 
     @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES)
-    @cooldown(1, 3)
+    @cooldown(1, 3, type=BucketType.server)
     async def add_color(self, ctx, color: str, *name):
         if not name:
             name = color
@@ -256,7 +256,7 @@ class Colors(Cog):
             self._colors[server.id] = {color_role.id: color_}
 
     @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['del_color'])
-    @cooldown(1, 3)
+    @cooldown(1, 3, type=BucketType.server)
     async def delete_color(self, ctx, *, name):
         server = ctx.message.server
         color = self.get_color(name, server.id)
@@ -280,7 +280,7 @@ class Colors(Cog):
         await self.bot.say('Removed color %s' % color)
 
     @command(pass_context=True, no_pm=True)
-    @cooldown(1, 4)
+    @cooldown(1, 4, type=BucketType.server)
     async def show_colors(self, ctx):
         server = ctx.message.server
         colors = self._colors.get(server.id, None)

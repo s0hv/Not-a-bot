@@ -1,5 +1,5 @@
 import discord
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 
 from bot.bot import group, command
 from cogs.cog import Cog
@@ -38,7 +38,7 @@ class Settings(Cog):
 
         await self.bot.send_message(ctx.message.channel, embed=embed)
 
-    @cooldown(1, 5)
+    @cooldown(1, 5, type=BucketType.server)
     @settings.command(pass_context=True, ignore_extra=True)
     async def modlog(self, ctx, channel: str=None):
         if channel is None:
@@ -65,7 +65,7 @@ class Settings(Cog):
         self.bot.server_cache.set_modlog(channel.server.id, channel.id)
         await self.bot.send_message(channel, 'Modlog set to this channel')
 
-    @cooldown(1, 5)
+    @cooldown(1, 5, type=BucketType.server)
     @settings.command(pass_context=True, ignore_extra=True)
     async def mute_role(self, ctx, role=None):
         server = ctx.message.server
@@ -91,7 +91,7 @@ class Settings(Cog):
         self.bot.server_cache.set_mute_role(server.id, role.id)
         await self.bot.say('Muted role set to {0} `{0.id}`'.format(role))
 
-    @cooldown(2, 20)
+    @cooldown(2, 20, type=BucketType.server)
     @settings.command(pass_context=True, ignore_extra=True)
     async def keeproles(self, ctx, boolean: bool=None):
         server = ctx.message.server
@@ -111,7 +111,7 @@ class Settings(Cog):
 
         await self.bot.say('Keeproles set to %s' % boolean)
 
-    @cooldown(1, 5)
+    @cooldown(1, 5, type=BucketType.server)
     @command(pass_context=True, required_perms=Perms.MANAGE_ROLE_CHANNEL)
     async def automute_blacklist(self, ctx, *, channels):
         server = ctx.message.server

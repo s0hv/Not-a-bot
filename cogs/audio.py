@@ -40,6 +40,7 @@ except ImportError:
 
 from discord import Game
 from discord.ext import commands
+from discord.ext.commands.cooldowns import BucketType
 
 from bot.playlist import Playlist
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
@@ -461,7 +462,7 @@ class Audio:
         await state.playlist.add_from_song(Song.from_song(state.current), priority,
                                            channel=ctx.message.channel)
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(2, 3, type=BucketType.server)
     @command(pass_context=True)
     async def seek(self, ctx, *, where: str):
         """
@@ -598,7 +599,7 @@ class Audio:
         return song_name, metadata
 
     @command(pass_context=True, no_pm=True)
-    @commands.cooldown(1, 3)
+    @commands.cooldown(1, 3, type=BucketType.user)
     async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search youtube for them"""
@@ -648,7 +649,7 @@ class Audio:
                 return
 
     @command(pass_context=True)
-    @commands.cooldown(1, 5)
+    @commands.cooldown(1, 5, type=BucketType.user)
     async def search(self, ctx, *, name):
         """Search for songs. Default site is youtube
         Supported sites: -yt Youtube, -sc Soundcloud"""
@@ -768,7 +769,7 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.clear(index)
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(3, 3, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['vol'])
     async def volume(self, ctx, value: int=-1):
         """
@@ -788,7 +789,7 @@ class Audio:
             state.volume = value / 100
             await self.bot.say('Set the volume to {:.0%}'.format(player.volume), delete_after=60)
 
-    @commands.cooldown(1, 4)
+    @commands.cooldown(1, 4, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['np'])
     async def playing(self, ctx):
         """Gets the currently playing song"""
@@ -800,7 +801,7 @@ class Audio:
             await self.bot.say(state.current.long_str + ' {0}'.format(tr_pos),
                                delete_after=state.current.duration)
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(1, 3, type=BucketType.user)
     @command(name='playnow', pass_context=True, no_pm=True)
     async def play_now(self, ctx, *, song_name: str):
         """
@@ -815,14 +816,14 @@ class Audio:
 
         await self.play_song(ctx, song_name, priority=True)
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(2, 3, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['p'])
     async def pause(self, ctx):
         """Pauses the currently played song."""
         state = self.get_voice_state(ctx.message.server)
         state.pause()
 
-    @commands.cooldown(1, 60)
+    @commands.cooldown(1, 60, type=BucketType.server)
     @command(pass_context=True, enabled=False)
     async def save_playlist(self, ctx, *name):
         if name:
@@ -831,7 +832,7 @@ class Audio:
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.current_to_file(name, ctx.message.channel)
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(2, 3, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['r'])
     async def resume(self, ctx):
         """Resumes the currently played song."""
@@ -909,7 +910,7 @@ class Audio:
                 pass
             os.remove(tempfile)
 
-    @commands.cooldown(1, 4)
+    @commands.cooldown(1, 4, type=BucketType.server)
     @command(pass_context=True, no_pm=True)
     async def shuffle(self, ctx):
         state = self.get_voice_state(ctx.message.server)
@@ -967,7 +968,7 @@ class Audio:
         if not self.voice_states:
             self.clear_cache()
 
-    @commands.cooldown(1, 4)
+    @commands.cooldown(1, 3, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['skipsen', 'skipperino', 's'])
     async def skip(self, ctx):
         """Skips the current song"""
@@ -979,7 +980,7 @@ class Audio:
 
         await state.skip(ctx.message.author)
 
-    @commands.cooldown(1, 10)
+    @commands.cooldown(1, 5, type=BucketType.server)
     @command(name='queue', pass_context=True, no_pm=True, aliases=['playlist'])
     async def playlist(self, ctx, index=None):
         """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song
@@ -1030,7 +1031,7 @@ class Audio:
 
         return await self.bot.send_message(channel, response)
 
-    @commands.cooldown(1, 3)
+    @commands.cooldown(1, 3, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['len'])
     async def length(self, ctx):
         state = self.get_voice_state(ctx.message.server)
@@ -1059,7 +1060,7 @@ class Audio:
 
         return time_left
 
-    @commands.cooldown(4, 4)
+    @commands.cooldown(2, 4, type=BucketType.user)
     @command(pass_context=True, no_pm=True, aliases=['dur'])
     async def duration(self, ctx):
         state = self.get_voice_state(ctx.message.server)

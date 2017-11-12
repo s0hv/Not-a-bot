@@ -6,7 +6,7 @@ from functools import partial
 from io import BytesIO
 from random import randint, random
 from PIL import Image
-from discord.ext.commands import cooldown
+from discord.ext.commands import cooldown, BucketType
 from selenium.webdriver import PhantomJS
 from selenium.webdriver.support.select import Select
 
@@ -28,7 +28,7 @@ class Fun(Cog):
         self.queue.put_nowait(1)
 
     @command(pass_context=True, ignore_extra=True)
-    @cooldown(5, 5)
+    @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths(self, ctx, image=None):
         path = os.path.join('data', 'templates', 'saddest-anime-deaths.png')
         img = get_image_from_message(ctx, image)
@@ -62,7 +62,7 @@ class Fun(Cog):
         await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
 
     @command(pass_context=True, ignore_extra=True)
-    @cooldown(5, 5)
+    @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths2(self, ctx, image=None):
         path = os.path.join('data', 'templates', 'saddest-anime-deaths2.png')
         img = get_image_from_message(ctx, image)
@@ -96,7 +96,7 @@ class Fun(Cog):
         await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
 
     @command(pass_context=True, ignore_extra=True, usage="""""")
-    @cooldown(2, 5)
+    @cooldown(3, 5, type=BucketType.server)
     async def trap(self, ctx, image=None):
         """Is it a trap?
         """
@@ -155,7 +155,7 @@ class Fun(Cog):
                 pass
 
     @command(pass_context=True, ignore_extra=True)
-    @cooldown(2, 2)
+    @cooldown(2, 2, type=BucketType.server)
     async def pokefusion(self, ctx, poke1=None, poke2=None, color_poke=None):
         """
         Gets a random pokemon fusion from http://pokefusion.japeal.com

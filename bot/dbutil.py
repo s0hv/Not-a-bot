@@ -10,6 +10,48 @@ class DatabaseUtils:
     def bot(self):
         return self._bot
 
+    async def index_server_member_roles(self, server):
+        import time
+        t = time.time()
+        default_role = server.default_role.id
+        role_ids = [r.id for r in server.roles]
+        role_ids.remove(default_role)
+        session = self.bot.get_session
+
+        if not self.add_roles(server.id, *role_ids):
+            return False
+
+        print('added roles in %s' % (time.time() - t))
+        t1 = time.time()
+
+        await self.bot.request_offline_members(server)
+        print('added offline users in %s' % (time.time() - t1))
+        members = list(server.members)
+        t1 = time.time()
+
+        sql = 'INSERT IGNORE INTO `userRoles` (`user_id`, `role_id`) VALUES '
+        for u in members:
+            for r in u.roles:
+                if r.id == default_role:
+                    continue
+
+                sql += ' (%s, %s),' % (u.id, r.id)
+
+        sql = sql.rstrip(',')
+
+        try:
+            session.execute(sql)
+            session.commit()
+        except:
+            session.rollback()
+            logger.exception('Failed to add roles')
+            return False
+
+        print('added user roles in %s' % (time.time() - t1))
+        t1 = time.time()
+        print('indexed users in %s seconds' % (time.time() - t))
+        return True
+
     def add_roles(self, server_id, *role_ids):
         session = self.bot.get_session
         sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES '
@@ -38,6 +80,25 @@ class DatabaseUtils:
         except:
             session.rollback()
             logger.exception('Failed to add user')
+            return False
+
+        return True
+
+    def add_users(self, *user_ids):
+        session = self.bot.get_session
+        sql = 'INSERT IGNORE INTO `users` (`id`) VALUES '
+        l = len(user_ids) - 1
+        for idx, uid in enumerate(user_ids):
+            sql += '(%s)' % uid
+            if idx != l:
+                sql += ', '
+
+        try:
+            session.execute(sql)
+            session.commit()
+        except:
+            session.rollback()
+            logger.exception('Failed to add users')
             return False
 
         return True

@@ -7,6 +7,7 @@ from discord.ext.commands import cooldown
 import logging
 logger = logging.getLogger('debug')
 
+
 class Stats(Cog):
     def __init__(self, bot):
         super().__init__(bot)

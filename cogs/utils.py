@@ -21,7 +21,7 @@ logger = logging.getLogger('debug')
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._runtime = re.compile(r'(?P<days>\d*(?:-))?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
+        self._runtime = re.compile(r'(?P<days>\d)*(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
 
     @command(ignore_extra=True)
     async def ping(self):

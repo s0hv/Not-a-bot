@@ -5,6 +5,7 @@ class ServerCache:
     def __init__(self, bot):
         self._bot = bot
         self._servers = {}
+        # Keys for integer values that need to be converted to string
         self._int2str = ['on_edit_channel', 'on_delete_channel', 'modlog', 'mute_role']
 
     @property
@@ -25,9 +26,6 @@ class ServerCache:
 
             settings[k] = v
 
-    def get_modlog(self, server_id):
-        return self.get_settings(server_id).get('modlog', None)
-
     def set_value(self, server_id, name, value):
         sql = 'INSERT INTO `servers` (`server`, `{0}`) VALUES ({1}, :{0}) ON DUPLICATE KEY UPDATE {0}=:{0}'.format(name, server_id)
         session = self.bot.get_session
@@ -42,13 +40,16 @@ class ServerCache:
         settings[name] = value
         return success
 
+    def modlog(self, server_id):
+        return self.get_settings(server_id).get('modlog', None)
+
     def set_modlog(self, server_id, channel_id):
         self.set_value(server_id, 'modlog', channel_id)
 
     def set_mute_role(self, server_id, role_id):
         self.set_value(server_id, 'mute_role', role_id)
 
-    def get_mute_role(self, server_id):
+    def mute_role(self, server_id):
         return self.get_settings(server_id).get('mute_role', None)
 
     def set_keeproles(self, server_id, value):
@@ -59,6 +60,9 @@ class ServerCache:
             return True
         else:
             return False
+
+    def prefix(self, server_id):
+        return self.get_settings(server_id).get('prefix', self.bot.command_prefix)
 
     def get_settings(self, server_id):
         settings = self[server_id]

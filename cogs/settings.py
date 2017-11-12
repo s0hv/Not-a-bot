@@ -5,6 +5,7 @@ from bot.bot import group, command
 from cogs.cog import Cog
 from utils.utilities import get_channel_id, split_string
 from bot.globals import Perms
+from collections import OrderedDict
 
 
 class Settings(Cog):
@@ -16,15 +17,32 @@ class Settings(Cog):
         return self.bot.server_cache
 
     # Required perms for all settings commands: Manage server
-    @group(required_perms=discord.Permissions(32))
-    async def settings(self):
-        pass
+    @group(pass_context=True, required_perms=discord.Permissions(32), invoke_without_command=True)
+    async def settings(self, ctx):
+        server = ctx.message.server
+        prefix = self.cache.prefix(server.id)
+        embed = discord.Embed(title='Current settings for %s' % server.name, description=
+                              'To change these settings use %ssettings <name> <value>\n'
+                              'The name for each setting is specified in brackets\n'
+                              'Value depends on the setting.' % prefix)
+        fields = OrderedDict([('modlog', 'Moderation log'), ('keeproles', 'Re-add roles to user if they rejoin'),
+                              ('prefix', 'Command prefix'), ('mute_role', 'Role that is used with timeout and mute')])
+        value_conversions = {True: 'Yes', False: 'No', None: 'Not set'}
+        type_conversions = {'modlog': lambda c: '<#%s>' % c, 'mute_role': lambda r: '<@&%s>' % r}
+
+        for k, v in fields.items():
+            value = self.cache.get_settings(server.id).get(k, None)
+            if value is not None and k in type_conversions:
+                value = type_conversions[k](value)
+            embed.add_field(name='%s (%s)' % (v, k), value=value_conversions.get(value, str(value)), inline=True)
+
+        await self.bot.send_message(ctx.message.channel, embed=embed)
 
     @cooldown(1, 5)
     @settings.command(pass_context=True, ignore_extra=True)
     async def modlog(self, ctx, channel: str=None):
         if channel is None:
-            modlog = self.bot.server_cache.get_modlog(ctx.message.server.id)
+            modlog = self.bot.server_cache.modlog(ctx.message.server.id)
             modlog = self.bot.get_channel(str(modlog))
             if modlog:
                 await self.bot.say('Current modlog channel is %s' % modlog.mention)
@@ -52,7 +70,7 @@ class Settings(Cog):
     async def mute_role(self, ctx, role=None):
         server = ctx.message.server
         if role is None:
-            role = self.bot.get_role(server, self.bot.server_cache.get_mute_role(server.id))
+            role = self.bot.get_role(server, self.bot.server_cache.mute_role(server.id))
             if role:
                 await self.bot.say('Current role for muted people is {0} `{0.id}`'.format(role))
             else:
@@ -73,14 +91,24 @@ class Settings(Cog):
         self.bot.server_cache.set_mute_role(server.id, role.id)
         await self.bot.say('Muted role set to {0} `{0.id}`'.format(role))
 
-    @cooldown(1, 5)
+    @cooldown(2, 20)
     @settings.command(pass_context=True, ignore_extra=True)
     async def keeproles(self, ctx, boolean: bool=None):
         server = ctx.message.server
-        if boolean is None:
-            return await self.bot.say('Current keeproles value: %s' % self.cache.keeproles(server.id))
+        current = self.cache.keeproles(server.id)
+
+        if current == boolean:
+            return await self.bot.say('Keeproles is already set to %s' % boolean)
 
         self.cache.set_keeproles(server.id, boolean)
+        if boolean:
+            bot_member = server.get_member(self.bot.user.id)
+            perms = bot_member.server_permissions
+            if not perms.administrator and not perms.manage_roles:
+                return await self.bot.say('This bot needs manage roles permissions to enable this feature')
+            if not await self.bot.dbutils.index_server_member_roles(server):
+                return await self.bot.say('Failed to index user roles')
+
         await self.bot.say('Keeproles set to %s' % boolean)
 
     @cooldown(1, 5)

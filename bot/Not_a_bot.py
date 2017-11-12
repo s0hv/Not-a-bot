@@ -213,7 +213,7 @@ class NotABot(Bot):
                             embed.add_field(name='Reason', value='Too many mentions in a message')
                             embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                             embed.set_footer(text=str(self.user), icon_url=self.user.avatar_url or self.user.default_avatar_url)
-                            chn = message.server.get_channel(self.server_cache.get_modlog(message.server.id)) or message.channel
+                            chn = message.server.get_channel(self.server_cache.modlog(message.server.id)) or message.channel
                             await self.send_message(chn, embed=embed)
                             return
 

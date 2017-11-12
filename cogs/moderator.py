@@ -71,7 +71,7 @@ class Moderator(Cog):
 
     async def _mute_check(self, ctx, *user):
         server = ctx.message.server
-        mute_role = self.bot.server_cache.get_mute_role(server.id)
+        mute_role = self.bot.server_cache.mute_role(server.id)
         if mute_role is None:
             await self.bot.say('No mute role set')
             return False
@@ -113,7 +113,7 @@ class Moderator(Cog):
 
         try:
             await self.bot.say('Muted user {} `{}`'.format(user.name, user.id))
-            chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
+            chn = server.get_channel(self.bot.server_cache.modlog(server.id))
             if chn:
                 author = ctx.message.author
                 description = '{} muted {} {}'.format(author.mention, user, user.id)
@@ -139,7 +139,7 @@ class Moderator(Cog):
             logger.exception('Could not delete untimeout')
 
     async def untimeout(self, user, server_id):
-        mute_role = self.bot.server_cache.get_mute_role(server_id)
+        mute_role = self.bot.server_cache.mute_role(server_id)
         if mute_role is None:
             return
 
@@ -201,7 +201,7 @@ class Moderator(Cog):
         try:
             await self.bot.add_role(user, mute_role)
             await self.bot.say('Muted user {} for {}'.format(str(user), time))
-            chn = server.get_channel(self.bot.server_cache.get_modlog(server.id))
+            chn = server.get_channel(self.bot.server_cache.modlog(server.id))
             if chn:
                 author = ctx.message.author
                 description = '{} muted {} `{}` for {}'.format(author.mention,
@@ -231,10 +231,10 @@ class Moderator(Cog):
         server_timeouts[user.id] = task
         task.add_done_callback(lambda f: server_timeouts.pop(user.id, None))
 
-    @command(pass_context=True, required_perms=manage_roles)
+    @group(pass_context=True, required_perms=manage_roles, invoke_without_command=True, no_pm=True)
     async def unmute(self, ctx, *user):
         server = ctx.message.server
-        mute_role = self.bot.server_cache.get_mute_role(server.id)
+        mute_role = self.bot.server_cache.mute_role(server.id)
         if mute_role is None:
             return await self.bot.say('No mute role set')
 
@@ -258,8 +258,7 @@ class Moderator(Cog):
             if t:
                 t.cancel()
 
-    @command(pass_context=True, no_pm=True)
-    async def unmute_when(self, ctx, *user):
+    async def _unmute_when(self, ctx, user):
         server = ctx.message.server
         if user:
             member = find_user(' '.join(user), server.members, case_sensitive=True, ctx=ctx)
@@ -268,7 +267,7 @@ class Moderator(Cog):
 
         if not member:
             return await self.bot.say('User %s not found' % ' '.join(user))
-        muted_role = self.bot.server_cache.get_mute_role(server.id)
+        muted_role = self.bot.server_cache.mute_role(server.id)
         if not muted_role:
             return await self.bot.say('No mute role set on this server')
 
@@ -285,6 +284,14 @@ class Moderator(Cog):
 
         delta = row['expires_on'] - datetime.utcnow()
         await self.bot.say('Timeout for %s expires in %s' % (member, seconds2str(delta.total_seconds())))
+
+    @unmute.command(pass_context=True, no_pm=True)
+    async def when(self, ctx, *user):
+        await self._unmute_when(ctx, user)
+
+    @command(pass_context=True, no_pm=True)
+    async def unmute_when(self, ctx, *user):
+        await self._unmute_when(ctx, user)
 
     # Only use this inside commands
     async def _set_channel_lock(self, ctx, locked: bool):
@@ -369,7 +376,7 @@ class Moderator(Cog):
 
         messages = await self.bot.purge_from(channel, limit=max_messages)
 
-        modlog = self.bot.get_channel(self.bot.server_cache.get_modlog(ctx.message.server.id))
+        modlog = self.bot.get_channel(self.bot.server_cache.modlog(ctx.message.server.id))
         if not modlog:
             return
 
@@ -513,7 +520,7 @@ class Moderator(Cog):
             await self.bot.bulk_delete(channel_id, message_ids[idx:idx+step])
 
     def get_modlog(self, server):
-        return server.get_channel(self.bot.server_cache.get_modlog(server.id))
+        return server.get_channel(self.bot.server_cache.modlog(server.id))
 
 
 def setup(bot):

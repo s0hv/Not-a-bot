@@ -264,10 +264,11 @@ class JoJo:
         if advanced:
             await self.bot.say('`{}` Advanced mode activated'.format(name), delete_after=20)
 
-        image = get_image_from_message(ctx, image)
+        image_ = get_image_from_message(ctx, image)
 
-        img = await image_from_url(image, self.bot.aiohttp_client)
+        img = await image_from_url(image_, self.bot.aiohttp_client)
         if img is None:
+            image = image_ if image is None else image
             return await self.bot.say('`{}` Could not extract image from {}. Stopping command'.format(name, image))
 
         m_, msg = await self.subcommand(

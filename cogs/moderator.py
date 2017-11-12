@@ -62,12 +62,12 @@ class Moderator(Cog):
         if random_color:
             color = discord.Color(randint(0, 16777215))
         try:
-            await self.bot.create_role(ctx.message.server, name=name, permissions=default_perms,
+            r = await self.bot.create_role(ctx.message.server, name=name, permissions=default_perms,
                                        colour=color, mentionable=mentionable, hoist=hoist)
         except Exception as e:
             return await self.bot.say('Could not create role because of an error\n```%s```' % e)
 
-        await self.bot.say('Successfully created role %s' % name)
+        await self.bot.say('Successfully created role %s `%s`' % (name, r.id))
 
     async def _mute_check(self, ctx, *user):
         server = ctx.message.server
@@ -351,8 +351,22 @@ class Moderator(Cog):
         return embed
 
     @group(pass_context=True, required_perms=Perms.MANAGE_MESSAGES, invoke_without_command=True, no_pm=True)
-    async def purge(self, ctx, max_messages=10):
+    async def purge(self, ctx, max_messages: str=10):
+        """Purges n amount of messages from a channel.
+        maximum value of max_messages is 500 and the default is 10"""
         channel = ctx.message.channel
+
+        try:
+            max_messages = int(max_messages)
+        except ValueError:
+            return await self.bot.say('%s is not a valid integer' % max_messages)
+
+        if max_messages > 1000000:
+            return await self.bot.say("Either you tried to delete over 1 million messages or just put it there as an accident. "
+                                      "Either way that's way too much for me to handle")
+
+        max_messages = min(500, max_messages)
+
         messages = await self.bot.purge_from(channel, limit=max_messages)
 
         modlog = self.bot.get_channel(self.bot.server_cache.get_modlog(ctx.message.server.id))
@@ -370,7 +384,7 @@ class Moderator(Cog):
         `mention` The user mention or id of the user we want to purge messages from
 
         [OPTIONAL]
-        `max_messages` Maximum amount of messages that can be deleted. Defaults to 100 and max value is 300.
+        `max_messages` Maximum amount of messages that can be deleted. Defaults to 10 and max value is 300.
         `channel` Channel if or mention where you want the messages to be purged from. If not set will delete messages from any channel the bot has access to.
         """
         user = get_user_id(mention)

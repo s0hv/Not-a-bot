@@ -38,6 +38,7 @@ class Colors(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._colors = {}
+        self.bot.colors = self._colors
         self._cache_colors()
 
         with open(os.path.join(os.getcwd(), 'data', 'color_names.json'), 'r', encoding='utf-8') as f:

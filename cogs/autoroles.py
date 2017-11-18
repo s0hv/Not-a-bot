@@ -1,4 +1,5 @@
 import logging
+from random import choice
 
 import discord
 
@@ -42,17 +43,26 @@ class AutoRoles(Cog):
         if self.bot.server_cache.keeproles(role.server.id):
             self.dbutil.delete_role(role.id, role.server.id)
 
+    async def add_random_color(self, member):
+        if self.bot.server_cache.random_color(member.server.id) and hasattr(self.bot, 'colors'):
+            color_ids = set([i.role_id for i in self.bot.colors.values()])
+            if not color_ids:
+                return
+
+            if set([r.id for r in list(member.roles)]).intersection(color_ids):
+                return
+            await self.bot.add_role(member, choice(color_ids))
+
     async def on_member_join(self, member):
         server = member.server
-        if not self.bot.server_cache.keeproles(server.id):
-            return
 
         bot_member = server.get_member(self.bot.user.id)
         perms = bot_member.server_permissions
 
-        # We want to disable keeproles if the bot doesn't have manage roles
-        # We'll also inform server owner about this change
+        # If bot doesn't have manage roles no use in trying to add roles
         if not perms.administrator and not perms.manage_roles:
+            return
+            """
             self.bot.server_cache.set_keeproles(server.id, False)
             msg = "{0.owner.mention} I don't have manage roles permission in the server {0.name}. Disabling keeproles there. " \
                   "You can re-enable them after adding manage roles perms to this bot".format(server)
@@ -77,6 +87,10 @@ class AutoRoles(Cog):
             if not sent:
                 logger.exception("Tried to inform server {0.name} {0.id} of autodisable of keeproles but couldn't send the message".format(server))
             return
+            """
+
+        if not self.bot.server_cache.keeproles(server.id):
+            return await self.add_random_color(member)
 
         'polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
 
@@ -84,26 +98,27 @@ class AutoRoles(Cog):
               'WHERE roles.server=%s AND users.id=%s' % (server.id, member.id)
 
         session = self.bot.get_session
-        roles = [str(r['id']) for r in session.execute(sql).fetchall()]
+        roles = set([str(r['id']) for r in session.execute(sql).fetchall()])
         if not roles:
-            self.dbutil.add_user(member.id)
-            return
+            return await self.add_random_color(member)
 
-        try:
-            roles.remove(member.server.default_role.id)
-        except ValueError:
-            pass
+        roles.discard(member.server.default_role.id)
 
         muted_role = self.bot.server_cache.mute_role(server.id)
         if muted_role in roles:
             try:
                 await self.bot.add_role(member, muted_role)
-                roles.remove(muted_role)
+                roles.discard(muted_role)
             except:
                 logger.exception('[KeepRoles] Failed to add muted role first')
 
+        if self.bot.server_cache.random_color(server.id) and hasattr(self.bot, 'colors'):
+            color_ids = set([i.role_id for i in self.bot.colors.values()])
+            if not color_ids.intersection(roles):
+                roles.add(choice(color_ids))
+
         try:
-            await self.bot.add_roles(member, roles)
+            await self.bot.add_roles(member, *roles)
         except:
             for role in roles:
                 try:

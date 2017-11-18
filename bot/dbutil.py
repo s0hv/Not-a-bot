@@ -18,7 +18,27 @@ class DatabaseUtils:
         role_ids.remove(default_role)
         session = self.bot.get_session
 
-        if not self.add_roles(server.id, *role_ids):
+        def execute(sql):
+            try:
+                session.execute(sql)
+            except:
+                session.rollback()
+                logger.exception('Failed to execute sql')
+                return False
+            return True
+
+        sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES '
+        l = len(role_ids) - 1
+        for idx, r in enumerate(role_ids):
+            sql += '(%s, %s)' % (r, server.id)
+            if idx != l:
+                sql += ', '
+
+        if not execute(sql):
+            return False
+
+        sql = 'DELETE FROM `roles` WHERE `id` NOT IN (%s)' % ', '.join(role_ids)
+        if not execute(sql):
             return False
 
         print('added roles in %s' % (time.time() - t))
@@ -26,7 +46,18 @@ class DatabaseUtils:
 
         await self.bot.request_offline_members(server)
         print('added offline users in %s' % (time.time() - t1))
-        members = list(server.members)
+        _m = list(server.members)
+        members = list(filter(lambda u: len(u.roles) > 1, _m))
+        all_members = [u.id for u in _m]
+
+        t1 = time.time()
+        sql = 'DELETE FROM `userRoles` WHERE `user_id` IN (%s)' % ', '.join(all_members)
+
+        # Deletes all server records
+        #sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` WHERE roles.server=%s AND userRoles.role_id=roles.id'
+        if not execute(sql):
+            return False
+        print('Deleted old records in %s' % (time.time() - t1))
         t1 = time.time()
 
         sql = 'INSERT IGNORE INTO `userRoles` (`user_id`, `role_id`) VALUES '
@@ -39,16 +70,11 @@ class DatabaseUtils:
 
         sql = sql.rstrip(',')
 
-        try:
-            session.execute(sql)
-            session.commit()
-        except:
-            session.rollback()
-            logger.exception('Failed to add roles')
+        if not execute(sql):
             return False
 
+        session.commit()
         print('added user roles in %s' % (time.time() - t1))
-        t1 = time.time()
         print('indexed users in %s seconds' % (time.time() - t))
         return True
 
@@ -105,8 +131,6 @@ class DatabaseUtils:
 
     def add_user_roles(self, role_ids, user_id, server_id):
         if not self.add_roles(server_id, *role_ids):
-            return
-        if not self.add_user(user_id):
             return
 
         session = self.bot.get_session

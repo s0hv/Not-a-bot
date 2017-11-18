@@ -72,6 +72,9 @@ class ServerCache:
 
         return settings
 
+    def random_color(self, server_id):
+        return self.get_settings(server_id).get('random_color', False)
+
     def __getitem__(self, item):
         return self._servers.get(item, None)
 

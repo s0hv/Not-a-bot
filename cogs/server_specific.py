@@ -218,7 +218,7 @@ class ServerSpecific(Cog):
             return
 
         if random() < 0.09:
-            name = str(member.discrim)
+            name = str(member.discriminator)
         else:
             name = str(randint(1000, 9999))
         await self.bot.change_nickname(member, name)

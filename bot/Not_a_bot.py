@@ -193,9 +193,6 @@ class NotABot(Bot):
         if message.author.bot or message.author == self.user:
             return
 
-        if message.author.id not in [self.owner, '344502504018411522']:
-            return
-
         management = getattr(self, 'management', None)
 
         if message.server and message.server.id == '217677285442977792' and management and message.channel.id != '322839372913311744':

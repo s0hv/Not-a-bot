@@ -9,7 +9,7 @@ from utils.utilities import get_role, get_user_id
 import subprocess
 import shlex
 import asyncio
-from random import randint
+from random import randint, random
 
 logger = logging.getLogger('debug')
 
@@ -217,7 +217,11 @@ class ServerSpecific(Cog):
         if server.id != '366940074635558912':
             return
 
-        await self.bot.change_nickname(member, str(randint(1000, 9999)))
+        if random() < 0.09:
+            name = str(member.discrim)
+        else:
+            name = str(randint(1000, 9999))
+        await self.bot.change_nickname(member, name)
 
 
 def setup(bot):

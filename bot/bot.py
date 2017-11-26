@@ -186,6 +186,30 @@ class ConnectionState(state.ConnectionState):
         if message_ids:
             self.dispatch('raw_bulk_message_delete', message_ids)
 
+    def parse_message_reaction_add(self, data):
+        message = self._get_message(data['message_id'])
+        if message is not None:
+            emoji = self._get_reaction_emoji(**data.pop('emoji'))
+            reaction = discord.utils.get(message.reactions, emoji=emoji)
+
+            is_me = data['user_id'] == self.user.id
+
+            if not reaction:
+                reaction = Reaction(
+                    message=message, emoji=emoji, me=is_me, **data)
+                message.reactions.append(reaction)
+            else:
+                reaction.count += 1
+                if is_me:
+                    reaction.me = True
+
+            channel = self.get_channel(data['channel_id'])
+            member = self._get_member(channel, data['user_id'])
+
+            self.dispatch('reaction_add', reaction, member)
+        else:
+            self.dispatch('raw_reaction_add', data)
+
 
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
@@ -314,7 +338,6 @@ class Bot(commands.Bot, Client):
         elif len(commands_) == 1:
             # try to see if it is a cog name
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
-            command_ = None
             if name in self.cogs:
                 command_ = self.cogs[name]
             else:

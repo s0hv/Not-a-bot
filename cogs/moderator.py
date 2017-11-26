@@ -2,6 +2,7 @@ from cogs.cog import Cog
 from bot.bot import command, group
 from random import randint
 import discord
+from discord.ext.commands import cooldown, BucketType
 from utils.utilities import (get_users_from_ids, call_later, parse_timeout,
                              datetime2sql, get_avatar, get_user_id, get_channel_id,
                              find_user, seconds2str)
@@ -285,11 +286,13 @@ class Moderator(Cog):
         delta = row['expires_on'] - datetime.utcnow()
         await self.bot.say('Timeout for %s expires in %s' % (member, seconds2str(delta.total_seconds())))
 
-    @unmute.command(pass_context=True, no_pm=True)
+    @unmute.command(pass_context=True, no_pm=True, required_perms=discord.Permissions(0))
+    @cooldown(1, 3, BucketType.user)
     async def when(self, ctx, *user):
         await self._unmute_when(ctx, user)
 
     @command(pass_context=True, no_pm=True)
+    @cooldown(1, 3, BucketType.user)
     async def unmute_when(self, ctx, *user):
         await self._unmute_when(ctx, user)
 

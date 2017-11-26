@@ -9,6 +9,7 @@ from utils.utilities import get_role, get_user_id
 import subprocess
 import shlex
 import asyncio
+from random import randint
 
 logger = logging.getLogger('debug')
 
@@ -16,6 +17,7 @@ logger = logging.getLogger('debug')
 class ServerSpecific(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self.whitelist = ['217677285442977792', '353927534439825429']
 
     @property
     def dbutil(self):
@@ -45,7 +47,7 @@ class ServerSpecific(Cog):
     async def grant(self, ctx, user, *, role):
         """"""
         server = ctx.message.server
-        if server.id not in ('217677285442977792', '353927534439825429'):
+        if server.id not in self.whitelist:
             return
 
         author = ctx.message.author
@@ -81,7 +83,7 @@ class ServerSpecific(Cog):
     async def ungrant(self, ctx, user, *, role):
         """"""
         server = ctx.message.server
-        if server.id not in ('217677285442977792', '353927534439825429'):
+        if server.id not in self.whitelist:
             return
 
         author = ctx.message.author
@@ -116,7 +118,7 @@ class ServerSpecific(Cog):
     @cooldown(2, 4, type=BucketType.server)
     async def add_grant(self, ctx, role, target_role):
         server = ctx.message.server
-        if server.id not in ('217677285442977792', '353927534439825429'):
+        if server.id not in self.whitelist:
             return
 
         role_ = get_role(role, server.roles)
@@ -147,9 +149,8 @@ class ServerSpecific(Cog):
     @cooldown(1, 4, type=BucketType.user)
     async def remove_grant(self, ctx, role, target_role):
         server = ctx.message.server
-        if server.id not in ('217677285442977792', '353927534439825429'):
+        if server.id not in self.whitelist:
             return
-
         role_ = get_role(role, server.roles)
         if not role_:
             return await self.bot.say('Could not find role %s' % role, delete_after=30)
@@ -174,7 +175,7 @@ class ServerSpecific(Cog):
     @cooldown(1, 3, type=BucketType.server)
     async def text(self, ctx):
         server = ctx.message.server
-        if server.id not in ('217677285442977792', '353927534439825429'):
+        if server.id not in self.whitelist:
             return
 
         p = '/home/pi/neural_networks/torch-rnn/cv/checkpoint_pi.t7'
@@ -187,6 +188,36 @@ class ServerSpecific(Cog):
 
         out, err = p.communicate()
         await self.bot.say(out.decode('utf-8'))
+
+    @command(pass_context=True, no_pm=True)
+    @cooldown(1, 3, type=BucketType.user)
+    async def default_role(self, ctx):
+        """Temporary fix to easily get default role"""
+        server = ctx.message.server
+        if server.id not in self.whitelist:
+            return
+
+        role = self.bot.get_role(server, '352099343953559563')
+        if not role:
+            return await self.bot.say('Default role not found')
+
+        member = ctx.message.author
+        if role in member.roles:
+            return await self.bot.say('You already have the default role')
+
+        try:
+            await self.bot.add_role(member, role)
+        except:
+            return await self.bot.say('Failed to add default role. Try again in a bit')
+
+        await self.bot.say('You now have the default role')
+
+    async def on_member_join(self, member):
+        server = member.server
+        if server.id != '366940074635558912':
+            return
+
+        await self.bot.change_nickname(member, str(randint(1000, 9999)))
 
 
 def setup(bot):

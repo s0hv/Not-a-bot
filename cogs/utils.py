@@ -14,6 +14,7 @@ from cogs.cog import Cog
 from utils.utilities import emote_url_from_id, get_emote_id
 from utils.utilities import random_color, get_avatar
 from email.utils import formatdate as format_rfc2822
+from utils.utilities import split_string
 
 logger = logging.getLogger('debug')
 
@@ -21,7 +22,7 @@ logger = logging.getLogger('debug')
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._runtime = re.compile(r'(?P<days>\d)*(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
+        self._runtime = re.compile(r'(?P<days>\d+)*?(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
 
     @command(ignore_extra=True)
     async def ping(self):
@@ -98,9 +99,12 @@ class Utilities(Cog):
             uptime = subprocess.check_output(shlex.split('ps -o etime= -p "%s"' % pid)).decode('utf-8').strip()
             match = self._runtime.match(uptime)
             if match:
-                uptime = '{hours}h {minutes}m {seconds}s'
+                uptime = '{minutes}m {seconds}s'
                 d = match.groupdict()
                 d = {k: self._unpad_zero(v) for k, v in d.items()}
+
+                if d['hours']:
+                    uptime = '{hours}h ' + uptime
                 if d['days']:
                     uptime = '{days}d ' + uptime
 
@@ -128,7 +132,7 @@ class Utilities(Cog):
             memory_usage = 'N/A'
 
         try:
-            # Get the last time a successful pull was done
+            # Get the last time the bot was updated
             last_updated = format_rfc2822(os.stat('.git/refs/heads/master').st_mtime, localtime=True)
         except:
             logger.exception('Failed to get last updated')
@@ -145,6 +149,37 @@ class Utilities(Cog):
         embed.set_author(name=self.bot.user.name, icon_url=get_avatar(self.bot.user))
 
         await self.bot.send_message(ctx.message.channel, embed=embed)
+
+    @command(name='roles', pass_context=True, ignore_extra=True)
+    @cooldown(1, 5, type=BucketType.server)
+    async def get_roles(self, ctx, page=''):
+        server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
+        print_all = page.lower() == 'all'
+        idx = 0
+        if print_all and ctx.message.author.id != self.bot.owner:
+            return await self.bot.say('Only the owner can use the all modifier', delete_after=30)
+        elif page and not print_all:
+            try:
+                idx = int(page) - 1
+                if idx < 0:
+                    return await self.bot.say('Index must be bigger than 0')
+            except ValueError:
+                return await self.bot.say('%s is not a valid integer' % page, delete_after=30)
+
+        maxlen = 1950
+        roles = 'A total of %s roles\n' % len(server_roles)
+        for role in server_roles:
+            roles += '{}: {}\n'.format(role.name, role.mention)
+
+        roles = split_string(roles, splitter='\n', maxlen=maxlen)
+        if not print_all:
+            try:
+                roles = (roles[idx],)
+            except IndexError:
+                return await self.bot.say('Page index %s is out of bounds' % idx, delete_after=30)
+
+        for s in roles:
+            await self.bot.say('```' + s + '```')
 
 
 def setup(bot):

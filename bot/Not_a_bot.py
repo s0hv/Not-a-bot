@@ -193,6 +193,9 @@ class NotABot(Bot):
         if message.author.bot or message.author == self.user:
             return
 
+        if message.author.id not in [self.owner, '344502504018411522']:
+            return
+
         management = getattr(self, 'management', None)
 
         if message.server and message.server.id == '217677285442977792' and management and message.channel.id != '322839372913311744':
@@ -444,22 +447,13 @@ class NotABot(Bot):
                             overwrite_perms = True
                         else:
                             overwrite_perms = self._perm_returns.get(overwrite_perms, False)
+                    ctx.override_perms = overwrite_perms
 
                     if overwrite_perms is False:
                         if msg is not None:
                             await self.send_message(message.channel, msg)
                         return
-                    elif overwrite_perms is None and command.required_perms is not None:
-                        perms = message.channel.permissions_for(message.author)
 
-                        if not perms.is_superset(command.required_perms):
-                            req = [r[0] for r in command.required_perms if r[1]]
-                            await self.send_message(message.channel,
-                                                    'Invalid permissions. Required perms are %s' % ', '.join(req),
-                                                    delete_after=15)
-                            return
-
-                    ctx.override_perms = overwrite_perms
             except Exception as e:
                 await self.on_command_error(e, ctx)
                 return

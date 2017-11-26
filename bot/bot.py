@@ -42,11 +42,13 @@ from discord import (Object, InvalidArgument, ChannelType, ClientException,
                      voice_client, Reaction)
 from discord import state
 from discord.ext import commands
-from discord.ext.commands import CommandNotFound, CommandError
+from discord.ext.commands import CommandNotFound, core
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.ext.commands.view import StringView
+from discord.ext.commands.errors import CommandError
 from bot.globals import Auth
 from bot.formatter import Formatter
+from bot.exceptions import PermissionError
 
 try:
     import uvloop
@@ -61,6 +63,18 @@ log = logging.getLogger('discord')
 logger = logging.getLogger('debug')
 
 
+def permission_check(ctx):
+    command_ = ctx.command
+    if ctx.override_perms is None and command_.required_perms is not None:
+        perms = ctx.message.channel.permissions_for(ctx.message.author)
+
+        if not perms.is_superset(command_.required_perms):
+            req = [r[0] for r in command_.required_perms if r[1]]
+            raise PermissionError('%s' % ', '.join(req))
+
+    return True
+
+
 class Command(commands.Command):
     def __init__(self, name, callback, **kwargs):
         super(Command, self).__init__(name=name, callback=callback, **kwargs)
@@ -69,6 +83,7 @@ class Command(commands.Command):
         self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
         self.usage = kwargs.pop('usage', None)
+        self.checks.append(permission_check)
         if self.owner_only:
             print('registered owner_only command %s' % name)
 

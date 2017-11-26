@@ -5,9 +5,6 @@ from random import choice
 from threading import Lock
 
 import discord
-from colour import Color
-from discord.ext.commands import cooldown, BucketType
-
 from bot.bot import command
 from utils.utilities import slots2dict, split_string
 import logging
@@ -555,98 +552,10 @@ class Management:
         else:
             await  self.bot.say('No colors to remove')
 
-    @command(pass_context=True, owner_only=True)
-    async def color_uncolored(self, ctx):
-        server = ctx.message.server
-        removed = self.utils.remove_removed_colors(server.id)
-        if removed:
-            await self.bot.say('Removed colors without role. {}'.format(', '.join(removed)))
-
-        colors = self.utils.get_colors(server.id)
-        color_ids = list(colors.values())
-        if not colors:
-            return
-
-        roles = server.roles
-        colored = 0
-        for member in list(server.members):
-            m_roles = member.roles
-            found = list(filter(lambda r: r.id in color_ids, m_roles))
-            if not found:
-                color = choice(color_ids)
-                role = list(filter(lambda r: r.id == color, roles))
-                try:
-                    await self.bot.add_roles(member, *role)
-                    colored += 1
-                except Exception:
-                    pass
-            elif len(found) > 1:
-                try:
-                    await self.bot.replace_role(member, color_ids, (found[0],))
-                    colored += 1
-                except Exception:
-                    pass
-
-        await self.bot.say('Colored %s users without color role' % colored)
-
-    @command(name='roles', pass_context=True, ignore_extra=True)
-    @cooldown(1, 5, type=BucketType.server)
-    async def get_roles(self, ctx, page=''):
-        server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
-        print_all = page.lower() == 'all'
-        idx = 0
-        if print_all and ctx.message.author.id != self.bot.owner:
-            return await self.bot.say('Only the owner can use the all modifier', delete_after=30)
-        elif page and not print_all:
-            try:
-                idx = int(page) - 1
-                if idx < 0:
-                    return await self.bot.say('Index must be bigger than 0')
-            except ValueError:
-                return await self.bot.say('%s is not a valid integer' % page, delete_after=30)
-
-        maxlen = 1950
-        roles = 'A total of %s roles\n' % len(server_roles)
-        for role in server_roles:
-            roles += '{}: {}\n'.format(role.name, role.mention)
-
-        roles = split_string(roles, splitter='\n', maxlen=maxlen)
-        if not print_all:
-            try:
-                roles = (roles[idx],)
-            except IndexError:
-                return await self.bot.say('Page index %s is out of bounds' % idx, delete_after=30)
-
-        for s in roles:
-            await self.bot.say('```' + s + '```')
-
     @command(owner_only=True)
     async def reload_config(self):
         self.utils.reload_config()
         await self.bot.say('Reloaded config')
-
-    @command(pass_context=True, no_pm=True)
-    @cooldown(1, 3, type=BucketType.user)
-    async def default_role(self, ctx):
-        """Temporary fix to easily get default role"""
-        server = ctx.message.server
-        if server.id != '217677285442977792':
-             return
-
-        role = self.bot.get_role(server, '352099343953559563')
-        if not role:
-            return await self.bot.say('Default role not found')
-
-        member = ctx.message.author
-        if role in member.roles:
-            return await self.bot.say('You already have the default role')
-
-        try:
-            await self.bot.add_role(member, role)
-        except:
-            return await self.bot.say('Failed to add default role. Try again in a bit')
-
-        await self.bot.say('You now have the default role')
 
 
 def setup(bot):

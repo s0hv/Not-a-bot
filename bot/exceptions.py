@@ -23,11 +23,16 @@ SOFTWARE.
 """
 
 
-class BotException(Exception):
-    def __init__(self, message, cmd_message: str=None):
-        self._message = message
+from discord.ext.commands.errors import CommandError
+
+
+class BotException(CommandError):
+    def __init__(self, message=None, *args, cmd_message: str=None):
+        super().__init__(message, *args)
         if cmd_message is not None:
             print(cmd_message)
+
+        self._message = message
 
     @property
     def message(self):
@@ -45,7 +50,7 @@ class InvalidOwnerIDException(BotException):
 class PermissionError(BotException):
     @property
     def message(self):
-        return "You don't have the permission to use this command. \nReason: " + self._message
+        return "You don't have the permission to use this command. \nRequired permissions are: " + self._message
 
 
 class InvalidLevelException(BotException):
@@ -58,27 +63,16 @@ class InvalidLevelException(BotException):
         return ("Required level is %s.\n" % self._required) + self._message
 
 
-class LevelPermissionException(BotException):
-    def __init__(self, required, current, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._required = required
-        self._current = current
-
+class InvalidPermissionError(BotException):
     @property
     def message(self):
-        return "%s\nRequired level to use this command is %s and your level is %s" % (self._message, self._required, self._current)
+        return "Required permissions are " + self._message
 
 
 class InvalidArgumentException(BotException):
     @property
     def message(self):
         return "Invalid argument.\n" + self._message
-
-
-class InvalidPermissionsException(BotException):
-    @property
-    def message(self):
-        return self._message
 
 
 class MissingRequiredArgument(BotException):

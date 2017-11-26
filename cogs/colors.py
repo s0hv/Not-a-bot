@@ -14,7 +14,7 @@ from cogs.cog import Cog
 from utils.utilities import split_string
 import logging
 from bot.globals import Perms
-
+from random import choice
 logger = logging.getLogger('debug')
 
 
@@ -315,6 +315,38 @@ class Colors(Cog):
         chn = ctx.message.channel
         for embed in embeds:
             await self.bot.send_message(chn, embed=embed)
+
+    @command(pass_context=True, owner_only=True)
+    async def color_uncolored(self, ctx):
+        server = ctx.message.server
+        color_ids = list(self._colors.values())
+        if not self._colors:
+            return
+
+        await self.bot.request_offline_members(server)
+        roles = server.roles
+        colored = 0
+        duplicate_colors = 0
+        for member in list(server.members):
+            m_roles = member.roles
+            found = list(filter(lambda r: r.id in color_ids, m_roles))
+            if not found:
+                color = choice(color_ids)
+                role = list(filter(lambda r: r.id == color, roles))
+                try:
+                    await self.bot.add_roles(member, *role)
+                    colored += 1
+                except:
+                    pass
+            elif len(found) > 1:
+                try:
+                    await self.bot.replace_role(member, color_ids, (found[0],))
+                    duplicate_colors += 1
+                except:
+                    pass
+
+        await self.bot.say('Colored %s user(s) without color role'
+                           'Removed duplicate colors from %s user(s)' % (colored, duplicate_colors))
 
 
 def setup(bot):

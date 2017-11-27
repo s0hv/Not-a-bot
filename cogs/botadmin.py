@@ -27,7 +27,7 @@ class BotAdmin(Cog):
             retval = 'Exception\n%s' % e
 
         if not retval:
-            retval = 'Done'
+            retval = str(retval)
 
         await self.bot.say(retval)
 
@@ -43,7 +43,7 @@ class BotAdmin(Cog):
             retval = 'Exception\n%s' % e
 
         if not retval:
-            retval = 'Done'
+            retval = str(retval)
 
         await self.bot.say(retval)
 

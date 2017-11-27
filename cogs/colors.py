@@ -11,7 +11,7 @@ from math import ceil
 from bot.bot import command
 from discord.ext.commands import cooldown, BucketType
 from cogs.cog import Cog
-from utils.utilities import split_string
+from utils.utilities import split_string, get_role, y_n_check, y_check
 import logging
 from bot.globals import Perms
 from random import choice
@@ -138,7 +138,34 @@ class Colors(Cog):
     async def server_role_delete(self, role):
         self._delete_color(role.server.id, role.id)
 
-    @command(pass_context=True, no_pm=True)
+    async def _add_colors_from_roles(self, roles, ctx):
+        channel = ctx.message.channel
+        server = channel.server
+        colors = self._colors.get(server.id)
+        if colors is None:
+            colors = {}
+            self._colors[server.id] = colors
+
+        for role in roles:
+            color = role.color
+            if color.value == 0:
+                await self.bot.send_message(channel, 'Role {0.name} has no color'.format(role))
+                continue
+
+            r = discord.utils.find(lambda c: c.value == color.value, colors.values())
+            if r:
+                await self.bot.send_message(channel, 'Color {0.name} already exists'.format(role))
+                continue
+
+            lab = convert_color(sRGBColor(*color.to_tuple(), is_upscaled=True), LabColor)
+            color = Color(role.id, role.name, color.value, server.id, lab)
+            if self._add_color2db(color):
+                await self.bot.send_message(channel, 'Color {} created'.format(role))
+                colors[role.id] = color
+            else:
+                await self.bot.send_message(channel, 'Failed to create color {0.name}'.format(role))
+
+    @command(pass_context=True, no_pm=True, aliases=['colour'])
     @cooldown(1, 2, type=BucketType.user)
     async def color(self, ctx, *color):
         server = ctx.message.server
@@ -256,7 +283,43 @@ class Colors(Cog):
         else:
             self._colors[server.id] = {color_role.id: color_}
 
-    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['del_color'])
+    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES,
+             aliases=['colors_from_roles'])
+    @cooldown(1, 3, type=BucketType.server)
+    async def add_colors_from_roles(self, ctx, *, roles):
+        if not roles:
+            return await self.bot.say('Give some roles to turn to server colors')
+
+        roles = roles.split(' ')
+        server = ctx.message.server
+        success = []
+        failed = []
+        for role in roles:
+            r = get_role(role, server.roles, name_matching=True)
+            if r:
+                success.append(r)
+            else:
+                failed.append(role)
+
+        s = ''
+        if success:
+            s += 'Adding roles {}\n'.format(', '.join(['`%s`' % r.name for r in success]))
+
+        if failed:
+            s += 'Failed to find roles {}'.format(', '.join(['`%s`' % r for r in failed]))
+
+        for s in split_string(s, splitter=', '):
+            await self.bot.say(s)
+
+        await self.bot.say('Do you want to continue?', delete_after=20)
+        channel, author = ctx.message.channel, ctx.message.author
+        msg = await self.bot.wait_for_message(timeout=20, author=author, channel=channel, check=y_n_check)
+        if msg is None or not y_check(msg.content):
+            return await self.bot.say('Cancelling', delete_after=20)
+
+        await self._add_colors_from_roles(success, ctx)
+
+    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['del_color', 'remove_color'])
     @cooldown(1, 3, type=BucketType.server)
     async def delete_color(self, ctx, *, name):
         server = ctx.message.server
@@ -264,21 +327,24 @@ class Colors(Cog):
         if not color:
             return await self.bot.say("Couldn't find color %s" % name)
 
-        role = self.bot.get_role(server, color.role_id)
+        role_id = color[0]
+        role = self.bot.get_role(server, role_id)
         if not role:
-            self.bot.dbutils.delete_role(color.role_id, server.id)
-            self._delete_color(server.id, color.role_id)
-            await self.bot.say('Removed color %s' % color)
+            self.bot.dbutils.delete_role(role_id, server.id)
+            self._delete_color(server.id, role_id)
+            await self.bot.say('Removed color %s' % color[1])
             return
 
         try:
             await self.bot.delete_role(role)
+            self.bot.dbutils.delete_role(role_id, server.id)
+            self._delete_color(server.id, role_id)
         except discord.DiscordException as e:
             return await self.bot.say('Failed to remove color because of an error\n```%s```' % e)
         except:
             return await self.bot.say('Failed to remove color because of an error')
 
-        await self.bot.say('Removed color %s' % color)
+        await self.bot.say('Removed color %s' % color[1])
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 4, type=BucketType.server)

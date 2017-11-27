@@ -17,6 +17,8 @@ class Autoresponds(Cog):
         if data['user_id'] == self.bot.user.id:
             return
 
+        if data['emoji'] != '🇳🇿':
+            return
         await self.bot.http.add_reaction(data['message_id'], data['channel_id'], '🇳🇿')
 
 

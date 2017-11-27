@@ -5,7 +5,7 @@ from discord.ext.commands import cooldown, BucketType
 from bot.bot import command
 from bot.globals import Perms
 from cogs.cog import Cog
-from utils.utilities import get_role, get_user_id
+from utils.utilities import get_role, get_user_id, split_string, find_user
 import subprocess
 import shlex
 import asyncio
@@ -170,6 +170,49 @@ class ServerSpecific(Cog):
             return await self.bot.say('Failed to remove perms. Exception logged')
 
         await self.bot.say('👌')
+
+    @command(pass_context=True, no_pm=True, aliases=['get_grants', 'grants'])
+    @cooldown(1, 4)
+    async def show_grants(self, ctx, *user):
+        server = ctx.message.server
+        if server.id not in self.whitelist:
+            return
+
+        if user:
+            user = ' '.join(user)
+            user_ = find_user(user, server.members, case_sensitive=True, ctx=ctx)
+            if not user_:
+                return await self.bot.say("Couldn't find a user with %s" %  user)
+            author = user_
+        else:
+            author = ctx.message.author
+        session = self.bot.get_session
+        sql = 'SELECT `role_id` FROM `role_granting` WHERE server_id=%s AND user_role IN (%s)' % (server.id, ', '.join([r.id for r in author.roles]))
+        try:
+            rows = session.execute(sql).fetchall()
+        except:
+            logger.exception('Failed to get role grants')
+            return await self.bot.say('Failed execute sql')
+
+        if not rows:
+            return await self.bot.say("You can't grant any roles")
+
+        msg = 'Roles {} can grant:\n'.format(author)
+        found = False
+        for row in rows:
+            role = self.bot.get_role(server, row['role_id'])
+            if not role:
+                continue
+
+            if not found:
+                found = True
+            msg += '{0.name} `{0.id}`\n'.format(role)
+
+        if not found:
+            return await self.bot.say("{} can't grant any roles".format(author))
+
+        for s in split_string(msg, maxlen=2000, splitter='\n'):
+            await self.bot.say(s)
 
     @command(pass_context=True)
     @cooldown(1, 3, type=BucketType.server)

@@ -55,7 +55,7 @@ class Object:
         pass
 
 
-def split_string(to_split, list_join='', maxlen=1900, splitter=' '):
+def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
     if isinstance(to_split, str):
         if len(to_split) < maxlen:
             return [to_split]
@@ -211,6 +211,11 @@ def write_wav(stdout, filename):
 def y_n_check(msg):
     msg = msg.content.lower().strip()
     return msg in ['y', 'yes', 'n', 'no']
+
+
+def y_check(s):
+    s = s.lower().strip()
+    return s in ['y', 'yes']
 
 
 def bool_check(s):

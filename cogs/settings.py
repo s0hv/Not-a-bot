@@ -7,6 +7,7 @@ from utils.utilities import get_channel_id, split_string
 from bot.globals import Perms
 from collections import OrderedDict
 from asyncio import Lock
+import time
 
 
 class Settings(Cog):
@@ -102,7 +103,6 @@ class Settings(Cog):
         if current == boolean:
             return await self.bot.say('Keeproles is already set to %s' % boolean)
 
-        self.cache.set_keeproles(server.id, boolean)
         lock = self._server_locks['keeproles'].get(server.id, None)
         if lock is None:
             lock = Lock()
@@ -112,7 +112,9 @@ class Settings(Cog):
             return await self.bot.say('Hol up b')
 
         if boolean:
-            lock.acquire()
+            t = time.time()
+            msg = await self.bot.say('indexing roles')
+            await lock.acquire()
             try:
                 bot_member = server.get_member(self.bot.user.id)
                 perms = bot_member.server_permissions
@@ -120,12 +122,15 @@ class Settings(Cog):
                     return await self.bot.say('This bot needs manage roles permissions to enable this feature')
                 if not await self.bot.dbutils.index_server_member_roles(server):
                     return await self.bot.say('Failed to index user roles')
+
+                await self.bot.edit_message(msg, new_content='Indexed roles in {0:.2f}s'.format(time.time()-t))
             except:
                 pass
             finally:
                 lock.release()
 
-        await self.bot.say('Keeproles set to %s' % boolean)
+        self.cache.set_keeproles(server.id, boolean)
+        await self.bot.say('Keeproles set to %s' % str(boolean))
 
     @cooldown(1, 5, type=BucketType.server)
     @command(pass_context=True, required_perms=Perms.MANAGE_ROLE_CHANNEL)

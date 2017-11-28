@@ -95,3 +95,4 @@ class Perms:
     MANAGE_ROLE_CHANNEL = Permissions(268435472)
     MANAGE_MESSAGES = Permissions(8192)
     ADMIN = Permissions(8)
+    MANAGE_EMOJIS = Permissions(1073741824 )

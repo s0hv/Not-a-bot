@@ -5,6 +5,7 @@ from validators import url as is_url
 from utils.imagetools import raw_image_from_url
 import discord
 import logging
+from bot.globals import Perms
 
 
 logger = logging.getLogger('debug')
@@ -48,7 +49,8 @@ class Server(Cog):
 
         await self.bot.say(s)
 
-    @command(pass_context=True, no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'])
+    @command(pass_context=True, no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'],
+             required_perms=Perms.MANAGE_EMOJIS)
     async def add_emote(self, ctx, link, *name):
         server = ctx.message.server
         author = ctx.message.author

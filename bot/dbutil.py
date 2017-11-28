@@ -37,7 +37,7 @@ class DatabaseUtils:
         if not execute(sql):
             return False
 
-        sql = 'DELETE FROM `roles` WHERE `id` NOT IN (%s)' % ', '.join(role_ids)
+        sql = 'DELETE FROM `roles` WHERE server={} and `id` NOT IN ({})'.format(server.id, ', '.join(role_ids))
         if not execute(sql):
             return False
 

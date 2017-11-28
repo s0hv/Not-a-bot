@@ -342,17 +342,20 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
 
 
 async def image_from_url(url, client):
+    return Image.open(raw_image_from_url(url, client))
+
+
+async def raw_image_from_url(url, client):
     try:
         async with client.get(url) as r:
             data = BytesIO()
             async for d in r.content.iter_chunked(4096):
                 data.write(d)
-            img = Image.open(data)
     except:
         logger.exception('Could not download image %s' % url)
         return None
 
-    return img
+    return data
 
 
 def shift_color(color, amount):

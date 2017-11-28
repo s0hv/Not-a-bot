@@ -195,7 +195,7 @@ class ServerSpecific(Cog):
             return await self.bot.say('Failed execute sql')
 
         if not rows:
-            return await self.bot.say("You can't grant any roles")
+            return await self.bot.say("{} can't grant any roles".format(author))
 
         msg = 'Roles {} can grant:\n'.format(author)
         found = False

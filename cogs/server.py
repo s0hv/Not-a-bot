@@ -1,6 +1,13 @@
 from bot.bot import command
 from cogs.cog import Cog
 from discord.ext.commands import cooldown, BucketType
+from validators import url as is_url
+from utils.imagetools import raw_image_from_url
+import discord
+import logging
+
+
+logger = logging.getLogger('debug')
 
 
 class Server(Cog):
@@ -40,6 +47,40 @@ class Server(Cog):
         s += '```'
 
         await self.bot.say(s)
+
+    @command(pass_context=True, no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'])
+    async def add_emote(self, ctx, link, *name):
+        server = ctx.message.server
+        author = ctx.message.author
+
+        if is_url(link):
+            if not name:
+                await self.bot.say('What do you want to name the emote as', delete_after=20)
+                msg = await self.bot.wait_for_message(author=author, channel=ctx.message.channel, timeout=20)
+                if not msg:
+                    return await self.bot.say('Took too long.')
+            data = await raw_image_from_url(link, self.bot.aiohttp_client)
+            name = ' '.join(name)
+
+        else:
+            if not ctx.message.attachments:
+                return await self.bot.say('No image provided')
+
+            data = await raw_image_from_url(ctx.message.attachments[0], self.bot.aiohttp_client)
+            name = link + ' '.join(name)
+
+        if not data:
+            return await self.bot.say('Failed to download image %s' % link)
+
+        try:
+            await self.bot.create_custom_emoji(server=server, name=name, image=data.getvalue())
+        except discord.DiscordException as e:
+            await self.bot.say('Failed to create emote because of an error\n%s' % e)
+        except:
+            await self.bot.say('Failed to create emote because of an error\n%s')
+            logger.exception('Failed to create emote')
+        else:
+            await self.bot.say('created emote %s' % name)
 
 
 def setup(bot):

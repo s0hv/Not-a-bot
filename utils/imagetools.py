@@ -342,7 +342,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
 
 
 async def image_from_url(url, client):
-    return Image.open(raw_image_from_url(url, client))
+    return Image.open(await raw_image_from_url(url, client))
 
 
 async def raw_image_from_url(url, client):

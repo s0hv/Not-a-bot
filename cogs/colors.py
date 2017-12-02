@@ -242,7 +242,7 @@ class Colors(Cog):
         rgb = self.match_color(color)
 
         server = ctx.message.server
-        color = sRGBColor(*rgb)
+        color = sRGBColor(*rgb, is_upscaled=True)
         value = int(color.get_rgb_hex()[1:], 16)
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(server.id, {}).items())
         if r:

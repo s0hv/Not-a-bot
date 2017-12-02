@@ -62,32 +62,6 @@ class AutoRoles(Cog):
         # If bot doesn't have manage roles no use in trying to add roles
         if not perms.administrator and not perms.manage_roles:
             return
-            """
-            self.bot.server_cache.set_keeproles(server.id, False)
-            msg = "{0.owner.mention} I don't have manage roles permission in the server {0.name}. Disabling keeproles there. " \
-                  "You can re-enable them after adding manage roles perms to this bot".format(server)
-            sent = False
-            try:
-                await self.bot.send_message(server.owner, msg)
-                sent = True
-            except:
-                pass
-            try:
-                chn = list(filter(lambda c: c.permissions_for(bot_member).send_messages, server.channels))
-                if not chn:
-                    if not sent:
-                        logger.info("Tried to inform server {0.name} {0.id} of autodisable of keeproles but couldn't send the message".format(server))
-                    return
-
-                await self.bot.send_message(chn[0], msg)
-                sent = True
-            except:
-                pass
-
-            if not sent:
-                logger.exception("Tried to inform server {0.name} {0.id} of autodisable of keeproles but couldn't send the message".format(server))
-            return
-            """
 
         if not self.bot.server_cache.keeproles(server.id):
             return await self.add_random_color(member)

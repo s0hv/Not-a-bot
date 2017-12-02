@@ -456,7 +456,7 @@ class Bot(commands.Bot, Client):
         return decorator
 
     async def add_roles(self, member, *roles):
-        logger.debug('Adding roles %s to %s' % (' '.join(roles), member))
+        logger.debug('Adding roles %s to %s in the server %s' % (' '.join(roles), member, member.server.id))
         new_roles = set()
         for r in roles:
             id = r if isinstance(r, str) else r.id

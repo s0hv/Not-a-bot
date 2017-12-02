@@ -243,7 +243,6 @@ class Colors(Cog):
 
         server = ctx.message.server
         color = sRGBColor(*rgb)
-        print(color.get_rgb_hex())
         value = int(color.get_rgb_hex()[1:], 16)
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(server.id, {}).items())
         if r:
@@ -260,6 +259,7 @@ class Colors(Cog):
             color_role = await self.bot.create_role(server, name=name, permissions=default_perms,
                                                     colour=discord.Colour(value))
         except discord.DiscordException as e:
+            logger.exception('server {0.id} rolename: {1} perms: {2} color: {3} {4}'.format(server, name, default_perms.value, str(rgb), value))
             return await self.bot.say('Failed to add color because of an error\n```%s```' % e)
         except:
             logger.exception('Failed to create color role')

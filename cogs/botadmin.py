@@ -170,6 +170,13 @@ class BotAdmin(Cog):
             return await self.bot.say('Failed to reload module %s because of an error\n```%s```' % (module_name, e))
         await self.bot.say('Reloaded module %s' % module_name)
 
+    async def on_channel_update(self, before, after):
+        if before.server != '307927177154789386':
+            return
+        s = before.server.get_member('123050803752730624')
+        print(before.permissions_for(s).value)
+        print(after.permissions_for(s).value)
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

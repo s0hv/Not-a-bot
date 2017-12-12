@@ -171,7 +171,7 @@ class BotAdmin(Cog):
         await self.bot.say('Reloaded module %s' % module_name)
 
     async def on_channel_update(self, before, after):
-        if before.server != '307927177154789386':
+        if before.server.id != '307927177154789386':
             return
         s = before.server.get_member('123050803752730624')
         print(before.permissions_for(s).value)

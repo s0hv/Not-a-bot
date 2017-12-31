@@ -109,6 +109,7 @@ class NotABot(Bot):
         self.mysql.session = self.get_session
         self.mysql.engine = engine
 
+    @staticmethod
     def get_prefix(self, message):
         return self.default_prefix
         server = message.server

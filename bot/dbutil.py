@@ -78,6 +78,21 @@ class DatabaseUtils:
         print('indexed users in %s seconds' % (time.time() - t))
         return True
 
+    def add_servers(self, *ids):
+        session = self.bot.get_session
+        ids = [(i,) for i in ids]
+        sql = 'INSERT IGNORE INTO `servers` (`server`) VALUES (?)'
+        try:
+            session.executemany(sql, ids)
+            sql = 'INSERT IGNORE INTO `prefixes` (`server`) VALUES (?)'
+            session.executemany(sql, ids)
+            session.commit()
+        except:
+            session.rollback()
+            logger.exception('Failed to add new servers to db')
+            return False
+        return True
+
     def add_roles(self, server_id, *role_ids):
         session = self.bot.get_session
         sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES '
@@ -158,9 +173,37 @@ class DatabaseUtils:
         try:
             session.execute(sql)
             session.commit()
+            return True
         except:
             session.rollback()
             logger.exception('Failed to delete roles')
+            return False
+
+    def add_prefix(self, server_id, prefix):
+        sql = 'INSERT INTO `prefixes` (`server`, `prefix`) VALUES (:server, :prefix)'
+        session = self.bot.get_session
+
+        try:
+            session.execute(sql, params={'server': server_id, 'prefix': prefix})
+            session.commit()
+            return True
+        except:
+            session.rollback()
+            logger.exception('Failed to add prefix')
+            return False
+
+    def remove_prefix(self, server_id, prefix):
+        sql = 'DELETE FROM `prefixes` WHERE server_id=:server_id AND prefix=:prefix'
+        session = self.bot.get_session
+
+        try:
+            session.execute(sql, params={'server': server_id, 'prefix': prefix})
+            session.commit()
+            return True
+        except:
+            session.rollback()
+            logger.exception('Failed to remove prefix')
+            return False
 
     def delete_role(self, role_id, server_id):
         session = self.bot.get_session

@@ -77,11 +77,13 @@ class Object:
 
 
 class NotABot(Bot):
-    def __init__(self, prefix, conf, aiohttp=None, **options):
-        super().__init__(prefix, conf, aiohttp, **options)
+    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
+        super().__init__(self.get_prefix, conf, aiohttp, **options)
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
         self.cdm = cdm
+        self.default_prefix = prefix
+        self.test_mode = test_mode
         self._random_color = None
         self.polls = {}
         self.timeouts = {}
@@ -97,7 +99,7 @@ class NotABot(Bot):
         self._setup()
 
     def _setup(self):
-        db = 'test'
+        db = 'discord' if not self.test_mode else 'test'
         engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
                                encoding='utf8')
         session_factory = sessionmaker(bind=engine)
@@ -107,33 +109,37 @@ class NotABot(Bot):
         self.mysql.session = self.get_session
         self.mysql.engine = engine
 
+    def get_prefix(self, message):
+        return self.default_prefix
+        server = message.server
+        return self.default_prefix if not server else self.server_cache.prefixes(server.id)
+
     def cache_servers(self):
         servers = self.servers
-        sql = 'SELECT * FROM `servers`'
         session = self.get_session
-        ids = set()
+        sql = 'SELECT server FROM `servers`'
+        server_ids = {str(r[0]) for r in session.execute(sql).fetchall()}
+        new_servers = {s.id for s in servers}.difference(server_ids)
+
+        self.dbutils.add_servers(*new_servers)
+        sql = 'SELECT server.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server'
+        rows = {}
         for row in session.execute(sql).fetchall():
-            d = {**row}
-            d.pop('server', None)
-            print(d)
-            self.server_cache.update_cached_server(str(row['server']), **d)
-            ids.add(str(row['server']))
+            server_id = str(row['server'])
+            if server_id in rows:
+                prefix = row['prefix']
+                if prefix is not None:
+                    rows[server_id]['prefixes'].add(prefix)
 
-        new_servers = []
-        for server in servers:
-            if server.id in ids:
-                continue
+            else:
+                d = {**row}
+                d.pop('server', None)
+                d.pop('prefix', None)
+                d['prefixes'] = {d['prefix'] or self.default_prefix}
+                rows[server_id] = d
 
-            new_servers.append('(%s)' % server.id)
-
-        if new_servers:
-            sql = 'INSERT INTO `servers` (`server`) VALUES ' + ', '.join(new_servers)
-            try:
-                session.execute(sql)
-                session.commit()
-            except:
-                session.rollback()
-                logger.exception('Failed to add new servers to db')
+        for server_id, row in rows.items():
+            self.server_cache.update_cached_server(server_id, **row)
 
     @property
     def get_session(self):
@@ -236,21 +242,26 @@ class NotABot(Bot):
 
     async def on_server_join(self, server):
         session = self.get_session
-        sql = 'INSERT IGNORE INTO `servers` (`server`) ' \
-              'VALUES (%s)' % server.id
+        sql = 'INSERT IGNORE INTO `servers` (`server`) VALUES (%s)' % server.id
         try:
             session.execute(sql)
+            session.execute('INSERT IGNORE INTO `prefixes` (`server`) VALUES (%s)' % server.id)
             session.commit()
         except:
             session.rollback()
             logger.exception('Failed to add new server')
 
-        sql = 'SELECT * FROM `servers` WHERE server=%s' % server.id
-        row = session.execute(sql).first()
-        if not row:
+        sql = 'SELECT servers.*, prefixes.prefix FROM `servers` WHERE server=%s LEFT OUTER JOIN `prefixes ON prefixes.server=servers.server' % server.id
+        rows = session.execute(sql).fetchall()
+        if not rows:
             return
 
-        self.server_cache.update_cached_server(server.id, **row)
+        prefixes = {r['prefix'] for r in rows if r['prefix'] is not None} or {self.default_prefix}
+        d = {**rows[0]}
+        d.pop('server', None)
+        d.pop('prefix', None)
+        d['prefixes'] = prefixes
+        self.server_cache.update_cached_server(server.id, **d)
 
     async def on_server_role_delete(self, role):
         self.dbutils.delete_role(role.id, role.server.id)
@@ -385,7 +396,6 @@ class NotABot(Bot):
             return True
         else:
             return False
-
 
     # ----------------------------
     # - Overridden methods below -

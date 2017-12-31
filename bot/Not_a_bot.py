@@ -224,10 +224,7 @@ class NotABot(Bot):
                             await self.send_message(chn, embed=embed)
                             return
 
-        # If the message is a command do that instead
-        if message.content.startswith(self.command_prefix):
-            await self.process_commands(message)
-            return
+        await self.process_commands(message)
 
         oshit = self.cdm.get_cooldown('oshit')
         if oshit and oshit.trigger(False) and message.content.lower().strip() == 'o shit':

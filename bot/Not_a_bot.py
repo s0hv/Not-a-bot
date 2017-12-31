@@ -123,7 +123,7 @@ class NotABot(Bot):
         new_servers = {s.id for s in servers}.difference(server_ids)
 
         self.dbutils.add_servers(*new_servers)
-        sql = 'SELECT server.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server'
+        sql = 'SELECT servers.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server'
         rows = {}
         for row in session.execute(sql).fetchall():
             server_id = str(row['server'])
@@ -135,8 +135,7 @@ class NotABot(Bot):
             else:
                 d = {**row}
                 d.pop('server', None)
-                d.pop('prefix', None)
-                d['prefixes'] = {d['prefix'] or self.default_prefix}
+                d['prefixes'] = {d.get('prefix') or self.default_prefix}
                 rows[server_id] = d
 
         for server_id, row in rows.items():

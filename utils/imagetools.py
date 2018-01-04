@@ -489,7 +489,7 @@ def gradient_flash(im, get_raw=False):
             img = ImageChops.multiply(im, img)
             img.save('{}\{}.png'.format(tempdir, idx), 'PNG')
 
-        p = subprocess.Popen(split('{}convert -delay 2.5 -loop 0 "{}\\*.png" gif:-'.format(MAGICK, tempdir)),
+        p = subprocess.Popen(split('{}convert -delay 2.5 -loop 0 "{}" gif:-'.format(MAGICK, os.path.join(tempdir, '*.png'))),
                              stdout=subprocess.PIPE)
 
         out, err = p.communicate()

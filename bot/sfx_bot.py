@@ -27,7 +27,7 @@ SOFTWARE.
 
 import asyncio
 import time
-from discord.ext.commands import command
+from bot.bot import command
 
 import discord
 

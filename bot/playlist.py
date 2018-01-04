@@ -257,7 +257,7 @@ class Playlist:
                     await self.bot.delete_message(message)
 
                 task = discord.compat.create_task(progress_info(), loop=self.bot.loop)
-                async def on_error(err):
+                async def _on_error(err):
                     try:
                         if not no_message:
                             await self.say('Failed to process %s' % entry.get('title', entry.get['id']) + '\n%s' % e, channel=channel)
@@ -270,7 +270,7 @@ class Playlist:
                     progress += 1
 
                     info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False,
-                                                              on_error=on_error)
+                                                              on_error=_on_error)
                     if info is False:
                         continue
 

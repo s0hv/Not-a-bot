@@ -40,7 +40,7 @@ class Utilities(Cog):
     async def emote(self, emote: str):
         emote = get_emote_url(emote)
         if emote is None:
-            return await self.bot('You need to specify an emote. Default (unicode) emotes are not supported yet')
+            return await self.bot.say('You need to specify an emote. Default (unicode) emotes are not supported yet')
 
         await self.bot.say(emote)
 

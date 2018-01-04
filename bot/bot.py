@@ -118,31 +118,6 @@ class ConnectionState(state.ConnectionState):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def parse_message_reaction_add(self, data):
-        message = self._get_message(data['message_id'])
-        if message is not None:
-            emoji = self._get_reaction_emoji(**data.pop('emoji'))
-            reaction = discord.utils.get(message.reactions, emoji=emoji)
-
-            is_me = data['user_id'] == self.user.id
-
-            if not reaction:
-                reaction = Reaction(
-                    message=message, emoji=emoji, me=is_me, **data)
-                message.reactions.append(reaction)
-            else:
-                reaction.count += 1
-                if is_me:
-                    reaction.me = True
-
-            channel = self.get_channel(data['channel_id'])
-            member = self._get_member(channel, data['user_id'])
-
-            self.dispatch('reaction_add', reaction, member)
-
-        else:
-            self.dispatch('raw_reaction_add', **data)
-
     def parse_message_update(self, data):
         message = self._get_message(data.get('id'))
         if message is not None:

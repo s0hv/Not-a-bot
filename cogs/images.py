@@ -55,14 +55,7 @@ class Fun(Cog):
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths(self, ctx, image=None):
         path = os.path.join('data', 'templates', 'saddest-anime-deaths.png')
-        img = get_image_from_message(ctx, image)
-        if img is None:
-            if image is not None:
-                return await self.bot.say('No image found from %s' % image)
-            else:
-                return await self.bot.say('Please input a mention, emote or an image when using the command')
-
-        img = await self._dl_image(img)
+        img = await self._get_image(ctx, image)
         if img is None:
             return
 
@@ -89,14 +82,7 @@ class Fun(Cog):
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths2(self, ctx, image=None):
         path = os.path.join('data', 'templates', 'saddest-anime-deaths2.png')
-        img = get_image_from_message(ctx, image)
-        if img is None:
-            if image is not None:
-                return await self.bot.say('No image found from %s' % image)
-            else:
-                return await self.bot.say('Please input a mention, emote or an image when using the command')
-
-        img = await self._dl_image(img)
+        img = await self._get_image(ctx, image)
         if img is None:
             return
 
@@ -124,14 +110,7 @@ class Fun(Cog):
     async def trap(self, ctx, image=None):
         """Is it a trap?
         """
-        img = get_image_from_message(ctx, image)
-        if img is None:
-            if image is not None:
-                return await self.bot.say('No image found from %s' % image)
-            else:
-                return await self.bot.say('Please input a mention, emote or an image when using the command')
-
-        img = await self._dl_image(img)
+        img = await self._get_image(ctx, image)
         if img is None:
             return
 

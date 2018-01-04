@@ -95,6 +95,18 @@ class InvalidValueException(BotException):
         return ('The given value "%s" is invalid.\n' % self._val) + self._message
 
 
+class NotEnoughPrefixes(BotException):
+    pass
+
+
+class PrefixExists(BotException):
+    pass
+
+
+class PrefixDoesntExist(BotException):
+    pass
+
+
 class BotValueError(BotException):
     pass
 

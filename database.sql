@@ -11,6 +11,9 @@ CREATE TABLE `servers` (
     `on_edit_channel` BIGINT DEFAULT NULL,
     `keeproles` BOOL DEFAULT false,
 
+    `automute` BOOL DEFAULT false,
+    `automute_limit` TINYINT DEFAULT 10,
+
     `on_join_channel` BIGINT DEFAULT NULL,
     `on_leave_channel` BIGINT DEFAULT NULL,
     `on_join_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -25,15 +28,19 @@ CREATE TABLE `servers` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-CREATE TABLE `prefixes` (
-    `prefix` VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+CREATE TABLE `automute_whitelist` (
+    `role` BIGINT NOT NULL,
     `server` BIGINT NOT NULL,
-    `channel` BIGINT DEFAULT NULL,
-    KEY `server_id` (`server`),
-    KEY `channel_id` (`channel`),
-    FOREIGN KEY (`server`) REFERENCES `servers`(`server`)
+    PRIMARY KEY (`role`),
+    KEY (`server`),
+    FOREIGN KEY (`role`) REFERENCES `roles` (`id`)
         ON DELETE CASCADE
+) ENGINE=InnoDB;
 
+CREATE TABLE `prefixes` (
+    `prefix` VARCHAR(30) COLLATE utf8mb4_unicode_ci DEFAULT "!" NOT NULL,
+    `server` BIGINT NOT NULL,
+    PRIMARY KEY (`prefix`, `server`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `serverColors` (
@@ -44,7 +51,7 @@ CREATE TABLE `serverColors` (
         ON DELETE CASCADE,
     FOREIGN KEY (`color_id`) REFERENCES `colors`(`id`)
         ON DELETE CASCADE
-) ENGINE=InnoDB
+) ENGINE=InnoDB;
 
 
 CREATE TABLE `colors` (

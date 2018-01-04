@@ -1,5 +1,6 @@
 import logging
 logger = logging.getLogger('debug')
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class DatabaseUtils:
@@ -18,46 +19,36 @@ class DatabaseUtils:
         role_ids.remove(default_role)
         session = self.bot.get_session
 
-        def execute(sql):
+        def execute(sql_):
             try:
-                session.execute(sql)
-            except:
+                session.execute(sql_)
+            except SQLAlchemyError:
                 session.rollback()
                 logger.exception('Failed to execute sql')
                 return False
             return True
 
-        sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES '
-        l = len(role_ids) - 1
-        for idx, r in enumerate(role_ids):
-            sql += '(%s, %s)' % (r, server.id)
-            if idx != l:
-                sql += ', '
+        success = self.index_server_roles(server)
+        if not success:
+            return success
 
-        if not execute(sql):
-            return False
-
-        sql = 'DELETE FROM `roles` WHERE server={} and `id` NOT IN ({})'.format(server.id, ', '.join(role_ids))
-        if not execute(sql):
-            return False
-
-        print('added roles in %s' % (time.time() - t))
+        logger.info('added roles in %s' % (time.time() - t))
         t1 = time.time()
 
         await self.bot.request_offline_members(server)
-        print('added offline users in %s' % (time.time() - t1))
+        logger.info('added offline users in %s' % (time.time() - t1))
         _m = list(server.members)
         members = list(filter(lambda u: len(u.roles) > 1, _m))
         all_members = [u.id for u in _m]
 
         t1 = time.time()
-        sql = 'DELETE FROM `userRoles` WHERE `user_id` IN (%s)' % ', '.join(all_members)
+        sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.server={} AND userRoles.user_id IN ({})'.format(server.id, ', '.join(all_members))
 
         # Deletes all server records
-        #sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` WHERE roles.server=%s AND userRoles.role_id=roles.id'
+        # sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` WHERE roles.server=%s AND userRoles.role_id=roles.id'
         if not execute(sql):
             return False
-        print('Deleted old records in %s' % (time.time() - t1))
+        logger.info('Deleted old records in %s' % (time.time() - t1))
         t1 = time.time()
 
         sql = 'INSERT IGNORE INTO `userRoles` (`user_id`, `role_id`) VALUES '
@@ -74,20 +65,38 @@ class DatabaseUtils:
             return False
 
         session.commit()
-        print('added user roles in %s' % (time.time() - t1))
-        print('indexed users in %s seconds' % (time.time() - t))
+        logger.info('added user roles in %s' % (time.time() - t1))
+        logger.info('indexed users in %s seconds' % (time.time() - t))
+        return True
+
+    def index_server_roles(self, server):
+        session = self.bot.get_session
+        roles = server.roles
+        roles = [{'id': r.id, 'server': server.id} for r in roles]
+        role_ids = [r.id for r in server.roles]
+        sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES (:id, :server)'
+        try:
+            session.execute(sql, roles)
+            sql = 'DELETE FROM `roles` WHERE server={} AND NOT id IN ({})'.format(server.id, ', '.join(role_ids))
+            session.execute(sql)
+            session.commit()
+        except SQLAlchemyError:
+            session.rollback()
+            return False
         return True
 
     def add_servers(self, *ids):
+        if not ids:
+            return
         session = self.bot.get_session
-        ids = [(i,) for i in ids]
-        sql = 'INSERT IGNORE INTO `servers` (`server`) VALUES (?)'
+        ids = [{'server': i} for i in ids]
+        sql = 'INSERT IGNORE INTO `servers` (`server`) VALUES (:server)'
         try:
-            session.executemany(sql, ids)
-            sql = 'INSERT IGNORE INTO `prefixes` (`server`) VALUES (?)'
-            session.executemany(sql, ids)
+            session.execute(sql, ids)
+            sql = 'INSERT IGNORE INTO `prefixes` (`server`) VALUES (:server)'
+            session.execute(sql, ids)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add new servers to db')
             return False
@@ -105,7 +114,7 @@ class DatabaseUtils:
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add roles')
             return False
@@ -118,7 +127,7 @@ class DatabaseUtils:
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add user')
             return False
@@ -137,7 +146,7 @@ class DatabaseUtils:
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add users')
             return False
@@ -159,7 +168,7 @@ class DatabaseUtils:
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add roles foreign keys')
             return False
@@ -174,7 +183,7 @@ class DatabaseUtils:
             session.execute(sql)
             session.commit()
             return True
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to delete roles')
             return False
@@ -187,20 +196,20 @@ class DatabaseUtils:
             session.execute(sql, params={'server': server_id, 'prefix': prefix})
             session.commit()
             return True
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add prefix')
             return False
 
     def remove_prefix(self, server_id, prefix):
-        sql = 'DELETE FROM `prefixes` WHERE server_id=:server_id AND prefix=:prefix'
+        sql = 'DELETE FROM `prefixes` WHERE server=:server AND prefix=:prefix'
         session = self.bot.get_session
 
         try:
             session.execute(sql, params={'server': server_id, 'prefix': prefix})
             session.commit()
             return True
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to remove prefix')
             return False
@@ -211,16 +220,80 @@ class DatabaseUtils:
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Could not delete role %s' % role_id)
 
-    def delete_user_roles(self, user_id):
+    def delete_user_roles(self, server_id, user_id):
+        session = self.bot.get_session
         try:
-            sql = 'DELETE FROM `userRoles` WHERE user_id=%s' % user_id
-            session = self.bot.get_session
+            sql = 'DELETE FROM `userRoles` INNER JOIN `roles` ON role.id=userRoles.role_id WHERE server_id={} AND user_id={}'.format(server_id, user_id)
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Could not delete user roles')
+
+    def add_automute_blacklist(self, server_id, *channel_ids):
+        session = self.bot.get_session
+
+        sql = 'INSERT IGNORE INTO `automute_blacklist` (`server_id`, `channel_id`) VALUES '
+        sql += ', '.join(map(lambda cid: '(%s, %s)' % (server_id, cid), channel_ids))
+        try:
+            session.execute(sql)
+            session.commit()
+            success = True
+        except SQLAlchemyError:
+            session.rollback()
+            success = False
+
+        return success
+
+    def remove_automute_blacklist(self, server_id, *channel_ids):
+        session = self.bot.get_session
+        if not channel_ids:
+            return True
+
+        sql = 'DELETE FROM `automute_blacklist` WHERE server_id={} AND channel_id IN ({}) '.format(server_id, ', '.join(channel_ids))
+        try:
+            session.execute(sql)
+            session.commit()
+            success = True
+        except SQLAlchemyError:
+            session.rollback()
+            success = False
+
+        return success
+
+    def add_automute_whitelist(self, server_id, *role_ids):
+        session = self.bot.get_session
+        if not role_ids:
+            return True
+
+        sql = 'INSERT IGNORE INTO `automute_whitelist` (`server`, `role`) VALUES '
+        sql += ', '.join(map(lambda rid: '(%s, %s)' % (server_id, rid), role_ids))
+        try:
+            session.execute(sql)
+            session.commit()
+            success = True
+        except SQLAlchemyError:
+            session.rollback()
+            success = False
+
+        return success
+
+    def remove_automute_whitelist(self, server_id, *role_ids):
+        session = self.bot.get_session
+        if not role_ids:
+            return True
+
+        sql = 'DELETE FROM `automute_whitelist` WHERE server={} AND role IN ({}) '.format(server_id, ', '.join(role_ids))
+        try:
+            session.execute(sql)
+            session.commit()
+            success = True
+        except SQLAlchemyError:
+            session.rollback()
+            success = False
+
+        return success

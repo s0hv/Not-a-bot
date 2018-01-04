@@ -5,14 +5,15 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from io import BytesIO
 from random import randint, random
+
 from PIL import Image
 from discord.ext.commands import cooldown, BucketType
 from selenium.webdriver import PhantomJS
-from selenium.webdriver.support.select import Select
 
 from bot.bot import command
 from cogs.cog import Cog
-from utils.imagetools import resize_keep_aspect_ratio, image_from_url
+from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
+                              gradient_flash, sepia)
 from utils.utilities import get_image_from_message
 
 logger = logging.getLogger('debug')
@@ -27,6 +28,29 @@ class Fun(Cog):
         self.queue = Queue()
         self.queue.put_nowait(1)
 
+    async def _get_image(self, ctx, image):
+        img = get_image_from_message(ctx, image)
+        if img is None:
+            if image is not None:
+                await self.bot.say('No image found from %s' % image)
+            else:
+                await self.bot.say('Please input a mention, emote or an image when using the command')
+
+            return
+
+        img = await self._dl_image(img)
+        return img
+
+    async def _dl_image(self, url):
+        try:
+            img = await image_from_url(url, self.bot.aiohttp_client)
+        except OverflowError:
+            await self.bot.say('Failed to download. File is too big')
+        except TypeError:
+            await self.bot.say('Link is not a direct link to an image')
+        else:
+            return img
+
     @command(pass_context=True, ignore_extra=True)
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths(self, ctx, image=None):
@@ -38,9 +62,9 @@ class Fun(Cog):
             else:
                 return await self.bot.say('Please input a mention, emote or an image when using the command')
 
-        img = await image_from_url(img, self.bot.aiohttp_client)
+        img = await self._dl_image(img)
         if img is None:
-            return await self.bot.say('Could not extract image from {}.'.format(image))
+            return
 
         await self.bot.send_typing(ctx.message.channel)
         x, y = 9, 10
@@ -72,9 +96,9 @@ class Fun(Cog):
             else:
                 return await self.bot.say('Please input a mention, emote or an image when using the command')
 
-        img = await image_from_url(img, self.bot.aiohttp_client)
+        img = await self._dl_image(img)
         if img is None:
-            return await self.bot.say('Could not extract image from {}.'.format(image))
+            return
 
         await self.bot.send_typing(ctx.message.channel)
         x, y = 9, 10
@@ -95,7 +119,7 @@ class Fun(Cog):
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
 
-    @command(pass_context=True, ignore_extra=True, usage="""""")
+    @command(pass_context=True, ignore_extra=True)
     @cooldown(3, 5, type=BucketType.server)
     async def trap(self, ctx, image=None):
         """Is it a trap?
@@ -107,9 +131,9 @@ class Fun(Cog):
             else:
                 return await self.bot.say('Please input a mention, emote or an image when using the command')
 
-        img = await image_from_url(img, self.bot.aiohttp_client)
+        img = await self._dl_image(img)
         if img is None:
-            return await self.bot.say('Could not extract image from {}.'.format(image))
+            return
 
         path = os.path.join('data', 'templates', 'is_it_a_trap.png')
         path2 = os.path.join('data', 'templates', 'is_it_a_trap_layer.png')
@@ -117,7 +141,7 @@ class Fun(Cog):
         await self.bot.send_typing(ctx.message.channel)
         x, y = 820, 396
         w, h = 355, 505
-        rotation = -22
+        rotation = -22.5
 
         img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False,
                                        resample=Image.BILINEAR)
@@ -134,6 +158,53 @@ class Fun(Cog):
         template.save(file, format='PNG')
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
+
+    @command(pass_context=True, ignore_extra=True)
+    @cooldown(3, 5, BucketType.server)
+    async def jotaro(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+    @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.server)
+    async def tobecontinued(self, ctx, image=None, no_sepia=False):
+        """Make a to be continued picture
+        Usage: !tbc `image/emote/mention` `[optional sepia filter off] on/off`
+        Sepia filter is on by default
+        """
+        img = await self._get_image(ctx, image)
+        if not img:
+            return
+
+        await self.bot.send_typing(ctx.message.channel)
+        if not no_sepia:
+            img = sepia(img)
+
+        width, height = img.width, img.height
+        if width < 300:
+            width = 300
+
+        if height < 200:
+            height = 200
+
+        img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BILINEAR)
+        width, height = img.width, img.height
+        tbc = Image.open(os.path.join(os.getcwd(), 'data', 'tbc.png'))
+        x = int(width * 0.09)
+        y = int(height * 0.90)
+        tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),
+                                       can_be_bigger=False, resample=Image.BILINEAR)
+
+        if y + tbc.height > height:
+            y = height - tbc.height - 10
+
+        img.paste(tbc, (x, y), tbc)
+
+        file = BytesIO()
+        img.save(file, 'PNG')
+        file.seek(0)
+        await self.bot.send_file(ctx.message.channel, file, filename='To_be_continued.png')
 
     async def get_url(self, url):
         # Attempt at making phantomjs async friendly
@@ -153,6 +224,18 @@ class Fun(Cog):
                 self._driver_lock.release()
             except RuntimeError:
                 pass
+
+    @command(pass_context=True, ignore_extra=True)
+    @cooldown(1, 10, BucketType.server)
+    async def party(self, ctx, image=None):
+        """Takes a long ass time to make the gif"""
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+        channel = ctx.message.channel
+        await self.bot.send_typing(channel)
+        img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
+        await self.bot.send_file(channel, img, filename='party.gif')
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2, type=BucketType.server)

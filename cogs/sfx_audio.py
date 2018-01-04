@@ -24,8 +24,11 @@ SOFTWARE.
 
 import asyncio
 import os
-import random
+from numpy import random
 from collections import deque, OrderedDict
+import shlex
+import discord
+from bot.formatter import Paginator
 
 from discord.ext import commands
 try:
@@ -35,7 +38,6 @@ except ImportError:
 
 from bot.bot import command
 from bot.globals import TTS, SFX_FOLDER
-from utils.utilities import split_string
 
 
 class SFX:
@@ -63,6 +65,10 @@ class Playlist:
         return
 
     def create_tasks(self):
+        if self.random_loop:
+            self.random_loop.cancel()
+        if self.sfx_loop:
+            self.sfx_loop.cancel()
         self.random_loop = self.bot.loop.create_task(self.random_sfx())
         self.sfx_loop = self.bot.loop.create_task(self.audio_player())
 
@@ -154,7 +160,14 @@ class Audio:
 
         state = self.get_voice_state(ctx.message.server)
         if state.voice is None:
-            state.voice = await self.bot.join_voice_channel(summoned_channel)
+            try:
+                state.voice = await self.bot.join_voice_channel(summoned_channel)
+            except discord.ClientException as e:
+                print(e)
+                if ctx.message.server.id in self.bot.connection._voice_clients:
+                    state.voice = self.bot.connection._voice_clients.get(ctx.message.server.id)
+            except:
+                return False
             state.create_tasks()
         else:
             await state.voice.move_to(summoned_channel)
@@ -165,7 +178,7 @@ class Audio:
 
         return True
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True)
+    @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['s'])
     async def stop_sfx(self, ctx):
         state = self.get_voice_state(ctx.message.server)
         if state.is_playing():
@@ -198,7 +211,6 @@ class Audio:
     @command(pass_context=True, no_pm=True)
     @commands.cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx, *, name):
-
         file = self._search_sfx(name)
         if not file:
             return await self.bot.say('Invalid sound effect name')
@@ -213,7 +225,7 @@ class Audio:
 
         state.add_to_queue(file)
 
-    @command(name='max_combo')
+    @command(name='max_combo', no_pm=True)
     async def change_combo(self, max_combo=None):
         if max_combo is None:
             return await self.bot.say(self.bot.config.max_combo)
@@ -225,19 +237,12 @@ class Audio:
         self.bot.config.max_combo = max_combo
         await self.bot.say('Max combo set to %s' % str(max_combo))
 
-    @command(name='combo', pass_context=True, no_pm=True, aliases=['concat'])
-    async def combine(self, ctx, *, names):
+    async def _combine_sfx(self, *effects, search=True):
         max_combo = self.bot.config.max_combo
-        names = names.split(' ')
-        names = list(filter(lambda s: s != '', names))
-        if len(names) > max_combo:
-            return await self.bot.say('Max %s sfx can be combined' % str(max_combo))
-
-        channel = ctx.message.channel
         silences = []
         silenceidx = 0
         sfx_list = []
-        for idx, name in enumerate(names):
+        for idx, name in enumerate(effects):
             if name.startswith('-') and name != '-':
                 silence = name.split('-')[1]
                 try:
@@ -264,25 +269,25 @@ class Audio:
                 except ValueError:
                     pass
 
-            sfx = self._search_sfx(name)
-            if not sfx:
-                await self.bot.say("Couldn't find %s. Skipping it" % name, delete_after=30)
-                continue
+            if search:
+                sfx = self._search_sfx(name)
+                if not sfx:
+                    await self.bot.say("Couldn't find %s. Skipping it" % name, delete_after=30)
+                    continue
 
-            sfx_list.append(sfx[0])
+                sfx_list.append(sfx[0])
+            else:
+                sfx_list.append(name)
 
         if not sfx_list:
             return await self.bot.say('No sfx found', delete_after=30)
 
-        state = self.get_voice_state(ctx.message.server)
-        if state.voice is None:
-            success = await ctx.invoke(self.summon)
-            if not success:
-                return
+        if len(sfx_list) > max_combo:
+            return await self.bot.say('Cannot combine more effects than the current combo limit of %s' % max_combo)
 
         entry = sfx_list.pop(0)
         if not sfx_list:
-            return state.add_to_queue(entry)
+            return entry
 
         options = ''
         filter_complex = '-filter_complex "'
@@ -301,25 +306,72 @@ class Audio:
         filter_complex += ' '.join(audio_order)
         options += filter_complex
         options += 'concat=n={}:v=0:a=1 [a]" -map "[a]"'.format(len(audio_order))
-        state.add_to_queue(entry, options)
+        return entry, options
+
+    @command(pass_context=True, aliases=['r'], no_pm=True)
+    async def random_sfx(self, ctx, combo=1):
+        if combo > self.bot.config.max_combo:
+            return await self.bot.say('Cannot go over max combo  {}>{}'.format(combo, self.bot.config.max_combo))
+
+        if combo <= 0:
+            return await self.bot.say('Number cannot be smaller than one')
+
+        state = self.get_voice_state(ctx.message.server)
+        if state.voice is None:
+            success = await ctx.invoke(self.summon)
+            if not success:
+                return
+
+        sfx = os.listdir(SFX_FOLDER)
+        try:
+            sfx.remove('-.mp3')
+        except:
+            pass
+
+        effects = [os.path.join(SFX_FOLDER, f) for f in random.choice(sfx, combo)]
+        entry = await self._combine_sfx(*effects, search=False)
+        if isinstance(entry, tuple):
+            state.add_to_queue(entry[0], entry[1])
+        elif isinstance(entry, str):
+            state.add_to_queue(entry)
+
+    @command(name='combo', pass_context=True, no_pm=True, aliases=['concat', 'c'])
+    async def combine(self, ctx, *, names):
+        max_combo = self.bot.config.max_combo
+        names = shlex.split(names)
+        if len(names) > max_combo:
+            return await self.bot.say('Max %s sfx can be combined' % str(max_combo))
+
+        state = self.get_voice_state(ctx.message.server)
+        if state.voice is None:
+            success = await ctx.invoke(self.summon)
+            if not success:
+                return
+
+        entry = await self._combine_sfx(*names)
+        if isinstance(entry, tuple):
+            state.add_to_queue(entry[0], entry[1])
+        elif isinstance(entry, str):
+            state.add_to_queue(entry)
         'ffmpeg -i audio1.mp3 -i audio2.mp3 -filter_complex "[0:a:0] [1:a:0] concat=n=2:v=0:a=1 [a]" -map "[a]" out.mp3'
 
     @staticmethod
     def _search_sfx(name):
-        name = name.replace(' ', '')
         sfx = sorted(os.listdir(SFX_FOLDER))
 
         # A very advanced searching algorithm
         file = [x for x in sfx if '.'.join(x.split('.')[:-1]) == name]
         if not file:
-            file = [x for x in sfx if '.'.join(x.split('.')[:-1]).startswith(name)]
+            file = [x for x in sfx if '.'.join(x.split('.')[:-1]).lower().startswith(name)]
             if not file:
-                file = [x for x in sfx if name in x]
+                file = [x for x in sfx if name in x.lower()]
+                if not file:
+                    file = [x for x in sfx if name.replace(' ', '').lower() in x.lower()]
 
         return [os.path.join(SFX_FOLDER, f) for f in file]
 
-    @command(pass_context=True, no_pm=True)
-    async def random_sfx(self, ctx, value):
+    @command(pass_context=True, no_pm=True, aliases=['srs'])
+    async def set_random_sfx(self, ctx, value):
         value = value.lower().strip()
         values = {'on': True, 'off': False}
         values_rev = {v: k for k, v in values.items()}
@@ -334,36 +386,30 @@ class Audio:
     async def sfxlist(self, ctx):
         """List of all the sound effects"""
         sfx = os.listdir(SFX_FOLDER)
-        sfx.sort()
+        if not sfx:
+            return await self.bot.say('No sfx found')
+
+        sfx.sort(key=str.lower)
         sorted_sfx = OrderedDict()
         curr_add = []
-        start = ' '
+        start = sfx[0][0].lower()
+        title = 'SFX list'
+        p = Paginator(title=title)
+        p.add_field(start)
+
         for item in sfx:
-            if item.startswith(start):
-                curr_add += ['__{}__'.format(''.join(item.split('.')[:-1]))]
-            else:
-                if curr_add:
-                    sorted_sfx[start] = curr_add
+            padding = ' '
+            if not item[0].lower().startswith(start):
+                sorted_sfx[start] = curr_add
+                start = item[0].lower()
+                p.add_field(start)
+                padding = ''
 
-                curr_add = []
-                curr_add += ['__{}__'.format(''.join(item.split('.')[:-1]))]
-                start = item[0]
+            p.add_to_field('{}`{}`'.format(padding, '.'.join(item.split('.')[:-1])))
 
-        sorted_sfx = split_string(sorted_sfx, ' **||** ', 1800)
-        string = ''
-        sfx_str = []
-        for items in sorted_sfx:
-            for item in items.items():
-                string += '**{}**: {}\n'.format(item[0].upper(), item[1])
-
-            sfx_str += [string]
-            string = ''
-
-        for string in sfx_str:
-            try:
-                await self.bot.send_message(ctx.message.channel, string)
-            except:
-                print(string)
+        p.finalize()
+        for embed in p.pages:
+            await self.bot.send_message(ctx.message.channel, embed=embed)
 
     async def add_sfx(self, ctx):
         if len(ctx.message.attachments) < 1:

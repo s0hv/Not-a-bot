@@ -31,6 +31,7 @@ from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
 from discord.ext.commands.view import StringView
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot import exceptions
@@ -111,16 +112,19 @@ class NotABot(Bot):
 
     @staticmethod
     def get_prefix(self, message):
-        return self.default_prefix
         server = message.server
         return self.default_prefix if not server else self.server_cache.prefixes(server.id)
 
-    def cache_servers(self):
+    async def cache_servers(self):
+        import time
+        t = time.time()
         servers = self.servers
         session = self.get_session
         sql = 'SELECT server FROM `servers`'
         server_ids = {str(r[0]) for r in session.execute(sql).fetchall()}
         new_servers = {s.id for s in servers}.difference(server_ids)
+        for server in servers:
+            self.dbutil.index_server_roles(server)
 
         self.dbutils.add_servers(*new_servers)
         sql = 'SELECT servers.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server'
@@ -136,10 +140,19 @@ class NotABot(Bot):
                 d = {**row}
                 d.pop('server', None)
                 d['prefixes'] = {d.get('prefix') or self.default_prefix}
+                d.pop('prefix')
                 rows[server_id] = d
 
         for server_id, row in rows.items():
             self.server_cache.update_cached_server(server_id, **row)
+
+        for server in servers:
+            if self.server_cache.keeproles(server.id):
+                success = await self.dbutil.index_server_member_roles(server)
+                if not success:
+                    raise EnvironmentError('Failed to cache keeprole servers')
+
+        logger.info('[INFO] Cached servers in {} seconds'.format(round(time.time()-t, 2)))
 
     @property
     def get_session(self):
@@ -168,11 +181,13 @@ class NotABot(Bot):
         print('[INFO] Logged in as {0.user.name}'.format(self))
         await self.change_presence(game=discord.Game(name=self.config.game))
         asyncio.ensure_future(self._load_cogs(), loop=self.loop)
-        self.cache_servers()
+        await self.cache_servers()
         if self._random_color is None:
             self._random_color = self.loop.create_task(self._random_color_task())
 
     async def _random_color_task(self):
+        if self.test_mode:
+            return
         server = self.get_server('217677285442977792')
         if not server:
             return
@@ -189,7 +204,7 @@ class NotABot(Bot):
 
             try:
                 await self.edit_role(server, role, color=random_color())
-            except:
+            except discord.HTTPException:
                 role = self.get_role(server, '348208141541834773')
                 if role is None:
                     return
@@ -198,30 +213,6 @@ class NotABot(Bot):
         await self.wait_until_ready()
         if message.author.bot or message.author == self.user:
             return
-
-        management = getattr(self, 'management', None)
-
-        if message.server and message.server.id == '217677285442977792' and management and message.channel.id != '322839372913311744':
-            if len(message.mentions) + len(message.role_mentions) > 10:
-                sql = 'SELECT * FROM `automute_blacklist` WHERE channel_id=%s' % message.channel.id
-                if not self.get_session.execute(sql).first():
-                    whitelist = self.management.get_mute_whitelist(message.server.id)
-                    invulnerable = discord.utils.find(lambda r: r.id in whitelist,
-                                                      message.server.roles)
-                    if invulnerable is None or invulnerable not in message.author.roles:
-                        role = discord.utils.find(lambda r: r.id == '322837972317896704',
-                                                  message.server.roles)
-                        if role is not None:
-                            user = message.author
-                            await self.add_role(message.author, role)
-                            d = 'Automuted user {0} `{0.id}`'.format(message.author)
-                            embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
-                            embed.add_field(name='Reason', value='Too many mentions in a message')
-                            embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                            embed.set_footer(text=str(self.user), icon_url=self.user.avatar_url or self.user.default_avatar_url)
-                            chn = message.server.get_channel(self.server_cache.modlog(message.server.id)) or message.channel
-                            await self.send_message(chn, embed=embed)
-                            return
 
         await self.process_commands(message)
 
@@ -244,11 +235,11 @@ class NotABot(Bot):
             session.execute(sql)
             session.execute('INSERT IGNORE INTO `prefixes` (`server`) VALUES (%s)' % server.id)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add new server')
 
-        sql = 'SELECT servers.*, prefixes.prefix FROM `servers` WHERE server=%s LEFT OUTER JOIN `prefixes ON prefixes.server=servers.server' % server.id
+        sql = 'SELECT servers.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server WHERE servers.server=%s' % server.id
         rows = session.execute(sql).fetchall()
         if not rows:
             return
@@ -275,9 +266,12 @@ class NotABot(Bot):
             for i in range(0, 2):
                 try:
                     await self.add_role(member, role)
+                except discord.Forbidden:
+                    break
                 except:
                     pass
                 else:
+                    member.roles.append(role)
                     break
 
         elif remove and role in member.roles:
@@ -463,6 +457,9 @@ class NotABot(Bot):
                 return
 
             self.dispatch('command', command, ctx)
+            s = '{0.name}/{0.id}/{1.name}/{1.id} {2} called {3}'.format(message.server, message.channel, str(message.author), command.name)
+            print(str(datetime.now()) + ' ' + s)
+            logger.debug(s)
             try:
                 await command.invoke(ctx)
             except discord.ext.commands.errors.MissingRequiredArgument as e:

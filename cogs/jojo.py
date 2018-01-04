@@ -41,13 +41,14 @@ from numpy import pi, random
 from validators import url as test_url
 
 from bot.bot import command
+from discord.ext.commands import cooldown, BucketType
 from utils.imagetools import (create_shadow, create_text, create_glow,
                               create_geopattern_background, shift_color,
                               trim_image, remove_background,
                               resize_keep_aspect_ratio, get_color,
                               IMAGES_PATH, image_from_url, GeoPattern,
                               color_distance, MAX_COLOR_DIFF, sepia)
-from utils.utilities import (get_picture_from_msg, emote_url_from_id, y_n_check,
+from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text, get_image_from_message)
 
 logger = logging.getLogger('debug')
@@ -239,6 +240,7 @@ class JoJo:
         return m_, msg
 
     @command(pass_context=True, aliases=['stand_generator'], ignore_extra=True)
+    @cooldown(1, 10, BucketType.user)
     async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
         """Generate a stand card. Arguments are stand name, user name and an image
         
@@ -438,50 +440,6 @@ class JoJo:
         bg.save(file, format='PNG')
         file.seek(0)
         await self.bot.send_file(channel, file, filename='stand_card.png')
-
-    @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
-    async def tobecontinued(self, ctx, image=None, no_sepia=False):
-        """Make a to be continued picture
-        Usage: !tbc `image/emote/mention` `[optional sepia filter off] on/off`
-        Sepia filter is on by default
-        """
-        image = get_image_from_message(ctx, image)
-        if image is None:
-            await self.bot.say('Input a mention, emote or a picture')
-            return
-
-        img = await image_from_url(image, self.bot.aiohttp_client)
-        if img is None:
-            return await self.bot.say('`{}` Could not extract image from {}.'.format(image, image))
-
-        await self.bot.send_typing(ctx.message.channel)
-        if not no_sepia:
-            img = sepia(img)
-
-        width, height = img.width, img.height
-        if width < 300:
-            width = 300
-
-        if height < 200:
-            height = 200
-
-        img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BILINEAR)
-        width, height = img.width, img.height
-        tbc = Image.open(os.path.join(os.getcwd(), 'data', 'tbc.png'))
-        x = int(width * 0.09)
-        y = int(height * 0.90)
-        tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),
-                                       can_be_bigger=False, resample=Image.BILINEAR)
-
-        if y + tbc.height > height:
-            y = height - tbc.height - 10
-
-        img.paste(tbc, (x, y), tbc)
-
-        file = BytesIO()
-        img.save(file, 'PNG')
-        file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='To_be_continued.png')
 
 
 def setup(bot):

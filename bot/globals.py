@@ -26,7 +26,7 @@ import os
 from os.path import join
 from pathlib import Path
 import shutil
-from discord import Permissions
+from discord import Permissions as Permissions_
 
 try:
     _wd = Path(__file__).parent.parent.__str__()
@@ -63,6 +63,7 @@ def create_folders():
 
     _create_folder(PERMISSIONS_FOLDER)
 
+
 create_folders()
 
 if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autoplaylist.txt')):
@@ -90,9 +91,19 @@ class Auth:
     ADMIN = 2
 
 
+class Permissions(Permissions_):
+    def __init__(self, permissions=0, **kwargs):
+        super().__init__(permissions=permissions, **kwargs)
+
+    def __or__(self, other):
+        return Permissions(self.value | other.value)
+
+
 class Perms:
     MANAGE_ROLES = Permissions(268435456)
-    MANAGE_ROLE_CHANNEL = Permissions(268435472)
+    MANAGE_CHANNEL = Permissions(16)
+    MANAGE_ROLE_CHANNEL = MANAGE_ROLES | MANAGE_CHANNEL
     MANAGE_MESSAGES = Permissions(8192)
     ADMIN = Permissions(8)
-    MANAGE_EMOJIS = Permissions(1073741824 )
+    MANAGE_EMOJIS = Permissions(1073741824)
+    MANAGE_SERVER = Permissions(32)

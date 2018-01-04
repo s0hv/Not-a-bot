@@ -10,7 +10,6 @@ class NNLogger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._prefixes = {'.', '!', 't!', '?', '!!', '+'}
-        self._prefixes.add(self.bot.command_prefix)
         self.emote_regex = re.compile(r'<:(\w+):\d+>')
 
     @staticmethod
@@ -18,6 +17,9 @@ class NNLogger(Cog):
         return ' '.join([''.join(filter(str.isalnum, ss)) for ss in s.split(' ')])
 
     async def on_message(self, msg):
+        if self.bot.test_mode:
+            return
+
         # Only one channel for now
         if msg.channel.id != '297061271205838848':
             return
@@ -31,6 +33,11 @@ class NNLogger(Cog):
 
         # No need to log bot commands
         if list(filter(lambda prefix: content.startswith(prefix), self._prefixes)):
+            return
+        prefixes = self.bot.get_prefix(self.bot, msg)
+        if isinstance(prefixes, str):
+            prefixes = (prefixes, )
+        if list(filter(lambda prefix: content.startswith(prefix), prefixes)):
             return
 
         if not content:

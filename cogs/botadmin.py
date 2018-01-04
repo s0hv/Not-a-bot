@@ -119,12 +119,6 @@ class BotAdmin(Cog):
                 await self.bot._wants_to_be_noticed(member, server)
 
     @command(owner_only=True)
-    async def test(self, msg_id):
-        session = self.bot.get_session
-        result = session.execute('SELECT `message` FROM `messages` WHERE `message_id` = %s' % msg_id)
-        await self.bot.say(result.first()['message'])
-
-    @command(owner_only=True)
     async def cache_servers(self):
         session = self.bot.get_session
         for server in self.bot.servers:
@@ -169,13 +163,6 @@ class BotAdmin(Cog):
         except Exception as e:
             return await self.bot.say('Failed to reload module %s because of an error\n```%s```' % (module_name, e))
         await self.bot.say('Reloaded module %s' % module_name)
-
-    async def on_channel_update(self, before, after):
-        import time
-        if before.server.id != '307927177154789386':
-            return
-        s = before.server.get_member('123050803752730624')
-        print('changed at %s' % time.time())
 
 
 def setup(bot):

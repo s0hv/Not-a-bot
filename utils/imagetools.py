@@ -24,11 +24,16 @@ SOFTWARE.
 
 import hashlib
 import logging
+import aiohttp
 import os
+import asyncio
 import subprocess
 from io import BytesIO
 from sys import platform
 from threading import Lock
+import tempfile
+import magic
+import shutil
 
 import cv2
 import geopatterns
@@ -39,6 +44,7 @@ from colour import Color
 from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
+from shlex import  split
 
 logger = logging.getLogger('debug')
 IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
@@ -345,16 +351,43 @@ async def image_from_url(url, client):
     return Image.open(await raw_image_from_url(url, client))
 
 
-async def raw_image_from_url(url, client):
+async def raw_image_from_url(url, client, get_mime=False):
+    data = None
+    mime_type = None
     try:
         async with client.get(url) as r:
+            if not r.headers.get('Content-Type', '').startswith('image'):
+                raise TypeError
+
+            max_size = 8000000
+            size = int(r.headers.get('Content-Length', 0))
+            if size > max_size:
+                raise OverflowError
+
             data = BytesIO()
-            async for d in r.content.iter_chunked(4096):
+            chunk = 4096
+            total = 0
+            async for d in r.content.iter_chunked(chunk):
+                if total == 0:
+                    mime_type = magic.from_buffer(d, mime=True)
+                    total += chunk
+                    if not mime_type.startswith('image'):
+                        raise TypeError
+
+                total += chunk
+                if total > max_size:
+                    raise OverflowError
+
                 data.write(d)
-    except:
+        data.seek(0)
+    except aiohttp.ClientError:
         logger.exception('Could not download image %s' % url)
+        if get_mime:
+            return None, None
         return None
 
+    if get_mime:
+        return data, mime_type
     return data
 
 
@@ -442,6 +475,33 @@ def create_text(s, font, fill, canvas_size, point=(10, 10)):
     draw = ImageDraw.Draw(text)
     draw.text(point, s, fill, font=font)
     return text
+
+
+def gradient_flash(im, get_raw=False):
+    im = resize_keep_aspect_ratio(im, (600, 400), can_be_bigger=False, resample=Image.BILINEAR)
+    im = im.convert('RGBA')
+    gradient = Color('red').range_to('#ff0004', 25)
+    tempdir = tempfile.mkdtemp()
+    try:
+        for idx, g in enumerate(gradient):
+            img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
+            img = Image.composite(img, im, im)
+            img = ImageChops.multiply(im, img)
+            img.save('{}\{}.png'.format(tempdir, idx), 'PNG')
+
+        p = subprocess.Popen(split('{}convert -delay 2.5 -loop 0 "{}\\*.png" gif:-'.format(MAGICK, tempdir)),
+                             stdout=subprocess.PIPE)
+
+        out, err = p.communicate()
+        buff = BytesIO(out)
+        shutil.rmtree(tempdir, ignore_errors=True)
+        buff.seek(0)
+        return Image.open(buff) if not get_raw else buff
+
+    except Exception as e:
+        shutil.rmtree(tempdir, ignore_errors=True)
+        logger.exception('{} Failed to create gif'.format(e))
+
 
 r"""
 width = im.width

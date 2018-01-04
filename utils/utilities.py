@@ -37,6 +37,8 @@ import re
 import discord
 from bot.exceptions import NoCachedFileException
 from datetime import datetime
+from sqlalchemy.exc import SQLAlchemyError
+import mimetypes
 
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
@@ -230,6 +232,15 @@ def check_negative(n):
         return 1
 
 
+def get_emote_url(emote):
+    animated, emote_id = get_emote_id(emote)
+    if emote_id is None:
+        return
+
+    extension = 'png' if not animated else 'gif'
+    return 'https://cdn.discordapp.com/emojis/{}.{}'.format(emote_id, extension)
+
+
 def emote_url_from_id(id):
     return 'https://cdn.discordapp.com/emojis/%s.png' % id
 
@@ -298,46 +309,75 @@ async def retry(f, *args, retries_=3, **kwargs):
 
 
 def get_emote_id(s):
-    emote = re.match('(?:<:\w+:)(\d+)(?=>)', s)
+    emote = re.match('(?:<(a)?:\w+:)(\d+)(?=>)', s)
     if emote:
-        return emote.groups()[0]
+        return emote.groups()
+
+    return None, None
 
 
 def get_emote_name(s):
-    emote = re.match('(?:<:)(\w+)(?::\d+)(?=>)', s)
+    emote = re.match('(?:<(a)?:)(\w+)(?::\d+)(?=>)', s)
     if emote:
-        return emote.groups()[0]
+        return emote.groups()
+
+    return None, None
 
 
 def get_emote_name_id(s):
-    emote = re.match('(?:<:)(\w+)(?::)(\d+)(?=>)', s)
+    emote = re.match('(?:<(a)?:)(\w+)(?::)(\d+)(?=>)', s)
     if emote:
         return emote.groups()
+
+    return None, None, None
 
 
 def get_image_from_message(ctx, *messages):
     image = None
     if len(ctx.message.attachments) > 0:
         image = ctx.message.attachments[0]['url']
-    elif messages:
+    elif messages and messages[0] is not None:
         image = str(messages[0])
         if not test_url(image):
             if re.match('<@!?\d+>', image) and ctx.message.mentions:
                 image = get_avatar(ctx.message.mentions[0])
             elif re.match('<:\w+:\d+>', image):
-                image = emote_url_from_id(
-                    re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
+                image = emote_url_from_id(re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
             else:
                 try:
                     int(image)
-                except:
-                    return
+                except ValueError:
+                    pass
                 else:
                     user = discord.utils.find(lambda u: u.id == image, ctx.bot.get_all_members())
-                    if not user:
-                        return
+                    if user:
+                        image = get_avatar(user)
 
-                    image = get_avatar(user)
+    if image is None:
+        channel = ctx.message.channel
+        server = channel.server
+        session = ctx.bot.get_session
+        sql = 'SELECT attachment FROM `messages` WHERE server={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(server.id, channel.id)
+        try:
+            rows = session.execute(sql).fetchall()
+            for row in rows:
+                attachment = row['attachment']
+                if not attachment:
+                    continue
+
+                if is_image_url(attachment):
+                    image = attachment
+                    break
+
+                # This is needed because some images like from twitter
+                # are usually in the format of someimage.jpg:large
+                # and mimetypes doesn't recognize that
+                elif is_image_url(':'.join(attachment.split(':')[:-1])):
+                    image = attachment
+                    break
+
+        except SQLAlchemyError:
+            pass
 
     return image
 
@@ -426,6 +466,28 @@ def check_channel_mention(msg, word):
     return False
 
 
+def get_channel(channels, s, name_matching=False, only_text=True):
+    channel = get_channel_id(s)
+    try:
+        int(s)
+    except ValueError:
+        pass
+    else:
+        channel = discord.utils.find(lambda c: c.id == s, channels)
+
+    if not channel and name_matching:
+        channel = discord.utils.find(lambda c: c.name == s, channels)
+        if not channel:
+            return
+    else:
+        return
+
+    if only_text and channel.type != discord.ChannelType.text:
+        return
+
+    return channel
+
+
 def check_role_mention(msg, word, server):
     if msg.raw_role_mentions:
         id = msg.raw_role_mentions[0]
@@ -512,7 +574,7 @@ def find_user(s, members, case_sensitive=False, ctx=None):
         return
     if ctx:
         # if ctx is present check mentions first
-        if ctx.message.mentions and ctx.message.mentions[0].mention == s.split(' ')[0].replace('!', ''):
+        if ctx.message.mentions and ctx.message.mentions[0].mention.replace('!', '') == s.replace('!', ''):
             return ctx.message.mentions[0]
 
         try:
@@ -542,3 +604,63 @@ def find_user(s, members, case_sensitive=False, ctx=None):
     found = filter_users(p)
 
     return found
+
+
+def is_image_url(url):
+    if url is None:
+        return
+
+    if not test_url(url):
+        return False
+
+    mimetype, encoding = mimetypes.guess_type(url)
+    return mimetype and mimetype.startswith('image')
+
+
+def msg2dict(msg):
+    d = {}
+    attachments = [attachment['url'] for attachment in msg.attachments if 'url' in attachment]
+    d['attachments'] = ', '.join(attachments)
+    return d
+
+
+def format_on_edit(before, after, message, check_equal=True):
+    bef_content = before.content
+    aft_content = after.content
+    if check_equal:
+        if bef_content == aft_content:
+            return
+
+    user = before.author
+
+    d = slots2dict(user)
+    d = slots2dict(after, d)
+    for e in ['name', 'before', 'after']:
+        d.pop(e, None)
+
+    d['channel'] = after.channel.mention
+    message = message.format(name=str(user), **d,
+                             before=bef_content, after=aft_content)
+
+    return message
+
+
+def format_join_leave(member, message):
+    d = slots2dict(member)
+    d.pop('user', None)
+    message = message.format(user=str(member), **d)
+    return message
+
+
+def format_on_delete(msg, message):
+    content = msg.content
+    user = msg.author
+
+    d = slots2dict(user)
+    d = slots2dict(msg, d)
+    for e in ['name', 'message']:
+        d.pop(e, None)
+
+    d['channel'] = msg.channel.mention
+    message = message.format(name=str(user), message=content, **d)
+    return message

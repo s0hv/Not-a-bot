@@ -10,6 +10,9 @@ import subprocess
 import shlex
 import asyncio
 from random import randint, random
+from sqlalchemy.exc import SQLAlchemyError
+from discord.errors import HTTPException
+
 
 logger = logging.getLogger('debug')
 
@@ -24,8 +27,8 @@ class ServerSpecific(Cog):
         return self.bot.dbutil
 
     async def _check_role_grant(self, user, role_id, server_id):
-        l = len(user.roles)
-        if l == 1:
+        length = len(user.roles)
+        if length == 1:
             user_role = 'user_role=%s' % role_id
         else:
             user_role = 'user_role IN (%s)' % ', '.join([r.id for r in user.roles])
@@ -36,7 +39,7 @@ class ServerSpecific(Cog):
             row = session.execute(sql).first()
             if not row:
                 return False
-        except:
+        except SQLAlchemyError:
             await self.bot.say('Something went wrong. Try again in a bit')
             return None
 
@@ -51,8 +54,8 @@ class ServerSpecific(Cog):
             return
 
         author = ctx.message.author
-        l = len(author.roles)
-        if l == 0:
+        length = len(author.roles)
+        if length == 0:
             return
 
         target_user = get_user_id(user)
@@ -73,7 +76,7 @@ class ServerSpecific(Cog):
 
         try:
             await self.bot.add_role(target_user, role_id, server)
-        except Exception as e:
+        except HTTPException as e:
             return await self.bot.say('Failed to add role\n%s' % e)
 
         await self.bot.say('👌')
@@ -87,8 +90,8 @@ class ServerSpecific(Cog):
             return
 
         author = ctx.message.author
-        l = len(author.roles)
-        if l == 0:
+        length = len(author.roles)
+        if length == 0:
             return
 
         target_user = get_user_id(user)
@@ -109,7 +112,7 @@ class ServerSpecific(Cog):
 
         try:
             await self.bot.remove_role(target_user, role_id, server)
-        except Exception as e:
+        except HTTPException as e:
             return await self.bot.say('Failed to remove role\n%s' % e)
 
         await self.bot.say('👌')
@@ -138,7 +141,7 @@ class ServerSpecific(Cog):
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add grant role')
             return await self.bot.say('Failed to add perms. Exception logged')
@@ -164,7 +167,7 @@ class ServerSpecific(Cog):
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to remove grant role')
             return await self.bot.say('Failed to remove perms. Exception logged')
@@ -182,7 +185,7 @@ class ServerSpecific(Cog):
             user = ' '.join(user)
             user_ = find_user(user, server.members, case_sensitive=True, ctx=ctx)
             if not user_:
-                return await self.bot.say("Couldn't find a user with %s" %  user)
+                return await self.bot.say("Couldn't find a user with %s" % user)
             author = user_
         else:
             author = ctx.message.author
@@ -190,7 +193,7 @@ class ServerSpecific(Cog):
         sql = 'SELECT `role_id` FROM `role_granting` WHERE server_id=%s AND user_role IN (%s)' % (server.id, ', '.join([r.id for r in author.roles]))
         try:
             rows = session.execute(sql).fetchall()
-        except:
+        except SQLAlchemyError:
             logger.exception('Failed to get role grants')
             return await self.bot.say('Failed execute sql')
 
@@ -217,6 +220,9 @@ class ServerSpecific(Cog):
     @command(pass_context=True)
     @cooldown(1, 3, type=BucketType.server)
     async def text(self, ctx):
+        if self.bot.test_mode:
+            return
+
         server = ctx.message.server
         if server.id not in self.whitelist:
             return
@@ -236,6 +242,9 @@ class ServerSpecific(Cog):
     @cooldown(1, 3, type=BucketType.user)
     async def default_role(self, ctx):
         """Temporary fix to easily get default role"""
+        if self.bot.test_mode:
+            return
+
         server = ctx.message.server
         if server.id not in self.whitelist:
             return
@@ -250,12 +259,15 @@ class ServerSpecific(Cog):
 
         try:
             await self.bot.add_role(member, role)
-        except:
-            return await self.bot.say('Failed to add default role. Try again in a bit')
+        except HTTPException as e:
+            return await self.bot.say('Failed to add default role because of an error.\n{}'.format(e))
 
         await self.bot.say('You now have the default role')
 
     async def on_member_join(self, member):
+        if self.bot.test_mode:
+            return
+
         server = member.server
         if server.id != '366940074635558912':
             return

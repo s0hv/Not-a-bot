@@ -163,7 +163,7 @@ class Paginator:
 
         name = name[:Limits.Title]
         value = value[:Limits.Field]
-        l = len(name) + len(value)
+        length = len(name) + len(value)
 
         if self._fields == 25:
             self._pages.append(Embed(title=self.title))
@@ -173,7 +173,7 @@ class Paginator:
             if self._current_field is not None:
                 self._add_field()
 
-        elif l + self._char_count > Limits.Total:
+        elif length + self._char_count > Limits.Total:
             self._pages.append(Embed(title=self.title))
             self._current_page += 1
             self._fields = 0

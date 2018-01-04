@@ -520,6 +520,17 @@ class Bot(commands.Bot, Client):
         await self._replace_roles(member, new_roles)
         return new_roles
 
+    async def create_custom_emoji(self, server, *, name, image, already_b64=False):
+        """Same as the base method but supports giving your own b64 encoded data"""
+        if not already_b64:
+            img = discord.utils._bytes_to_base64_data(image)
+        else:
+            img = image
+
+        data = await self.http.create_custom_emoji(server.id, name, img)
+        return discord.Emoji(server=server, **data)
+
+
     async def bulk_delete(self, channel_id, message_ids):
         await self.http.delete_messages(channel_id, message_ids)
 

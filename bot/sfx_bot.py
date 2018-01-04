@@ -54,6 +54,8 @@ class SfxBot(threading.Thread):
                 game=discord.Game(name=sfx_bot.config.sfx_game))
 
             sfx_bot.load_extension('cogs.sfx_audio')
+            sfx_bot.load_extension('cogs.utils')
+            sfx_bot.load_extension('cogs.botadmin')
 
         @sfx_bot.command(owner_only=True)
         async def reload(*, name):
@@ -93,7 +95,7 @@ class SfxBot(threading.Thread):
 
         @sfx_bot.command(pass_context=True)
         async def test(ctx):
-            await sfx_bot.send_message(ctx.message.channel, 'test', delete_after=20)
+            await sfx_bot.send_message(ctx.message.channel, 'test')
 
         sfx_bot.run(sfx_bot.config.sfx_token)
 

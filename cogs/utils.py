@@ -11,7 +11,7 @@ from discord.ext.commands import cooldown, BucketType
 
 from bot.bot import command
 from cogs.cog import Cog
-from utils.utilities import emote_url_from_id, get_emote_id
+from utils.utilities import emote_url_from_id, get_emote_id, get_emote_url
 from utils.utilities import random_color, get_avatar
 from email.utils import formatdate as format_rfc2822
 from utils.utilities import split_string
@@ -38,11 +38,11 @@ class Utilities(Cog):
 
     @command(ignore_extra=True, aliases=['e', 'emoji'])
     async def emote(self, emote: str):
-        emote = get_emote_id(emote)
+        emote = get_emote_url(emote)
         if emote is None:
             return await self.bot('You need to specify an emote. Default (unicode) emotes are not supported yet')
 
-        await self.bot.say(emote_url_from_id(emote))
+        await self.bot.say(emote)
 
     @cooldown(1, 1, type=BucketType.user)
     @command(pass_context=True, aliases=['howtoping'])
@@ -90,6 +90,7 @@ class Utilities(Cog):
         return value.lstrip('0')
 
     @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'], pass_context=True)
+    @cooldown(2, 5, BucketType.user)
     async def stats(self, ctx):
         """Get info about this bot"""
         pid = os.getpid()

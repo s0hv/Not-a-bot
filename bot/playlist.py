@@ -115,6 +115,7 @@ class Playlist:
             return await self.say('Search gave no results', 60, ctx.message.channel)
 
         channel = ctx.message.channel
+
         async def _say(msg):
             nonlocal ctx, self
             return await self.say(msg, channel=channel)

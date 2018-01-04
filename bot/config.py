@@ -44,6 +44,7 @@ class Config:
 
         self.token = self.config.get('Credentials', 'Token', fallback=None)
         self.sfx_token = self.config.get('Credentials', 'SfxToken', fallback=None)
+        self.test_token = self.config.get('Credentials', 'TestToken', fallback=None)
 
         self.mashape_key = get_config_value(self.config, 'Credentials', 'MashapeKey', str, None)
         self.google_api_key = get_config_value(self.config, 'Credentials', 'GoogleAPI', str, None)
@@ -132,6 +133,11 @@ class Config:
         if self.sfx_game is None:
             print('[INFO] No game set for sfx bot')
             self.sfx_game = ''
+
+        self.leave_message = self.config.get('Defaults', 'LeaveMessage', fallback='None')
+        self.join_message = self.config.get('Defaults', 'JoinMessage', fallback='None')
+        self.edit_message = self.config.get('Defaults', 'EditMessage', fallback='None')
+        self.delete_message = self.config.get('Defaults', 'DeleteMessage', fallback='None')
 
         self.check_values()
 

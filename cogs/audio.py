@@ -168,14 +168,14 @@ class MusicPlayer:
         except asyncio.TimeoutError:
             logger.debug('Got TimeoutError. adding_songs = {}'.format(self.playlist.adding_songs))
             if self.autoplaylist and not self.playlist.adding_songs:
-                song = await self.playlist.get_from_autoplaylist()
+                song_ = await self.playlist.get_from_autoplaylist()
 
-                if song is None:
+                if song_ is None:
                     print('[ERROR] None returned from get_from_autoplaylist. Waiting for next song')
                     return None
 
                 else:
-                    self.current = song
+                    self.current = song_
 
             else:
                 try:
@@ -1160,7 +1160,7 @@ class Audio:
 
         return await self.bot.send_message(ctx.message.channel, 'Autoplaylist set %s' % option)
 
-    def clear_cache(self, state=None):
+    def clear_cache(self):
         songs = []
         for state in self.voice_states.values():
             for song in state.playlist.playlist:
@@ -1184,7 +1184,7 @@ class Audio:
             if file not in dont_delete:
                 try:
                     os.remove(os.path.join(cachedir, file))
-                except Exception:
+                except os.error:
                     pass
 
 

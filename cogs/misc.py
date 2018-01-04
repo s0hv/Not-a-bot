@@ -24,7 +24,7 @@ class Misc(Cog):
         await self.bot.say('{0} {1}'.format(ctx.message.author.mention, words))
 
     @command(ignore_extra=True, aliases=['twitchquotes'])
-    @cooldown(1, 1, type=BucketType.server)
+    @cooldown(1, 2, type=BucketType.server)
     async def twitchquote(self, tts=None):
         """Random twitch quote from twitchquotes.com"""
         await self.bot.say(await memes.twitch_poems(self.bot.aiohttp_client), tts=bool_check(str(tts)))

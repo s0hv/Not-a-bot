@@ -14,8 +14,8 @@ from cogs.cog import Cog
 from utils.utilities import split_string, get_role, y_n_check, y_check
 import logging
 from bot.globals import Perms
-from random import choice
 logger = logging.getLogger('debug')
+from numpy.random import choice
 
 
 class Color:
@@ -81,13 +81,13 @@ class Colors(Cog):
             server_id = str(int(server))
         except:
             server_id = server.id
-        id = str(id)
-        color = Color(id, name, value, server_id, (lab_l, lab_a, lab_b))
+        id_ = str(id)
+        color = Color(id_, name, value, server_id, (lab_l, lab_a, lab_b))
 
         if server_id in self._colors:
-            self._colors[server_id][id] = color
+            self._colors[server_id][id_] = color
         else:
-            self._colors[server_id] = {id: color}
+            self._colors[server_id] = {id_: color}
 
         return color
 
@@ -102,10 +102,26 @@ class Colors(Cog):
         return discord.utils.find(lambda n: str(n[1]).lower() == name,
                                   self._colors.get(server_id, {}).items())
 
+    def search_color_(self, name):
+        name = name.lower()
+        names = list(self._color_names.keys())
+        if name in names:
+            return name, self._color_names[name]
+
+        else:
+            matches = [n for n in names if name in n]
+            if not matches:
+                return
+            if len(matches) == 1:
+                return matches[0], self._color_names[matches[0]]
+
+            return matches
+
     def match_color(self, color):
         color = color.lower()
         if color in self._color_names:
             rgb = self._color_names[color]['rgb']
+            rgb = tuple(map(lambda c: c/255.0, rgb))
         else:
             try:
                 rgb = Colour(color).rgb
@@ -165,6 +181,9 @@ class Colors(Cog):
             else:
                 await self.bot.send_message(channel, 'Failed to create color {0.name}'.format(role))
 
+    async def on_server_role_delete(self, role):
+        self._colors.get(role.server.id, {}).pop(role.id, None)
+
     @command(pass_context=True, no_pm=True, aliases=['colour'])
     @cooldown(1, 2, type=BucketType.user)
     async def color(self, ctx, *color):
@@ -211,8 +230,8 @@ class Colors(Cog):
 
         await self.bot.say('Color set to %s' % color.name)
 
-    @command(pass_context=True, no_pm=True)
-    @cooldown(1, 1, type=BucketType.server)
+    @command(pass_context=True, no_pm=True, aliases=['colours'])
+    @cooldown(1, 2, type=BucketType.server)
     async def colors(self, ctx):
         server = ctx.message.server
         colors = self._colors.get(server.id)
@@ -231,7 +250,22 @@ class Colors(Cog):
         for msg in s:
             await self.bot.say(msg)
 
-    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES)
+    @command(aliases=['search_colour'])
+    @cooldown(1, 3, BucketType.user)
+    async def search_color(self, *, name):
+        matches = self.search_color_(name)
+        if matches is None:
+            return await self.bot.say('No colors found with {}'.format(name))
+
+        if isinstance(matches, list):
+            total = len(matches)
+            matches = choice(matches, 10)
+            return await self.bot.say('Found matches a total of {0} matches\n{1}\n{2} of {0}'.format(total, '\n'.join(matches), len(matches)))
+
+        name, match = matches
+        await self.bot.say('Found color {0} {1[hex]}'.format(name, match))
+
+    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['add_colour'])
     @cooldown(1, 3, type=BucketType.server)
     async def add_color(self, ctx, color: str, *name):
         if not name:
@@ -240,9 +274,11 @@ class Colors(Cog):
             name = ' '.join(name)
 
         rgb = self.match_color(color)
+        if not rgb:
+            return await self.bot.say('Color {} not found'.format(color))
 
         server = ctx.message.server
-        color = sRGBColor(*rgb, is_upscaled=True)
+        color = sRGBColor(*rgb)
         value = int(color.get_rgb_hex()[1:], 16)
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(server.id, {}).items())
         if r:
@@ -250,14 +286,15 @@ class Colors(Cog):
             if self.bot.get_role(server, r.role_id):
                 return await self.bot.say('This color already exists')
             else:
-                self._colors.pop(k, None)
+                self._colors.get(server.id, {}).pop(k, None)
 
         color = convert_color(color, LabColor)
 
         default_perms = ctx.message.server.default_role.permissions
         try:
+            d_color = discord.Colour(value)
             color_role = await self.bot.create_role(server, name=name, permissions=default_perms,
-                                                    colour=discord.Colour(value))
+                                                    colour=d_color)
         except discord.DiscordException as e:
             logger.exception('server {0.id} rolename: {1} perms: {2} color: {3} {4}'.format(server, name, default_perms.value, str(rgb), value))
             return await self.bot.say('Failed to add color because of an error\n```%s```' % e)
@@ -282,6 +319,8 @@ class Colors(Cog):
             self._colors[server.id][color_role.id] = color_
         else:
             self._colors[server.id] = {color_role.id: color_}
+
+        await self.bot.say('Added color {} {}'.format(name, str(d_color)))
 
     @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES,
              aliases=['colors_from_roles'])
@@ -319,7 +358,8 @@ class Colors(Cog):
 
         await self._add_colors_from_roles(success, ctx)
 
-    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['del_color', 'remove_color'])
+    @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES,
+             aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
     @cooldown(1, 3, type=BucketType.server)
     async def delete_color(self, ctx, *, name):
         server = ctx.message.server
@@ -346,7 +386,7 @@ class Colors(Cog):
 
         await self.bot.say('Removed color %s' % color[1])
 
-    @command(pass_context=True, no_pm=True)
+    @command(pass_context=True, no_pm=True, aliases=['show_colours'])
     @cooldown(1, 4, type=BucketType.server)
     async def show_colors(self, ctx):
         server = ctx.message.server
@@ -385,7 +425,7 @@ class Colors(Cog):
     @command(pass_context=True, owner_only=True)
     async def color_uncolored(self, ctx):
         server = ctx.message.server
-        color_ids = list(self._colors.values())
+        color_ids = list(self._colors.get(server.id, {}).values())
         if not self._colors:
             return
 

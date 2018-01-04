@@ -45,42 +45,10 @@ class Ganypepe(Bot):
         self.load_extension('cogs.sfx_audio')
         self.load_extension('cogs.utils')
         self.load_extension('cogs.botadmin')
-
-    @command(owner_only=True)
-    async def reload(self, *, name):
-        t = time.time()
         try:
-            cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
-            self.unload_extension(cog_name)
-            self.load_extension(cog_name)
-        except Exception as e:
-                return await self.say('Could not reload %s because of an error\n%s' % (name, e))
-
-        await self.say('Reloaded {} in {:.0f}ms'.format(name, (time.time() - t) * 1000))
-
-    @command(pass_context=True, aliases=['shutdown2'], owner_only=True)
-    async def shutdown(self, ctx):
-        try:
-            audio = self.get_cog('Audio')
-            if audio:
-                await audio.shutdown()
-
-            pending = asyncio.Task.all_tasks(loop=self.loop)
-            gathered = asyncio.gather(*pending, loop=self.loop)
-            try:
-                gathered.cancel()
-                self.loop.run_until_complete(gathered)
-
-                # we want to retrieve any exceptions to make sure that
-                # they don't nag us about it being un-retrieved.
-                gathered.exception()
-            except:
-                pass
-
-        except Exception as e:
-            print('SFX bot shutdown error: %s' % e)
-        finally:
-            self.loop.run_until_complete(self.close())
+            self.add_command(self.test)
+        except (TypeError, discord.ClientException):
+            pass
 
     @command(pass_context=True)
     async def test(self, ctx):

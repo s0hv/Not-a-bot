@@ -93,22 +93,29 @@ class BotAdmin(Cog):
 
         await self.bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time()-t)*1000))
 
-    @command(pass_context=True, owner_only=True)
-    async def shutdown(self, ctx):
+    @command(owner_only=True)
+    async def shutdown(self):
         try:
-            await self.bot.change_presence()
+            audio = self.bot.get_cog('Audio')
+            if audio:
+                await audio.shutdown()
+
+            pending = asyncio.Task.all_tasks(loop=self.bot.loop)
+            gathered = asyncio.gather(*pending, loop=self.bot.loop)
             try:
-                sound = self.bot.get_cog('Audio')
-                await sound.shutdown()
+                gathered.cancel()
+                self.bot.loop.run_until_complete(gathered)
+
+                # we want to retrieve any exceptions to make sure that
+                # they don't nag us about it being un-retrieved.
+                gathered.exception()
             except:
                 pass
 
-            self.bot.aiohttp_client.close()
-
         except Exception as e:
-            print('[ERROR] Error while shutting down %s' % e)
+            print('SFX bot shutdown error: %s' % e)
         finally:
-            await self.bot.close()
+            self.bot.loop.run_until_complete(self.bot.close())
 
     @command(pass_context=True, owner_only=True)
     async def notice_me(self, ctx):

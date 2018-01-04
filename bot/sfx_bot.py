@@ -50,6 +50,6 @@ class Ganypepe(Bot):
         except (TypeError, discord.ClientException):
             pass
 
-    @command(pass_context=True)
-    async def test(self, ctx):
-        await self.send_message(ctx.message.channel, 'test')
+    @command()
+    async def test(self):
+        await self.say('test')

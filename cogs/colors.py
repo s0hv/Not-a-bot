@@ -451,7 +451,7 @@ class Colors(Cog):
                 except:
                     pass
 
-        await self.bot.say('Colored %s user(s) without color role'
+        await self.bot.say('Colored %s user(s) without color role\n'
                            'Removed duplicate colors from %s user(s)' % (colored, duplicate_colors))
 
 

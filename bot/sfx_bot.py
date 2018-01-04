@@ -26,78 +26,63 @@ SOFTWARE.
 """
 
 import asyncio
-import threading
 import time
+from discord.ext.commands import command
 
 import discord
 
 from bot.bot import Bot
 
 
-class SfxBot(threading.Thread):
-    def __init__(self, config, permissions=None, **kwargs):
-        super().__init__(**kwargs)
-        self.config = config
-        self.permissions = permissions
+class Ganypepe(Bot):
+    def __init__(self, prefix, conf, aiohttp=None, **options):
+        super().__init__(prefix, conf, aiohttp, **options)
+        discord.Game
 
-    def _start(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        sfx_bot = Bot(prefix='!!', config=self.config, perms=self.permissions)
-        if self.permissions:
-            self.permissions.sfx_bot = sfx_bot
+    async def on_ready(self):
+        print('[INFO] Logged in as {0.user.name}'.format(self))
+        await self.change_presence(game=discord.Game(name=self.config.sfx_game))
 
-        @sfx_bot.event
-        async def on_ready():
-            print('[INFO] Logged in as {0.user.name}'.format(sfx_bot))
-            await sfx_bot.change_presence(
-                game=discord.Game(name=sfx_bot.config.sfx_game))
+        self.load_extension('cogs.sfx_audio')
+        self.load_extension('cogs.utils')
+        self.load_extension('cogs.botadmin')
 
-            sfx_bot.load_extension('cogs.sfx_audio')
-            sfx_bot.load_extension('cogs.utils')
-            sfx_bot.load_extension('cogs.botadmin')
+    @command(owner_only=True)
+    async def reload(self, *, name):
+        t = time.time()
+        try:
+            cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
+            self.unload_extension(cog_name)
+            self.load_extension(cog_name)
+        except Exception as e:
+                return await self.say('Could not reload %s because of an error\n%s' % (name, e))
 
-        @sfx_bot.command(owner_only=True)
-        async def reload(*, name):
-            t = time.time()
+        await self.say('Reloaded {} in {:.0f}ms'.format(name, (time.time() - t) * 1000))
+
+    @command(pass_context=True, aliases=['shutdown2'], owner_only=True)
+    async def shutdown(self, ctx):
+        try:
+            audio = self.get_cog('Audio')
+            if audio:
+                await audio.shutdown()
+
+            pending = asyncio.Task.all_tasks(loop=self.loop)
+            gathered = asyncio.gather(*pending, loop=self.loop)
             try:
-                cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
-                sfx_bot.unload_extension(cog_name)
-                sfx_bot.load_extension(cog_name)
-            except Exception as e:
-                    return await sfx_bot.say('Could not reload %s because of an error\n%s' % (name, e))
+                gathered.cancel()
+                self.loop.run_until_complete(gathered)
 
-            await sfx_bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time() - t) * 1000))
+                # we want to retrieve any exceptions to make sure that
+                # they don't nag us about it being un-retrieved.
+                gathered.exception()
+            except:
+                pass
 
-        @sfx_bot.command(pass_context=True, aliases=['shutdown2'], owner_only=True)
-        async def shutdown(ctx):
-            try:
-                audio = sfx_bot.get_cog('Audio')
-                if audio:
-                    await audio.shutdown()
+        except Exception as e:
+            print('SFX bot shutdown error: %s' % e)
+        finally:
+            self.loop.run_until_complete(self.close())
 
-                pending = asyncio.Task.all_tasks(loop=sfx_bot.loop)
-                gathered = asyncio.gather(*pending, loop=sfx_bot.loop)
-                try:
-                    gathered.cancel()
-                    sfx_bot.loop.run_until_complete(gathered)
-
-                    # we want to retrieve any exceptions to make sure that
-                    # they don't nag us about it being un-retrieved.
-                    gathered.exception()
-                except:
-                    pass
-
-            except Exception as e:
-                print('SFX bot shutdown error: %s' % e)
-            finally:
-                sfx_bot.loop.run_until_complete(sfx_bot.close())
-
-        @sfx_bot.command(pass_context=True)
-        async def test(ctx):
-            await sfx_bot.send_message(ctx.message.channel, 'test')
-
-        sfx_bot.run(sfx_bot.config.sfx_token)
-
-    def run(self):
-        self._start()
+    @command(pass_context=True)
+    async def test(self, ctx):
+        await self.send_message(ctx.message.channel, 'test')

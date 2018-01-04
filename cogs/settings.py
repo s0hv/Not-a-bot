@@ -372,7 +372,7 @@ class Settings(Cog):
         else:
             await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(pass_context=True, invoke_without_command=True)
+    @group(pass_context=True, invoke_without_command=True, aliases=['on_join'])
     @cooldown(2, 10, BucketType.server)
     async def join_message(self, ctx):
         server = ctx.message.server
@@ -428,7 +428,7 @@ class Settings(Cog):
         else:
             await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(pass_context=True, invoke_without_command=True)
+    @group(pass_context=True, invoke_without_command=True, aliases=['on_leave'])
     @cooldown(2, 10, BucketType.server)
     async def leave_message(self, ctx):
         server = ctx.message.server

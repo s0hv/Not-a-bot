@@ -470,6 +470,7 @@ class Audio:
                 await self.on_leave(after)
         except:
             pass
+
     async def on_join(self, member):
         string = '%s joined the channel' % member.name
         path = os.path.join(TTS, 'join.mp3')

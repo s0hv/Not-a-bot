@@ -51,7 +51,7 @@ if not discord.opus.is_loaded():
 
 
 print('[INFO] Main bot starting up')
-logger.info('Starting bots')
+logger.info('Starting bot')
 bot = NotABot(prefix='!', conf=config, pm_help=False, max_messages=10000)
 bot.run(config.token)
 

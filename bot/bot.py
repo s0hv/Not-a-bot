@@ -520,6 +520,18 @@ class Bot(commands.Bot, Client):
         await self._replace_roles(member, new_roles)
         return new_roles
 
+    async def change_presence(self, *, game=None, status=None, afk=False):
+        if status is None:
+            status = 'online'
+        elif status is discord.Status.offline:
+            status = 'invisible'
+        else:
+            status = str(status)
+
+        if discord.__version__ == '0.16.4' and game and game.type is None:
+            game.type = 0
+        await self.ws.change_presence(game=game, status=status, afk=afk)
+
     async def create_custom_emoji(self, server, *, name, image, already_b64=False):
         """Same as the base method but supports giving your own b64 encoded data"""
         if not already_b64:

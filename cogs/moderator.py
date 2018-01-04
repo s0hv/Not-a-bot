@@ -221,7 +221,7 @@ class Moderator(Cog):
         channels.add(channel_.id)
         await self.bot.say('Added channel {0.name} `{0.id}`'.format(channel_))
 
-    @automute_blacklist_.command(pass_context=True, required_perms=Perms.MANAGE_SERVER|Perms.MANAGE_ROLES, name='remove', aliases=['del', 'delete'])
+    @automute_blacklist_.command(pass_context=True, required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.server)
     async def remove_(self, ctx, *, channel):
         server = ctx.message.server

@@ -261,7 +261,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await self.bot.say(msg)
 
-    @on_delete.command(pass_context=True, required_permissions=Perms.MANAGE_SERVER|Perms.MANAGE_CHANNEL)
+    @on_delete.command(pass_context=True, required_permissions=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.server)
     async def set(self, ctx, *, message_format):
         """
@@ -285,7 +285,7 @@ class Settings(Cog):
         else:
             await self.bot.say('Successfully set the message format')
 
-    @on_delete.command(pass_context=True)
+    @on_delete.command(pass_context=True, required_permissions=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.server)
     async def channel(self, ctx, *, channel=None):
         server = ctx.message.server
@@ -386,7 +386,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await self.bot.say(msg)
 
-    @join_message.command(pass_context=True, name='set', required_perms=Perms.MANAGE_CHANNEL|Perms.MANAGE_SERVER)
+    @join_message.command(pass_context=True, name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
     @cooldown(2, 10, BucketType.server)
     async def join_set(self, ctx, *, message):
         server = ctx.message.server

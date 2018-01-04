@@ -37,7 +37,6 @@ from bot.bot import Bot
 class Ganypepe(Bot):
     def __init__(self, prefix, conf, aiohttp=None, **options):
         super().__init__(prefix, conf, aiohttp, **options)
-        discord.Game
 
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))

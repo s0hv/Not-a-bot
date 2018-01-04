@@ -5,15 +5,16 @@ import shlex
 import subprocess
 import sys
 import time
+from datetime import datetime
+from email.utils import formatdate as format_rfc2822
 
 import discord
 from discord.ext.commands import cooldown, BucketType
 
 from bot.bot import command
 from cogs.cog import Cog
-from utils.utilities import emote_url_from_id, get_emote_id, get_emote_url
+from utils.utilities import get_emote_url
 from utils.utilities import random_color, get_avatar
-from email.utils import formatdate as format_rfc2822
 from utils.utilities import split_string
 
 logger = logging.getLogger('debug')
@@ -24,17 +25,21 @@ class Utilities(Cog):
         super().__init__(bot)
         self._runtime = re.compile(r'(?P<days>\d+)*?(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
 
-    @command(ignore_extra=True)
-    async def ping(self):
+    @command(pass_context=True, ignore_extra=True)
+    async def ping(self, ctx):
         """Ping pong"""
+        local_delay = datetime.utcnow().timestamp() - ctx.message.timestamp.timestamp()
         t = time.time()
-
         msg = await self.bot.say('Pong!')
         t = time.time() - t
-        sql_t = time.time()
-        self.bot.get_session.execute('SELECT 1').fetchall()
-        sql_t = time.time() - sql_t
-        await self.bot.edit_message(msg, 'Pong!\n🏓 took {:.0f}ms\nDatabase ping {:.0f}ms'.format(t*1000, sql_t*1000))
+        message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms'.format(t*1000, local_delay*1000)
+        if hasattr(self.bot, 'get_session'):
+            sql_t = time.time()
+            self.bot.get_session.execute('SELECT 1').fetchall()
+            sql_t = time.time() - sql_t
+            message += '\nDatabase ping {:.0f}ms'.format(sql_t*1000)
+
+        await self.bot.edit_message(msg, message)
 
     @command(ignore_extra=True, aliases=['e', 'emoji'])
     async def emote(self, emote: str):

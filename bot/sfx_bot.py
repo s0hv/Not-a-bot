@@ -25,13 +25,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import asyncio
-import time
-from bot.bot import command
-
 import discord
 
-from bot.bot import Bot
+from bot.bot import Bot, command
 
 
 class Ganypepe(Bot):
@@ -46,10 +42,11 @@ class Ganypepe(Bot):
         self.load_extension('cogs.utils')
         self.load_extension('cogs.botadmin')
         try:
-            self.add_command(self.test)
-        except (TypeError, discord.ClientException):
+            cmd = command('test')(self.test)
+            self.add_command(cmd)
+        except (TypeError, discord.ClientException) as e:
+
             pass
 
-    @command()
     async def test(self):
         await self.say('test')

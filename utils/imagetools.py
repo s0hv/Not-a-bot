@@ -487,7 +487,7 @@ def gradient_flash(im, get_raw=False):
             img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
             img = Image.composite(img, im, im)
             img = ImageChops.multiply(im, img)
-            img.save('{}\{}.png'.format(tempdir, idx), 'PNG')
+            img.save(os.path.join(tempdir, str(idx) + '.png'), 'PNG')
 
         p = subprocess.Popen(split('{}convert -delay 2.5 -loop 0 "{}" gif:-'.format(MAGICK, os.path.join(tempdir, '*.png'))),
                              stdout=subprocess.PIPE)

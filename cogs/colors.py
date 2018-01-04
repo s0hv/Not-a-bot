@@ -425,9 +425,9 @@ class Colors(Cog):
     @command(pass_context=True, owner_only=True)
     async def color_uncolored(self, ctx):
         server = ctx.message.server
-        color_ids = list(self._colors.get(server.id, {}).values())
+        color_ids = list(self._colors.get(server.id, {}).keys())
         if not self._colors:
-            return
+            return await self.bot.say('No colors')
 
         await self.bot.request_offline_members(server)
         roles = server.roles

@@ -250,46 +250,6 @@ class Management:
         self.utils = ManagementHandler(bot)
         self.bot.management = self.utils
 
-    async def on_message_delete(self, msg):
-        if msg.author.bot or msg.channel.id == '336917918040326166':
-            return
-
-        conf = self.utils.get_config(msg.server.id).get('on_delete', None)
-        if conf is None:
-            return
-
-        channel = msg.server.get_channel(conf['channel'])
-        if channel is None:
-            return
-
-        message = self.utils.format_on_delete(msg, conf)
-        message = split_string(message)
-        for m in message:
-            try:
-                await self.bot.send_message(channel, m)
-            except:
-                await self.bot.send_message(self.bot.get_channel('252872751319089153'), '{} posted spam string'.format(msg.author))
-
-    async def on_message_edit(self, before, after):
-        if before.author.bot or before.channel.id == '336917918040326166':
-            return
-
-        conf = self.utils.get_config(before.server.id).get('on_edit', None)
-        if not conf:
-            return
-
-        channel = before.server.get_channel(conf['channel'])
-        if channel is None:
-            return
-
-        message = self.utils.format_on_edit(before, after, conf)
-        if message is None:
-            return
-
-        message = split_string(message, maxlen=1960)
-        for m in message:
-            await self.bot.send_message(channel, m)
-
     @command(pass_context=True, owner_only=True)
     async def test2(self, ctx, mention, role1, role2, replaced):
         mention = ctx.message.server.get_member(mention)

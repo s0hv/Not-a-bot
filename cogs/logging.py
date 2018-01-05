@@ -158,7 +158,7 @@ class Logger(Cog):
 
         message = self.bot.server_cache.on_delete_message(msg.server.id, default_message=True)
         message = format_on_delete(msg, message)
-        message = split_string(message)
+        message = split_string(message, splitter='\n')
         if len(message) > 2:
             m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.server)
             logger.info(m)

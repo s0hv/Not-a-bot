@@ -225,7 +225,7 @@ class Audio:
 
         state.add_to_queue(file)
 
-    @command(name='max_combo', no_pm=True)
+    @command(name='max_combo', no_pm=True, checks=[lambda ctx: ctx.message.author.id in ['117256618617339905', '123050803752730624']])
     async def change_combo(self, max_combo=None):
         if max_combo is None:
             return await self.bot.say(self.bot.config.max_combo)
@@ -410,36 +410,6 @@ class Audio:
         p.finalize()
         for embed in p.pages:
             await self.bot.send_message(ctx.message.channel, embed=embed)
-
-    async def add_sfx(self, ctx):
-        if len(ctx.message.attachments) < 1:
-            return
-        attachments = ctx.message.attachments
-        if attachments[0]['size'] > 1000000:
-            return
-
-        name = self._get_name(attachments[0]['url'])
-        if not name.endswith('.mp3'):
-            return await self.bot.say('File needs to be an mp3')
-
-        path_name = os.path.join(SFX_FOLDER, name)
-        if os.path.exists(path_name):
-            return await self.bot.say('File with the name %s already exist' % name)
-
-        async with self.bot.aiohttp_client.get(attachments[0]['url']) as r:
-            if r.status == 200:
-                await self.bot.say('Getting file')
-                with open(path_name, 'wb') as f:
-                    async for chunk in r.content.iter_any():
-                        f.write(chunk)
-
-                return await self.bot.say('%s added' % name)
-            else:
-                return await self.bot.say('Network error %s' % r.status)
-
-    @staticmethod
-    def _get_name(url):
-        return url.split('/')[-1]
 
     @command(pass_context=True, no_pm=True, aliases=['stop2'])
     async def stop(self, ctx):

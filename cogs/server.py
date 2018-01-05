@@ -9,6 +9,7 @@ from bot.bot import command
 from bot.globals import Perms
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
+from utils.utilities import get_emote_url, get_emote_name
 
 logger = logging.getLogger('debug')
 
@@ -51,6 +52,17 @@ class Server(Cog):
 
         await self.bot.say(s)
 
+    async def _dl(self, url):
+        try:
+            data, mime_type = await raw_image_from_url(url, self.bot.aiohttp_client,
+                                                       get_mime=True)
+        except OverflowError:
+            await self.bot.say('Failed to download. File is too big')
+        except TypeError:
+            await self.bot.say('Link is not a direct link to an image')
+        else:
+            return data, mime_type
+
     @command(pass_context=True, no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'],
              required_perms=Perms.MANAGE_EMOJIS)
     @cooldown(2, 6, BucketType.server)
@@ -58,30 +70,20 @@ class Server(Cog):
         server = ctx.message.server
         author = ctx.message.author
 
-        async def dl(url):
-            try:
-                data, mime_type = await raw_image_from_url(url, self.bot.aiohttp_client, get_mime=True)
-            except OverflowError:
-                await self.bot.say('Failed to download. File is too big')
-            except TypeError:
-                await self.bot.say('Link is not a direct link to an image')
-            else:
-                return data, mime_type
-
         if is_url(link):
             if not name:
                 await self.bot.say('What do you want to name the emote as', delete_after=30)
                 msg = await self.bot.wait_for_message(author=author, channel=ctx.message.channel, timeout=30)
                 if not msg:
                     return await self.bot.say('Took too long.')
-            data = await dl(link)
+            data = await self._dl(link)
             name = ' '.join(name)
 
         else:
             if not ctx.message.attachments:
                 return await self.bot.say('No image provided')
 
-            data = await dl(ctx.message.attachments[0])
+            data = await self._dl(ctx.message.attachments[0])
             name = link + ' '.join(name)
             await self.bot.say('What do you want to name the emote as', delete_after=30)
             msg = await self.bot.wait_for_message(author=author,
@@ -112,6 +114,62 @@ class Server(Cog):
             logger.exception('Failed to create emote')
         else:
             await self.bot.say('created emote %s' % name)
+
+    @command(pass_context=True, no_pm=True, aliases=['trihard'],
+             required_perms=Perms.MANAGE_EMOJIS)
+    @cooldown(2, 6, BucketType.server)
+    async def steal(self, ctx, *emoji):
+        if not emoji:
+            return await self.bot.say('Specify the emotes you want to steal')
+
+        errors = 0
+        server = ctx.message.server
+        emotes = []
+        for e in emoji:
+            if errors >= 3:
+                return await self.bot.say('Too many errors while uploading emotes. Aborting')
+            url = get_emote_url(e)
+            if not url:
+                continue
+
+            animated, name = get_emote_name(e)
+
+            if not name:
+                continue
+
+            data = await self._dl(url)
+
+            if not data:
+                continue
+
+            data, mime = data
+            if 'gif' in mime:
+                fmt = 'data:{mime};base64,{data}'
+                b64 = base64.b64encode(data.getvalue()).decode('ascii')
+                img = fmt.format(mime=mime, data=b64)
+                already_b64 = True
+            else:
+                img = data.getvalue()
+                already_b64 = False
+
+            try:
+                 emote = await self.bot.create_custom_emoji(server=server, name=name,
+                                                            image=img,
+                                                            already_b64=already_b64)
+                 emotes.append(emote)
+            except discord.HTTPException as e:
+                if e.code == 400:
+                    return await self.bot.say('Emote capacity reached\n{}'.format(e))
+                errors += 1
+            except discord.DiscordException as e:
+                await self.bot.say('Failed to create emote because of an error\n%s' % e)
+                errors += 1
+            except:
+                await self.bot.say('Failed to create emote because of an error')
+                logger.exception('Failed to create emote')
+                errors += 1
+
+        await self.bot.say('Successfully stole {}'.format(' '.join(map(lambda e: str(e), emotes))))
 
 
 def setup(bot):

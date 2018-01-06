@@ -83,7 +83,7 @@ class Server(Cog):
             if not ctx.message.attachments:
                 return await self.bot.say('No image provided')
 
-            data = await self._dl(ctx.message.attachments[0].url)
+            data = await self._dl(ctx.message.attachments[0].get('url'))
             name = link + ' '.join(name)
             await self.bot.say('What do you want to name the emote as', delete_after=30)
             msg = await self.bot.wait_for_message(author=author,

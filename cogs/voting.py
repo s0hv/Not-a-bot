@@ -252,14 +252,14 @@ class VoteManager:
                 if not emote.strip():
                     continue
 
-                name = get_emote_name_id(emote)
+                animated, name, emote_id = get_emote_name_id(emote)
                 if name is None:
                     # TODO Better check for flag emotes
                     if len(emote) > 1:
                         continue
                     emotes.append(emote)
                 else:
-                    emotes.append(name)
+                    emotes.append((name, emote_id))
 
         if parsed.description:
             description = ' '.join(parsed.description)
@@ -362,14 +362,14 @@ class VoteManager:
                 if not emote.strip():
                     continue
 
-                name = get_emote_name_id(emote)
+                animated, name, emote_id = get_emote_name_id(emote)
                 if name is None:
                     # TODO Better check for flag emotes
                     if len(emote) > 1:
                         continue
                     emotes.append(emote)
                 else:
-                    emotes.append(name)
+                    emotes.append((name, emote_id))
 
         if parsed.description:
             description = ' '.join(parsed.description)

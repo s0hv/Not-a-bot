@@ -225,7 +225,8 @@ class Audio:
 
         state.add_to_queue(file)
 
-    @command(name='max_combo', no_pm=True, checks=[lambda ctx: ctx.message.author.id in ['117256618617339905', '123050803752730624']])
+    @command(name='max_combo', no_pm=True)
+    @commands.check(lambda ctx: ctx.message.author.id in ['117256618617339905', '123050803752730624'])
     async def change_combo(self, max_combo=None):
         if max_combo is None:
             return await self.bot.say(self.bot.config.max_combo)

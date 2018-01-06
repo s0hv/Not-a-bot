@@ -22,23 +22,24 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import logging
-import os
 import asyncio
+import logging
+import mimetypes
+import os
+import re
 import shlex
 import subprocess
 import time
 from collections import OrderedDict
-from random import randint
-from validators import url as test_url
 from datetime import timedelta
-import re
+from random import randint
 
 import discord
-from bot.exceptions import NoCachedFileException
-from datetime import datetime
+import numpy
 from sqlalchemy.exc import SQLAlchemyError
-import mimetypes
+from validators import url as test_url
+
+from bot.exceptions import NoCachedFileException
 
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
@@ -664,3 +665,17 @@ def format_on_delete(msg, message):
     d['channel'] = msg.channel.mention
     message = message.format(name=str(user), message=content, **d)
     return message
+
+
+# https://stackoverflow.com/a/14178717/6046713
+def find_coeffs(pa, pb):
+    matrix = []
+    for p1, p2 in zip(pa, pb):
+        matrix.append([p1[0], p1[1], 1, 0, 0, 0, -p2[0]*p1[0], -p2[0]*p1[1]])
+        matrix.append([0, 0, 0, p1[0], p1[1], 1, -p2[1]*p1[0], -p2[1]*p1[1]])
+
+    A = numpy.matrix(matrix, dtype=numpy.float)
+    B = numpy.array(pb).reshape(8)
+
+    res = numpy.dot(numpy.linalg.inv(A.T * A) * A.T, B)
+    return numpy.array(res).reshape(8)

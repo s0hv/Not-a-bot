@@ -14,9 +14,10 @@ from bot.bot import command
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
                               gradient_flash, sepia)
-from utils.utilities import get_image_from_message
+from utils.utilities import get_image_from_message, find_coeffs
 
 logger = logging.getLogger('debug')
+TEMPLATES = os.path.join('data', 'templates')
 
 
 class Fun(Cog):
@@ -54,7 +55,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths(self, ctx, image=None):
-        path = os.path.join('data', 'templates', 'saddest-anime-deaths.png')
+        path = os.path.join(TEMPLATES, 'saddest-anime-deaths.png')
         img = await self._get_image(ctx, image)
         if img is None:
             return
@@ -81,7 +82,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths2(self, ctx, image=None):
-        path = os.path.join('data', 'templates', 'saddest-anime-deaths2.png')
+        path = os.path.join(TEMPLATES, 'saddest-anime-deaths2.png')
         img = await self._get_image(ctx, image)
         if img is None:
             return
@@ -114,8 +115,8 @@ class Fun(Cog):
         if img is None:
             return
 
-        path = os.path.join('data', 'templates', 'is_it_a_trap.png')
-        path2 = os.path.join('data', 'templates', 'is_it_a_trap_layer.png')
+        path = os.path.join(TEMPLATES, 'is_it_a_trap.png')
+        path2 = os.path.join(TEMPLATES, 'is_it_a_trap_layer.png')
         img = img.convert("RGBA")
         await self.bot.send_typing(ctx.message.channel)
         x, y = 820, 396
@@ -138,12 +139,39 @@ class Fun(Cog):
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
 
-    @command(pass_context=True, ignore_extra=True)
+    @command(pass_context=True, ignore_extra=True, aliases=['jotaro_no'])
     @cooldown(3, 5, BucketType.server)
     async def jotaro(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if img is None:
             return
+
+        # The size we want from the transformation
+        width = 524
+        height = 326
+        d_x = 90
+        w, h = img.size
+
+        coeffs = find_coeffs(
+            [(d_x, 0), (width - d_x, 0), (width, height), (0, height)],
+            [(0, 0), (w, 0), (w, h), (0, h)])
+
+        img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
+                            Image.BICUBIC)
+
+        template = os.path.join(TEMPLATES, 'jotaro.png')
+        template = Image.open(template)
+
+        white = Image.new('RGBA', template.size, 'white')
+
+        x, y = 9, 351
+        white.paste(img, (x, y))
+        white.paste(template, mask=template)
+
+        file = BytesIO()
+        white.save(file, format='PNG')
+        file.seek(0)
+        await self.bot.send_file(ctx.message.channel, file, filename='jotaro_no.png')
 
     @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
     @cooldown(2, 5, BucketType.server)
@@ -169,7 +197,7 @@ class Fun(Cog):
 
         img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BILINEAR)
         width, height = img.width, img.height
-        tbc = Image.open(os.path.join(os.getcwd(), 'data', 'tbc.png'))
+        tbc = Image.open(os.path.join(TEMPLATES, 'tbc.png'))
         x = int(width * 0.09)
         y = int(height * 0.90)
         tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),

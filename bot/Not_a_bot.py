@@ -441,7 +441,7 @@ class NotABot(Bot):
                     overwrite_perms = self.check_blacklist('(command="%s" OR command IS NULL)' % command, message.author, ctx)
                     msg = self._blacklist_messages.get(overwrite_perms, None)
                     if isinstance(overwrite_perms, int):
-                        if message.server.owner.id == message.author.id:
+                        if message.server and message.server.owner.id == message.author.id:
                             overwrite_perms = True
                         else:
                             overwrite_perms = self._perm_returns.get(overwrite_perms, False)
@@ -457,7 +457,10 @@ class NotABot(Bot):
                 return
 
             self.dispatch('command', command, ctx)
-            s = '{0.name}/{0.id}/{1.name}/{1.id} {2} called {3}'.format(message.server, message.channel, str(message.author), command.name)
+            if message.server:
+                s = '{0.name}/{0.id}/{1.name}/{1.id} {2} called {3}'.format(message.server, message.channel, str(message.author), command.name)
+            else:
+                s = 'DM/{0.id} {0} called {1}'.format(message.author, command.name)
             print(str(datetime.now()) + ' ' + s)
             logger.debug(s)
             try:

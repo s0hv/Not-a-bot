@@ -145,7 +145,7 @@ class Fun(Cog):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-
+        await self.bot.send_typing(ctx.message.channel)
         # The size we want from the transformation
         width = 524
         height = 326

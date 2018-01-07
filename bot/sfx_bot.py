@@ -39,7 +39,7 @@ class Ganypepe(Bot):
         super().__init__(prefix, conf, aiohttp, **options)
         self.test_mode = test_mode
         self._setup()
-        self._db_utils = DatabaseUtils(self)
+        self._dbutil = DatabaseUtils(self)
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'

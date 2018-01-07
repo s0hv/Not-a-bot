@@ -28,11 +28,37 @@ SOFTWARE.
 import discord
 
 from bot.bot import Bot, command
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import scoped_session, sessionmaker
+from bot.dbutil import DatabaseUtils
 
 
 class Ganypepe(Bot):
-    def __init__(self, prefix, conf, aiohttp=None, **options):
+    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
         super().__init__(prefix, conf, aiohttp, **options)
+        self.test_mode = test_mode
+        self._db_utils = DatabaseUtils(self)
+
+    def _setup(self):
+        db = 'discord' if not self.test_mode else 'test'
+        engine = create_engine('mysql+pymysql://{0.sfx_db_user}:{0.sfx_db_passw}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
+                               encoding='utf8')
+        session_factory = sessionmaker(bind=engine)
+        Session = scoped_session(session_factory)
+        self._Session = Session
+
+    @property
+    def get_session(self):
+        return self._Session()
+
+    @property
+    def dbutil(self):
+        return self._dbutil
+
+    @property
+    def dbutils(self):
+        return self._dbutil
 
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))
@@ -41,6 +67,7 @@ class Ganypepe(Bot):
         self.load_extension('cogs.sfx_audio')
         self.load_extension('cogs.utils')
         self.load_extension('cogs.botadmin')
+        self.load_extension('cogs.last_seen')
         try:
             cmd = command('test')(self.test)
             self.add_command(cmd)

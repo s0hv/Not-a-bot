@@ -224,14 +224,14 @@ CREATE TABLE `nn_text` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-CREATE TABLE `last_seen` (
+CREATE TABLE `last_seen_users` (
     `user_id` BIGINT NOT NULL,
-    `server_id` BIGINT DEFAULT NULL,
-    `last_seen` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`user_id`, `server_id`)
-    FOREIGN KEY (`user_id`) REFERENCES `users`(`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
+    `username` VARCHAR(40) COLLATE utf8mb4_unicode_ci NOT NULL,
+    `server_id` BIGINT DEFAULT 0,
+    `last_seen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`user_id`, `server_id`),
+    KEY (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ------------------------
 -- UNDER CONSTRUCTION --
 ------------------------

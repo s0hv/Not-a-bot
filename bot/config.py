@@ -57,6 +57,10 @@ class Config:
         self.db_password = get_config_value(self.config, 'Database', 'Password', str)
         self.db_host = get_config_value(self.config, 'Database', 'Host', str)
         self.db_port = get_config_value(self.config, 'Database', 'Port', str)
+        self.sfx_db_user = get_config_value(self.config, 'Database', 'SFXUsername', str)
+        self.sfx_db_pass = get_config_value(self.config, 'Database', 'SFXPassword', str)
+
+
         try:
             self.owner = str(self.config.get('Owner', 'OwnerID', fallback=None))
             int(self.owner)
@@ -142,9 +146,14 @@ class Config:
         self.check_values()
 
     def check_values(self):
-        assert self.token != 'bot_token', 'You need to specify your bots token in the config'
-        assert self.token != self.sfx_token, "The bots can't have the same token"
-        assert self.owner != 'id', 'Please put your discord user id to the config'
+        if self.token == 'bot_token':
+            raise ValueError('You need to specify your bots token in the config')
+
+        if self.token == self.sfx_token:
+            raise ValueError("The bots can't have the same token")
+
+        if self.owner == 'id':
+            raise ValueError('Please put your discord user id to the config')
 
         if self.sfx_token is not None and self.sfx_token.lower() == 'bot_token':
             print('[INFO] No valid token given for sfx bot. Only main bot will be used')

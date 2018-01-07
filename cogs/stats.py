@@ -1,10 +1,15 @@
-from cogs.cog import Cog
-from sqlalchemy.dialects import mysql
-from sqlalchemy import text
-from bot.bot import command
+import logging
+
 import discord
 from discord.ext.commands import cooldown, BucketType
-import logging
+from sqlalchemy import text
+from sqlalchemy.dialects import mysql
+from sqlalchemy.exc import SQLAlchemyError
+
+from bot.bot import command
+from cogs.cog import Cog
+from utils.utilities import check_user_mention
+
 logger = logging.getLogger('debug')
 
 
@@ -75,6 +80,72 @@ class Stats(Cog):
                             value='<@&{}>\n{}\nwith {} mentions'.format(role, role_name, row['amount']))
 
         await self.bot.send_message(ctx.message.channel, embed=embed)
+
+    @command(pass_context=True, aliases=['seen'])
+    @cooldown(1, 5, BucketType.user)
+    async def last_seen(self, ctx, *, name):
+        user_id = None
+        try:
+            user = int(name)
+            user_id = user
+            is_id = True
+        except ValueError:
+            if check_user_mention(ctx.message, name):
+                user = ctx.message.mentions[0].id
+                user_id = user_id
+                name = str(ctx.message.mentions[0])
+                is_id = True
+            else:
+                is_id = False
+                user = name
+
+        server = ctx.message.server
+        if server is not None:
+            server = int(server.id)
+            sql = 'SELECT * FROM `last_seen_users` WHERE (server_id=0 OR server_id=:server) AND '
+        else:
+            server = 0
+            sql = 'SELECT * FROM `last_seen_users` WHERE server_id=0 AND'
+
+        if is_id:
+            sql += 'user_id=:user ORDER BY last_seen DESC LIMIT 2'
+        else:
+            sql += 'username=:user ORDER BY last_seen DESC LIMIT 2'
+
+        session = self.bot.get_session
+        try:
+            rows = session.execute(sql, {'server': server, 'user': user}).fetchall()
+        except SQLAlchemyError as e:
+            print(e)
+            return await self.bot.say('Failed to get user because of an error')
+
+        if len(rows) == 0:
+            return await self.bot.say("No users found with {}. Either the bot hasn't had the chance to log activity or the name was wrong."
+                                      "Names are case sensitive and must include the discrim".format(name))
+        local = None
+        global_ = None
+
+        for row in rows:
+            if row['server_id'] == 0:
+                global_ = row
+
+            else:
+                local = row
+
+        if user_id is None:
+            if local:
+                user_id = local['user_id']
+            else:
+                user_id = global_['user_id']
+
+        msg = 'User {} `{}`\n'.format(name, user_id)
+        if local:
+            msg += 'Last seen on this server {} UTC\n'.format(local['last_seen'])
+        if global_:
+            msg += 'Last seen elsewhere {} UTC'.format(global_['last_seen'])
+
+        await self.bot.say(msg)
+
 
 
 def setup(bot):

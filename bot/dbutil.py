@@ -297,3 +297,17 @@ class DatabaseUtils:
             success = False
 
         return success
+
+    def multiple_last_seen(self, user_ids, usernames, server_ids, timestamps):
+        sql = 'INSERT INTO `last_seen_users` (`user_id`, `username`, `server_id`, `last_seen`) VALUES (:user, :username, :server, :time) ON DUPLICATE KEY UPDATE last_seen=VALUES(`last_seen`), username=VALUES(`username`)'
+        data = [{'user': uid, 'username': u, 'server': s, 'time': t} for uid, u, s, t in zip(user_ids, usernames, server_ids, timestamps)]
+        session = self.bot.get_session
+        try:
+            session.execute(sql, data)
+            session.commit()
+        except SQLAlchemyError:
+            logger.exception('Failed to set last seen')
+            session.rollback()
+            return False
+
+        return True

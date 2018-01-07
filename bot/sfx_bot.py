@@ -43,7 +43,7 @@ class Ganypepe(Bot):
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'
-        engine = create_engine('mysql+pymysql://{0.sfx_db_user}:{0.sfx_db_passw}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
+        engine = create_engine('mysql+pymysql://{0.sfx_db_user}:{0.sfx_db_pass}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
                                encoding='utf8')
         session_factory = sessionmaker(bind=engine)
         Session = scoped_session(session_factory)

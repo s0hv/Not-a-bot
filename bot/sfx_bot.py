@@ -38,6 +38,7 @@ class Ganypepe(Bot):
     def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
         super().__init__(prefix, conf, aiohttp, **options)
         self.test_mode = test_mode
+        self._setup()
         self._db_utils = DatabaseUtils(self)
 
     def _setup(self):

@@ -28,29 +28,28 @@ class LastSeen(Cog):
         self.threadpool = ThreadPoolExecutor(4)
         self._update_task = self.bot.loop.create_task(self._status_loop())
         self._update_task_checker = self.bot.loop.create_task(self._check_loop())
-        self._lock = asyncio.Lock(loop=self.bot.loop)
 
     def save_updates(self):
         if not self._updates:
             return
 
+        updates = self._updates
+        self._updates = {}
         user_ids = []
         server_ids = []
         times = []
         usernames = []
-        for update in self._updates.values():
+        for update in updates.values():
             user_ids.append(int(update.user_id))
             usernames.append(update.username)
             server_ids.append(int(update.server_id))
             times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
-        self._updates.clear()
         self.bot.dbutils.multiple_last_seen(user_ids, usernames, server_ids, times)
 
     async def _check_loop(self):
-        await asyncio.sleep(60)
+        await asyncio.sleep(120)
         if self._update_task.done():
             self._update_task = self.bot.loop.create_task(self._status_loop())
-            self._lock.release()
 
     async def _status_loop(self):
         while True:
@@ -59,18 +58,12 @@ class LastSeen(Cog):
             if not self._updates:
                 continue
 
-            if self._lock.locked():
-                continue
-
-            await self._lock.acquire()
             try:
                 await asyncio.shield(self.bot.loop.run_in_executor(self.threadpool, self.save_updates))
             except asyncio.CancelledError:
                 return
             except asyncio.TimeoutError:
                 continue
-            finally:
-                self._lock.release()
 
     @staticmethod
     def status_changed(before, after):

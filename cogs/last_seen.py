@@ -84,6 +84,11 @@ class LastSeen(Cog):
             self._updates[o] = o
             return
 
+    async def on_reaction_add(self, reaction, user):
+        server = None if not user.server else user.server.id
+        o = UserSeen(user, server)
+        self._updates[o] = o
+
 
 def setup(bot):
     bot.add_cog(LastSeen(bot))

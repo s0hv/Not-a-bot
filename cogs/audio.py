@@ -32,6 +32,7 @@ from collections import deque
 from math import floor
 import argparse
 from bot.globals import Auth
+from functools import partial
 
 try:
     import aubio
@@ -840,6 +841,7 @@ class Audio:
         state.resume()
 
     @command(name='bpm', pass_context=True, no_pm=True, ignore_extra=True)
+    @commands.cooldown(1, 8, BucketType.server)
     async def bpm(self, ctx):
         """Gets the currently playing songs bpm using aubio"""
         if not aubio:
@@ -847,12 +849,11 @@ class Audio:
 
         state = self.get_voice_state(ctx.message.server)
         song = state.current
-        channel = ctx.message.channel
         if not state.is_playing() or not song:
             return
 
         if song.bpm:
-            return await self.bot.say('BPM for {} is about **{}**'.format(song.title, song.bpm))
+            return await self.bot.say('BPM for {} is about **{}**'.format(song.title, round(song.bpm, 1)))
 
         if song.duration == 0:
             return await self.bot.say('Cannot determine bpm because duration is 0', delete_after=90)
@@ -871,7 +872,7 @@ class Audio:
 
         from utils.utilities import write_wav
 
-        write_wav(p.stdout, tempfile)
+        await self.bot.loop.run_in_executor(self.bot.threadpool, partial(write_wav, p.stdout, tempfile))
 
         try:
             win_s = 512  # fft size

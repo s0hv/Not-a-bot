@@ -31,8 +31,8 @@ logger = logging.getLogger('audio')
 
 
 class Song:
-    __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'uploader',
-                 'playlist', 'seek', 'success', 'filename', 'before_options',
+    __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
+                 'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
                  'options', 'dl_folder', '_downloading', 'on_ready', 'player',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live']
 
@@ -42,6 +42,7 @@ class Song:
         self.webpage_url = kwargs.pop('webpage_url', None)
         self.id = kwargs.pop('id', None)
         self.duration = kwargs.pop('duration', 0)
+        self.default_duration = self.duration  # Used when speed is changed
         self.uploader = kwargs.pop('uploader', 'None')
         self.requested_by = kwargs.pop('requested_by', None)
         self.is_live = kwargs.pop('is_live', True)
@@ -92,6 +93,7 @@ class Song:
         self.webpage_url = kwargs.get('webpage_url', self.webpage_url)
         self.id = kwargs.get('id', self.id)
         self.duration = kwargs.get('duration', self.duration)
+        self.default_duration = self.duration
         self.uploader = kwargs.get('uploader', self.uploader)
         self.before_options = kwargs.get('before_options', self.before_options)
         self.options = kwargs.get('options', self.options)

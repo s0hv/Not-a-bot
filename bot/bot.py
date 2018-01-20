@@ -680,6 +680,7 @@ class StreamPlayer(voice_client.StreamPlayer):
         self.audio_buffer = Deque(maxlen=200)
         self._stream_finished = threading.Event()
         self.run_loops = run_loops
+        self.max_frameskip = 3
 
     def buffer_audio(self):
         if not self._stream_finished.is_set() and not self.audio_buffer.full():
@@ -691,6 +692,7 @@ class StreamPlayer(voice_client.StreamPlayer):
     def _do_run(self):
         self.loops = 0
         self._start = time.time()
+        frameskip = 0
         while not self._end.is_set():
             # are we paused?
             if not self._resumed.is_set():
@@ -709,6 +711,11 @@ class StreamPlayer(voice_client.StreamPlayer):
                 data = self.buff.read(self.frame_size)
                 while not self.audio_buffer.full() and not self._stream_finished.is_set() and not self._end.is_set():
                     self.buffer_audio()
+            if frameskip > 0:
+                frameskip -= 1
+                print(frameskip)
+                self.run_loops += 1
+                continue
 
             if self._volume != 1.0:
                 data = audioop.mul(data, 2, min(self._volume, 2.0))
@@ -720,11 +727,15 @@ class StreamPlayer(voice_client.StreamPlayer):
             self.player(data)
             self.run_loops += 1
             next_time = self._start + self.delay * self.loops
-            delay = max(0, self.delay + (next_time - time.time()))
+            delay = self.delay + (next_time - time.time())
+            if delay < 0:
+                frameskip = min(self.max_frameskip, abs(int(delay/self.delay)))
+                continue
             time.sleep(delay)
 
     @property
     def duration(self):
+        # TODO Make compatible with the speed command
         return self.run_loops * self.frame_size / self.bitrate
 
     @property

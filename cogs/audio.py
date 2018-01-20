@@ -711,6 +711,7 @@ class Audio:
         current = state.current
         if current is None:
             return await self.bot.say('Not playing anything right now', delete_after=20)
+        current.duration = int(current.default_duration / v)
         sec = state.player.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)

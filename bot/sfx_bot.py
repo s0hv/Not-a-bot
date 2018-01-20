@@ -33,6 +33,11 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 from bot.dbutil import DatabaseUtils
 
+initial_cogs = ['cogs.sfx_audio',
+                'cogs.utils',
+                'cogs.botadmin',
+                'cogs.last_seen']
+
 
 class Ganypepe(Bot):
     def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
@@ -61,14 +66,20 @@ class Ganypepe(Bot):
     def dbutils(self):
         return self._dbutil
 
+    async def _load_cogs(self, print_err=True):
+        for cog in initial_cogs:
+            try:
+                self.load_extension(cog)
+            except Exception as e:
+                if print_err:
+                    print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                else:
+                    self.say('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+
     async def on_ready(self):
         print('[INFO] Logged in as {0.user.name}'.format(self))
         await self.change_presence(game=discord.Game(name=self.config.sfx_game))
-
-        self.load_extension('cogs.sfx_audio')
-        self.load_extension('cogs.utils')
-        self.load_extension('cogs.botadmin')
-        self.load_extension('cogs.last_seen')
+        await self._load_cogs()
         try:
             cmd = command('test')(self.test)
             self.add_command(cmd)

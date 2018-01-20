@@ -416,13 +416,34 @@ class Audio:
         return '-ss {0}:{1}:{2}.{3}'.format(h.zfill(2), m.zfill(2), s.zfill(2), ms)
 
     @staticmethod
-    def _parse_filters(options: str, filter_name: str, value: str):
-        logger.debug('Parsing filters: {0}, {1}, {2}'.format(options, filter_name,value))
-        matches = re.findall(r'(?: |,|^)(%s=\w*.+?)(?:,|$)' % filter_name, options)
+    def _parse_filters(options: str, filter_name: str, value: str, remove=False):
+        logger.debug('Parsing filters: {0}, {1}, {2}'.format(options, filter_name, value))
+        if remove:
+            matches = re.findall(r'("|^|, )({}=.+?)(, |"|$)'.format(filter_name), options)
+        else:
+            matches = re.findall(r'(?: |"|^|,)({}=.+?)(?:, |"|$)'.format(filter_name), options)
         logger.debug('Filter matches: {}'.format(matches))
-        if matches:
-            options.replace(matches[0].strip(), '{0}={1}'.format(filter_name, value))
+
+        if remove:
+            if not matches:
+                return options
+            matches = matches[0]
+            if matches.count(' ,') == 2:
+                options = options.replace(''.join(matches), ', ')
+
+            elif matches[0] == '"':
+                options = options.replace(''.join(matches[1:3]), '')
+            elif matches[2] == '"':
+                options = options.replace(''.join(matches[:2]), '')
+            else:
+                options = options.replace(''.join(matches), '')
+            if '-filter:a ""' in options:
+                options = options.replace('-filter:a ""', '')
+
             return options
+
+        if matches:
+            return options.replace(matches[0].strip(), '{0}={1}'.format(filter_name, value))
 
         else:
             filt = '{0}={1}'.format(filter_name, value)
@@ -695,7 +716,7 @@ class Audio:
         seek = self._seek_from_timestamp(sec)
         options = self._parse_filters(current.options, 'atempo', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
-
+        current.options = options
         await self._seek(ctx, state, current, seek, options=options)
 
     @commands.cooldown(1, 5, commands.BucketType.server)
@@ -721,31 +742,34 @@ class Audio:
         value = 'g=%s' % value
         options = self._parse_filters(current.options, 'bass', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
-
+        current.options = options
         await self._seek(ctx, state, current, seek, options=options)
 
     @commands.cooldown(2, 5, commands.BucketType.server)
-    @command(pass_context=True, no_pm=True)
-    async def stereo(self, ctx, *, song_name: str):
+    @command(pass_context=True, no_pm=True, ignore_extra=True)
+    async def stereo(self, ctx, mode='sine'):
         """ Works almost the same way !play does
         Default stereo type is sine.
         All available modes are `sine`, `triangle`, `square`, `sawup` and `sawdown`
         To set a different mode start your command parameters with -mode song_name
         e.g. `!stereo -square stereo cancer music` would use the square mode
          """
-        words = song_name.split(' ')
 
-        mode = 'sine'
-        if len(words) > 1 and words[0].startswith('-'):
-            s = words[0][1:]
-            if s in ['sine', 'triangle', 'square', 'sawup', 'sawdown']:
-                mode = s
-                song_name = ' '.join(words[1:])
-        else:
-            song_name = ' '.join(words)
+        state = self.get_voice_state(ctx.message.server)
+        current = state.current
+        if current is None:
+            return await self.bot.say('Not playing anything right now', delete_after=20)
+        mode = mode.lower()
+        modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off')
+        if mode not in modes:
+            return await self.bot.say('Incorrect mode specified')
 
-        options = {'filter': 'apulsator=mode=%s' % mode}
-        await self.play_song(ctx, song_name, dont_parse=True, **options)
+        sec = state.player.duration
+        logger.debug('seeking with timestamp {}'.format(sec))
+        seek = self._seek_from_timestamp(sec)
+        options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
+        current.options = options
+        await self._seek(ctx, state, current, seek, options=options)
 
     @command(pass_context=True, no_pm=True)
     async def clear(self, ctx, *, items):

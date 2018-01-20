@@ -713,7 +713,6 @@ class StreamPlayer(voice_client.StreamPlayer):
                     self.buffer_audio()
             if frameskip > 0:
                 frameskip -= 1
-                print(frameskip)
                 self.run_loops += 1
                 continue
 

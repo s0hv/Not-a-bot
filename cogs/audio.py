@@ -258,7 +258,7 @@ class MusicPlayer:
                                                                       options=self.current.options)
 
             if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str) and not self.current.is_live:
-                db = mean_volume(file)
+                db = await mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration)
                 if db is None or abs(db) < 0.1:
                     volume = self.volume
                 else:
@@ -305,7 +305,7 @@ class MusicPlayer:
         if file is None:
             return
 
-        vol = self._get_volume_from_db(mean_volume(file))
+        vol = self._get_volume_from_db(await mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration))
         self.current.player.stop()
         self.current.player = self.voice.create_ffmpeg_player(file,
                                                               after=self.on_stop,

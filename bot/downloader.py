@@ -32,7 +32,7 @@ import youtube_dl
 
 
 opts = {
-    'format': 'bestaudio/best',
+    'format': '[abr<130]/bestaudio/best',
     'extractaudio': True,
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,

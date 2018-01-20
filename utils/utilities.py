@@ -106,17 +106,23 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
     raise NotImplementedError('This only works with dicts and strings for now')
 
 
-def mean_volume(file, avconv=False):
+async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
+    """Gets the mean volume from"""
     audio.debug('Getting mean volume')
     ffmpeg = 'ffmpeg' if not avconv else 'avconv'
     file = '"{}"'.format(file)
 
-    cmd = '{0} -i {1} -t 00:10:00 -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file)
+    if not duration:
+        start, stop = 0, 180
+    else:
+        start = int(duration * 0.2)
+        stop = start + 180
+    cmd = '{0} -i {1} -ss {2} -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file, start, stop)
 
     args = shlex.split(cmd)
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    out, err = process.communicate()
+    out, err = await loop.run_in_executor(threadpool, process.communicate)
     out += err
 
     matches = re.findall('mean_volume: [\-\d\.]+ dB', str(out))

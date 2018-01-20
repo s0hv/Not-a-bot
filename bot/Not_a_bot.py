@@ -42,7 +42,7 @@ from bot.globals import BlacklistTypes
 from bot.servercache import ServerCache
 from utils.utilities import (split_string, slots2dict, retry, random_color)
 import mimetypes
-
+from concurrent.futures import ThreadPoolExecutor
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -103,6 +103,7 @@ class NotABot(Bot):
         self.hi_new = {ord(c): '' for c in ", '"}
         self._dbutil = DatabaseUtils(self)
         self._setup()
+        self.threadpool = ThreadPoolExecutor(4)
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'

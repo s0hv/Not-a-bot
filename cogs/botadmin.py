@@ -94,6 +94,10 @@ class BotAdmin(Cog):
         await self.bot.say('Reloaded {} in {:.0f}ms'.format(name, (time.time()-t)*1000))
 
     @command(owner_only=True)
+    async def reload_all(self):
+        await self.bot._load_cogs(print_err=False)
+
+    @command(owner_only=True)
     async def shutdown(self):
         try:
             audio = self.bot.get_cog('Audio')

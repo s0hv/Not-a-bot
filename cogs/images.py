@@ -6,14 +6,14 @@ from functools import partial
 from io import BytesIO
 from random import randint, random
 
-from PIL import Image
+from PIL import Image, ImageSequence
 from discord.ext.commands import cooldown, BucketType
 from selenium.webdriver import PhantomJS
 
 from bot.bot import command
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
-                              gradient_flash, sepia)
+                              gradient_flash, sepia, optimize_gif)
 from utils.utilities import get_image_from_message, find_coeffs
 
 logger = logging.getLogger('debug')
@@ -172,6 +172,67 @@ class Fun(Cog):
         white.save(file, format='PNG')
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='jotaro_no.png')
+
+    @command(pass_context=True, ignore_extra=True, aliases=['jotaro_photo'])
+    @cooldown(2, 5, BucketType.server)
+    async def jotaro2(self, ctx, image=None):
+        """Jotaro takes an image and looks at it"""
+        # Set to false because discord doesn't embed it correctly
+        # Should be used if it can be embedded since the file size is much smaller
+        use_webp = False
+
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+        await self.bot.send_typing(ctx.message.channel)
+
+        r = 34.7
+        x = 6
+        y = -165
+        width = 468
+        height = 439
+        duration = [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+                    80, 120, 120, 120, 120, 120, 30, 120, 120, 120, 120, 120,
+                    120, 120, 760, 2000]  # Frame timing
+
+        frames = [frame.copy().convert('RGBA') for frame in ImageSequence.Iterator(Image.open(os.path.join(TEMPLATES, 'jotaro_photo.gif')))]
+        photo = os.path.join(TEMPLATES, 'photo.png')
+        finger = os.path.join(TEMPLATES, 'finger.png')
+
+        im = Image.open(photo)
+        img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BICUBIC,
+                                       can_be_bigger=False, crop_to_size=True,
+                                       center_cropped=True, background_color='black')
+        w, h = img.size
+        width, height = (472, 441)
+        coeffs = find_coeffs(
+            [(0, 0), (437, 0), (width, height), (0, height)],
+            [(0, 0), (w, 0), (w, h), (0, h)])
+        img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
+                            Image.BICUBIC)
+        img = img.rotate(r, resample=Image.BICUBIC, expand=True)
+        im.paste(img, box=(x, y), mask=img)
+        finger = Image.open(finger)
+        im.paste(finger, mask=finger)
+        frames[-1] = im
+
+        if use_webp:
+            # We save room for some colors when not using the shadow in a gif
+            shadow = os.path.join(TEMPLATES, 'photo.png')
+            im.alpha_composite(shadow)
+            extension = 'webp'
+            kwargs = {}
+        else:
+            # Duration won't work in the save() params when using a gif so I have to do it this way
+            frames[0].info['duration'] = duration
+            extension = 'gif'
+            kwargs = {'optimize': True}
+
+        file = BytesIO()
+        frames[0].save(file, format=extension, save_all=True, append_images=frames[1:], duration=duration, **kwargs)
+        file.seek(0)
+        file = await self.bot.loop.run_in_executor(self.threadpool, partial(optimize_gif, file.getvalue()))
+        await self.bot.send_file(ctx.message.channel, file, filename='jotaro_photo.{}'.format(extension))
 
     @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
     @cooldown(2, 5, BucketType.server)

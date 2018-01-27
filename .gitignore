@@ -20,12 +20,10 @@ data/audio/
 
 # Test files
 yttest.py
-test.py
 sfxtest.py
-test.txt
 db.db
 color_data.json
-test.png
+text.*
 
 # Auto-generated files
 battletags.json
@@ -40,6 +38,5 @@ utils/__pycache__/imagetools.cpython-35.pyc
 bot/__pycache__/dbutil.cpython-35.pyc
 bot/__pycache__/formatter.cpython-35.pyc
 bot/__pycache__/servercache.cpython-35.pyc
-text.txt
 
 !database.sql

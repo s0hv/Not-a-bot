@@ -454,6 +454,7 @@ def create_shadow(img, percent, opacity, x, y):
 
 
 def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
+                             center_cropped=False, background_color=None,
                              resample=Image.NEAREST):
     x, y = img.size
     x_m = x / new_size[0]
@@ -466,7 +467,21 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
 
     img = img.resize((int(x * m), int(y * m)), resample=resample)
     if crop_to_size:
-        img = img.crop((0, 0, *new_size))
+        if center_cropped:
+            w, h = img.size
+            x_ = 0
+            y_ = 0
+            if w != x:
+                x_ = -int((new_size[0] - w)/2)
+            if h != y:
+                y_ = -int((new_size[1] - h)/2)
+            img = img.crop((x_, y_, new_size[0] + x_, new_size[1] + y_))
+        else:
+            img = img.crop((0, 0, *new_size))
+    if background_color is not None:
+        im = Image.new(img.mode, img.size, background_color)
+        im.paste(img, mask=img)
+        img = im
     return img
 
 
@@ -501,6 +516,15 @@ def gradient_flash(im, get_raw=False):
     except Exception as e:
         shutil.rmtree(tempdir, ignore_errors=True)
         logger.exception('{} Failed to create gif'.format(e))
+
+
+def optimize_gif(gif_bytes):
+    cmd = '{}convert - -dither none -deconstruct -layers optimize -matte -depth 8 gif:-'.format(MAGICK)
+    p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    p.stdin.write(gif_bytes)
+    out, err = p.communicate()
+    buff = BytesIO(out)
+    return buff
 
 
 r"""

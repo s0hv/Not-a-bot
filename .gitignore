@@ -30,13 +30,6 @@ battletags.json
 data/servers.json
 data/images/
 data/temp/
-
-bot/__pycache__/Not_a_bot.cpython-35.pyc
-bot/__pycache__/cooldown.cpython-35.pyc
-cogs/__pycache__/
-utils/__pycache__/imagetools.cpython-35.pyc
-bot/__pycache__/dbutil.cpython-35.pyc
-bot/__pycache__/formatter.cpython-35.pyc
-bot/__pycache__/servercache.cpython-35.pyc
+__pycache__
 
 !database.sql

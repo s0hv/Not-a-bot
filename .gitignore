@@ -32,5 +32,6 @@ data/servers.json
 data/images/
 data/temp/
 __pycache__/
+data/pokefusion/sprPKMType_*
 
 !database.sql

@@ -336,11 +336,12 @@ class Moderator(Cog):
 
         server = self.bot.get_server(server_id)
         if server is None:
-            self.remove_timeout(user.id, server.id)
+            self.remove_timeout(user, server_id)
             return
 
         user = server.get_member(user)
         if not user:
+            self.remove_timeout(user, server_id)
             return
 
         if self.bot.get_role(server, mute_role):

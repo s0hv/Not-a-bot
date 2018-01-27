@@ -111,5 +111,11 @@ class BotValueError(BotException):
     pass
 
 
+class NoPokeFoundException(BotException):
+    @property
+    def message(self):
+        return 'No pokemon found with {}'.format(self._message)
+
+
 class NoCachedFileException(Exception):
     pass

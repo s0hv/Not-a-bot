@@ -6,11 +6,15 @@ from functools import partial
 from io import BytesIO
 from random import randint, random
 
-from PIL import Image, ImageSequence
+from PIL import Image, ImageSequence, ImageFont, ImageDraw
 from discord.ext.commands import cooldown, BucketType
 from selenium.webdriver import PhantomJS
+from bs4 import BeautifulSoup
+import time
+import base64
 
 from bot.bot import command
+from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
                               gradient_flash, sepia, optimize_gif)
@@ -18,6 +22,171 @@ from utils.utilities import get_image_from_message, find_coeffs
 
 logger = logging.getLogger('debug')
 TEMPLATES = os.path.join('data', 'templates')
+
+
+class Pokefusion:
+    RANDOM = '%'
+
+    def __init__(self, client, bot):
+        self._last_dex_number = 0
+        self._pokemon = {}
+        self._last_updated = 0
+        self._client = client
+        self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
+        self._driver_lock = Lock()
+        self.driver = PhantomJS(bot.config.phantomjs)
+        self._bot = bot
+
+    @property
+    def bot(self):
+        return self._bot
+
+    @property
+    def last_dex_number(self):
+        return self._last_dex_number
+
+    @property
+    def client(self):
+        return self._client
+
+    def is_dex_number(self, s):
+        # No need to convert when the number is that big
+        if len(s) > 5:
+            return False
+        try:
+            return int(s) <= self.last_dex_number
+        except ValueError:
+            return False
+
+    async def cache_types(self, start=1):
+        name = 'sprPKMType_{}.png'
+        url = 'http://pokefusion.japeal.com/sprPKMType_{}.png'
+        while True:
+            r = await self.client.get(url.format(start))
+            if r.status == 404:
+                await r.close()
+                break
+
+            with open(os.path.join(self._data_folder, name.format(start)), 'wb') as f:
+                f.write(await r.read())
+
+            start += 1
+
+    async def update_cache(self):
+        r = await self.client.get('http://pokefusion.japeal.com/PKMSelectorV3.php')
+        soup = BeautifulSoup(await r.text(), 'lxml')
+        selector = soup.find(id='s1')
+        if selector is None:
+            logger.debug('Failed to update pokefusion cache')
+            return False
+
+        pokemon = selector.find_all('option')
+        for idx, p in enumerate(pokemon[1:]):
+            name = ' #'.join(p.text.split(' #')[:-1])
+            self._pokemon[name.lower()] = idx + 1
+        self._last_dex_number = len(pokemon)
+        types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
+        #await self.cache_types(start=len(list(types)))
+        self._last_updated = time.time()
+
+    def get_by_name(self, name):
+        poke = self._pokemon.get(name.lower())
+        if poke is None:
+            for poke, v in self._pokemon.items():
+                if name in poke:
+                    return v
+
+    def get_by_dex_n(self, n: int):
+        return n if n <= self.last_dex_number else None
+
+    def get_pokemon(self, name):
+        if self.is_dex_number(name):
+            return name
+        else:
+            return self.get_by_name(name)
+
+    async def get_url(self, url):
+        # Attempt at making phantomjs async friendly
+        # After visiting the url remember to put 1 item in self.queue
+        # Otherwise the browser will be locked
+
+        # If lock is not locked lock it until this operation finishes
+        unlock = False
+        if not self._driver_lock.locked():
+            await self._driver_lock.acquire()
+            unlock = True
+
+        f = partial(self.driver.get, url)
+        await self.bot.loop.run_in_executor(self.bot.threadpool, f)
+        if unlock:
+            try:
+                self._driver_lock.release()
+            except RuntimeError:
+                pass
+
+    async def fuse(self, poke1=RANDOM, poke2=RANDOM, poke3=None):
+        # Update cache once per day
+        if time.time() - self._last_updated > 86400:
+            await self.update_cache()
+
+        dex_n = []
+        for p in (poke1, poke2):
+            if p == self.RANDOM:
+                dex_n.append(randint(1, self._last_dex_number))
+            poke = self.get_pokemon(p)
+            if poke is None:
+                raise NoPokeFoundException(p)
+            dex_n.append(poke)
+
+        if poke3 is None:
+            color = 0
+        else:
+            color = self.get_pokemon(poke3)
+            if color is None:
+                raise NoPokeFoundException(poke3)
+
+        url = 'http://pokefusion.japeal.com/PKMColourV5.php?ver=3.2&p1={}&p2={}&c={}&e=noone'.format(*dex_n, color)
+        async with self._driver_lock:
+            await self.get_url(url)
+            data = self.driver.execute_script("return document.getElementById('image1').src")
+            types = self.driver.execute_script("return document.querySelectorAll('*[width=\"30\"]')")
+            name = self.driver.execute_script("return document.getElementsByTagName('b')[0].textContent")
+
+        data = data.replace('data:image/png;base64,', '', 1)
+        img = Image.open(BytesIO(base64.b64decode(data)))
+        type_imgs = []
+
+        for tp in types:
+            file = tp.get_attribute('src').split('/')[-1].split('?')[0]
+            try:
+                im = Image.open(os.path.join(self._data_folder, file))
+                type_imgs.append(im)
+            except (FileNotFoundError, OSError):
+                raise BotException('Error while getting type images')
+
+        bg = Image.open(os.path.join(self._data_folder, 'poke_bg.png'))
+
+        # Paste pokemon in the middle of the background
+        x, y = (bg.width//2-img.width//2, bg.height//2-img.height//2)
+        bg.paste(img, (x, y), img)
+
+        w, h = type_imgs[0].size
+        padding = 2
+        # Total width of all type images combined with padding
+        type_w = len(type_imgs) * (w + padding)
+        width = bg.width
+        start_x = (width - type_w)//2
+        y = y + img.height
+
+        for tp in type_imgs:
+            bg.paste(tp, (start_x, y), tp)
+            start_x += w + padding
+
+        font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 36)
+        draw = ImageDraw.Draw(bg)
+        w, h = draw.textsize(name, font)
+        draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - 5), name, font=font, fill='black')
+        return bg
 
 
 class Fun(Cog):
@@ -28,6 +197,7 @@ class Fun(Cog):
         self._driver_lock = Lock()
         self.queue = Queue()
         self.queue.put_nowait(1)
+        self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
 
     async def _get_image(self, ctx, image):
         img = get_image_from_message(ctx, image)
@@ -307,122 +477,23 @@ class Fun(Cog):
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(2, 2, type=BucketType.server)
-    async def pokefusion(self, ctx, poke1=None, poke2=None, color_poke=None):
+    async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):
         """
         Gets a random pokemon fusion from http://pokefusion.japeal.com
-        You can specify the wanted fusion by specifying their pokedex index.
-        Unspecified parameters will be randomized.
-        By default if color_poke isn't given it has a random chance to be a random value.
-        If you don't want this to happen set it as 0.
-        e.g. `!pokefusion 1 2 0`
+        You can specify the wanted fusion by specifying their pokedex index or their name or just a part of their name.
+        Color poke defines the pokemon whose color palette will be used. By default it's not used
         Passing % as a parameter will randomize that value
         """
 
-        async def get_int(s):
-            try:
-                return int(s[:5])
-            except ValueError:
-                await self.bot.say('%s is not a valid number' % s)
-                return
-
-        max_value = None
-
-        def set_max_value():
-            nonlocal max_value
-            if max_value is not None:
-                return
-            max_value = self.driver.execute_script('return document.getElementById("s1").options.length')
-
-        values = {1: poke1, 2: poke2, 3: color_poke}
-        user_set = {}
-        script = "var e = document.getElementById('%s'); return {text: e.options[e.selectedIndex].text, value: e.value}"
-        if random() < 0.4:
-            btn = 'myButtonALL'
-
-            def clicker():
-                self.driver.find_element_by_id(btn).click()
-        else:
-            btn = 'myButtonLR'
-
-            def clicker():
-                self.driver.execute_script("document.getElementById('s3').value = 0;")
-                self.driver.find_element_by_id(btn).click()
-
-        async with self._driver_lock:
-            try:
-                await self.bot.send_typing(ctx.message.channel)
-                if not self.driver.current_url.startswith('http://pokefusion.japeal.com'):
-                    logger.debug('Current url is %s. Switching to the correct one' % self.driver.current_url)
-                    # We need to use this url so it doesn't render the whole site
-                    # That improves performance a lot when getting the screenshot
-                    await self.get_url('http://pokefusion.japeal.com/PKMSelectorV3.php?ver=2.0&p1=0&p2=0&c=0')
-
-                for k in values:
-                    v = values.get(k)
-                    if v:
-                        set_max_value()
-                        if v != '%':
-                            value = await get_int(v)
-                            if value is None:
-                                return
-
-                            min_val = 0 if k == 3 else 1
-                            if not (min_val <= value < max_value):
-                                return await self.bot.say('Value must be between %s and %s' % (min_val, max_value - 1))
-
-                            user_set[k] = value
-
-                        if v == '%' and k == 3:
-                            user_set[k] = randint(1, max_value)
-
-                if user_set:
-                    # We keep the old chance for random color
-                    if 3 not in user_set and random() <= 0.4:
-                        user_set[3] = 0
-                    user_set = {k: user_set.get(k, randint(1, max_value)) for k in values.keys()}
-
-                    s = ''
-                    for k in user_set:
-                        s += "document.getElementById('s%s').value=%s;" % (k, user_set[k])
-
-                    def clicker():
-                        self.driver.execute_script(s)
-                        # We switch the places to render the image and also to
-                        # make the order of the fusion correct or it would fuse
-                        # poke2 with poke1
-                        self.driver.find_element_by_id('myButtonS').click()
-
-                clicker()
-                poke1 = self.driver.execute_script(script % 's1')
-                poke2 = self.driver.execute_script(script % 's2')
-                color = self.driver.execute_script(script % 's3')
-
-                img = BytesIO(self.driver.get_screenshot_as_png())
-            except:
-                logger.exception('Failed to get pokefusion. Refreshing page')
-                await self.get_url('http://pokefusion.japeal.com/PKMSelectorV3.php?ver=2.0&p1=0&p2=0&c=0')
-                return await self.bot.say('Failed to fuse pokemon')
-
-        s = 'Fusion of {0[text]} and {1[text]}'.format(poke2, poke1)
-        url = 'http://pokefusion.japeal.com/{0[value]}/{1[value]}'.format(poke2,
-                                                                          poke1)
-
-        if color and color['text'].lower() == 'none':
-            color = None
-
-        if color:
-            s += ' using the color palette of {0[text]}\n{1}/{0[value]}'.format(
-                color, url)
-        else:
-            s += '\n' + url
-
-        img.seek(0)
-        img = Image.open(img)
-        img = img.crop((132, 204, 491, 478))
+        img = await self._pokefusion.fuse(poke1, poke2, color_poke)
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png', content=s)
+        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png')
+
+    @command(owner_only=True)
+    async def update_poke_cache(self):
+        await self._pokefusion.update_cache()
 
 
 def setup(bot):

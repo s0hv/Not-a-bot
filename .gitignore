@@ -31,6 +31,6 @@ battletags.json
 data/servers.json
 data/images/
 data/temp/
-__pycache__
+__pycache__/
 
 !database.sql

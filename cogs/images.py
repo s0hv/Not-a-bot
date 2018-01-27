@@ -64,7 +64,7 @@ class Pokefusion:
         while True:
             r = await self.client.get(url.format(start))
             if r.status == 404:
-                await r.close()
+                r.close()
                 break
 
             with open(os.path.join(self._data_folder, name.format(start)), 'wb') as f:
@@ -86,7 +86,7 @@ class Pokefusion:
             self._pokemon[name.lower()] = idx + 1
         self._last_dex_number = len(pokemon)
         types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
-        #await self.cache_types(start=len(list(types)))
+        await self.cache_types(start=max(len(list(types)), 1))
         self._last_updated = time.time()
 
     def get_by_name(self, name):
@@ -493,7 +493,10 @@ class Fun(Cog):
 
     @command(owner_only=True)
     async def update_poke_cache(self):
-        await self._pokefusion.update_cache()
+        if await self._pokefusion.update_cache() is False:
+            await self.bot.say('Failed to update cache')
+        else:
+            await self.bot.say('Successfully updated cache')
 
 
 def setup(bot):

@@ -23,7 +23,8 @@ yttest.py
 sfxtest.py
 db.db
 color_data.json
-text.*
+test.*
+text.txt
 
 # Auto-generated files
 battletags.json

@@ -38,7 +38,7 @@ import shutil
 import cv2
 import geopatterns
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageSequence
 from colorthief import ColorThief as CF
 from colour import Color
 from geopatterns import svg
@@ -492,30 +492,50 @@ def create_text(s, font, fill, canvas_size, point=(10, 10)):
     return text
 
 
-def gradient_flash(im, get_raw=False):
-    im = resize_keep_aspect_ratio(im, (600, 400), can_be_bigger=False, resample=Image.BILINEAR)
-    im = im.convert('RGBA')
-    gradient = Color('red').range_to('#ff0004', 25)
-    tempdir = tempfile.mkdtemp()
+def gradient_flash(im, get_raw=True):
+    """
+    When get_raw is True gif is optimized with magick fixing some problems that PIL
+    creates. It is the suggested method of using this funcion
+    """
+    if max(im.size) > 600:
+        frames = [resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
+                  for frame in ImageSequence.Iterator(im)]
+    else:
+        frames = [frame.convert('RGBA') for frame in ImageSequence.Iterator(im)]
+
+    while len(frames) <= 25:
+        frames.extend([frame.copy() for frame in frames])
+
+    gradient = Color('red').range_to('#ff0004', len(frames))
+    frames_ = zip(frames, gradient)
+
+    images = []
     try:
-        for idx, g in enumerate(gradient):
+        for idx, frame in enumerate(frames_):
+            frame, g = frame
             img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
-            img = Image.composite(img, im, im)
-            img = ImageChops.multiply(im, img)
-            img.save(os.path.join(tempdir, str(idx) + '.png'), 'PNG')
-
-        p = subprocess.Popen(split('{}convert -delay 2.5 -loop 0 "{}" gif:-'.format(MAGICK, os.path.join(tempdir, '*.png'))),
-                             stdout=subprocess.PIPE)
-
-        out, err = p.communicate()
-        buff = BytesIO(out)
-        shutil.rmtree(tempdir, ignore_errors=True)
-        buff.seek(0)
-        return Image.open(buff) if not get_raw else buff
-
+            img = ImageChops.multiply(frame, img)
+            img = Image.composite(img, frame, frame)
+            images.append(img)
     except Exception as e:
-        shutil.rmtree(tempdir, ignore_errors=True)
         logger.exception('{} Failed to create gif'.format(e))
+
+    data = BytesIO()
+    if isinstance(frames[0].info.get('duration', None), list):
+        duration = frames[0].info['duration']
+    else:
+        duration = [frame.info.get('duration', 20) for frame in frames]
+
+    images[0].info['duration'] = duration
+    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535)
+
+    data.seek(0)
+    if get_raw:
+        data = optimize_gif(data.getvalue())
+    else:
+        data = Image.open(data)
+
+    return data
 
 
 def optimize_gif(gif_bytes):
@@ -525,25 +545,3 @@ def optimize_gif(gif_bytes):
     out, err = p.communicate()
     buff = BytesIO(out)
     return buff
-
-
-r"""
-width = im.width
-height = im.height
-if width < 300:
-    width = 300
-
-if height < 200:
-    height = 200
-
-im = im.resize((width, height), Image.BILINEAR)
-im = sepia(im)
-height = im.height
-width = im.width
-x = int(width * 0.09)
-y = int(height * 0.90)
-tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),
-                               can_be_bigger=False, resample=Image.BILINEAR)
-im.paste(tbc, (x, y), tbc)
-im.save('test.png')
-"""

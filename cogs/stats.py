@@ -147,6 +147,5 @@ class Stats(Cog):
         await self.bot.say(msg)
 
 
-
 def setup(bot):
     bot.add_cog(Stats(bot))

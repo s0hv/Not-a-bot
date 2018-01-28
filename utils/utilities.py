@@ -348,8 +348,8 @@ def get_image_from_message(ctx, *messages):
         if not test_url(image):
             if re.match('<@!?\d+>', image) and ctx.message.mentions:
                 image = get_avatar(ctx.message.mentions[0])
-            elif re.match('<:\w+:\d+>', image):
-                image = emote_url_from_id(re.findall('(?!<:\w+:)\d+(?=>)', image)[0])
+            elif get_emote_id(image)[1]:
+                image = get_emote_url(image)
             else:
                 try:
                     int(image)

@@ -243,7 +243,7 @@ class JoJo:
     @cooldown(1, 10, BucketType.user)
     async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
         """Generate a stand card. Arguments are stand name, user name and an image
-        
+
         Image can be an attachment or a link. Passing -advanced as the last argument
         will enable advanced mode which gives the ability to tune some numbers.
         Use quotes for names that have spaces e.g. !stand_gen "Star Platinum" "Jotaro Kujo" [image]

@@ -473,7 +473,7 @@ class Audio:
         Args:
             ctx: class Context
             priority: If true song is added to the start of the playlist
-                
+
         Returns:
             None
         """
@@ -519,7 +519,7 @@ class Audio:
             seek_command: A command that is passed to before_options
             
             options: passed to create_ffmpeg_player options
-            
+
             run_loops: How many audio loops have we gone through. 
                        If None current.player.run_loops is used.
                        This is makes duration work after seeking.
@@ -1195,7 +1195,6 @@ class Audio:
         files = os.listdir(cachedir)
 
         def check_list(string):
-            global song
             if song.id is not None and song.id in string:
                 return True
             return False

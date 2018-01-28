@@ -424,14 +424,14 @@ class CommandBlacklist(Cog):
         smallest = 18
         """
         Here are the returns
-            1 user AND whitelist  
-            3 user AND blacklist  
-            4 whitelist AND role  
-            6 blacklist AND role  
-            8 channel AND whitelist  
-            10 channel AND blacklist 
-            16 whitelist AND server 
-            18 blacklist AND server 
+            1 user AND whitelist
+            3 user AND blacklist
+            4 whitelist AND role
+            6 blacklist AND role
+            8 channel AND whitelist
+            10 channel AND blacklist
+            16 whitelist AND server
+            18 blacklist AND server
         """
 
         for row in rows:

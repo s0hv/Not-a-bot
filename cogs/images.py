@@ -133,6 +133,8 @@ class Pokefusion:
         for p in (poke1, poke2):
             if p == self.RANDOM:
                 dex_n.append(randint(1, self._last_dex_number))
+                continue
+
             poke = self.get_pokemon(p)
             if poke is None:
                 raise NoPokeFoundException(p)

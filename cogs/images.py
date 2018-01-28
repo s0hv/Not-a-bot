@@ -485,6 +485,7 @@ class Fun(Cog):
         Passing % as a parameter will randomize that value
         """
 
+        await self.bot.send_typing(ctx.message.channel)
         img = await self._pokefusion.fuse(poke1, poke2, color_poke)
         file = BytesIO()
         img.save(file, 'PNG')

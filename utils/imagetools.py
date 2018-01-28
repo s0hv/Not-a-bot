@@ -511,7 +511,7 @@ def gradient_flash(im, get_raw=True):
 
     images = []
     try:
-        for idx, frame in enumerate(frames_):
+        for frame in frames_:
             frame, g = frame
             img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
             img = ImageChops.multiply(frame, img)

@@ -30,6 +30,7 @@ class Pokefusion:
     def __init__(self, client, bot):
         self._last_dex_number = 0
         self._pokemon = {}
+        self._poke_reverse = {}
         self._last_updated = 0
         self._client = client
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
@@ -84,6 +85,8 @@ class Pokefusion:
         for idx, p in enumerate(pokemon[1:]):
             name = ' #'.join(p.text.split(' #')[:-1])
             self._pokemon[name.lower()] = idx + 1
+            self._poke_reverse[idx + 1] = name.lower()
+
         self._last_dex_number = len(pokemon)
         types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
         await self.cache_types(start=max(len(list(types)), 1))
@@ -100,6 +103,8 @@ class Pokefusion:
         return n if n <= self.last_dex_number else None
 
     def get_pokemon(self, name):
+        if name == self.RANDOM:
+            return randint(1, self._last_dex_number)
         if self.is_dex_number(name):
             return name
         else:
@@ -131,10 +136,6 @@ class Pokefusion:
 
         dex_n = []
         for p in (poke1, poke2):
-            if p == self.RANDOM:
-                dex_n.append(randint(1, self._last_dex_number))
-                continue
-
             poke = self.get_pokemon(p)
             if poke is None:
                 raise NoPokeFoundException(p)
@@ -188,7 +189,11 @@ class Pokefusion:
         draw = ImageDraw.Draw(bg)
         w, h = draw.textsize(name, font)
         draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - 5), name, font=font, fill='black')
-        return bg
+
+        s = 'Fusion of {} and {}'.format(self._poke_reverse[dex_n[0]], self._poke_reverse[dex_n[1]])
+        if color:
+            s += ' using the color palette of {}'.format(self._poke_reverse[color])
+        return bg, s
 
 
 class Fun(Cog):
@@ -488,11 +493,11 @@ class Fun(Cog):
         """
 
         await self.bot.send_typing(ctx.message.channel)
-        img = await self._pokefusion.fuse(poke1, poke2, color_poke)
+        img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='pokefusion.png')
+        await self.bot.send_file(ctx.message.channel, file, content=s, filename='pokefusion.png')
 
     @command(owner_only=True)
     async def update_poke_cache(self):

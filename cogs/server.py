@@ -85,12 +85,6 @@ class Server(Cog):
 
             data = await self._dl(ctx.message.attachments[0].get('url'))
             name = link + ' '.join(name)
-            await self.bot.say('What do you want to name the emote as', delete_after=30)
-            msg = await self.bot.wait_for_message(author=author,
-                                                  channel=ctx.message.channel,
-                                                  timeout=30)
-            if not msg:
-                return await self.bot.say('Took too long.')
 
         if not data:
             return
@@ -108,6 +102,7 @@ class Server(Cog):
         try:
             await self.bot.create_custom_emoji(server=server, name=name, image=img, already_b64=already_b64)
         except discord.DiscordException as e:
+            logger.exception('server {} name {} mime {}'.format(server, name, mime))
             await self.bot.say('Failed to create emote because of an error\n%s' % e)
         except:
             await self.bot.say('Failed to create emote because of an error')

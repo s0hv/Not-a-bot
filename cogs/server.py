@@ -102,8 +102,7 @@ class Server(Cog):
         try:
             await self.bot.create_custom_emoji(server=server, name=name, image=img, already_b64=already_b64)
         except discord.DiscordException as e:
-            logger.exception('server {} name {} mime {}'.format(server, name, mime))
-            await self.bot.say('Failed to create emote because of an error\n%s' % e)
+            await self.bot.say('Failed to create emote because of an error\n%s\nDId you check if the image is under 256kb in size' % e)
         except:
             await self.bot.say('Failed to create emote because of an error')
             logger.exception('Failed to create emote')

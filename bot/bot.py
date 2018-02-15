@@ -48,6 +48,7 @@ from discord.ext.commands.view import StringView
 from discord.ext.commands.errors import CommandError
 from bot.globals import Auth
 from bot.formatter import Formatter
+from utils.utilities import is_superset
 from bot.exceptions import PermissionError
 
 try:
@@ -63,18 +64,6 @@ log = logging.getLogger('discord')
 logger = logging.getLogger('debug')
 
 
-def permission_check(ctx):
-    command_ = ctx.command
-    if ctx.override_perms is None and command_.required_perms is not None:
-        perms = ctx.message.channel.permissions_for(ctx.message.author)
-
-        if not perms.is_superset(command_.required_perms):
-            req = [r[0] for r in command_.required_perms if r[1]]
-            raise PermissionError('%s' % ', '.join(req))
-
-    return True
-
-
 class Command(commands.Command):
     def __init__(self, name, callback, **kwargs):
         super(Command, self).__init__(name=name, callback=callback, **kwargs)
@@ -83,9 +72,23 @@ class Command(commands.Command):
         self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
         self.usage = kwargs.pop('usage', None)
-        self.checks.append(permission_check)
+        self.checks.append(is_superset)
         if self.owner_only:
             print('registered owner_only command %s' % name)
+
+    def can_run(self, context):
+        """
+        Now passes the command itself as a parameter too when doing the checks.
+        Useful when another command is checking
+        if the caller can run that command.
+        Normally the permission check would only get the required perms of the main
+        function that was called"""
+
+        predicates = self.checks
+        if not predicates:
+            # since we have no checks, then we just return True.
+            return True
+        return all(predicate(context, self) for predicate in predicates)
 
 
 class Group(Command, commands.Group):
@@ -205,7 +208,16 @@ class Bot(commands.Bot, Client):
 
         super().__init__(prefix, **options)
         self.remove_command('help')
-        self.command(**{'name': 'help', 'pass_context': True})(self.help)
+        cmd = self.group(**{'name': 'help', 'pass_context': True, 'invoke_without_command': True,
+                            'help': """Shows all commands you can use on this server.
+                            Use {prefix}{name} all to see all commands"""})(self.help)
+
+        @cmd.command(name='all', pass_context=True)
+        async def all_(ctx, *commands_: str):
+            """Shows all available commands even if you don't have the correct
+            permissions to use the commands. Bot owner only commands are still hidden tho"""
+            await self._help(ctx, *commands_, type=Formatter.Generic)
+
         log.debug('Using loop {}'.format(self.loop))
         if aiohttp is None:
             aiohttp = ClientSession(loop=self.loop)
@@ -298,7 +310,7 @@ class Bot(commands.Bot, Client):
 
         return members
 
-    async def help(self, ctx, *commands_: str):
+    async def _help(self, ctx, *commands_, type=Formatter.ExtendedFilter):
         """Shows this message."""
         destination = ctx.message.author if self.pm_help else ctx.message.channel
         author = ctx.message.author
@@ -309,7 +321,7 @@ class Bot(commands.Bot, Client):
 
         # help by itself just lists our own commands.
         if len(commands_) == 0:
-            pages = self.formatter.format_help_for(ctx, self, is_owner=is_owner)
+            pages = self.formatter.format_help_for(ctx, self, is_owner=is_owner, type=type)
         elif len(commands_) == 1:
             # try to see if it is a cog name
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
@@ -322,7 +334,7 @@ class Bot(commands.Bot, Client):
                                             self.command_not_found.format(name))
                     return
 
-            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner)
+            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
         else:
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
             command_ = self.commands.get(name)
@@ -344,7 +356,7 @@ class Bot(commands.Bot, Client):
                                                     command_, key))
                     return
 
-            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner)
+            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
 
         if self.pm_help is None:
             characters = sum(map(lambda l: len(l), pages))
@@ -354,6 +366,9 @@ class Bot(commands.Bot, Client):
 
         for page in pages:
             await self.send_message(destination, embed=page)
+
+    async def help(self, ctx, *commands_: str):
+        await self._help(ctx, *commands_)
 
     async def process_commands(self, message):
         _internal_channel = message.channel

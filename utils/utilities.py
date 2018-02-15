@@ -38,8 +38,9 @@ import discord
 import numpy
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
+from bot.globals import BlacklistTypes, PermValues
 
-from bot.exceptions import NoCachedFileException
+from bot.exceptions import NoCachedFileException, PermissionError
 
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
@@ -685,3 +686,41 @@ def find_coeffs(pa, pb):
 
     res = numpy.dot(numpy.linalg.inv(A.T * A) * A.T, B)
     return numpy.array(res).reshape(8)
+
+
+def check_perms(values, return_raw=False):
+    # checks if the command can be used based on what rows are given
+    # ONLY GIVE this function rows of one command or it won't work as intended
+    smallest = 18
+    for value in values:
+        if value['type'] == BlacklistTypes.WHITELIST:
+            v1 = PermValues.VALUES['whitelist']
+        else:
+            v1 = PermValues.VALUES['blacklist']
+
+        if value['user'] is not None:
+            v2 = PermValues.VALUES['user']
+        elif value['role'] is not None:
+            v2 = PermValues.VALUES['role']
+        elif value['channel'] is not None:
+            v2 = PermValues.VALUES['channel']
+        else:
+            v2 = PermValues.VALUES['server']
+
+        v = v1 | v2
+        if v < smallest:
+            smallest = v
+
+    return PermValues.RETURNS.get(smallest, False) if not return_raw else smallest
+
+
+def is_superset(ctx, command_):
+    if ctx.override_perms is None and command_.required_perms is not None:
+        perms = ctx.message.channel.permissions_for(ctx.message.author)
+
+        if not perms.is_superset(command_.required_perms):
+            req = [r[0] for r in command_.required_perms if r[1]]
+            raise PermissionError('%s' % ', '.join(req))
+
+    return True
+

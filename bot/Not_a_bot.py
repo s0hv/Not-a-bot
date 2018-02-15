@@ -38,9 +38,9 @@ from bot import exceptions
 from bot.bot import Bot, Context
 from bot.cooldown import CooldownManager
 from bot.dbutil import DatabaseUtils
-from bot.globals import BlacklistTypes
+from bot.globals import BlacklistTypes, PermValues
 from bot.servercache import ServerCache
-from utils.utilities import (split_string, slots2dict, retry, random_color)
+from utils.utilities import (split_string, slots2dict, retry, random_color, check_perms)
 import mimetypes
 from concurrent.futures import ThreadPoolExecutor
 
@@ -94,12 +94,6 @@ class NotABot(Bot):
         self.polls = {}
         self.timeouts = {}
         self._server_cache = ServerCache(self)
-        self._perm_values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4, 'channel': 0x8, 'server': 0x10}
-        self._perm_returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False, 16: True, 18: False}
-        self._blacklist_messages = {3: 'Command has been blacklisted for you',
-                                    6: 'Command has been blacklisted for a role you have',
-                                    10: None, 18: None}
-
         self.hi_new = {ord(c): '' for c in ", '"}
         self._dbutil = DatabaseUtils(self)
         self._setup()
@@ -351,7 +345,6 @@ class NotABot(Bot):
         if not rows:
             return None
 
-        smallest = 18
         """
         Here are the returns
             1 user AND whitelist
@@ -364,26 +357,7 @@ class NotABot(Bot):
             18 blacklist AND server
         """
 
-        for row in rows:
-            if row['type'] == BlacklistTypes.WHITELIST:
-                v1 = self._perm_values['whitelist']
-            else:
-                v1 = self._perm_values['blacklist']
-
-            if row['user'] is not None:
-                v2 = self._perm_values['user']
-            elif row['role'] is not None:
-                v2 = self._perm_values['role']
-            elif row['channel'] is not None:
-                v2 = self._perm_values['channel']
-            else:
-                v2 = self._perm_values['server']
-
-            v = v1 | v2
-            if v < smallest:
-                smallest = v
-
-        return smallest
+        return check_perms(rows, return_raw=True)
 
     def _check_auth(self, user_id, auth_level):
         session = self.get_session
@@ -448,12 +422,12 @@ class NotABot(Bot):
 
                 else:
                     overwrite_perms = self.check_blacklist('(command="%s" OR command IS NULL)' % command, message.author, ctx)
-                    msg = self._blacklist_messages.get(overwrite_perms, None)
+                    msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, None)
                     if isinstance(overwrite_perms, int):
                         if message.server and message.server.owner.id == message.author.id:
                             overwrite_perms = True
                         else:
-                            overwrite_perms = self._perm_returns.get(overwrite_perms, False)
+                            overwrite_perms = PermValues.RETURNS.get(overwrite_perms, False)
                     ctx.override_perms = overwrite_perms
 
                     if overwrite_perms is False:

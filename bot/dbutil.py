@@ -227,7 +227,7 @@ class DatabaseUtils:
     def delete_user_roles(self, server_id, user_id):
         session = self.bot.get_session
         try:
-            sql = 'DELETE FROM `userRoles` INNER JOIN `roles` ON role.id=userRoles.role_id WHERE server_id={} AND user_id={}'.format(server_id, user_id)
+            sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.server={} AND userRoles.user_id={}'.format(server_id, user_id)
             session.execute(sql)
             session.commit()
         except SQLAlchemyError:

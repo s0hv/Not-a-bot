@@ -120,11 +120,11 @@ class AutoRoles(Cog):
 
         roles = [r.id for r in member.roles]
         roles.remove(member.server.default_role.id)
-        if not roles:
-            self.dbutil.delete_user_roles(member.server.id, member.id)
+        self.dbutil.delete_user_roles(member.server.id, member.id)
 
-        else:
+        if roles:
             self.dbutil.add_user_roles(roles, member.id, member.server.id)
+            logger.debug('{}/{} saved roles {}'.format(member.server.id, member.id, ', '.join(roles)))
 
     @staticmethod
     def compare_roles(before, after):

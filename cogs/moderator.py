@@ -322,26 +322,26 @@ class Moderator(Cog):
     def remove_timeout(self, user_id, server_id):
         session = self.bot.get_session
         try:
-            sql = 'DELETE FROM `timeouts` WHERE `server` = %s AND `user` = %s' % (server_id, user_id)
-            session.execute(sql)
+            sql = 'DELETE FROM `timeouts` WHERE `server`=:server AND `user`=:user'
+            session.execute(sql, params={'server': server_id, 'user': user_id})
             session.commit()
         except SQLAlchemyError:
             session.rollback()
             logger.exception('Could not delete untimeout')
 
-    async def untimeout(self, user, server_id):
+    async def untimeout(self, user_id, server_id):
         mute_role = self.bot.server_cache.mute_role(server_id)
         if mute_role is None:
             return
 
         server = self.bot.get_server(server_id)
         if server is None:
-            self.remove_timeout(user, server_id)
+            self.remove_timeout(user_id, server_id)
             return
 
-        user = server.get_member(user)
+        user = server.get_member(user_id)
         if not user:
-            self.remove_timeout(user, server_id)
+            self.remove_timeout(user_id, server_id)
             return
 
         if self.bot.get_role(server, mute_role):
@@ -367,11 +367,16 @@ class Moderator(Cog):
             return
 
         time, reason = parse_timeout(timeout)
+        server = ctx.message.server
         if not time:
             return await self.bot.say('Invalid time string')
 
         if time.days > 30:
             return await self.bot.say("Timeout can't be longer than 30 days")
+        if server.id == '217677285442977792' and time.total_seconds() < 500:
+            return await self.bot.say('This server is retarded so I have to hardcode timeout limits and the given time is too small')
+        if time.total_seconds() < 59:
+            return await self.bot.say('Minimum timeout is 1 minute')
 
         now = datetime.utcnow()
         expires_on = datetime2sql(now + time)
@@ -389,7 +394,6 @@ class Moderator(Cog):
             logger.exception('Could not save timeout')
             return await self.bot.say('Could not save timeout. Canceling action')
 
-        server = ctx.message.server
         t = self.timeouts.get(server.id, {}).get(user.id)
         if t:
             t.cancel()

@@ -375,6 +375,11 @@ class Moderator(Cog):
         if user.id == ctx.message.author.id and time.total_seconds() < 21600:
             return await self.bot.say('If you gonna timeout yourself at least make it a longer timeout')
 
+        # Abuse protection for my server
+        nigu_nerea = ('287664210152783873', '208185517412581376')
+        if user.id in nigu_nerea and ctx.message.author.id in nigu_nerea:
+            return await self.bot.say("It's time to stop")
+
         if time.days > 30:
             return await self.bot.say("Timeout can't be longer than 30 days")
         if server.id == '217677285442977792' and time.total_seconds() < 500:

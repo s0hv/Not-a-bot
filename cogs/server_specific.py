@@ -262,7 +262,7 @@ class ServerSpecific(Cog):
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 3, type=BucketType.user)
-    @check(create_check(('352099343953559563', )))
+    @check(create_check(('217677285442977792', )))
     async def default_role(self, ctx):
         """Temporary fix to easily get default role"""
         if self.bot.test_mode:

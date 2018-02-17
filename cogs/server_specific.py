@@ -331,7 +331,7 @@ class ServerSpecific(Cog):
         embed.set_footer(text=text, icon_url=get_avatar(self.bot.user))
 
         message = await self.bot.send_message(channel, embed=embed)
-        await self.bot.add_reaction(message, 'HYPERGACHI:361529049400475669')# 'GWjojoGachiGASM:363025405562585088')
+        await self.bot.add_reaction(message, 'GWjojoGachiGASM:363025405562585088')
         session = self.bot.get_session
         try:
             session.execute(sql, params={'server': int(server.id), 'title': 'Toggle every',

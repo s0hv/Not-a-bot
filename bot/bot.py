@@ -242,11 +242,14 @@ class Bot(commands.Bot, Client):
         if hasattr(context.command, "on_error"):
             return
 
-        if type(exception) is commands.errors.CommandNotFound:
+        if isinstance(exception.__cause__, commands.errors.CommandNotFound):
+            return
+
+        if isinstance(exception.__cause__, exceptions.SilentException):
             return
 
         channel = context.message.channel
-        if type(exception) is commands.errors.CommandOnCooldown:
+        if isinstance(exception.__cause__, commands.errors.CommandOnCooldown):
             await self.send_message(channel, 'Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return
 

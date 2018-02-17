@@ -259,15 +259,20 @@ class MusicPlayer:
                                                                       options=self.current.options)
 
             if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str) and not self.current.is_live:
-                db = await mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration)
-                if db is None or abs(db) < 0.1:
+                try:
+                    db = asyncio.wait(mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration), timeout=6, loop=self.bot.loop)
+                    if db is None or abs(db) < 0.1:
+                        volume = self.volume
+                    else:
+                        volume = self._get_volume_from_db(db)
+                except asyncio.TimeoutError:
+                    logger.debug('Mean volume timed out')
                     volume = self.volume
-                else:
-                    volume = self._get_volume_from_db(db)
             else:
                 volume = self.volume
 
             self.current.player.volume = volume
+
             if not self.current.seek:
                 dur = get_track_pos(self.current.duration, 0)
                 s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume)
@@ -275,10 +280,8 @@ class MusicPlayer:
                     s += ' enqueued by %s' % self.current.requested_by
                 await self.say(s, self.current.duration)
 
-            print(self.player)
             logger.debug(self.player)
             self.current.player.start()
-            print('started')
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')

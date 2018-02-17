@@ -43,6 +43,11 @@ class BotException(CommandError):
         return self
 
 
+class SilentException(CommandError):
+    def __init__(self):
+        super().__init__()
+
+
 class InvalidOwnerIDException(BotException):
     pass
 

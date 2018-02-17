@@ -4,6 +4,9 @@ import logging
 import operator
 from datetime import datetime, timedelta
 
+from bot.globals import Perms
+from discord.ext.commands import cooldown
+
 import discord
 from sqlalchemy import text
 
@@ -305,12 +308,11 @@ class VoteManager:
 
         await poll.count_votes()
 
-    @command(pass_context=True, owner_only=True, aliases=['vote'])
+    @command(pass_context=True, aliases=['vote'], required_perms=Perms.MANAGE_MESSAGES | Perms.MANAGE_ROLE_CHANNEL | Perms.MANAGE_SERVER)
     async def poll(self, ctx, *, message):
         """
-        Create a poll. See help poll for arguments
         Creates a poll that expires by default in 60 seconds
-        Examples of use: -poll title -d description -e <:gappyGoodShit:326946656023085056> 👌 -a
+        Examples of use: {prefix}{name} title -d description -e <:gappyGoodShit:326946656023085056> 👌 -a
         available arguments
         `-d` `-description` Description for the poll
         `-t` `-time` Time after which the poll is expired. Maximum time is 1 week
@@ -322,7 +324,6 @@ class VoteManager:
         `-n` `-no_duplicate_votes` [false] Ignores users who react to more than one emote
         `-a` `-allow_multiple_entries` [false] Count all reactions from the user. Even if that user reacted with multiple emotes.
         """
-        # TODO Add permission check
 
         # Add -header if it's not present so argparser can recognise the argument
         message = '-header ' + message if not message.startswith('-h') else message
@@ -347,8 +348,8 @@ class VoteManager:
         if expires_in.total_seconds() == 0:
             await self.bot.say('No time specified or time given is 0 seconds. Using default value of 60s')
             expires_in = timedelta(seconds=60)
-        if expires_in.days > 7:
-            return await self.bot.say('Maximum time is 7 days')
+        if expires_in.days > 14:
+            return await self.bot.say('Maximum time is 14 days')
 
         now = datetime.utcnow()
         expired_date = now + expires_in

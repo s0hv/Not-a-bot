@@ -407,6 +407,17 @@ class NotABot(Bot):
 
         if invoker in self.commands:
             command = self.commands[invoker]
+            cog = command.cog_name
+            if cog is not None:
+                cog = self.get_cog(cog)
+                checks = getattr(cog, 'checks', None)
+                if checks:
+                    try:
+                        [check(ctx, command) for check in checks]
+                    except CommandError as e:
+                        self.on_command_error(e, ctx)
+                        return
+
             if command.owner_only and self.owner != message.author.id:
                 command.dispatch_error(exceptions.PermissionError('Only the owner can use this command'), ctx)
                 return

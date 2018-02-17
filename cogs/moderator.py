@@ -355,10 +355,10 @@ class Moderator(Cog):
     async def timeout(self, ctx, user, *, timeout):
         """Mute user for a specified amount of time
          `timeout` is the duration of the mute.
-         The format is `n d|days` `n h|hours` `n m|minutes` `n s|seconds` `reason`
+         The format is `n d|days` `n h|hours` `n m|min|minutes` `n s|sec|seconds` `reason`
          where at least one of them must be provided.
          Maximum length for a timeout is 30 days
-         e.g. `!timeout <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
+         e.g. `{prefix}{name} <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
         """
         retval = await self._mute_check(ctx, user)
         if isinstance(retval, tuple):
@@ -366,10 +366,14 @@ class Moderator(Cog):
         else:
             return
 
+        user = users[0]
         time, reason = parse_timeout(timeout)
         server = ctx.message.server
         if not time:
             return await self.bot.say('Invalid time string')
+
+        if user.id == ctx.message.author.id and time.total_seconds() < 21600:
+            return await self.bot.say('If you gonna timeout yourself at least make it a longer timeout')
 
         if time.days > 30:
             return await self.bot.say("Timeout can't be longer than 30 days")
@@ -380,7 +384,6 @@ class Moderator(Cog):
 
         now = datetime.utcnow()
         expires_on = datetime2sql(now + time)
-        user = users[0]
         session = self.bot.get_session
         try:
             sql = 'INSERT INTO `timeouts` (`server`, `user`, `expires_on`) VALUES ' \

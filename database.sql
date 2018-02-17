@@ -137,6 +137,7 @@ CREATE TABLE `emotes` (
     KEY `server_id` (`server`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
 CREATE TABLE `pollEmotes` (
     `poll_id` BIGINT NOT NULL,
     `emote_id` BIGINT NOT NULL,
@@ -146,6 +147,18 @@ CREATE TABLE `pollEmotes` (
     FOREIGN KEY (`emote_id`) REFERENCES `emotes`(`emote`)
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB;
+
+
+CREATE TABLE `giveaways` (
+    `server` BIGINT NOT NULL,
+    `title` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+    `message` BIGINT NOT NULL,
+    `channel` BIGINT NOT NULL,
+    `winners` SMALLINT NOT NULL,
+    `expires_in` datetime DEFAULT NULL,
+    PRIMARY KEY `message_id` (`message`),
+    KEY `server_id` (`server`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `timeouts`(

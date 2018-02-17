@@ -48,9 +48,9 @@ audio = logging.getLogger('audio')
 # https://stackoverflow.com/a/4628148/6046713
 # Added days and and aliases for names
 # Also fixed any string starting with the first option (e.g. 10dd would count as 10 days) being accepted
-time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|minutes)( |$))?((?P<seconds>\d+?) ?(s|seconds)( |$))?')
-timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|minutes)( |$))?((?P<seconds>\d+?) ?(s|seconds)( |$))?(?P<reason>.*)+?',
-                        re.DOTALL)
+time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
+timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
+                           re.DOTALL)
 
 
 class Object:
@@ -126,7 +126,7 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
     out, err = await loop.run_in_executor(threadpool, process.communicate)
     out += err
 
-    matches = re.findall('mean_volume: [\-\d\.]+ dB', str(out))
+    matches = re.findall('mean_volume: [\-\d.]+ dB', str(out))
 
     if not matches:
         return
@@ -273,7 +273,7 @@ def normalize_text(s):
     for match in matches:
         s = s.replace(match, match.split(':')[1])
 
-    #matches = re.findall('<@\d+>')
+    # matches = re.findall('<@\d+>')
     return s
 
 
@@ -456,7 +456,7 @@ def get_users_from_ids(server, *ids):
     for i in ids:
         try:
             int(i)
-        except:
+        except ValueError:
             continue
 
         user = server.get_member(i)
@@ -512,7 +512,7 @@ def get_role(role, roles, name_matching=False):
     try:
         int(role)
         role_id = role
-    except:
+    except ValueError:
         role_id = get_role_id(role)
 
         if role_id is None and name_matching:
@@ -723,4 +723,3 @@ def is_superset(ctx, command_):
             raise PermissionError('%s' % ', '.join(req))
 
     return True
-

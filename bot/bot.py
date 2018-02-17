@@ -242,22 +242,22 @@ class Bot(commands.Bot, Client):
         if hasattr(context.command, "on_error"):
             return
 
-        if isinstance(exception.__cause__, commands.errors.CommandNotFound):
+        if isinstance(exception, commands.errors.CommandNotFound):
             return
 
-        if isinstance(exception.__cause__, exceptions.SilentException):
+        if isinstance(exception, exceptions.SilentException):
             return
 
         channel = context.message.channel
-        if isinstance(exception.__cause__, commands.errors.CommandOnCooldown):
+        if isinstance(exception, commands.errors.CommandOnCooldown):
             await self.send_message(channel, 'Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return
 
-        if isinstance(exception.__cause__, exceptions.BotException):
-            await self.send_message(channel, exception.__cause__.message, delete_after=30)
+        if isinstance(exception, exceptions.BotException):
+            await self.send_message(channel, exception.message, delete_after=30)
             return
 
-        if isinstance(exception.__cause__, commands.errors.MissingRequiredArgument):
+        if isinstance(exception, commands.errors.MissingRequiredArgument):
             return await self.send_message(channel, 'Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
 
         print('Ignoring exception in command {}'.format(context.command), file=sys.stderr)

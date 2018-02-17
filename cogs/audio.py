@@ -122,6 +122,7 @@ class MusicPlayer:
                 await asyncio.sleep(1)
 
     def create_audio_task(self):
+        # TODO Create heartbeat that will be checked to know if the task has died
         self.audio_player = self.bot.loop.create_task(self.play_audio())
         self.activity_check = self.bot.loop.create_task(self._activity_check())
         self.bot.loop.create_task(self.websocket_check())

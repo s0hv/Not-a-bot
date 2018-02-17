@@ -260,7 +260,7 @@ class MusicPlayer:
 
             if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str) and not self.current.is_live:
                 try:
-                    db = asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration), timeout=6, loop=self.bot.loop)
+                    db = await asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration), timeout=6, loop=self.bot.loop)
                     if db is None or abs(db) < 0.1:
                         volume = self.volume
                     else:

@@ -416,10 +416,11 @@ class ServerSpecific(Cog):
             if isinstance(retval, Exception):
                 logger.debug('Failed to toggle every role on {0} {0.id}\n{1}'.format(winner, retval))
 
-        description += '\nAdded every to {} user(s) and removed it from {} user(s)'.format(added, removed)
         embed = discord.Embed(title=title, description=description, timestamp=datetime.utcnow())
         embed.set_footer(text='Expired at', icon_url=get_avatar(self.bot.user))
         await self.bot.edit_message(message, embed=embed)
+        description += '\nAdded every to {} user(s) and removed it from {} user(s)'.format(added, removed)
+        await self.bot.send_message(message.channel, description)
         self.delete_giveaway_from_db(message.id)
 
     async def on_member_join(self, member):

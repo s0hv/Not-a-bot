@@ -738,7 +738,7 @@ class Audio:
             if not (-60 <= v <= 60):
                 return await self.bot.say('Value must be between -60 and 60', delete_after=20)
         except ValueError as e:
-            return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
+            return await self.bot.say('{0} is not an integer\n{1}'.format(value, e), delete_after=20)
 
         state = self.get_voice_state(ctx.message.server)
         current = state.current

@@ -66,7 +66,8 @@ class Stats(Cog):
 
         if page is not None:
             try:
-                if len(page) > 3:
+                # No one probably hasn't created this many roles
+                if len(page) > 6:
                     return await self.bot.say('Page out of range')
 
                 page = int(page)

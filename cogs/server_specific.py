@@ -380,6 +380,8 @@ class ServerSpecific(Cog):
         react = None
         for reaction in message.reactions:
             emoji = reaction.emoji
+            if isinstance(emoji, str):
+                continue
             if emoji.id == '363025405562585088' and emoji.name == 'GWjojoGachiGASM':
                 react = reaction
                 break

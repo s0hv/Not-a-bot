@@ -393,8 +393,7 @@ class ServerSpecific(Cog):
         title = 'Giveaway: {}'.format(title)
         description = 'No winners'
 
-        self.bot.react = react
-        users = await self.bot.get_reaction_users(react, limit=react.count)
+        users = await self.bot.get_all_reaction_users(react, limit=react.count)
         candidates = [server.get_member(user.id) for user in users if user.id != self.bot.user.id and server.get_member(user.id)]
         winners = choice(candidates, min(winners, len(candidates)), replace=False)
         if len(winners) > 0:

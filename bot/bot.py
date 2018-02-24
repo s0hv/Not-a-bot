@@ -448,6 +448,23 @@ class Bot(commands.Bot, Client):
 
         return decorator
 
+    async def get_all_reaction_users(self, reaction, limit=100):
+        users = []
+        limits = [100 for i in range(limit // 100)]
+        remainder = limit % 100
+        if remainder > 0:
+            limits.append(remainder)
+
+        for limit in limits:
+            if users:
+                user = users[-1]
+            else:
+                user = None
+            _users = self.get_reaction_users(reaction, after=user, limit=limit)
+            users.extend(_users)
+
+        return users
+
     async def add_roles(self, member, *roles):
         logger.debug('Adding roles %s to %s in the server %s' % (' '.join(roles), member, member.server.id))
         new_roles = set()

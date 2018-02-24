@@ -399,21 +399,26 @@ class ServerSpecific(Cog):
         if len(winners) > 0:
             description = 'Winners: {}'.format('\n'.join([user.mention for user in winners]))
 
-        embed = discord.Embed(title=title, description=description, timestamp=datetime.utcnow())
-        embed.set_footer(text='Expired at', icon_url=get_avatar(self.bot.user))
-
+        added = 0
+        removed = 0
         for winner in winners:
             winner = server.get_member(winner.id)
             if not winner:
                 continue
             if role in winner.roles:
                 retval = await retry(self.bot.remove_role, winner, role)
+                removed += 1
+
             else:
                 retval = await retry(self.bot.add_role, winner, role)
+                added += 1
 
             if isinstance(retval, Exception):
                 logger.debug('Failed to toggle every role on {0} {0.id}\n{1}'.format(winner, retval))
 
+        description += '\nAdded every to {} user(s) and removed it from {} user(s)'.format(added, removed)
+        embed = discord.Embed(title=title, description=description, timestamp=datetime.utcnow())
+        embed.set_footer(text='Expired at', icon_url=get_avatar(self.bot.user))
         await self.bot.edit_message(message, embed=embed)
         self.delete_giveaway_from_db(message.id)
 

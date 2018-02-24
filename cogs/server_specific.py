@@ -397,6 +397,7 @@ class ServerSpecific(Cog):
         candidates = [server.get_member(user.id) for user in users if user.id != self.bot.user.id and server.get_member(user.id)]
         winners = choice(candidates, min(winners, len(candidates)), replace=False)
         if len(winners) > 0:
+            winners = sorted(winners, key=lambda u: u.name)
             description = 'Winners: {}'.format('\n'.join([user.mention for user in winners]))
 
         added = 0

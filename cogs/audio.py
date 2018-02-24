@@ -759,7 +759,7 @@ class Audio:
     async def stereo(self, ctx, mode='sine'):
         """Works almost the same way {prefix}play does
         Default stereo type is sine.
-        All available modes are `sine`, `triangle`, `square`, `sawup` and `sawdown`
+        All available modes are `sine`, `triangle`, `square`, `sawup`, `sawdown`, left and right
         To set a different mode start your command parameters with -mode song_name
         e.g. `{prefix}{name} -square stereo cancer music` would use the square mode
         """
@@ -769,14 +769,18 @@ class Audio:
         if current is None:
             return await self.bot.say('Not playing anything right now', delete_after=20)
         mode = mode.lower()
-        modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off')
+        modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off', 'left', 'right')
         if mode not in modes:
             return await self.bot.say('Incorrect mode specified')
 
         sec = state.player.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)
-        options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
+        if mode in ('left', 'right'):
+            mode = 'FL-FR|FR-FR' if mode == 'right' else 'FL-FL|FR-FL'
+            options = self._parse_filters(current.options, 'channelmap', 'map={}'.format(mode))
+        else:
+            options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
         current.options = options
         await self._seek(ctx, state, current, seek, options=options)
 

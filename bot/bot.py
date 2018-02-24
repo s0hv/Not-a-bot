@@ -460,7 +460,7 @@ class Bot(commands.Bot, Client):
                 user = users[-1]
             else:
                 user = None
-            _users = self.get_reaction_users(reaction, after=user, limit=limit)
+            _users = await self.get_reaction_users(reaction, after=user, limit=limit)
             users.extend(_users)
 
         return users

@@ -77,10 +77,18 @@ class Downloader:
                 return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
 
             except Exception as e:
-                if asyncio.iscoroutinefunction(on_error):
+
+                # when using functools.partial asyncio.iscoroutine doesn't know if
+                # the function is async or not so we get the original method to test it
+                if isinstance(on_error, functools.partial):
+                    func = on_error.func
+                else:
+                    func = on_error
+
+                if asyncio.iscoroutinefunction(func):
                     asyncio.ensure_future(on_error(e), loop=loop)
 
-                elif asyncio.iscoroutine(on_error):
+                elif asyncio.iscoroutine(func):
                     asyncio.ensure_future(on_error, loop=loop)
 
                 else:

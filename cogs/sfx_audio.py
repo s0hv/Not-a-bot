@@ -180,6 +180,7 @@ class Audio:
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['s'])
     async def stop_sfx(self, ctx):
+        """Stop the current sfx"""
         state = self.get_voice_state(ctx.message.server)
         if state.is_playing():
             state.player.stop()
@@ -211,6 +212,7 @@ class Audio:
     @command(pass_context=True, no_pm=True)
     @commands.cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx, *, name):
+        """Play a sound effect"""
         file = self._search_sfx(name)
         if not file:
             return await self.bot.say('Invalid sound effect name')
@@ -228,6 +230,7 @@ class Audio:
     @command(name='max_combo', no_pm=True)
     @commands.check(lambda ctx, cmd: ctx.message.author.id in ['117256618617339905', '123050803752730624'])
     async def change_combo(self, max_combo=None):
+        """Change how many sound effects you can combine with {prefix}combo"""
         if max_combo is None:
             return await self.bot.say(self.bot.config.max_combo)
         try:
@@ -311,6 +314,7 @@ class Audio:
 
     @command(pass_context=True, aliases=['r'], no_pm=True)
     async def random_sfx(self, ctx, combo=1):
+        """Set how many sfx random sfx will combine if it's on"""
         if combo > self.bot.config.max_combo:
             return await self.bot.say('Cannot go over max combo  {}>{}'.format(combo, self.bot.config.max_combo))
 
@@ -338,6 +342,7 @@ class Audio:
 
     @command(name='combo', pass_context=True, no_pm=True, aliases=['concat', 'c'])
     async def combine(self, ctx, *, names):
+        """Play multiple sfx in a row"""
         max_combo = self.bot.config.max_combo
         names = shlex.split(names)
         if len(names) > max_combo:
@@ -373,6 +378,7 @@ class Audio:
 
     @command(pass_context=True, no_pm=True, aliases=['srs'])
     async def set_random_sfx(self, ctx, value):
+        """Set random sfx on or off"""
         value = value.lower().strip()
         values = {'on': True, 'off': False}
         values_rev = {v: k for k, v in values.items()}

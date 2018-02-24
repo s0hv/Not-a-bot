@@ -220,16 +220,19 @@ class JoJo:
 
     @command(aliases=['stand'])
     async def standify(self, *, stand):
+        """Standify text using these brackets 『』"""
         stand = self._standify_text(stand)
         await self.bot.say(stand)
 
     @command(aliases=['stand2'])
     async def standify2(self, *, stand):
+        """Standify text using these brackets 「」"""
         stand = self._standify_text(stand, 1)
         await self.bot.say(stand)
 
     @command(pass_context=True, aliases=['stand3'])
     async def standify3(self, ctx, *, stand):
+        """Standify text using no brackets"""
         stand = ' '.join(ctx.message.clean_content.split(' ')[1:])
         stand = self._standify_text(stand, 2)
         await self.bot.say(stand)
@@ -246,7 +249,7 @@ class JoJo:
 
         Image can be an attachment or a link. Passing -advanced as the last argument
         will enable advanced mode which gives the ability to tune some numbers.
-        Use quotes for names that have spaces e.g. !stand_gen "Star Platinum" "Jotaro Kujo" [image]
+        Use quotes for names that have spaces e.g. {prefix}{name} "Star Platinum" "Jotaro Kujo" [image]
         """
         author = ctx.message.author
         name = author.name

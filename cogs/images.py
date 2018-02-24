@@ -232,6 +232,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths(self, ctx, image=None):
+        """Generate a top 10 anime deaths image based on provided image"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths.png')
         img = await self._get_image(ctx, image)
         if img is None:
@@ -259,6 +260,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True)
     @cooldown(3, 5, type=BucketType.server)
     async def anime_deaths2(self, ctx, image=None):
+        """same as anime_deaths but with a transparent bg"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths2.png')
         img = await self._get_image(ctx, image)
         if img is None:
@@ -319,6 +321,7 @@ class Fun(Cog):
     @command(pass_context=True, ignore_extra=True, aliases=['jotaro_no'])
     @cooldown(3, 5, BucketType.server)
     async def jotaro(self, ctx, image=None):
+        """Jotaro wasn't pleased"""
         img = await self._get_image(ctx, image)
         if img is None:
             return
@@ -415,7 +418,7 @@ class Fun(Cog):
     @cooldown(2, 5, BucketType.server)
     async def tobecontinued(self, ctx, image=None, no_sepia=False):
         """Make a to be continued picture
-        Usage: !tbc `image/emote/mention` `[optional sepia filter off] on/off`
+        Usage: {prefix}{name} `image/emote/mention` `[optional sepia filter off] on/off`
         Sepia filter is on by default
         """
         img = await self._get_image(ctx, image)

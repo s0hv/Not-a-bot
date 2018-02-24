@@ -8,6 +8,7 @@ class gachiGASM(Cog):
 
     @command(pass_context=True)
     async def gachify(self, ctx, *, words):
+        """Gachify a string"""
         if ' ' not in words:
             # We need to undo the string view or it will skip the first word
             ctx.view.undo()
@@ -17,6 +18,7 @@ class gachiGASM(Cog):
 
     @command(pass_context=True)
     async def gachify2(self, ctx, *, words):
+        """An alternative way of gachifying"""
         return await self.bot.say('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
 
 

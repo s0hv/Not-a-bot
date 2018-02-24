@@ -130,6 +130,7 @@ class Moderator(Cog):
     @group(pass_context=True, invoke_without_command=True)
     @cooldown(2, 5, BucketType.server)
     async def mute_whitelist(self, ctx):
+        """Show roles whitelisted from automutes"""
         server = ctx.message.server
         roles = self.automute_whitelist.get(server.id, ())
         roles = map(lambda r: self.bot.get_role(server, r), roles)
@@ -146,6 +147,7 @@ class Moderator(Cog):
     @mute_whitelist.command(pass_context=True, required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES)
     @cooldown(2, 5, BucketType.server)
     async def add(self, ctx, *, role):
+        """Add a role to the automute whitelist"""
         server = ctx.message.server
         roles = self.automute_whitelist.get(server.id)
         if roles is None:
@@ -169,6 +171,7 @@ class Moderator(Cog):
     @mute_whitelist.command(pass_context=True, required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.server)
     async def remove(self, ctx, *, role):
+        """Remove a role from the automute whitelist"""
         server = ctx.message.server
         roles = self.automute_whitelist.get(server.id, ())
         role_ = get_role(role, server.roles, name_matching=True)
@@ -188,6 +191,8 @@ class Moderator(Cog):
     @group(pass_context=True, invoke_without_command=True, name='automute_blacklist')
     @cooldown(2, 5, BucketType.server)
     async def automute_blacklist_(self, ctx):
+        """Show channels that are blacklisted from automutes.
+        That means automutes won't triggered from messages sent in those channels"""
         server = ctx.message.server
         channels = self.automute_blacklist.get(server.id, ())
         channels = map(lambda c: server.get_channel(c), channels)
@@ -204,6 +209,7 @@ class Moderator(Cog):
     @automute_blacklist_.command(pass_context=True, required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, name='add')
     @cooldown(2, 5, BucketType.server)
     async def add_(self, ctx, *, channel):
+        """Add a channel to the automute blacklist"""
         server = ctx.message.server
         channels = self.automute_blacklist.get(server.id)
         if channels is None:
@@ -224,6 +230,7 @@ class Moderator(Cog):
     @automute_blacklist_.command(pass_context=True, required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.server)
     async def remove_(self, ctx, *, channel):
+        """Remove a channel from the automute blacklist"""
         server = ctx.message.server
         channels = self.automute_blacklist.get(server.id, ())
         channel_ = get_channel(server.channels, channel, name_matching=True)
@@ -244,6 +251,9 @@ class Moderator(Cog):
     @command(pass_context=True, required_perms=manage_roles)
     @cooldown(2, 5, BucketType.server)
     async def add_role(self, ctx, name, random_color=True, mentionable=True, hoist=False):
+        """Add a role to the server.
+        random_color makes the bot choose a random color for the role and
+        hoist will make the role show up in the member list"""
         server = ctx.message.server
         if server is None:
             return await self.bot.say('Cannot create roles in DM')
@@ -283,6 +293,7 @@ class Moderator(Cog):
 
     @command(pass_context=True, required_perms=manage_roles)
     async def mute(self, ctx, user, *reason):
+        """Mute a user. Only works if the server has set the mute role"""
         retval = await self._mute_check(ctx, user)
         if isinstance(retval, tuple):
             users, mute_role = retval
@@ -441,6 +452,7 @@ class Moderator(Cog):
 
     @group(pass_context=True, required_perms=manage_roles, invoke_without_command=True, no_pm=True)
     async def unmute(self, ctx, *user):
+        """Unmute a user"""
         server = ctx.message.server
         mute_role = self.bot.server_cache.mute_role(server.id)
         if mute_role is None:
@@ -496,11 +508,13 @@ class Moderator(Cog):
     @unmute.command(pass_context=True, no_pm=True, required_perms=discord.Permissions(0))
     @cooldown(1, 3, BucketType.user)
     async def when(self, ctx, *user):
+        """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user)
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 3, BucketType.user)
     async def unmute_when(self, ctx, *user):
+        """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user)
 
     # Only use this inside commands
@@ -686,6 +700,8 @@ class Moderator(Cog):
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, required_perms=discord.Permissions(4), aliases=['softbab'])
     async def softban(self, ctx, user, message_days=1):
+        """Ban and unban a user from the server deleting that users messages from
+        n amount of days in the process"""
         user_ = get_user_id(user)
         server = ctx.message.server
         if user_ is None:

@@ -35,6 +35,7 @@ class Hearthstone:
     @command()
     @cooldown(1, 5, type=BucketType.user)
     async def hs(self, *, name):
+        """Search for a hearthstone card"""
         headers = {'content-type': 'application/json', 'X-Mashape-Key': self.key}
         async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/%s' % name,
                                    headers=headers) as r:

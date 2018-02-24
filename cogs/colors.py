@@ -187,6 +187,8 @@ class Colors(Cog):
     @command(pass_context=True, no_pm=True, aliases=['colour'])
     @cooldown(1, 2, type=BucketType.user)
     async def color(self, ctx, *color):
+        """Set you color on the server.
+        To see the colors on this server use {prefix}colors or {prefix}show_colors"""
         server = ctx.message.server
         colors = self._colors.get(server.id, None)
         if not colors:
@@ -204,7 +206,7 @@ class Colors(Cog):
 
             else:
                 name = colors.get(user_colors.pop())
-                return await self.bot.say('Your current color is %s. Use !colors to see a list of colors in this server. To also see the role colors use !show_colors' % name)
+                return await self.bot.say('Your current color is {0}. Use {1}colors to see a list of colors in this server. To also see the role colors use {1}show_colors'.format(name, ctx.prefix))
 
         color = ' '.join(color)
         color_ = self.get_color(color, server.id)
@@ -233,6 +235,7 @@ class Colors(Cog):
     @command(pass_context=True, no_pm=True, aliases=['colours'])
     @cooldown(1, 2, type=BucketType.server)
     async def colors(self, ctx):
+        """Shows the colors on this server"""
         server = ctx.message.server
         colors = self._colors.get(server.id)
         if not colors:
@@ -253,6 +256,7 @@ class Colors(Cog):
     @command(aliases=['search_colour'])
     @cooldown(1, 3, BucketType.user)
     async def search_color(self, *, name):
+        """Search a color using a name and return it's hex value if found"""
         matches = self.search_color_(name)
         if matches is None:
             return await self.bot.say('No colors found with {}'.format(name))
@@ -268,6 +272,7 @@ class Colors(Cog):
     @command(pass_context=True, no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['add_colour'])
     @cooldown(1, 3, type=BucketType.server)
     async def add_color(self, ctx, color: str, *name):
+        """Add a new color to the server"""
         if not name:
             name = color
         else:
@@ -326,6 +331,10 @@ class Colors(Cog):
              aliases=['colors_from_roles'])
     @cooldown(1, 3, type=BucketType.server)
     async def add_colors_from_roles(self, ctx, *, roles):
+        """Turn existing role(s) to colors.
+        Usage:
+            {prefix}{name} 326726982656196629 Red @Blue
+        Works with role mentions, role ids and name matching"""
         if not roles:
             return await self.bot.say('Give some roles to turn to server colors')
 
@@ -362,6 +371,7 @@ class Colors(Cog):
              aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
     @cooldown(1, 3, type=BucketType.server)
     async def delete_color(self, ctx, *, name):
+        """Delete a color from the server"""
         server = ctx.message.server
         color = self.get_color(name, server.id)
         if not color:
@@ -389,6 +399,8 @@ class Colors(Cog):
     @command(pass_context=True, no_pm=True, aliases=['show_colours'])
     @cooldown(1, 4, type=BucketType.server)
     async def show_colors(self, ctx):
+        """Show current colors on the server in an embed.
+        This allows you to see how they look"""
         server = ctx.message.server
         colors = self._colors.get(server.id, None)
         if not colors:
@@ -424,6 +436,7 @@ class Colors(Cog):
 
     @command(pass_context=True, owner_only=True)
     async def color_uncolored(self, ctx):
+        """Color users that don't have a color role"""
         server = ctx.message.server
         color_ids = list(self._colors.get(server.id, {}).keys())
         if not self._colors:

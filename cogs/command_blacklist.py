@@ -22,6 +22,9 @@ class CommandBlacklist(Cog):
     @group(pass_context=True, ignore_extra=True, no_pm=True, required_perms=perms, invoke_without_command=True,)
     @cooldown(1, 5, type=BucketType.server)
     async def blacklist(self, ctx, command_: str, mention=None):
+        """Blacklist a command for a user, role or channel
+        To blacklist multiple commands at the same time wrap the command names in quotes
+        like this {prefix}{name} \"command1 command2 command3\" #channel"""
         msg = ctx.message
         server = msg.server
 
@@ -69,6 +72,8 @@ class CommandBlacklist(Cog):
         """
         Disable all commands on this server (owner will still be able to use them)
         Whitelisting commands also overrides this rule
+        Won't override existing commands that have been blacklisted so when you toggle
+        again the commands that have been specifically blacklisted are still blacklisted
         """
 
         server = ctx.message.server
@@ -124,6 +129,9 @@ class CommandBlacklist(Cog):
     @command(pass_context=True, required_perms=perms, ignore_extra=True, no_pm=True)
     @cooldown(1, 5, type=BucketType.server)
     async def whitelist(self, ctx, command_: str, mention=None):
+        """Whitelist a command for a user, role or channel
+        To whitelist multiple commands at the same time wrap the command names in quotes
+        like this {prefix}{name} \"command1 command2 command3\" #channel"""
         msg = ctx.message
         server = msg.server
 
@@ -331,6 +339,7 @@ class CommandBlacklist(Cog):
     @command(pass_context=True, no_pm=True, ignore_extra=True)
     @cooldown(1, 30, type=BucketType.user)
     async def commands(self, ctx):
+        """Get your white- and blacklisted commands on this server"""
         server = ctx.message.server
         user = ctx.message.author
         if user.roles:

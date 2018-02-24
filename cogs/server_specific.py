@@ -117,7 +117,7 @@ class ServerSpecific(Cog):
     @cooldown(2, 4, type=BucketType.user)
     @check(main_check)
     async def ungrant(self, ctx, user, *, role):
-        """"""
+        """Remove a role from a user if you have the perms"""
         server = ctx.message.server
         author = ctx.message.author
         length = len(author.roles)
@@ -151,6 +151,7 @@ class ServerSpecific(Cog):
     @cooldown(2, 4, type=BucketType.server)
     @check(main_check)
     async def add_grant(self, ctx, role, target_role):
+        """Make the given role able to grant the target role"""
         server = ctx.message.server
         role_ = get_role(role, server.roles)
         if not role_:
@@ -180,6 +181,7 @@ class ServerSpecific(Cog):
     @cooldown(1, 4, type=BucketType.user)
     @check(main_check)
     async def remove_grant(self, ctx, role, target_role):
+        """Remove a grantable role from the target role"""
         server = ctx.message.server
         role_ = get_role(role, server.roles)
         if not role_:
@@ -205,6 +207,7 @@ class ServerSpecific(Cog):
     @cooldown(1, 4)
     @check(main_check)
     async def show_grants(self, ctx, *user):
+        """Shows the roles you or the specified user can grant"""
         server = ctx.message.server
         if user:
             user = ' '.join(user)
@@ -246,6 +249,7 @@ class ServerSpecific(Cog):
     @cooldown(1, 3, type=BucketType.server)
     @check(main_check)
     async def text(self, ctx):
+        """Generate text"""
         if self.bot.test_mode:
             return
 

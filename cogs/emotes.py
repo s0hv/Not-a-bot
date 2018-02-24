@@ -37,6 +37,7 @@ class Emotes:
     @cooldown(1, 10, type=commands.BucketType.server)
     @group(pass_context=True)
     async def emotes(self, ctx):
+        """Show emotes on this server"""
         server = ctx.message.server
 
         if ctx.invoked_subcommand is None:
@@ -59,6 +60,7 @@ class Emotes:
     @cooldown(1, 10, type=commands.BucketType.server)
     @emotes.command(name='global', pass_context=True)
     async def global_(self, ctx, include_name=True, delim='\n'):
+        """Show global emotes on this server"""
         server = ctx.message.server
 
         global_, local_ = self.get_emotes(server)
@@ -70,6 +72,7 @@ class Emotes:
     @cooldown(1, 10, type=commands.BucketType.server)
     @emotes.command(name='local', pass_context=True)
     async def local_(self, ctx, include_name=True, delim='\n'):
+        """Show all non global emotes on this server"""
         server = ctx.message.server
 
         global_, local_ = self.get_emotes(server)

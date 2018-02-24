@@ -2,14 +2,16 @@ from cogs.cog import Cog
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST, AUTOPLAYLIST
 from utils.utilities import read_lines, empty_file, write_playlist, test_url
 from bot.bot import command
+from bot.globals import Auth
 
 
 class BotMod(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(pass_context=True, ignore_extra=True, owner_only=True)
+    @command(pass_context=True, ignore_extra=True, auth=Auth.MOD)
     async def add_all(self, ctx):
+        """Add the pending songs to autoplaylist"""
         songs = set(read_lines(ADD_AUTOPLAYLIST))
 
         invalid = []
@@ -27,8 +29,9 @@ class BotMod(Cog):
         amount = len(songs)
         await self.bot.say('Added %s song(s) to autoplaylist' % amount)
 
-    @command(pass_context=True, ignore_extra=True, owner_only=True)
+    @command(pass_context=True, ignore_extra=True, auth=Auth.MOD)
     async def delete_all(self, ctx):
+        """Delete pending songs from autoplaylist"""
         delete_songs = set(read_lines(DELETE_AUTOPLAYLIST))
 
         songs = set(read_lines(AUTOPLAYLIST))

@@ -493,7 +493,7 @@ class Audio:
     async def seek(self, ctx, *, where: str):
         """
         If the video is cached you can seek it using this format h m s ms,
-        where at least one of them is required. Milliseconds are 100 times bigger
+        where at least one of them is required. Milliseconds must be zero padded
         so to seek only one millisecond put 001ms. Otherwise the song will just
         restart. e.g. 1h 4s and 2m1s3ms both should work.
         """
@@ -678,7 +678,9 @@ class Audio:
     @commands.cooldown(1, 5, type=BucketType.user)
     async def search(self, ctx, *, name):
         """Search for songs. Default site is youtube
-        Supported sites: -yt Youtube, -sc Soundcloud"""
+        Supported sites: -yt Youtube, -sc Soundcloud
+        To use a different site start the search with the site prefix
+        e.g. {prefix}{name} -sc a cool song"""
         await self._search(ctx, name)
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon1'])
@@ -704,6 +706,8 @@ class Audio:
     @commands.cooldown(1, 5, commands.BucketType.server)
     @command(pass_context=True, ignore_extra=True, no_pm=True)
     async def speed(self, ctx, value: str):
+        """Change the speed of the currently playing song.
+        Values must be between 0.5 and 2"""
         try:
             v = float(value)
             if v > 2 or v < 0.5:
@@ -753,12 +757,12 @@ class Audio:
     @commands.cooldown(2, 5, commands.BucketType.server)
     @command(pass_context=True, no_pm=True, ignore_extra=True)
     async def stereo(self, ctx, mode='sine'):
-        """ Works almost the same way !play does
+        """Works almost the same way {prefix}play does
         Default stereo type is sine.
         All available modes are `sine`, `triangle`, `square`, `sawup` and `sawdown`
         To set a different mode start your command parameters with -mode song_name
-        e.g. `!stereo -square stereo cancer music` would use the square mode
-         """
+        e.g. `{prefix}{name} -square stereo cancer music` would use the square mode
+        """
 
         state = self.get_voice_state(ctx.message.server)
         current = state.current
@@ -781,6 +785,9 @@ class Audio:
         """
         Clear the selected indexes from the playlist.
         "!clear all" empties the whole playlist
+        usage:
+            {prefix}{name} 1-4 7-9 5
+            would delete songs at positions 1 to 4, 5 and 7 to 9
         """
         if items != 'all':
             indexes = items.split(' ')
@@ -805,6 +812,7 @@ class Audio:
         """
         Sets the volume of the currently playing song.
         If no parameters are given it shows the current volume instead
+        Effective values are between 0 and 200
         """
         state = self.get_voice_state(ctx.message.server)
         if state.is_playing():
@@ -943,6 +951,7 @@ class Audio:
     @commands.cooldown(1, 4, type=BucketType.server)
     @command(pass_context=True, no_pm=True)
     async def shuffle(self, ctx):
+        """Shuffles the current playlist"""
         state = self.get_voice_state(ctx.message.server)
         await state.playlist.shuffle()
         await self.bot.send_message(state.channel, 'Playlist shuffled')
@@ -1014,7 +1023,7 @@ class Audio:
     @command(name='queue', pass_context=True, no_pm=True, aliases=['playlist'])
     async def playlist(self, ctx, index=None):
         """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song
-        Usage !playlist or !playlist [song index]"""
+        Usage {prefix}{name} or {prefix}{name} [song index]"""
         state = self.get_voice_state(ctx.message.server)
         playlist = list(state.playlist.playlist)
         channel = ctx.message.channel
@@ -1064,6 +1073,7 @@ class Audio:
     @commands.cooldown(1, 3, type=BucketType.server)
     @command(pass_context=True, no_pm=True, aliases=['len'])
     async def length(self, ctx):
+        """Gets the length of the current queue"""
         state = self.get_voice_state(ctx.message.server)
         if state.current is None or not state.playlist.playlist:
             return await self.bot.send_message(ctx.message.channel, 'No songs in queue')
@@ -1076,6 +1086,7 @@ class Audio:
 
     @command(pass_context=True, no_pm=True, ignore_extra=True, auth=Auth.MOD)
     async def ds(self, ctx):
+        """Delete song from autoplaylist and skip it"""
         await ctx.invoke(self.delete_from_ap)
         await ctx.invoke(self.skip)
 
@@ -1093,6 +1104,7 @@ class Audio:
     @commands.cooldown(2, 4, type=BucketType.user)
     @command(pass_context=True, no_pm=True, aliases=['dur'])
     async def duration(self, ctx):
+        """Gets the duration of the current song"""
         state = self.get_voice_state(ctx.message.server)
         if state.is_playing():
             dur = state.player.duration
@@ -1103,6 +1115,7 @@ class Audio:
 
     @command(name='volm', pass_context=True, no_pm=True)
     async def vol_multiplier(self, ctx, value=None):
+        """The multiplier that is used when dynamically calculating the volume"""
         state = self.get_voice_state(ctx.message.server)
         if not value:
             return await self.bot.say('Current volume multiplier is %s' % str(state.volume_multiplier))
@@ -1115,6 +1128,7 @@ class Audio:
 
     @command(pass_context=True, no_pm=True)
     async def link(self, ctx):
+        """Link to the current song"""
         state = self.get_voice_state(ctx.message.server)
         current = state.current
         await self.bot.send_message(ctx.message.channel, 'Link to **{0.title}**: {0.webpage_url}'.format(current))
@@ -1122,6 +1136,7 @@ class Audio:
     @commands.cooldown(1, 4)
     @command(name='delete', pass_context=True, no_pm=True, aliases=['del', 'd'], auth=Auth.MOD)
     async def delete_from_ap(self, ctx, *name):
+        """Puts a song to the queue to be deleted from autoplaylist"""
         state = self.get_voice_state(ctx.message.server)
         if not name:
             name = [state.current.webpage_url]
@@ -1139,6 +1154,7 @@ class Audio:
 
     @command(name='add', pass_context=True, no_pm=True, auth=Auth.MOD)
     async def add_to_ap(self, ctx, *name):
+        """Puts a song to the queue to be added to autoplaylist"""
         state = self.get_voice_state(ctx.message.server)
         if name:
             name = ' '.join(name)

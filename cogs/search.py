@@ -28,6 +28,7 @@ from collections import deque
 from aiohttp import ClientSession
 
 from bot.bot import command
+from discord.ext.commands import cooldown
 
 logger = logging.getLogger('debug')
 
@@ -49,20 +50,26 @@ class Search:
         self.key = bot.config.google_api_key
         self.cx = self.bot.config.custom_search
 
-    @command(pass_context=True, owner_only=True)
+    @command(pass_context=True)
+    @cooldown(2, 5)
     async def image(self, ctx, *, query):
+        """Google search an image"""
         #logger.debug('Image search query: {}'.format(query))
-        return await self._search(ctx, query, True)
+        # TODO When you can check if channel is nsfw change search safe level based on that
+        return await self._search(ctx, query, True, safe='high')
 
-    @command(pass_context=True, owner_only=True)
+    @command(pass_context=True)
+    @cooldown(2, 5)
     async def google(self, ctx, *, query):
         #logger.debug('Web search query: {}'.format(query))
-        return await self._search(ctx, query)
+        # TODO When you can check if channel is nsfw change search safe level based on that
+        return await self._search(ctx, query, safe='medium')
 
-    async def _search(self, ctx, query, image=False):
+    async def _search(self, ctx, query, image=False, safe='off'):
         params = {'key': self.key,
                   'cx': self.cx,
-                  'q': query}
+                  'q': query,
+                  'safe': safe}
 
         if image:
             params['searchType'] = 'image'
@@ -71,6 +78,10 @@ class Search:
             if r.status == 200:
                 channel = ctx.message.channel
                 json = await r.json()
+                if 'error' in json:
+                    reason = json['error'].get('message', 'Unknown reason')
+                    return await self.bot.say('Failed to search because of an error\n```{}```'.format(reason))
+
                 logger.debug('Search result: {}'.format(json))
 
                 total_results = json['searchInformation']['totalResults']
@@ -83,9 +94,12 @@ class Search:
                         self.last_search.append(SearchItem(**item))
 
                 return await self.bot.say(self.last_search.popleft())
+            else:
+                return await self.bot.say('Http error {}'.format(r.status))
 
     @command(pass_context=True, ignore_extra=True)
     async def next_result(self, ctx):
+        """Get next search result from the most recent search"""
         try:
             return await self.bot.say(self.last_search.popleft())
         except IndexError:

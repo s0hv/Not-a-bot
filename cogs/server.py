@@ -21,6 +21,7 @@ class Server(Cog):
     @command(no_pm=True, pass_context=True)
     @cooldown(1, 20, type=BucketType.user)
     async def top(self, ctx, page: str='1'):
+        """Get the top users on this server based on the most important values"""
         try:
             page = int(page)
             if page <= 0:
@@ -67,6 +68,7 @@ class Server(Cog):
              required_perms=Perms.MANAGE_EMOJIS)
     @cooldown(2, 6, BucketType.server)
     async def add_emote(self, ctx, link, *name):
+        """Add an emote to the server"""
         server = ctx.message.server
         author = ctx.message.author
 
@@ -113,6 +115,9 @@ class Server(Cog):
              required_perms=Perms.MANAGE_EMOJIS)
     @cooldown(2, 6, BucketType.server)
     async def steal(self, ctx, *emoji):
+        """Add emotes to this server from other servers.
+        Usage:
+            {prefix}{name} :emote1: :emote2: :emote3:"""
         if not emoji:
             return await self.bot.say('Specify the emotes you want to steal')
 

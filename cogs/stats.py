@@ -60,30 +60,52 @@ class Stats(Cog):
 
     @command(pass_context=True, no_pm=True)
     @cooldown(2, 5, type=BucketType.server)
-    async def mention_stats(self, ctx):
+    async def mention_stats(self, ctx, page=None):
+        """Get stats on how many times which roles are mentioned on this server"""
         server = ctx.message.server
-        sql = 'SELECT * FROM `mention_stats` WHERE server=%s ORDER BY amount DESC LIMIT 10' % server.id
+
+        if page is not None:
+            try:
+                if len(page) > 3:
+                    return await self.bot.say('Page out of range')
+
+                page = int(page)
+                if page <= 0:
+                    page = 1
+            except:
+                page = 1
+        else:
+            page = 1
+
+        sql = 'SELECT * FROM `mention_stats` WHERE server={} ORDER BY amount DESC LIMIT {}'.format(server.id, 10*page)
         session = self.bot.get_session
         rows = session.execute(sql).fetchall()
         if not rows:
             return await self.bot.say('No role mentions logged on this server')
 
         embed = discord.Embed(title='Most mentioned roles in server {}'.format(server.name))
-        for idx, row in enumerate(rows):
+        added = 0
+        p = page*10
+        for idx, row in enumerate(rows[p-10:p]):
+            added += 1
             role = self.bot.get_role(server, row['role'])
             if role:
                 role_name, role = role.name, role.id
             else:
                 role_name, role = row['role_name'], row['role']
 
-            embed.add_field(name='{}. {}'.format(idx + 1, role),
+            embed.add_field(name='{}. {}'.format(idx + p-9, role),
                             value='<@&{}>\n{}\nwith {} mentions'.format(role, role_name, row['amount']))
+
+        if added == 0:
+            return await self.bot.say('Page out of range')
 
         await self.bot.send_message(ctx.message.channel, embed=embed)
 
     @command(pass_context=True, aliases=['seen'])
     @cooldown(1, 5, BucketType.user)
     async def last_seen(self, ctx, *, name):
+        """Get when a user was last seen"""
         user_id = None
         try:
             user = int(name)

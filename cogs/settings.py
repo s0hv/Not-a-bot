@@ -132,6 +132,7 @@ class Settings(Cog):
     @cooldown(1, 5, type=BucketType.server)
     @settings.command(pass_context=True, ignore_extra=True, required_perms=Perms.MANAGE_ROLES)
     async def mute_role(self, ctx, role=None):
+        """Get the current role for muted people on this server or set it"""
         server = ctx.message.server
         if role is None:
             role = get_role(server, self.bot.server_cache.mute_role(server.id), name_matching=True)
@@ -158,6 +159,8 @@ class Settings(Cog):
     @cooldown(2, 20, type=BucketType.server)
     @settings.command(pass_context=True, ignore_extra=True, required_perms=Perms.ADMIN)
     async def keeproles(self, ctx, boolean: bool=None):
+        """Get the current keeproles value on this server or change it.
+        Keeproles makes the bot save every users roles so it can give them even if that user rejoins"""
         server = ctx.message.server
         current = self.cache.keeproles(server.id)
 
@@ -196,6 +199,9 @@ class Settings(Cog):
     @settings.command(pass_context=True, required_perms=Perms.MANAGE_ROLES|Perms.MANAGE_SERVER)
     @cooldown(2, 10, BucketType.server)
     async def random_color(self, ctx, value: bool=None):
+        """Check if random color is on or change the current value of it.
+        Random color will make the bot give a random color role to all new users who join
+        if color roles exist on the server"""
         server = ctx.message.server
         if value is None:
             value = self.cache.random_color(server.id)
@@ -211,6 +217,7 @@ class Settings(Cog):
     @settings.command(pass_context=True, required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_SERVER, ignore_extra=True)
     @cooldown(2, 10, BucketType.server)
     async def automute(self, ctx, value: bool=None):
+        """Check or set the status of automatic muting"""
         server = ctx.message.server
         if value is None:
             value = 'on' if self.cache.automute(server.id) else 'off'
@@ -226,6 +233,7 @@ class Settings(Cog):
     @settings.command(pass_context=True, required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_SERVER, ignore_extra=True)
     @cooldown(2, 10, BucketType.server)
     async def automute_limit(self, ctx, limit: int=None):
+        """Check or set the limit of mentions in a message for the bot to mute a user"""
         server = ctx.message.server
         if limit is None:
             return await self.bot.say('Current limit is {}'.format(self.cache.automute_limit(server.id)))
@@ -288,6 +296,7 @@ class Settings(Cog):
     @on_delete.command(pass_context=True, required_permissions=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.server)
     async def channel(self, ctx, *, channel=None):
+        """Check or set the channel deleted messages are logged in to"""
         server = ctx.message.server
         if channel is None:
             channel = self.cache.on_delete_channel(server.id)
@@ -353,6 +362,7 @@ class Settings(Cog):
     @on_edit.command(pass_context=True, name='channel', required_permissions=Perms.MANAGE_SERVER|Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.server)
     async def channel_(self, ctx, *, channel=None):
+        """Check or set the channel message edits are logged to"""
         server = ctx.message.server
         if channel is None:
             channel = self.cache.on_edit_channel(server.id)
@@ -372,9 +382,10 @@ class Settings(Cog):
         else:
             await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(pass_context=True, invoke_without_command=True, aliases=['on_join'])
+    @group(pass_context=True, invoke_without_command=True, aliases=['on_join', 'welcome_message'])
     @cooldown(2, 10, BucketType.server)
     async def join_message(self, ctx):
+        """Get the welcome/join message on this server"""
         server = ctx.message.server
         message = self.cache.join_message(server.id)
         channel = self.cache.join_channel(server.id)
@@ -389,6 +400,8 @@ class Settings(Cog):
     @join_message.command(pass_context=True, name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
     @cooldown(2, 10, BucketType.server)
     async def join_set(self, ctx, *, message):
+        """Set the welcome message on this server
+        See {prefix}formatting for help on formatting the message"""
         server = ctx.message.server
         try:
             formatted = format_join_leave(ctx.message.author, message)
@@ -409,6 +422,7 @@ class Settings(Cog):
                           required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
     @cooldown(2, 10, BucketType.server)
     async def join_channel(self, ctx, *, channel=None):
+        """Check or set the join/welcome message channel"""
         server = ctx.message.server
         if channel is None:
             channel = self.cache.join_channel(server.id)
@@ -431,6 +445,7 @@ class Settings(Cog):
     @group(pass_context=True, invoke_without_command=True, aliases=['on_leave'])
     @cooldown(2, 10, BucketType.server)
     async def leave_message(self, ctx):
+        """Get the current message that is sent when a user leaves the server"""
         server = ctx.message.server
         message = self.cache.leave_message(server.id)
         channel = self.cache.leave_channel(server.id)
@@ -446,6 +461,8 @@ class Settings(Cog):
                            required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
     @cooldown(2, 10, BucketType.server)
     async def leave_set(self, ctx, *, message):
+        """Set the leave message on this server
+        See {prefix}formatting for help on formatting the message"""
         server = ctx.message.server
         try:
             formatted = format_join_leave(ctx.message.author, message)
@@ -470,6 +487,7 @@ class Settings(Cog):
                            required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
     @cooldown(2, 10, BucketType.server)
     async def leave_channel(self, ctx, *, channel=None):
+        """Set the channel that user leave messages are sent to"""
         server = ctx.message.server
         if channel is None:
             channel = self.cache.leave_channel(server.id)

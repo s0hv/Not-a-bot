@@ -43,15 +43,17 @@ class Utilities(Cog):
 
     @command(ignore_extra=True, aliases=['e', 'emoji'])
     async def emote(self, emote: str):
+        """Get the link to an emote"""
         emote = get_emote_url(emote)
         if emote is None:
-            return await self.bot.say('You need to specify an emote. Default (unicode) emotes are not supported yet')
+            return await self.bot.say('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
 
         await self.bot.say(emote)
 
     @cooldown(1, 1, type=BucketType.user)
     @command(pass_context=True, aliases=['howtoping'])
     async def how2ping(self, ctx, *, user):
+        """Searches a user by their name and get the string you can use to ping them"""
         if ctx.message.server:
             members = ctx.message.server.members
         else:
@@ -87,6 +89,7 @@ class Utilities(Cog):
 
     @command(ignore_extra=True, aliases=['src', 'source_code'])
     async def source(self):
+        """Source code for this bot"""
         await self.bot.say('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
 
     def _unpad_zero(self, value):
@@ -97,7 +100,7 @@ class Utilities(Cog):
     @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'], pass_context=True)
     @cooldown(2, 5, BucketType.user)
     async def stats(self, ctx):
-        """Get info about this bot"""
+        """Get stats about this bot"""
         pid = os.getpid()
 
         # We have a lot of linux only cmd commands here so most things won't show values on other OSs
@@ -159,6 +162,7 @@ class Utilities(Cog):
     @command(name='roles', pass_context=True, ignore_extra=True)
     @cooldown(1, 5, type=BucketType.server)
     async def get_roles(self, ctx, page=''):
+        """Get roles on this server"""
         server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
         print_all = page.lower() == 'all'
         idx = 0

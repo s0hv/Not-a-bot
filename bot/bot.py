@@ -261,7 +261,7 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, commands.errors.MissingRequiredArgument):
             return await self.send_message(channel, 'Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
 
-        terminal.warning('Ignoring exception in command {}'.format(context.command), file=sys.stderr)
+        terminal.warning('Ignoring exception in command {}'.format(context.command))
         traceback.print_exception(type(exception), exception,
                                   exception.__traceback__, file=sys.stderr)
 

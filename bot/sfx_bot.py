@@ -25,13 +25,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import logging
+
 import discord
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot.bot import Bot, command
-from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import scoped_session, sessionmaker
 from bot.dbutil import DatabaseUtils
+
+terminal = logging.getLogger('terminal')
+
 
 initial_cogs = ['cogs.sfx_audio',
                 'cogs.utils',
@@ -72,12 +76,12 @@ class Ganypepe(Bot):
                 self.load_extension(cog)
             except Exception as e:
                 if print_err:
-                    print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
                     self.say('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
     async def on_ready(self):
-        print('[INFO] Logged in as {0.user.name}'.format(self))
+        terminal.info('Logged in as {0.user.name}'.format(self))
         await self.change_presence(game=discord.Game(name=self.config.sfx_game))
         await self._load_cogs()
         try:

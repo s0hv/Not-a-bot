@@ -46,7 +46,7 @@ handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-terminal = logging.getLogger('print')
+terminal = logging.getLogger('terminal')
 terminal.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))

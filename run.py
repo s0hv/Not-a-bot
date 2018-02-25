@@ -44,7 +44,7 @@ handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-terminal = logging.getLogger('print')
+terminal = logging.getLogger('terminal')
 terminal.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
@@ -66,7 +66,7 @@ if not discord.opus.is_loaded():
     discord.opus.load_opus('opus')
 
 
-print('[INFO] Main bot starting up')
+terminal.info('Main bot starting up')
 logger.info('Starting bot')
 bot = NotABot(prefix='!', conf=config, pm_help=False, max_messages=10000)
 bot.run(config.token)

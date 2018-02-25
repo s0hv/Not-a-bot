@@ -37,10 +37,12 @@ import traceback
 from collections import deque
 
 import discord
+import enum
 from aiohttp import ClientSession
 from discord import (Object, InvalidArgument, ChannelType, ClientException,
                      voice_client, Reaction)
 from discord import state
+from discord import client
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 from discord.ext.commands.errors import CommandError
@@ -63,6 +65,11 @@ from bot import exceptions
 log = logging.getLogger('discord')
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
+
+
+class WaitForType(enum.Enum):
+    reaction_remove  = 0
+    reaction_changed = 1
 
 
 class Command(commands.Command):
@@ -553,7 +560,6 @@ class Bot(commands.Bot, Client):
         data = await self.http.create_custom_emoji(server.id, name, img)
         return discord.Emoji(server=server, **data)
 
-
     async def bulk_delete(self, channel_id, message_ids):
         await self.http.delete_messages(channel_id, message_ids)
 
@@ -566,6 +572,92 @@ class Bot(commands.Bot, Client):
             channel_id = channel if isinstance(channel, str) else channel.id
 
         await self.http.delete_message(channel_id, message_id)
+
+    async def wait_for_reaction_change(self, emoji=None, *, user=None, timeout=None, message=None, check=None):
+        """|coro|
+
+        See wait_for_reaction for documentation
+
+        Returns
+        --------
+        namedtuple
+            A namedtuple with attributes ``reaction`` and ``user`` similar to :func:`on_reaction_add`.
+        """
+
+        if emoji is None:
+            emoji_check = lambda r: True
+        elif isinstance(emoji, (str, discord.Emoji)):
+            emoji_check = lambda r: r.emoji == emoji
+        else:
+            emoji_check = lambda r: r.emoji in emoji
+
+        def predicate(reaction, reaction_user):
+            result = emoji_check(reaction)
+
+            if message is not None:
+                result = result and message.id == reaction.message.id
+
+            if user is not None:
+                result = result and user.id == reaction_user.id
+
+            if callable(check):
+                # the exception thrown by check is propagated through the future.
+                result = result and check(reaction, reaction_user)
+
+            return result
+
+        future = asyncio.Future(loop=self.loop)
+        self._listeners.append((predicate, future, WaitForType.reaction_changed))
+        try:
+            return (await asyncio.wait_for(future, timeout, loop=self.loop))
+        except asyncio.TimeoutError:
+            return None
+
+    def handle_reaction_add(self, reaction, user):
+        removed = []
+        for i, (condition, future, event_type) in enumerate(self._listeners):
+            if event_type is not client.WaitForType.reaction and event_type is not WaitForType.reaction_changed:
+                continue
+
+            if future.cancelled():
+                removed.append(i)
+                continue
+
+            try:
+                result = condition(reaction, user)
+            except Exception as e:
+                future.set_exception(e)
+                removed.append(i)
+            else:
+                if result:
+                    future.set_result(client.WaitedReaction(reaction, user))
+                    removed.append(i)
+
+        for idx in reversed(removed):
+            del self._listeners[idx]
+
+    def handle_reaction_remove(self, reaction, user):
+        removed = []
+        for i, (condition, future, event_type) in enumerate(self._listeners):
+            if event_type is not WaitForType.reaction_remove and event_type is not WaitForType.reaction_changed:
+                continue
+
+            if future.cancelled():
+                removed.append(i)
+                continue
+
+            try:
+                result = condition(reaction, user)
+            except Exception as e:
+                future.set_exception(e)
+                removed.append(i)
+            else:
+                if result:
+                    future.set_result(client.WaitedReaction(reaction, user))
+                    removed.append(i)
+
+        for idx in reversed(removed):
+            del self._listeners[idx]
 
     async def join_voice_channel(self, channel):
         if isinstance(channel, Object):

@@ -7,7 +7,7 @@ from utils.utilities import (check_channel_mention, check_role_mention, check_us
                              split_string, find_user, get_role, get_channel)
 import logging
 import discord
-from bot.formatter import Paginator
+from bot.formatter import Paginator, PagedMessage
 from functools import partial
 
 logger = logging.getLogger('debug')
@@ -17,6 +17,7 @@ perms = discord.Permissions(8)
 class CommandBlacklist(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self._listeners = []
 
     @property
     def perm_values(self):
@@ -354,6 +355,9 @@ class CommandBlacklist(Cog):
             where = 'server={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(server.id)
 
         rows = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.get_rows, where))
+        if not rows:
+            return await self.bot.say('No perms found')
+
         paginator = Paginator('Role perms')
         last = None
         last_type = None
@@ -383,8 +387,28 @@ class CommandBlacklist(Cog):
                 paginator.add_to_field(s)
 
         paginator.finalize()
-        for page in paginator.pages:
-            await self.bot.send_message(ctx.message.channel, embed=page)
+        pages = paginator.pages
+        for idx, page in enumerate(pages):
+            page.set_footer(text='Page {}/{}'.format(idx + 1, len(pages)))
+
+        message = await self.bot.send_message(ctx.message.channel, embed=pages[0])
+        await self.bot.add_reaction(message, '◀')
+        await self.bot.add_reaction(message, '▶')
+
+        paged = PagedMessage(pages)
+        while True:
+            result = await self.bot.wait_for_reaction_change(user=ctx.message.author, message=message, timeout=60)
+            if result is None:
+                return
+
+            page = paged.reaction_changed(*result)
+            if page is None:
+                continue
+
+            try:
+                await self.bot.edit_message(message, embed=page)
+            except discord.HTTPException:
+                return
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 30, type=BucketType.user)
@@ -522,6 +546,14 @@ class CommandBlacklist(Cog):
                 smallest = v
 
         return returns[smallest]
+
+    async def on_reaction_add(self, reaction, user):
+        for listener in self._listeners:
+            listener(reaction, user)
+
+    async def on_reaction_remove(self, reaction, user):
+        if not self._listeners:
+            return
 
 
 def setup(bot):

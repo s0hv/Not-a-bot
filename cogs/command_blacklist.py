@@ -8,6 +8,7 @@ from utils.utilities import (check_channel_mention, check_role_mention, check_us
 import logging
 import discord
 from bot.formatter import Paginator
+from functools import partial
 
 logger = logging.getLogger('debug')
 perms = discord.Permissions(8)
@@ -352,7 +353,7 @@ class CommandBlacklist(Cog):
         else:
             where = 'server={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(server.id)
 
-        rows = self.get_rows(where)
+        rows = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.get_rows, where))
         paginator = Paginator('Role perms')
         last = None
         last_type = None
@@ -362,6 +363,7 @@ class CommandBlacklist(Cog):
 
         for row in rows:
             if row['role'] != last:
+                last = row['role']
                 role = self.bot.get_role(server, row['role'])
                 if role is None:
                     logger.warning('Role {} has been deleted and it has perms'.format(row['role']))
@@ -375,6 +377,7 @@ class CommandBlacklist(Cog):
                 s = ''
                 if row['type'] != last_type:
                     s = '\nWhitelisted:\n' if last_type == BlacklistTypes.WHITELIST else '\nBlacklisted:\n'
+                    last_type = row['type']
 
                 s += get_command(row) + '\n'
                 paginator.add_to_field(s)

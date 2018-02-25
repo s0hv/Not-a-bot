@@ -158,6 +158,19 @@ class MusicPlayer:
     async def wait_for_not_empty(self):
         await self.playlist.not_empty.wait()
 
+    async def set_mean_volume(self, file):
+        try:
+            db = await asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool,
+                                        duration=self.current.duration), timeout=20, loop=self.bot.loop)
+            if db is not None and abs(db) >= 0.1:
+                volume = self._get_volume_from_db(db)
+                self.current.player.volume = volume
+
+        except asyncio.TimeoutError:
+            logger.debug('Mean volume timed out')
+        except asyncio.CancelledError:
+            pass
+
     async def _wait_for_next_song(self):
         try:
             await asyncio.wait_for(self.wait_for_not_empty(), 1, loop=self.bot.loop)
@@ -261,19 +274,11 @@ class MusicPlayer:
                                                                       options=self.current.options)
 
             if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str) and not self.current.is_live:
-                try:
-                    db = await asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration), timeout=6, loop=self.bot.loop)
-                    if db is None or abs(db) < 0.1:
-                        volume = self.volume
-                    else:
-                        volume = self._get_volume_from_db(db)
-                except asyncio.TimeoutError:
-                    logger.debug('Mean volume timed out')
-                    volume = self.volume
+                volume_task = asyncio.ensure_future(self.set_mean_volume(file))
             else:
-                volume = self.volume
+                volume_task = None
 
-            self.current.player.volume = volume
+            self.current.player.volume = self.volume
 
             if not self.current.seek:
                 dur = get_track_pos(self.current.duration, 0)
@@ -294,6 +299,9 @@ class MusicPlayer:
 
             self.current.seek = False
             await self.play_next_song.wait()
+            if volume_task is not None:
+                volume_task.cancel()
+                volume_task = None
             self.right_version_playing.clear()
 
     async def prepare_right_version(self):

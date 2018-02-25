@@ -161,7 +161,7 @@ class Song:
             logger.debug('Got info')
 
             self.info_from_dict(**info)
-            terminal.info('Downloaded', self.webpage_url)
+            terminal.info('Downloaded ' + self.webpage_url)
             logger.debug('Filename set to {}'.format(self.filename))
             self.success = True
             return

@@ -28,6 +28,7 @@ import os
 import time
 
 logger = logging.getLogger('audio')
+terminal = logging.getLogger('terminal')
 
 
 class Song:
@@ -125,7 +126,7 @@ class Song:
             loop = self.playlist.bot.loop
             if dl:
                 if not os.path.exists(self.dl_folder):
-                    print('[INFO] Making directory %s' % self.dl_folder)
+                    terminal.info('Making directory %s' % self.dl_folder)
                     os.makedirs(self.dl_folder)
                     logger.debug('Created dir {}'.format(self.dl_folder))
 
@@ -150,7 +151,7 @@ class Song:
 
                 if self.filename is not None:
                     if os.path.exists(self.filename):
-                        print('[INFO] File exists for %s' % self.title)
+                        terminal.info('File exists for %s' % self.title)
                         logger.debug('File exists for %s' % self.title)
                         self.success = True
                         return
@@ -160,7 +161,7 @@ class Song:
             logger.debug('Got info')
 
             self.info_from_dict(**info)
-            print('[INFO] Downloaded', self.webpage_url)
+            terminal.info('Downloaded', self.webpage_url)
             logger.debug('Filename set to {}'.format(self.filename))
             self.success = True
             return
@@ -180,7 +181,7 @@ class Song:
                     return
 
                 os.remove(self.filename)
-                print('[INFO] Deleted', self.filename)
+                terminal.info('Deleted', self.filename)
                 break
             except PermissionError:
                 await asyncio.sleep(1)

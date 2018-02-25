@@ -33,11 +33,13 @@ from random import shuffle, choice
 
 from validators import url as valid_url
 
+terminal = logging.getLogger('terminal')
+
 try:
     from numpy import delete
 except ImportError:
     delete = None
-    print('[EXCEPTION] Numpy is not installed. Playlist can now only be cleared completely. No deletion by indexes')
+    terminal.warning('Numpy is not installed. Playlist can now only be cleared completely. No deletion by indexes')
 
 from bot.downloader import Downloader
 from bot.song import Song
@@ -77,7 +79,7 @@ class Playlist:
                 return
 
             if not song.success:
-                print('[INFO] downloading from next_song')
+                terminal.debug('downloading from next_song')
                 await song.download()
 
             return song
@@ -98,7 +100,7 @@ class Playlist:
                 for song in songs_left:
                     self.playlist.append(song)
             else:
-                print('[ERROR] Numpy is not installed. Cannot delete songs by index')
+                terminal.warning('Numpy is not installed. Cannot delete songs by index')
                 await self.say('Clearing by indices is not supported', channel=channel)
 
             await self.say('Playlist cleared', channel=channel)
@@ -382,7 +384,7 @@ class Playlist:
 
     async def _append_song(self, song, priority=False):
         if not self.playlist or priority:
-            print('[INFO] Downloading %s' % song.webpage_url)
+            terminal.debug('Downloading %s' % song.webpage_url)
             await song.download()
 
             if priority:
@@ -402,7 +404,7 @@ class Playlist:
             return
 
         song = Song(self, webpage_url=song, config=self.bot.config)
-        print('[INFO] Downloading %s' % song.webpage_url)
+        terminal.debug('Downloading %s' % song.webpage_url)
         await song.download()
         await song.on_ready.wait()
         if not song.success:
@@ -426,8 +428,8 @@ class Playlist:
             try:
                 if item.webpage_url == webpage_url:
                     return True
-            except Exception as e:
-                print('[EXCEPTION] Error while checking playlist %s' % e)
+            except Exception:
+                terminal.exception('Error while checking playlist')
 
         return False
 

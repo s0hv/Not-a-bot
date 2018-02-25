@@ -26,11 +26,13 @@ SOFTWARE.
 """
 
 import logging
-from bot.Not_a_bot import NotABot
+import sys
+
 import discord
 
+from bot.Not_a_bot import NotABot
 from bot.config import Config
-
+from bot.formatter import LoggingFormatter
 
 discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.INFO)
@@ -44,13 +46,28 @@ handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
+terminal = logging.getLogger('print')
+terminal.setLevel(logging.DEBUG)
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
+terminal.addHandler(handler)
+
+terminal.info('testing colors')
+terminal.debug('test')
+terminal.warning('test')
+terminal.error('test')
+terminal.critical('test')
+try:
+    int('d')
+except:
+    terminal.exception('test exception')
+
 config = Config()
 
 if not discord.opus.is_loaded():
     discord.opus.load_opus('opus')
 
-
-print('[INFO] Main bot starting up')
+terminal.info('Main bot starting up')
 logger.info('Starting bots')
 bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
 bot.run(config.test_token)

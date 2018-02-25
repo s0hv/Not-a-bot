@@ -1,17 +1,18 @@
 # Ignore this file
 
 import json
+import logging
 import os
 import re
-from random import choice
 from threading import Lock
 
 import discord
+
 from bot.bot import command
-from utils.utilities import slots2dict, split_string
-import logging
+from utils.utilities import slots2dict
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 manage_server = discord.Permissions(48)  # Manage server and channels
 color_perms = discord.Permissions(268435504)  # Manage server, channels and roles
 
@@ -96,8 +97,8 @@ class ManagementHandler:
         colors = self.get_colors(serverid)
         try:
             del colors[name]
-        except Exception as e:
-            print(e)
+        except Exception:
+            terminal.exception('failed to delete color from json')
 
         self.save_json()
 

@@ -42,14 +42,14 @@ from discord import (Object, InvalidArgument, ChannelType, ClientException,
                      voice_client, Reaction)
 from discord import state
 from discord.ext import commands
-from discord.ext.commands import CommandNotFound, core
+from discord.ext.commands import CommandNotFound
+from discord.ext.commands.errors import CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.ext.commands.view import StringView
-from discord.ext.commands.errors import CommandError
-from bot.globals import Auth
+
 from bot.formatter import Formatter
+from bot.globals import Auth
 from utils.utilities import is_superset
-from bot.exceptions import PermissionError
 
 try:
     import uvloop
@@ -62,6 +62,7 @@ from bot import exceptions
 
 log = logging.getLogger('discord')
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Command(commands.Command):
@@ -74,7 +75,7 @@ class Command(commands.Command):
         self.usage = kwargs.pop('usage', None)
         self.checks.append(is_superset)
         if self.owner_only:
-            print('registered owner_only command %s' % name)
+            terminal.info('registered owner_only command %s' % name)
 
     def can_run(self, context):
         """
@@ -260,7 +261,7 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, commands.errors.MissingRequiredArgument):
             return await self.send_message(channel, 'Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
 
-        print('Ignoring exception in command {}'.format(context.command), file=sys.stderr)
+        terminal.warning('Ignoring exception in command {}'.format(context.command), file=sys.stderr)
         traceback.print_exception(type(exception), exception,
                                   exception.__traceback__, file=sys.stderr)
 
@@ -632,9 +633,8 @@ class Bot(commands.Bot, Client):
         try:
             await vc.voice.disconnect()
         except:
-            print("Error disconnecting during reconnect")
+            terminal.exception("Error disconnecting during reconnect")
             self.voice_clients_.pop(server.id)
-            traceback.print_exc()
 
         await asyncio.sleep(1)
 

@@ -11,6 +11,7 @@ from cogs.cog import Cog
 from utils.utilities import check_user_mention
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Stats(Cog):
@@ -139,7 +140,7 @@ class Stats(Cog):
         try:
             rows = session.execute(sql, {'server': server, 'user': user}).fetchall()
         except SQLAlchemyError as e:
-            print(e)
+            terminal.exception('Failed to get last seen from db')
             return await self.bot.say('Failed to get user because of an error')
 
         if len(rows) == 0:

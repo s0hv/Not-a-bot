@@ -25,6 +25,9 @@ SOFTWARE.
 import urllib
 
 from bs4 import BeautifulSoup
+import logging
+
+terminal = logging.getLogger('terminal')
 
 
 async def math(calculation, client, key):
@@ -32,7 +35,7 @@ async def math(calculation, client, key):
         return "No api key specified"
 
     calculation = urllib.parse.quote_plus(calculation)
-    print(calculation)
+    terminal.debug(calculation)
     api = 'http://api.wolframalpha.com/v2/query?appid=%s&input=%s&format=plaintext' % (key, calculation)
     async with client.get(api) as r:
         if r.status == 200:
@@ -40,7 +43,6 @@ async def math(calculation, client, key):
             soup = BeautifulSoup(content, 'xml')
             result = soup.find('queryresult').get('success')
             if result != 'true':
-                print('error')
                 return "I don't even math"
 
             pods = soup.find_all('pod', primary='true')
@@ -49,7 +51,7 @@ async def math(calculation, client, key):
                 try:
                     txt = pod.find('plaintext').text
                     answers += '`' + txt.strip() + '`' + '\n'
-                except Exception as e:
-                    print('[ERROR] Error while getting wolfram answer %s' % e)
+                except Exception:
+                    terminal.exception('Error while getting wolfram answer')
                     pass
             return answers or 'No answer...'

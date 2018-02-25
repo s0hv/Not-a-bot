@@ -29,6 +29,8 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 import youtube_dl
+import logging
+terminal = logging.getLogger('terminal')
 
 
 opts = {
@@ -71,7 +73,7 @@ class Downloader:
         else:
             ytdl = self.non_flat_ytdl
 
-        print('dl called', args, kwargs)
+        terminal.debug('dl called {} {}'.format(args, kwargs))
         if callable(on_error):
             try:
                 return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
@@ -98,5 +100,5 @@ class Downloader:
             return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
 
     async def safe_extract_info(self, loop, *args, **kwargs):
-        print('dl called', args, kwargs)
+        terminal.debug('dl called {} {}'.format(args, kwargs))
         return await loop.run_in_executor(self.thread_pool, functools.partial(self.safe_ytdl.extract_info, *args, **kwargs))

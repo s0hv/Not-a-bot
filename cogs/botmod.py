@@ -3,6 +3,9 @@ from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST, AUTOPLAYLIST
 from utils.utilities import read_lines, empty_file, write_playlist, test_url
 from bot.bot import command
 from bot.globals import Auth
+import logging
+
+terminal = logging.getLogger('terminal')
 
 
 class BotMod(Cog):
@@ -44,7 +47,7 @@ class BotMod(Cog):
                 succeeded += 1
             except KeyError as e:
                 failed += 1
-                print('[EXCEPTION] KeyError: %s' % e)
+                terminal.exception('Failed to delete all from autoplaylist')
 
         write_playlist(AUTOPLAYLIST, songs)
 

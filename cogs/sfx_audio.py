@@ -23,14 +23,17 @@ SOFTWARE.
 """
 
 import asyncio
+import logging
 import os
-from numpy import random
-from collections import deque, OrderedDict
 import shlex
+from collections import deque, OrderedDict
+
 import discord
+from discord.ext import commands
+from numpy import random
+
 from bot.formatter import Paginator
 
-from discord.ext import commands
 try:
     from gtts import gTTS
 except ImportError:
@@ -38,6 +41,8 @@ except ImportError:
 
 from bot.bot import command
 from bot.globals import TTS, SFX_FOLDER
+
+terminal = logging.getLogger('terminal')
 
 
 class SFX:
@@ -163,7 +168,7 @@ class Audio:
             try:
                 state.voice = await self.bot.join_voice_channel(summoned_channel)
             except discord.ClientException as e:
-                print(e)
+                terminal.exception('Failed to join vc')
                 if ctx.message.server.id in self.bot.connection._voice_clients:
                     state.voice = self.bot.connection._voice_clients.get(ctx.message.server.id)
             except:
@@ -206,8 +211,8 @@ class Audio:
             if state.voice is not None:
                 await state.voice.disconnect()
 
-        except Exception as e:
-            print('[ERROR] Error while stopping sfx_bot.\n%s' % e)
+        except Exception:
+            terminal.exception('Error while stopping sfx_bot')
 
     @command(pass_context=True, no_pm=True)
     @commands.cooldown(2, 4, type=commands.BucketType.user)

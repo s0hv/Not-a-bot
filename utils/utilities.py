@@ -38,12 +38,13 @@ import discord
 import numpy
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
-from bot.globals import BlacklistTypes, PermValues
 
 from bot.exceptions import NoCachedFileException, PermissionError
+from bot.globals import BlacklistTypes, PermValues
 
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
+terminal = logging.getLogger('terminal')
 
 # https://stackoverflow.com/a/4628148/6046713
 # Added days and and aliases for names
@@ -198,7 +199,7 @@ def get_config_value(config, section, option, option_type=None, fallback=None):
             return config.get(section, option, fallback=fallback)
 
     except ValueError as e:
-        print('[ERROR] {0}\n{1} value is not {2}. {1} set to {3}'.format(e, option, str(option_type), str(fallback)))
+        terminal.error('{0}\n{1} value is not {2}. {1} set to {3}'.format(e, option, str(option_type), str(fallback)))
         return fallback
 
 

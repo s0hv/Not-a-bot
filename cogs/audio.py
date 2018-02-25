@@ -56,6 +56,8 @@ handler.setFormatter(
     logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
+terminal = logging.getLogger('terminal')
+
 
 def get_track_pos(duration, current_pos):
     mm, ss = divmod(duration, 60)
@@ -106,16 +108,16 @@ class MusicPlayer:
             self.player._connected.set()
 
     async def websocket_check(self):
-        print("[Debug] Creating websocket check loop")
-        logger.debug("[Debug] Creating websocket check loop")
+        terminal.debug("Creating websocket check loop")
+        logger.debug("Creating websocket check loop")
 
         while self.voice is not None:
             try:
                 self.voice.ws.ensure_open()
                 assert self.voice.ws.open
             except:
-                print("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
-                logger.debug("[Debug] Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
+                terminal.debug("Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
+                logger.debug("Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
                 await self.bot.reconnect_voice_client(self.voice.channel.server)
                 await asyncio.sleep(4)
             finally:
@@ -145,7 +147,6 @@ class MusicPlayer:
 
         self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
         self.playlist.on_stop()
-        print()
 
     async def delete_current(self):
         if self.current is not None and self.bot.config.delete_after and not self.playlist.in_list(self.current.webpage_url):
@@ -173,7 +174,7 @@ class MusicPlayer:
                 song_ = await self.playlist.get_from_autoplaylist()
 
                 if song_ is None:
-                    print('[ERROR] None returned from get_from_autoplaylist. Waiting for next song')
+                    terminal.warning('None returned from get_from_autoplaylist. Waiting for next song')
                     return None
 
                 else:
@@ -241,7 +242,7 @@ class MusicPlayer:
 
                 logger.debug('Done waiting')
                 if not self.current.success:
-                    print('[EXCEPTION] Download unsuccessful')
+                    terminal.error('Download unsuccessful')
                     continue
 
                 if self.current.filename is not None:
@@ -249,7 +250,7 @@ class MusicPlayer:
                 elif self.current.url != 'None':
                     file = self.current.url
                 else:
-                    print('[ERROR] No valid file to be played')
+                    terminal.error('No valid file to be played')
                     continue
 
                 logger.debug('Opening file with the name "{0}" and options "{1.before_options}" "{1.options}"'.format(file, self.current))
@@ -638,7 +639,7 @@ class Audio:
         if state.voice is None:
             success = await ctx.invoke(self.summon)
             if not success:
-                print('[DEBUG] Failed to join vc')
+                terminal.debug('Failed to join vc')
                 return
 
         song_name, metadata = await self._parse_play(song_name, ctx, metadata,
@@ -777,7 +778,7 @@ class Audio:
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)
         if mode in ('left', 'right'):
-            mode = 'FL-FR|FR-FR' if mode == 'right' else 'FL-FL|FR-FL'
+            mode = 'FL-FR' if mode == 'right' else 'FR-FL'
             options = self._parse_filters(current.options, 'channelmap', 'map={}'.format(mode))
         else:
             options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
@@ -907,8 +908,8 @@ class Audio:
         args = shlex.split(cmd)
         try:
             p = subprocess.Popen(args, stdout=subprocess.PIPE)
-        except Exception as e:
-            print(e)
+        except Exception:
+            terminal.exception('Failed to get bpm')
             return await self.bot.say('Error while getting bpm', delete_after=20)
 
         from utils.utilities import write_wav
@@ -987,8 +988,8 @@ class Audio:
                 await state.voice.disconnect()
                 state.voice = None
 
-        except Exception as e:
-            print('[ERROR] Error while stopping voice.\n%s' % e)
+        except Exception:
+            terminal.exception('Error while stopping voice')
 
     async def disconnect_voice(self, state):
         await self.stop_state(state)
@@ -1146,14 +1147,14 @@ class Audio:
             name = [state.current.webpage_url]
 
             if name is None:
-                print('[INFO] No name specified in delete_from')
+                terminal.debug('No name specified in delete_from')
                 await state.say('No song to delete', 30, ctx.message.channel)
                 return
 
         with open(DELETE_AUTOPLAYLIST, 'a', encoding='utf-8') as f:
             f.write(' '.join(name) + '\n')
 
-        print('[INFO] Added entry %s to the deletion list' % name)
+        terminal.info('Added entry %s to the deletion list' % name)
         await state.say('Added entry %s to the deletion list' % ' '.join(name), 30, ctx.message.channel)
 
     @command(name='add', pass_context=True, no_pm=True, auth=Auth.MOD)
@@ -1165,7 +1166,7 @@ class Audio:
         if not name:
             current = state.current
             if current is None or current.webpage_url is None:
-                print('[INFO] No name specified in add_to')
+                terminal.debug('No name specified in add_to')
                 await self.bot.say('No song to add', delete_after=30)
                 return
 
@@ -1192,7 +1193,7 @@ class Audio:
         with open(ADD_AUTOPLAYLIST, 'a', encoding='utf-8') as f:
             f.write(data + '\n')
 
-        print('[INFO] Added entry %s' % name)
+        terminal.info('Added entry %s to autoplaylist' % name)
         await state.say('Added entry %s' % name, 30, ctx.message.channel)
 
     @command(pass_context=True, no_pm=True)

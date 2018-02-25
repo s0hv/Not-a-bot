@@ -18,6 +18,7 @@ from utils.utilities import random_color, get_avatar
 from utils.utilities import split_string
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Utilities(Cog):

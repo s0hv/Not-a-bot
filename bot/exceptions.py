@@ -24,13 +24,16 @@ SOFTWARE.
 
 
 from discord.ext.commands.errors import CommandError
+import logging
+
+terminal = logging.getLogger('terminal')
 
 
 class BotException(CommandError):
     def __init__(self, message=None, *args, cmd_message: str=None):
         super().__init__(message, *args)
         if cmd_message is not None:
-            print(cmd_message)
+            terminal.info(cmd_message)
 
         self._message = message
 

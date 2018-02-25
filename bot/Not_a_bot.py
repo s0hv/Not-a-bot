@@ -24,6 +24,8 @@ SOFTWARE.
 
 import asyncio
 import logging
+import mimetypes
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import discord
@@ -40,14 +42,14 @@ from bot.cooldown import CooldownManager
 from bot.dbutil import DatabaseUtils
 from bot.globals import BlacklistTypes, PermValues
 from bot.servercache import ServerCache
-from utils.utilities import (split_string, slots2dict, retry, random_color, check_perms)
-import mimetypes
-from concurrent.futures import ThreadPoolExecutor
+from utils.utilities import (split_string, slots2dict, retry, random_color,
+                             check_perms)
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 initial_cogs = [
     'cogs.admin',
@@ -176,12 +178,12 @@ class NotABot(Bot):
                 self.load_extension(cog)
             except Exception as e:
                 if print_err:
-                    print('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
                     self.say('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
     async def on_ready(self):
-        print('[INFO] Logged in as {0.user.name}'.format(self))
+        terminal.info('Logged in as {0.user.name}'.format(self))
         await self.change_presence(game=discord.Game(name=self.config.game))
         asyncio.ensure_future(self._load_cogs(), loop=self.loop)
         await self.cache_servers()
@@ -455,7 +457,7 @@ class NotABot(Bot):
                 s = '{0.name}/{0.id}/{1.name}/{1.id} {2} called {3}'.format(message.server, message.channel, str(message.author), command.name)
             else:
                 s = 'DM/{0.id} {0} called {1}'.format(message.author, command.name)
-            print(str(datetime.now()) + ' ' + s)
+            terminal.info(str(datetime.now()) + ' ' + s)
             logger.debug(s)
             try:
                 await command.invoke(ctx)

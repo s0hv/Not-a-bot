@@ -24,29 +24,27 @@ SOFTWARE.
 
 import hashlib
 import logging
-import aiohttp
 import os
-import asyncio
 import subprocess
 from io import BytesIO
+from shlex import split
 from sys import platform
 from threading import Lock
-import tempfile
-import magic
-import shutil
 
+import aiohttp
 import cv2
 import geopatterns
+import magic
 import numpy as np
-from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageSequence
+from PIL import Image, ImageChops, ImageDraw, ImageSequence
 from colorthief import ColorThief as CF
 from colour import Color
 from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
-from shlex import  split
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal ')
 IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
 MAGICK = 'magick '
 try:
@@ -431,7 +429,7 @@ def create_glow(img, amount):
             out = p.stdout.read()
             buff = BytesIO(out)
         except Exception:
-            print('[ERROR] Could not create glow')
+            terminal.exception('Could not create glow')
             return img
 
     return Image.open(buff)

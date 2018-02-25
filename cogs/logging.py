@@ -7,6 +7,7 @@ from random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Logger(Cog):
@@ -70,7 +71,7 @@ class Logger(Cog):
 
         d = self.format_for_db(message)
 
-        # print((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment))
+        # terminal.info(str((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment)))
 
         try:
             self.session.execute(sql, d)
@@ -162,7 +163,7 @@ class Logger(Cog):
         if len(message) > 2:
             m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.server)
             logger.info(m)
-            print(m)
+            terminal.debug(m)
 
         for m in message:
             try:
@@ -210,7 +211,7 @@ class Logger(Cog):
         if len(message) > 4:
             m = '{0.id}: {0.name} On edit message had to post over 4 messages'.format(before.server)
             logger.info(m)
-            print(m)
+            terminal.debug(m)
 
         for m in message:
             await self.bot.send_message(channel, m)

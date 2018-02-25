@@ -27,6 +27,9 @@ from os.path import join
 from pathlib import Path
 import shutil
 from discord import Permissions as Permissions_
+import logging
+
+terminal = logging.getLogger('terminal')
 
 try:
     _wd = Path(__file__).parent.parent.__str__()
@@ -56,7 +59,7 @@ def create_folders():
     _create_folder(join(_wd, 'data'))
 
     if not os.path.exists(PLAYLISTS):
-        print('[ERROR] Path %s does not exist' % PLAYLISTS)
+        terminal.error('Path %s does not exist' % PLAYLISTS)
         raise FileNotFoundError('Path %s does not exist' % PLAYLISTS)
 
     _create_folder(SFX_FOLDER)
@@ -69,8 +72,8 @@ create_folders()
 if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autoplaylist.txt')):
     try:
         shutil.copyfile(join(PLAYLISTS, '_autoplaylist.txt'), AUTOPLAYLIST)
-    except Exception as e:
-        print('[ERROR] Autoplaylist copying failed.\nReason: %s' % e)
+    except Exception:
+        terminal.exception('Autoplaylist copying failed')
 
 
 class BlacklistTypes:

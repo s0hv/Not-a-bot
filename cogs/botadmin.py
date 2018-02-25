@@ -9,6 +9,7 @@ from bot.bot import command
 from cogs.cog import Cog
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class BotAdmin(Cog):
@@ -118,8 +119,8 @@ class BotAdmin(Cog):
             except:
                 pass
 
-        except Exception as e:
-            print('SFX bot shutdown error: %s' % e)
+        except Exception:
+            terminal.exception('Bot shutdown error')
         finally:
             self.bot.loop.run_until_complete(self.bot.close())
 

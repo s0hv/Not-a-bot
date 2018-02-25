@@ -27,6 +27,9 @@ import os
 
 from bot.exceptions import InvalidOwnerIDException
 from utils.utilities import get_config_value
+import logging
+
+terminal = logging.getLogger('terminal')
 
 
 class Config:
@@ -64,55 +67,55 @@ class Config:
         try:
             self.owner = str(self.config.get('Owner', 'OwnerID', fallback=None))
             int(self.owner)
-        except ValueError as e:
+        except ValueError:
             raise InvalidOwnerIDException('%s\nThe given OwnerID is not valid' % e)
 
         try:
             self.default_volume = self.config.getfloat('MusicSettings', 'DefaultVolume', fallback=0.15)
-        except ValueError as e:
-            print("Error %s. The value for DefaultVolume in config isn't a number. Default volume set to 0.15" % e)
+        except ValueError:
+            terminal.exception("The value for DefaultVolume in config isn't a number. Default volume set to 0.15")
             self.default_volume = 0.15
 
         try:
             self.autoplaylist = self.config.getboolean('MusicSettings', 'Autoplaylist', fallback=False)
-        except ValueError as e:
-            print("Error %s. Autoplaylist value is not correct. Autoplaylist set to off" % e)
+        except ValueError:
+            terminal.exception("Autoplaylist value is not correct. Autoplaylist set to off")
             self.autoplaylist = False
 
         try:
             self.now_playing = self.config.getboolean('MusicSettings', 'NowPlaying', fallback=False)
-        except ValueError as e:
-            print("[ERROR] %s. NowPlaying value is not correct. NowPlaying set to off" % e)
+        except ValueError:
+            terminal.exception("NowPlaying value is not correct. NowPlaying set to off")
             self.now_playing = False
 
         try:
             self.delete_after = self.config.getboolean('MusicSettings', 'DeleteAfter', fallback=False)
-        except ValueError as e:
-            print("[ERROR] %s. DeleteAfter value is not boolean. DeleteAfter set to off" % e)
+        except ValueError:
+            terminal.exception("DeleteAfter value is not boolean. DeleteAfter set to off")
             self.delete_after = False
 
         try:
             self.download = self.config.getboolean('MusicSettings', 'DownloadSongs', fallback=True)
-        except ValueError as e:
-            print("[ERROR] %s. DownloadSongs value is not boolean. DownloadSongs set to on" % e)
+        except ValueError:
+            terminal.exception("DownloadSongs value is not boolean. DownloadSongs set to on")
             self.download = True
 
         try:
             self.auto_volume = self.config.getboolean('MusicSettings', 'AutoVolume', fallback=False)
-        except ValueError as e:
-            print("[ERROR] %s. AutoVolume value is not boolean. AutoVolume set to off" % e)
+        except ValueError:
+            terminal.exception("AutoVolume value is not boolean. AutoVolume set to off")
             self.auto_volume = False
 
         try:
             self.volume_multiplier = self.config.getfloat('MusicSettings', 'VolumeMultiplier', fallback=0.01)
-        except ValueError as e:
-            print("[ERROR] %s. VolumeMultiplier value is not a number. VolumeMultiplier set to 0.01" % e)
+        except ValueError:
+            terminal.exception("VolumeMultiplier value is not a number. VolumeMultiplier set to 0.01")
             self.volume_multiplier = 0.01
 
         try:
             self.gachi = self.config.getboolean('MusicSettings', 'Gachi', fallback=False)
-        except ValueError as e:
-            print("[ERROR] %s. Gachi value is not boolean. Gachi set to off" % e)
+        except ValueError:
+            terminal.exception("Gachi value is not boolean. Gachi set to off")
             self.gachi = False
 
         self.game = self.config.get('BotOptions', 'Game', fallback=None)
@@ -121,21 +124,21 @@ class Config:
 
         try:
             self.delete_messages = self.config.getboolean('BotOptions', 'DeleteMessages', fallback=False)
-        except ValueError as e:
-            print("[ERROR] %s. DeleteMessages value is not boolean. DeleteMessages set to off" % e)
+        except ValueError:
+            terminal.exception("DeleteMessages value is not boolean. DeleteMessages set to off")
             self.delete_messages = False
 
         try:
             self.max_combo = self.config.getint('SFXSettings', 'MaxCombo', fallback=8)
-        except ValueError as e:
-            print('[ERROR] %s. MaxCombo value is incorrect. Value set to default (8)' % e)
+        except ValueError:
+            terminal.exception('MaxCombo value is incorrect. Value set to default (8)')
             self.max_combo = 8
 
         if self.game is None:
-            print('[INFO] No game set for main bot')
+            terminal.info('No game set for main bot')
             self.game = ''
         if self.sfx_game is None:
-            print('[INFO] No game set for sfx bot')
+            terminal.info('No game set for sfx bot')
             self.sfx_game = ''
 
         self.leave_message = self.config.get('Defaults', 'LeaveMessage', fallback='None')
@@ -156,5 +159,5 @@ class Config:
             raise ValueError('Please put your discord user id to the config')
 
         if self.sfx_token is not None and self.sfx_token.lower() == 'bot_token':
-            print('[INFO] No valid token given for sfx bot. Only main bot will be used')
+            terminal.info('No valid token given for sfx bot. Only main bot will be used')
             self.sfx_token = None

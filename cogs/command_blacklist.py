@@ -3,9 +3,11 @@ from bot.bot import command, group
 from discord.ext.commands import cooldown, BucketType
 from sqlalchemy import text
 from bot.globals import BlacklistTypes
-from utils.utilities import check_channel_mention, check_role_mention, check_user_mention, split_string
+from utils.utilities import (check_channel_mention, check_role_mention, check_user_mention,
+                             split_string, find_user, get_role, get_channel)
 import logging
 import discord
+from bot.formatter import Paginator
 
 logger = logging.getLogger('debug')
 perms = discord.Permissions(8)
@@ -100,7 +102,7 @@ class CommandBlacklist(Cog):
             userid = msg.mentions[0].id
             success = await self._set_blacklist(where + 'user=%s' % userid, user=int(userid), **values)
             if success:
-                message = '%s all commands from user %s' % (type_string, msg.mentions[0])
+                message = '%s all commands for user %s' % (type_string, msg.mentions[0])
             elif success is None:
                 message = 'removed %s from user %s' % (type_string2, msg.mentions[0])
 
@@ -164,9 +166,8 @@ class CommandBlacklist(Cog):
 
         for command_ in command_.split(' '):
             _command = self.bot.get_command(command_)
-            if command is None:
-                if not await self._set_all_commands(server, msg, command_, type=BlacklistTypes.WHITELIST):
-                    await self.bot.say('Could not find command %s' % command_)
+            if _command is None:
+                await self.bot.say('Could not find command %s' % command_)
                 continue
             await _whitelist(_command)
 
@@ -336,12 +337,67 @@ class CommandBlacklist(Cog):
 
         return smallest_row
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True)
-    @cooldown(1, 30, type=BucketType.user)
-    async def commands(self, ctx):
-        """Get your white- and blacklisted commands on this server"""
+    @command(pass_context=True, no_pm=True)
+    @cooldown(1, 20)
+    async def role_perms(self, ctx, *role):
+        """Show white- and blacklist for all or specified role"""
         server = ctx.message.server
-        user = ctx.message.author
+
+        if role:
+            role = ' '.join(role)
+            role_ = get_role(role, server.roles, name_matching=True)
+            if not role_:
+                return await self.bot.say('No role found with {}'.format(role))
+            where = 'server={} AND user IS NULL AND channel IS NULL AND role={}'.format(server.id, role_.id)
+        else:
+            where = 'server={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(server.id)
+
+        rows = self.get_rows(where)
+        paginator = Paginator('Role perms')
+        last = None
+        last_type = None
+
+        def get_command(row):
+            return 'All commands' if row['command'] is None else row['command']
+
+        for row in rows:
+            if row['role'] != last:
+                role = self.bot.get_role(server, row['role'])
+                if role is None:
+                    logger.warning('Role {} has been deleted and it has perms'.format(row['role']))
+                    continue
+
+                last_type = row['type']
+                perm_type = 'Whitelisted:\n' if last_type == BlacklistTypes.WHITELIST else 'Blacklisted:\n'
+                paginator.add_field('{0.name} {0.id}'.format(role), perm_type + get_command(row) + '\n')
+
+            else:
+                s = ''
+                if row['type'] != last_type:
+                    s = '\nWhitelisted:\n' if last_type == BlacklistTypes.WHITELIST else '\nBlacklisted:\n'
+
+                s += get_command(row) + '\n'
+                paginator.add_to_field(s)
+
+        paginator.finalize()
+        for page in paginator.pages:
+            await self.bot.send_message(ctx.message.channel, embed=page)
+
+    @command(pass_context=True, no_pm=True)
+    @cooldown(1, 30, type=BucketType.user)
+    async def commands(self, ctx, *user):
+        """Get your or the specified users white- and blacklisted commands on this server"""
+        server = ctx.message.server
+
+        if user:
+            user = ' '.join(user)
+            user_ = find_user(user, server.members, ctx=ctx)
+            if user_ is None:
+                return await self.bot.say('No user found with {}'.format(user))
+            user = user_
+        else:
+            user = ctx.message.author
+
         if user.roles:
             roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: r.id, user.roles)))
         else:

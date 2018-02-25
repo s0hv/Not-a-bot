@@ -301,6 +301,10 @@ class Moderator(Cog):
             return
 
         server = ctx.message.server
+
+        if server.id == '217677285442977792' and user.id == '123050803752730624':
+            return await self.bot.say("Not today kiddo. I'm too powerful for you")
+
         try:
             user = users[0]
             await self.bot.add_role(user, mute_role)
@@ -466,6 +470,9 @@ class Moderator(Cog):
 
         if not users:
             return await self.bot.say('No user ids or mentions')
+
+        if server.id == '217677285442977792' and users[0].id == '123050803752730624':
+            return await self.bot.say("Not today kiddo. I'm too powerful for you")
 
         mute_role = self.bot.get_role(server, mute_role)
         if mute_role is None:

@@ -376,8 +376,8 @@ class CommandBlacklist(Cog):
             else:
                 s = ''
                 if row['type'] != last_type:
-                    s = '\nWhitelisted:\n' if last_type == BlacklistTypes.WHITELIST else '\nBlacklisted:\n'
                     last_type = row['type']
+                    s = '\nWhitelisted:\n' if last_type == BlacklistTypes.WHITELIST else '\nBlacklisted:\n'
 
                 s += get_command(row) + '\n'
                 paginator.add_to_field(s)

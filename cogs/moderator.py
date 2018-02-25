@@ -391,6 +391,9 @@ class Moderator(Cog):
         if user.id in nigu_nerea and ctx.message.author.id in nigu_nerea:
             return await self.bot.say("It's time to stop")
 
+        if server.id == '217677285442977792' and user.id == '123050803752730624':
+            return await self.bot.say("Not today kiddo. I'm too powerful for you")
+
         if time.days > 30:
             return await self.bot.say("Timeout can't be longer than 30 days")
         if server.id == '217677285442977792' and time.total_seconds() < 500:

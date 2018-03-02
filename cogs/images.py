@@ -74,6 +74,7 @@ class Pokefusion:
             start += 1
 
     async def update_cache(self):
+        logger.info('Updating pokecache')
         r = await self.client.get('http://pokefusion.japeal.com/PKMSelectorV3.php')
         soup = BeautifulSoup(await r.text(), 'lxml')
         selector = soup.find(id='s1')
@@ -98,6 +99,7 @@ class Pokefusion:
             for poke, v in self._pokemon.items():
                 if name in poke:
                     return v
+        return poke
 
     def get_by_dex_n(self, n: int):
         return n if n <= self.last_dex_number else None
@@ -380,6 +382,7 @@ class Fun(Cog):
         finger = os.path.join(TEMPLATES, 'finger.png')
 
         im = Image.open(photo)
+        img = img.convert('RGBA')
         img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BICUBIC,
                                        can_be_bigger=False, crop_to_size=True,
                                        center_cropped=True, background_color='black')
@@ -410,6 +413,8 @@ class Fun(Cog):
 
         file = BytesIO()
         frames[0].save(file, format=extension, save_all=True, append_images=frames[1:], duration=duration, **kwargs)
+        if file.tell() > 8000000:
+            return await self.bot.say('Generated image was too big in filesize')
         file.seek(0)
         file = await self.bot.loop.run_in_executor(self.threadpool, partial(optimize_gif, file.getvalue()))
         await self.bot.send_file(ctx.message.channel, file, filename='jotaro_photo.{}'.format(extension))
@@ -485,7 +490,7 @@ class Fun(Cog):
         img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
         await self.bot.send_file(channel, img, filename='party.gif')
 
-    @command(pass_context=True, ignore_extra=True)
+    @command(pass_context=True, ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.server)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):
         """

@@ -2,7 +2,7 @@ from cogs.cog import Cog
 from bot.bot import command, group
 from discord.ext.commands import cooldown, BucketType
 from sqlalchemy import text
-from bot.globals import BlacklistTypes
+from bot.globals import BlacklistTypes, PermValues
 from utils.utilities import (check_channel_mention, check_role_mention, check_user_mention,
                              split_string, find_user, get_role, get_channel)
 import logging
@@ -313,7 +313,8 @@ class CommandBlacklist(Cog):
         rows = session.execute(sql).fetchall()
         return rows
 
-    def get_applying_perm(self, command_rows):
+    @staticmethod
+    def get_applying_perm(command_rows):
         smallest = 18
         smallest_row = None
         for row in command_rows:
@@ -321,14 +322,14 @@ class CommandBlacklist(Cog):
                 return False
 
             if row['type'] == BlacklistTypes.WHITELIST:
-                v1 = self.perm_values['whitelist']
+                v1 = PermValues.VALUES['whitelist']
             else:
-                v1 = self.perm_values['blacklist']
+                v1 = PermValues.VALUES['blacklist']
 
             if row['user'] is not None:
-                v2 = self.perm_values['user']
+                v2 = PermValues.VALUES['user']
             elif row['role'] is not None:
-                v2 = self.perm_values['role']
+                v2 = PermValues.VALUES['role']
             else:
                 continue
 

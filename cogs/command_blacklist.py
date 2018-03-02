@@ -481,7 +481,7 @@ class CommandBlacklist(Cog):
 
         s = split_string(s, maxlen=2000, splitter='\n')
         for ss in s:
-            await self.bot.send_message(user, ss)
+            await self.bot.send_message(ctx.message.author, ss)
 
     def check_blacklist(self, command, user, ctx):
         session = self.bot.get_session

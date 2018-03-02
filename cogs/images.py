@@ -37,6 +37,7 @@ class Pokefusion:
         self._driver_lock = Lock()
         self.driver = PhantomJS(bot.config.phantomjs)
         self._bot = bot
+        self._update_lock = Lock()
 
     @property
     def bot(self):
@@ -74,24 +75,36 @@ class Pokefusion:
             start += 1
 
     async def update_cache(self):
-        logger.info('Updating pokecache')
-        r = await self.client.get('http://pokefusion.japeal.com/PKMSelectorV3.php')
-        soup = BeautifulSoup(await r.text(), 'lxml')
-        selector = soup.find(id='s1')
-        if selector is None:
-            logger.debug('Failed to update pokefusion cache')
-            return False
+        if self._update_lock.locked():
+            # If and update is in progress wait for it to finish and then continue
+            await self._update_lock.acquire()
+            self._update_lock.release()
+            return
 
-        pokemon = selector.find_all('option')
-        for idx, p in enumerate(pokemon[1:]):
-            name = ' #'.join(p.text.split(' #')[:-1])
-            self._pokemon[name.lower()] = idx + 1
-            self._poke_reverse[idx + 1] = name.lower()
+        await self._update_lock.acquire()
+        try:
+            logger.info('Updating pokecache')
+            r = await self.client.get('http://pokefusion.japeal.com/PKMSelectorV3.php')
+            soup = BeautifulSoup(await r.text(), 'lxml')
+            selector = soup.find(id='s1')
+            if selector is None:
+                logger.debug('Failed to update pokefusion cache')
+                return False
 
-        self._last_dex_number = len(pokemon)
-        types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
-        await self.cache_types(start=max(len(list(types)), 1))
-        self._last_updated = time.time()
+            pokemon = selector.find_all('option')
+            for idx, p in enumerate(pokemon[1:]):
+                name = ' #'.join(p.text.split(' #')[:-1])
+                self._pokemon[name.lower()] = idx + 1
+                self._poke_reverse[idx + 1] = name.lower()
+
+            self._last_dex_number = len(pokemon)
+            types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
+            await self.cache_types(start=max(len(list(types)), 1))
+            self._last_updated = time.time()
+        except:
+            logger.exception('Failed to update pokefusion cache')
+        finally:
+            self._update_lock.release()
 
     def get_by_name(self, name):
         poke = self._pokemon.get(name.lower())

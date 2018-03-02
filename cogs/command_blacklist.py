@@ -4,10 +4,10 @@ from discord.ext.commands import cooldown, BucketType
 from sqlalchemy import text
 from bot.globals import BlacklistTypes, PermValues
 from utils.utilities import (check_channel_mention, check_role_mention, check_user_mention,
-                             split_string, find_user, get_role, get_channel)
+                             split_string, find_user, get_role, get_channel, send_paged_message)
 import logging
 import discord
-from bot.formatter import Paginator, PagedMessage
+from bot.formatter import Paginator
 from functools import partial
 
 logger = logging.getLogger('debug')
@@ -392,24 +392,7 @@ class CommandBlacklist(Cog):
         for idx, page in enumerate(pages):
             page.set_footer(text='Page {}/{}'.format(idx + 1, len(pages)))
 
-        message = await self.bot.send_message(ctx.message.channel, embed=pages[0])
-        await self.bot.add_reaction(message, '◀')
-        await self.bot.add_reaction(message, '▶')
-
-        paged = PagedMessage(pages)
-        while True:
-            result = await self.bot.wait_for_reaction_change(user=ctx.message.author, message=message, timeout=60)
-            if result is None:
-                return
-
-            page = paged.reaction_changed(*result)
-            if page is None:
-                continue
-
-            try:
-                await self.bot.edit_message(message, embed=page)
-            except discord.HTTPException:
-                return
+        await send_paged_message(self.bot, ctx, pages, embed=True)
 
     @command(pass_context=True, no_pm=True)
     @cooldown(1, 30, type=BucketType.user)
@@ -466,19 +449,20 @@ class CommandBlacklist(Cog):
 
         s = ''
         if whitelist:
-            s += 'Your whitelisted commands\n' + '\n'.join(whitelist) + '\n\n'
+            s += '{0}s whitelisted commands\n' + '\n'.join(whitelist) + '\n\n'
 
         if blacklist:
-            s += 'Commands blacklisted from you\n' + '\n'.join(blacklist) + '\n\n'
+            s += 'Commands blacklisted fom {0}\n' + '\n'.join(blacklist) + '\n\n'
 
         if global_blacklist:
-            s += 'Commands globally blacklisted from you\n' + '\n'.join(global_blacklist) + '\n\n'
+            s += 'Commands globally blacklisted for {0}\n' + '\n'.join(global_blacklist) + '\n\n'
 
         if not s:
-            s = 'You have no special perms set up on the server {}'.format(server.name)
+            s = '{0} has no special perms set up on the server {1}'.format(user, server.name)
         else:
-            s += 'Your perms on server {}\nChannel specific perms are not checked'.format(server.name)
+            s += '{}s perms on server {}\nChannel specific perms are not checked'.format(user, server.name)
 
+        s.format(user)
         s = split_string(s, maxlen=2000, splitter='\n')
         for ss in s:
             await self.bot.send_message(ctx.message.author, ss)

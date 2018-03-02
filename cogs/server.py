@@ -9,7 +9,8 @@ from bot.bot import command
 from bot.globals import Perms
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
-from utils.utilities import get_emote_url, get_emote_name
+from utils.utilities import get_emote_url, get_emote_name, send_paged_message
+from math import ceil
 
 logger = logging.getLogger('debug')
 
@@ -32,26 +33,28 @@ class Server(Cog):
         server = ctx.message.server
 
         sorted_users = sorted(server.members, key=lambda u: len(u.roles), reverse=True)
+        pages = list(range(1, ceil(len(server.members)/10)+1))
 
-        s = 'Leaderboards for **%s**\n\n```md\n' % server.name
+        def get_msg(page, index):
+            s = 'Leaderboards for **{}**\n\n```md\n'.format(server.name)
+            added = 0
+            p = page*10
+            for idx, u in enumerate(sorted_users[p-10:p]):
+                added += 1
+                s += '{}. {} with {} roles\n'.format(idx + p-9, u, len(u.roles) - 1)
 
-        added = 0
-        p = page*10
-        for idx, u in enumerate(sorted_users[p-10:p]):
-            added += 1
-            s += '{}. {} with {} roles\n'.format(idx + p-9, u, len(u.roles) - 1)
+            if added == 0:
+                return 'Page out of range'
 
-        if added == 0:
-            return await self.bot.say('Page out of range')
+            try:
+                idx = sorted_users.index(ctx.message.author) + 1
+                s += '\nYour rank is {} with {} roles\n'.format(idx, len(ctx.message.author.roles) - 1)
+            except:
+                pass
+            s += '```'
+            return s
 
-        try:
-            idx = sorted_users.index(ctx.message.author) + 1
-            s += '\nYour rank is {} with {} roles\n'.format(idx, len(ctx.message.author.roles) - 1)
-        except:
-            pass
-        s += '```'
-
-        await self.bot.say(s)
+        await send_paged_message(self.bot, ctx, pages, starting_idx=page-1, page_method=get_msg)
 
     async def _dl(self, url):
         try:

@@ -13,9 +13,8 @@ from discord.ext.commands import cooldown, BucketType
 
 from bot.bot import command
 from cogs.cog import Cog
-from utils.utilities import get_emote_url
-from utils.utilities import random_color, get_avatar
-from utils.utilities import split_string
+from utils.utilities import (random_color, get_avatar, split_string, get_emote_url,
+                             send_paged_message)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -165,11 +164,8 @@ class Utilities(Cog):
     async def get_roles(self, ctx, page=''):
         """Get roles on this server"""
         server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
-        print_all = page.lower() == 'all'
         idx = 0
-        if print_all and ctx.message.author.id != self.bot.owner:
-            return await self.bot.say('Only the owner can use the all modifier', delete_after=30)
-        elif page and not print_all:
+        if page:
             try:
                 idx = int(page) - 1
                 if idx < 0:
@@ -177,20 +173,12 @@ class Utilities(Cog):
             except ValueError:
                 return await self.bot.say('%s is not a valid integer' % page, delete_after=30)
 
-        maxlen = 1950
         roles = 'A total of %s roles\n' % len(server_roles)
         for role in server_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
-        roles = split_string(roles, splitter='\n', maxlen=maxlen)
-        if not print_all:
-            try:
-                roles = (roles[idx],)
-            except IndexError:
-                return await self.bot.say('Page index %s is out of bounds' % idx, delete_after=30)
-
-        for s in roles:
-            await self.bot.say('```' + s + '```')
+        roles = split_string(roles, splitter='\n', maxlen=1990)
+        await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
 
 
 def setup(bot):

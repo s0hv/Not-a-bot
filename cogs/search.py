@@ -29,6 +29,7 @@ from aiohttp import ClientSession
 
 from bot.bot import command
 from discord.ext.commands import cooldown
+from utils.utilities import send_paged_message
 
 logger = logging.getLogger('debug')
 
@@ -89,21 +90,13 @@ class Search:
                     return await self.bot.say('No results with the keywords "{}"'.format(query))
 
                 if 'items' in json:
-                    self.last_search.clear()
+                    items = []
                     for item in json['items']:
-                        self.last_search.append(SearchItem(**item))
+                        items.append(SearchItem(**item))
 
-                return await self.bot.say(self.last_search.popleft())
+                    return await send_paged_message(self.bot, ctx, items, page_method=lambda p, i: str(p))
             else:
                 return await self.bot.say('Http error {}'.format(r.status))
-
-    @command(pass_context=True, ignore_extra=True)
-    async def next_result(self, ctx):
-        """Get next search result from the most recent search"""
-        try:
-            return await self.bot.say(self.last_search.popleft())
-        except IndexError:
-            return await self.bot.say('No more results', delete_after=60)
 
 
 def setup(bot):

@@ -109,8 +109,8 @@ class Pokefusion:
     def get_by_name(self, name):
         poke = self._pokemon.get(name.lower())
         if poke is None:
-            for poke, v in self._pokemon.items():
-                if name in poke:
+            for poke_, v in self._pokemon.items():
+                if name in poke_:
                     return v
         return poke
 
@@ -121,7 +121,7 @@ class Pokefusion:
         if name == self.RANDOM:
             return randint(1, self._last_dex_number)
         if self.is_dex_number(name):
-            return name
+            return int(name)
         else:
             return self.get_by_name(name)
 

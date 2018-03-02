@@ -38,6 +38,7 @@ import discord
 import numpy
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
+from bot.paged_message import PagedMessage
 
 from bot.exceptions import NoCachedFileException, PermissionError
 from bot.globals import BlacklistTypes, PermValues
@@ -724,3 +725,51 @@ def is_superset(ctx, command_):
             raise PermissionError('%s' % ', '.join(req))
 
     return True
+
+
+async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_method=None):
+    try:
+        if callable(page_method):
+            page = page_method(pages[starting_idx], starting_idx)
+        else:
+            page = pages[starting_idx]
+    except IndexError:
+        return await bot.send_message(ctx.message.channel, 'Page index %s is out of bounds' % starting_idx)
+
+    if embed:
+        message = await bot.send_message(ctx.message.channel, embed=page)
+    else:
+        message = await bot.send_message(ctx.message.channel, page)
+    await bot.add_reaction(message, '◀')
+    await bot.add_reaction(message, '▶')
+
+    paged = PagedMessage(pages, starting_idx=starting_idx)
+
+    if callable(page_method):
+        async def send():
+            if embed:
+                await bot.edit_message(message, embed=page_method(page, paged.index))
+            else:
+                await bot.edit_message(message, page_method(page, paged.index))
+    else:
+        async def send():
+            if embed:
+                await bot.edit_message(message, embed=page)
+            else:
+                await bot.edit_message(message, page)
+
+    while True:
+        result = await bot.wait_for_reaction_change(user=ctx.message.author, message=message, timeout=60)
+        if result is None:
+            return
+
+        page = paged.reaction_changed(*result)
+        if page is None:
+            continue
+
+        try:
+            await send()
+            # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
+            await asyncio.sleep(3)
+        except discord.HTTPException:
+            return

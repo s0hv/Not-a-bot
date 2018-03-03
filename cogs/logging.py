@@ -231,7 +231,7 @@ class Logger(Cog):
         entries = list(reversed(entries))
         entries.append(cmd.name)
         parent = entries[0]
-        self.bot.dbutil.command_used(parent, entries[1:] or None)
+        self.bot.dbutil.command_used(parent, entries[1:] or 0)
 
 
 def setup(bot):

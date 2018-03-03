@@ -1,4 +1,8 @@
 from cogs.cog import Cog
+import re
+
+
+r = re.compile('(?:^| )billy(?: |$)')
 
 
 class Autoresponds(Cog):
@@ -20,6 +24,10 @@ class Autoresponds(Cog):
         if data['emoji']['name'] != '🇳🇿':
             return
         await self.bot.http.add_reaction(data['message_id'], data['channel_id'], '🇳🇿')
+
+    async def on_message(self, message):
+        if r.match(message.content):
+            await self.bot.add_reaction(message, '🇫')
 
 
 def setup(bot):

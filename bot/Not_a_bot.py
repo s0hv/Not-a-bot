@@ -172,7 +172,9 @@ class NotABot(Bot):
     def dbutils(self):
         return self._dbutil
 
-    async def _load_cogs(self, print_err=True):
+    def _load_cogs(self, print_err=True):
+        if not print_err:
+            errors = []
         for cog in initial_cogs:
             try:
                 self.load_extension(cog)
@@ -180,7 +182,10 @@ class NotABot(Bot):
                 if print_err:
                     terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
-                    self.say('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+
+        if not print_err:
+            return errors
 
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))

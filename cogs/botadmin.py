@@ -97,7 +97,9 @@ class BotAdmin(Cog):
     @command(owner_only=True)
     async def reload_all(self):
         t = time.time()
-        await self.bot._load_cogs(print_err=False)
+        errors = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot._load_cogs)
+        for error in errors:
+            await self.bot.say(error)
         await self.bot.say('Reloaded all default cogs in {:.0f}ms'.format((time.time() - t) * 1000))
 
     @command(owner_only=True)

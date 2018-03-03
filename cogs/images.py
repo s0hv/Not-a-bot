@@ -486,6 +486,7 @@ class Fun(Cog):
         img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
                                        crop_to_size=True, center_cropped=True)
 
+        img = img.convert('RGBA')
         x, y = (200, 160)
         base.paste(img, (x, y), mask=img)
         base.alpha_composite(overlay)

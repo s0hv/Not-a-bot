@@ -32,7 +32,8 @@ from sys import platform
 from threading import Lock
 
 import aiohttp
-import cv2
+#import cv2
+cv2 = None  # Remove cv2 import cuz it takes forever to import
 import geopatterns
 import magic
 import numpy as np
@@ -283,6 +284,10 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
 # http://stackoverflow.com/a/41048793/6046713
 def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
                       mask_dilate_iter=5, mask_erode_iter=5):
+    if cv2 is None:
+        global cv2
+        import cv2
+
     # Parameters
     BLUR = blur
     CANNY_THRESH_1 = canny_thresh_1

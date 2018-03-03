@@ -25,9 +25,9 @@ SOFTWARE.
 import argparse
 import logging
 import os
-import re
 import sys
 from collections import OrderedDict
+from functools import partial
 from io import BytesIO
 from itertools import zip_longest
 from threading import Lock
@@ -35,21 +35,21 @@ from threading import Lock
 import numpy as np
 from PIL import Image, ImageFont
 from colour import Color
+from discord.ext.commands import cooldown, BucketType
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon, Circle
 from numpy import pi, random
-from validators import url as test_url
 
 from bot.bot import command
-from discord.ext.commands import cooldown, BucketType
 from utils.imagetools import (create_shadow, create_text, create_glow,
                               create_geopattern_background, shift_color,
                               trim_image, remove_background,
                               resize_keep_aspect_ratio, get_color,
                               IMAGES_PATH, image_from_url, GeoPattern,
-                              color_distance, MAX_COLOR_DIFF, sepia)
+                              color_distance, MAX_COLOR_DIFF)
 from utils.utilities import (get_picture_from_msg, y_n_check,
-                             check_negative, normalize_text, get_image_from_message)
+                             check_negative, normalize_text,
+                             get_image_from_message)
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
@@ -425,7 +425,7 @@ class JoJo:
                                                delete_after=20)
 
                 try:
-                    im = remove_background(im, **kwargs)
+                    im = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(remove_background, im, **kwargs))
                 except Exception as e:
                     await self.bot.say('`{}` Could not remove background because of an error {}'.format(name, e),
                                        delete_after=30)

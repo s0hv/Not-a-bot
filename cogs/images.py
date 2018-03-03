@@ -472,6 +472,28 @@ class Fun(Cog):
         file.seek(0)
         await self.bot.send_file(ctx.message.channel, file, filename='To_be_continued.png')
 
+    @command(pass_context=True, aliases=['heaven', 'heavens_door'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.server)
+    async def overheaven(self, ctx, *, image):
+        img = await self._get_image(ctx, image)
+        if not img:
+            return
+        await self.bot.send_typing(ctx.message.channel)
+
+        overlay = Image.open(os.path.join(TEMPLATES, 'heaven.png'))
+        base = Image.open(os.path.join(TEMPLATES, 'heaven_base.png'))
+        size = (750, 750)
+        img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                       crop_to_size=True, center_cropped=True)
+
+        x, y = (200, 160)
+        base.paste(img, (x, y), mask=img)
+        base.alpha_composite(overlay)
+        data = BytesIO()
+        base.save(data, 'PNG')
+        data.seek(0)
+        await self.bot.send_file(ctx.message.channel, data, filename='overheaven.png')
+
     async def get_url(self, url):
         # Attempt at making phantomjs async friendly
         # After visiting the url remember to put 1 item in self.queue

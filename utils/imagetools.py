@@ -454,6 +454,21 @@ def create_shadow(img, percent, opacity, x, y):
 def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
                              center_cropped=False, background_color=None,
                              resample=Image.NEAREST):
+    """
+    Args:
+        img: Image to be cropped
+        new_size: Size of the new image
+        crop_to_size: after resizing crop image so it's exactly the specified size
+        can_be_bigger: Tells if the image can be bigger than the requested size
+        center_cropped: Center the image. Used in combination with crop_to_size
+                        since otherwise the added or removed space will only be in the
+                        bottom right corner
+        background_color: Color of the background
+        resample: The type of resampling to use
+
+    Returns:
+        Image.Image
+    """
     x, y = img.size
     x_m = x / new_size[0]
     y_m = y / new_size[1]

@@ -245,6 +245,16 @@ CREATE TABLE `last_seen_users` (
     PRIMARY KEY (`user_id`, `server_id`),
     KEY (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE `command_stats` (
+    `parent` VARCHAR(40) COLLATE utf8_unicode_ci NOT NULL,
+    `cmd` VARCHAR(200) COLLATE utf8_unicode_ci DEFAULT 0,
+    `uses` BIGINT DEFAULT 0,
+    UNIQUE KEY (`parent`, `cmd`),
+    KEY (`uses`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
 ------------------------
 -- UNDER CONSTRUCTION --
 ------------------------

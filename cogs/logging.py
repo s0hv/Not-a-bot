@@ -222,6 +222,17 @@ class Logger(Cog):
     async def on_server_role_create(self, role):
         self.bot.dbutil.add_roles(role.server.id, role.id)
 
+    async def on_command_completion(self, cmd, ctx):
+        entries = []
+        command = cmd
+        while command.parent is not None:
+            command = command.parent
+            entries.append(command.name)
+        entries = list(reversed(entries))
+        entries.append(cmd.name)
+        parent = entries[0]
+        self.bot.dbutil.command_used(parent, entries[1:] or None)
+
 
 def setup(bot):
     bot.add_cog(Logger(bot))

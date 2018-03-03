@@ -311,3 +311,54 @@ class DatabaseUtils:
             return False
 
         return True
+
+    def add_command(self, parent, name=0):
+        sql = 'INSERT IGNORE INTO `command_stats` (`parent`, `cmd`) VALUES (:parent, :cmd)'
+        session = self.bot.get_session
+        try:
+            session.execute(sql, {'parent': parent, 'cmd': name})
+            session.commit()
+        except SQLAlchemyError:
+            logger.exception('Failed to add command {} {}'.format(parent, name))
+            session.rollback()
+            return False
+
+        return True
+
+    def add_commands(self, values):
+        """
+        Inserts multiple commands to the db
+        Args:
+            values: A list of dictionaries with keys `parent` and `cmd`
+
+        Returns:
+            bool based on success
+        """
+        if not values:
+            return
+        sql = 'INSERT IGNORE INTO `command_stats` (`parent`, `cmd`) VALUES (:parent, :cmd)'
+        session = self.bot.get_session
+        try:
+            session.execute(sql, values)
+            session.commit()
+        except SQLAlchemyError:
+            logger.exception('Failed to add commands {}'.format(values))
+            session.rollback()
+            return False
+
+        return True
+
+    def command_used(self, parent, name=0):
+        if name is None:
+            name = 0
+        sql = 'UPDATE `command_stats` SET `uses`=(`uses`+1) WHERE parent=:parent AND cmd=:cmd'
+        session = self.bot.get_session
+        try:
+            session.execute(sql, {'parent': parent, 'cmd': name})
+            session.commit()
+        except SQLAlchemyError:
+            logger.exception('Failed to update command {} {} usage'.format(parent, name))
+            session.rollback()
+            return False
+
+        return True

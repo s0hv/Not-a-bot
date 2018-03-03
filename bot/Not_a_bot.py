@@ -154,7 +154,7 @@ class NotABot(Bot):
                 if not success:
                     raise EnvironmentError('Failed to cache keeprole servers')
 
-        logger.info('[INFO] Cached servers in {} seconds'.format(round(time.time()-t, 2)))
+        logger.info('Cached servers in {} seconds'.format(round(time.time()-t, 2)))
 
     @property
     def get_session(self):
@@ -185,6 +185,7 @@ class NotABot(Bot):
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))
         await self.change_presence(game=discord.Game(name=self.config.game))
+        self.dbutil.add_command('help')
         asyncio.ensure_future(self._load_cogs(), loop=self.loop)
         await self.cache_servers()
         if self._random_color is None:

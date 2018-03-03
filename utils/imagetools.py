@@ -284,8 +284,8 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
 # http://stackoverflow.com/a/41048793/6046713
 def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
                       mask_dilate_iter=5, mask_erode_iter=5):
+    global cv2
     if cv2 is None:
-        global cv2
         import cv2
 
     # Parameters

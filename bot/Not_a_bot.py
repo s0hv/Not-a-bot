@@ -45,9 +45,6 @@ from bot.servercache import ServerCache
 from utils.utilities import (split_string, slots2dict, retry, random_color,
                              check_perms)
 
-# Support for recognizing webp images used in many discord avatars
-mimetypes.add_type('image/webp', '.webp')
-
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 

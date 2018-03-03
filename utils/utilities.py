@@ -43,6 +43,8 @@ from bot.paged_message import PagedMessage
 from bot.exceptions import NoCachedFileException, PermissionError
 from bot.globals import BlacklistTypes, PermValues
 
+# Support for recognizing webp images used in many discord avatars
+mimetypes.add_type('image/webp', '.webp')
 logger = logging.getLogger('debug')
 audio = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')

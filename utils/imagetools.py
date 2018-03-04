@@ -45,7 +45,7 @@ from geopatterns.utils import promap
 from numpy import sqrt
 
 logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal ')
+terminal = logging.getLogger('terminal')
 IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
 MAGICK = 'magick '
 try:
@@ -376,6 +376,7 @@ async def raw_image_from_url(url, client, get_mime=False):
                     mime_type = magic.from_buffer(d, mime=True)
                     total += chunk
                     if not mime_type.startswith('image'):
+                        logger.debug(mime_type)
                         raise TypeError
 
                 total += chunk

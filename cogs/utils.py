@@ -180,6 +180,17 @@ class Utilities(Cog):
         roles = split_string(roles, splitter='\n', maxlen=1990)
         await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
 
+    @command(aliases=['created_at'], ignore_extra=True)
+    @cooldown(1, 5, type=BucketType.server)
+    async def snowflake_time(self, user_id):
+        """Gets account creation date from the specified user id"""
+        try:
+            int(user_id)
+        except ValueError:
+            return await self.bot.say("{} isn't a valid integer".format(user_id))
+
+        await self.bot.say(str(discord.utils.snowflake_time(user_id)))
+
 
 def setup(bot):
     bot.add_cog(Utilities(bot))

@@ -474,7 +474,7 @@ class Fun(Cog):
 
     @command(pass_context=True, aliases=['heaven', 'heavens_door'], ignore_extra=True)
     @cooldown(2, 5, BucketType.server)
-    async def overheaven(self, ctx, *, image):
+    async def overheaven(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if not img:
             return

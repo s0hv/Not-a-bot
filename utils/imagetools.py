@@ -361,7 +361,6 @@ async def raw_image_from_url(url, client, get_mime=False):
         async with client.get(url) as r:
             terminal.debug('Downloading image url {}'.format(url))
             if not r.headers.get('Content-Type', '').startswith('image'):
-                logger.debug(r.headers.__dict__)
                 raise TypeError
 
             max_size = 8000000
@@ -377,7 +376,6 @@ async def raw_image_from_url(url, client, get_mime=False):
                     mime_type = magic.from_buffer(d, mime=True)
                     total += chunk
                     if not mime_type.startswith('image') and mime_type != 'application/octet-stream':
-                        logger.debug(mime_type)
                         raise TypeError
 
                 total += chunk

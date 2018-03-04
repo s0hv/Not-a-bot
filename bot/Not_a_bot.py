@@ -178,7 +178,6 @@ class NotABot(Bot):
             except Exception as e:
                 if print_err:
                     import traceback
-                    traceback.print_exc()
                     terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
                     errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))

@@ -34,10 +34,10 @@ class Pokefusion:
         self._last_updated = 0
         self._client = client
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
-        self._driver_lock = Lock()
+        self._driver_lock = Lock(loop=bot.loop)
         self.driver = PhantomJS(bot.config.phantomjs)
         self._bot = bot
-        self._update_lock = Lock()
+        self._update_lock = Lock(loop=bot.loop)
 
     @property
     def bot(self):
@@ -216,8 +216,8 @@ class Fun(Cog):
         super().__init__(bot)
         self.driver = PhantomJS(self.bot.config.phantomjs)
         self.threadpool = ThreadPoolExecutor(3)
-        self._driver_lock = Lock()
-        self.queue = Queue()
+        self._driver_lock = Lock(loop=bot.loop)
+        self.queue = Queue(loop=bot.loop)
         self.queue.put_nowait(1)
         self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
 

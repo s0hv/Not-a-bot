@@ -169,7 +169,7 @@ class Settings(Cog):
 
         lock = self._server_locks['keeproles'].get(server.id, None)
         if lock is None:
-            lock = Lock()
+            lock = Lock(loop=self.bot.loop)
             self._server_locks['keeproles'][server.id] = lock
 
         if lock.locked():

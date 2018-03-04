@@ -432,6 +432,33 @@ class Fun(Cog):
         file = await self.bot.loop.run_in_executor(self.threadpool, partial(optimize_gif, file.getvalue()))
         await self.bot.send_file(ctx.message.channel, file, filename='jotaro_photo.{}'.format(extension))
 
+    @command(pass_context=True, ignore_extra=True, aliases=['jotaro3'])
+    @cooldown(2, 5, BucketType.server)
+    async def jotaro_smile(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+        await self.bot.send_typing(ctx.message.channel)
+
+        im = Image.open(os.path.join(TEMPLATES, 'jotaro_smile.png'))
+        img = img.convert('RGBA')
+        i = Image.new('RGBA', im.size, 'black')
+        size = (max(img.size), max(img.size))
+        img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                       crop_to_size=True, center_cropped=True)
+        coeffs = find_coeffs([(0, 68), (358, 0), (410, 335), (80, 435)],
+                             [(0, 0), (img.width, 0), size, (0, img.height)])
+        img = img.transform((410, 435), Image.PERSPECTIVE, coeffs,
+                            Image.BICUBIC)
+        x, y = (178, 479)
+        i.paste(img, (x, y), mask=img)
+        i.paste(im, mask=im)
+
+        file = BytesIO()
+        i.save(file, 'PNG')
+        file.seek(0)
+        await self.bot.send_file(ctx.message.channel, file, filename='jotaro.png')
+
     @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
     @cooldown(2, 5, BucketType.server)
     async def tobecontinued(self, ctx, image=None, no_sepia=False):
@@ -494,6 +521,28 @@ class Fun(Cog):
         base.save(data, 'PNG')
         data.seek(0)
         await self.bot.send_file(ctx.message.channel, data, filename='overheaven.png')
+
+    @command(pass_context=True, aliases=['puccireset'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.server)
+    async def pucci(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if not img:
+            return
+        await self.bot.send_typing(ctx.message.channel)
+
+        img = img.convert('RGBA')
+        im = Image.open(os.path.join(TEMPLATES, 'pucci_bg.png'))
+        overlay = Image.open(os.path.join(TEMPLATES, 'pucci_faded.png'))
+        size = (682, 399)
+        img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                       crop_to_size=True, center_cropped=True)
+        x, y = (0, 367)
+        im.paste(img, (x, y), mask=img)
+        im.alpha_composite(overlay)
+        data = BytesIO()
+        im.save(data, 'PNG')
+        data.seek(0)
+        await self.bot.send_file(ctx.message.channel, data, filename='pucci_reset.png')
 
     async def get_url(self, url):
         # Attempt at making phantomjs async friendly

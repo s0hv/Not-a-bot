@@ -360,6 +360,7 @@ async def raw_image_from_url(url, client, get_mime=False):
     try:
         async with client.get(url) as r:
             if not r.headers.get('Content-Type', '').startswith('image'):
+                logger.debug(r.headers.__dict__)
                 raise TypeError
 
             max_size = 8000000

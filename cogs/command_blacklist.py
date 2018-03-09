@@ -394,9 +394,9 @@ class CommandBlacklist(Cog):
 
         await send_paged_message(self.bot, ctx, pages, embed=True)
 
-    @command(pass_context=True, no_pm=True)
+    @command(name='commands', pass_context=True, no_pm=True)
     @cooldown(1, 30, type=BucketType.user)
-    async def commands(self, ctx, *user):
+    async def commands_(self, ctx, *user):
         """Get your or the specified users white- and blacklisted commands on this server"""
         server = ctx.message.server
 

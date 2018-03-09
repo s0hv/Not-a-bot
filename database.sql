@@ -124,6 +124,7 @@ CREATE TABLE `polls` (
     `expires_in` datetime DEFAULT NULL,
     `ignore_on_dupe` BOOL DEFAULT false,
     `multiple_votes` BOOL DEFAULT false,
+    `max_winners` SMALLINT UNSIGNED DEFAULT 1,
     PRIMARY KEY `message_id` (`message`),
     KEY `server_id` (`server`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -8,12 +8,15 @@ youtube_dl
 validators
 aiohttp
 colour
-peewee
+sqlalchemy
 numpy
 gtts (for join leave messages in voice chat)
 PIL
 geopatterns
 colorthief
-cv2
 matplotlib
 beautifulsoup4
+python-magic
+
+[Optional]
+cv2

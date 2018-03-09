@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from bot.globals import Perms
 from discord.ext.commands import cooldown
+from sqlalchemy.exc import SQLAlchemyError
 
 import discord
 from sqlalchemy import text
@@ -37,7 +38,7 @@ class Poll:
         self.multiple_votes = multiple_votes
         self.max_winners = max_winners
         self._task = None
-        self._stopper = asyncio.Event()
+        self._stopper = asyncio.Event(loop=self.bot.loop)
         self._after = after
 
     @property
@@ -86,14 +87,14 @@ class Poll:
         try:
             chn = self.bot.get_channel(self.channel)
             msg = await self.bot.get_message(chn, self.message)
-        except:
+        except discord.DiscordException:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)
             sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
             try:
                 session.execute(sql)
                 session.commit()
-            except:
+            except SQLAlchemyError:
                 session.rollback()
                 logger.exception('Could not delete poll')
             return await self.bot.send_message(channel, 'Failed to end poll.\nReason: Could not get the poll message')
@@ -170,7 +171,7 @@ class Poll:
         try:
             session.execute(sql)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Could not delete poll')
             await self.bot.send_message(chn, 'Could not delete poll from database. The poll result might be recalculated')
@@ -193,8 +194,8 @@ class VoteManager:
 
     def load_polls(self):
         session = self.bot.get_session
-        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
-        poll_rows = session.execute(sql)
+        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
+        poll_rows = session.execute(sql).fetchall()
         polls = {}
         for row in poll_rows:
             poll = polls.get(row['message'], Poll(self.bot, row['message'], row['channel'], row['title'],
@@ -202,6 +203,7 @@ class VoteManager:
                                                   strict=row['strict'],
                                                   no_duplicate_votes=row['ignore_on_dupe'],
                                                   multiple_votes=row['multiple_votes'],
+                                                  max_winners=row['max_winners'] or 1,
                                                   after=lambda f: self.polls.pop(row['message'], None)))
 
             r = self.polls.get(row['message'])
@@ -342,7 +344,8 @@ class VoteManager:
         if parsed.max_winners < 1:
             return await self.bot.say('Max winners needs to be an integer bigger than 0')
 
-        parsed.max_winners = min(parsed.max_winners, 20)
+        if parsed.max_winners > 20:
+            return await self.bot.say('Max winners cannot be bigger than 20')
 
         title = ' '.join(parsed.header)
         expires_in = parse_time(' '.join(parsed.time))
@@ -409,7 +412,7 @@ class VoteManager:
             try:
                 emote = '{}:{}'.format(*emote) if isinstance(emote, tuple) else emote
                 await self.bot.add_reaction(msg, emote)
-            except:
+            except discord.DiscordException:
                 failed.append(emote)
         if failed:
             await self.bot.say('Failed to get emotes `{}`'.format('` `'.join(failed)),
@@ -457,7 +460,7 @@ class VoteManager:
                 session.execute(text(sql))
 
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed sql query')
             return await self.bot.say('Failed to save poll. Exception has been logged')

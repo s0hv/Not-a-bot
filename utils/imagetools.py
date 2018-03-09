@@ -286,7 +286,13 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
                       mask_dilate_iter=5, mask_erode_iter=5):
     global cv2
     if cv2 is None:
-        import cv2
+        try:
+            import cv2
+        except ImportError:
+            cv2 = None
+
+    if cv2 is None:
+        return image
 
     # Parameters
     BLUR = blur

@@ -1,6 +1,7 @@
 [Required software]
 ffmpeg
 imagemagick (for jojo module)
+phantomJS
 
 [Required packages]
 discord.py[voice]
@@ -17,6 +18,10 @@ colorthief
 matplotlib
 beautifulsoup4
 python-magic
+ansicolors
+pymsql
+selenium
+colormath
 
 [Optional]
 cv2

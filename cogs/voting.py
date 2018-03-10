@@ -102,12 +102,7 @@ class Poll:
         votes = {}
         for reaction in msg.reactions:
             if self.strict:
-                # Optimization LUL
-                if isinstance(reaction.emoji, str):
-                    if len(reaction.emoji) > 1:
-                        continue
-
-                id = ord(reaction.emoji) if isinstance(reaction.emoji, str) else reaction.emoji.id
+                id = reaction.emoji if isinstance(reaction.emoji, str) else str(reaction.emoji.id)
                 if id not in self._emotes:
                     continue
 
@@ -241,20 +236,8 @@ class VoteManager:
         parsed.max_winners = min(parsed.max_winners, 20)
 
         title = ' '.join(parsed.header)
-        expires_in = parse_time(' '.join(parsed.time))
-        if expires_in.total_seconds() == 0:
-            await self.bot.say('No time specified or time given is 0 seconds. Using default value of 60s')
-            expires_in = timedelta(seconds=60)
-        if expires_in.days > 7:
-            return await self.bot.say('Maximum time is 7 days')
-
-        now = datetime.utcnow()
-        expired_date = now + expires_in
-        sql_date = datetime2sql(expired_date)
-        parsed.time = sql_date
 
         emotes = []
-        failed = []
         if parsed.emotes:
             for emote in parsed.emotes:
                 if not emote.strip():
@@ -270,45 +253,15 @@ class VoteManager:
                 else:
                     emotes.append((name, emote_id))
 
-        if parsed.description:
-            description = ' '.join(parsed.description)
-        else:
-            description = discord.Embed.Empty
-
-        embed = discord.Embed(title=title, description=description, timestamp=expired_date)
-        if parsed.time:
-            embed.add_field(name='Valid for',
-                            value='%s' % str(expires_in))
-        embed.set_footer(text='Expires at', icon_url=get_avatar(ctx.message.author))
-
-        options = ''
-        if parsed.strict:
-            options += 'Strict mode on. Only specified emotes are counted\n'
-
-        if parsed.no_duplicate_votes:
-            options += 'Voting for more than one valid option will invalidate your vote\n'
-        elif not parsed.allow_multiple_entries:
-            options += 'If user votes multiple times only 1 reaction is counted'
-
-        if parsed.allow_multiple_entries:
-            options += 'All all valid votes are counted from a user\n'
-
-        if parsed.max_winners > 1:
-            options += 'Max amount of winners %s (might be more in case of a tie)' % parsed.max_winners
-
-        if options:
-            embed.add_field(name='Modifiers', value=options)
-
         emotes_list = []
         for emote in emotes:
             if not isinstance(emote, tuple):
-                id = ord(emote)
-                emotes_list.append(id)
+                emotes_list.append(emote)
             else:
                 name, id = emote
                 emotes_list.append(id)
 
-        poll = Poll(self.bot, msg_id, channel_id, title, expires_at=expired_date, strict=parsed.strict,
+        poll = Poll(self.bot, msg_id, channel_id, title, strict=parsed.strict,
                     emotes=emotes_list, no_duplicate_votes=parsed.no_duplicate_votes,
                     multiple_votes=parsed.allow_multiple_entries, max_winners=parsed.max_winners)
 

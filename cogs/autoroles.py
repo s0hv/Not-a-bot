@@ -68,8 +68,6 @@ class AutoRoles(Cog):
 
         roles = set()
         if self.bot.server_cache.keeproles(server.id):
-            'polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
-
             sql = 'SELECT roles.id FROM `users` LEFT OUTER JOIN `userRoles` ON users.id=userRoles.user_id LEFT OUTER JOIN `roles` ON roles.id=userRoles.role_id ' \
                   'WHERE roles.server=%s AND users.id=%s' % (server.id, member.id)
 

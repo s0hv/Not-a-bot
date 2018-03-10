@@ -132,7 +132,7 @@ CREATE TABLE `polls` (
 
 CREATE TABLE `emotes` (
     `name` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    `emote` BIGINT NOT NULL,
+    `emote` VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
     `server` BIGINT DEFAULT NULL,
     PRIMARY KEY (`emote`),
     KEY `server_id` (`server`)
@@ -141,13 +141,13 @@ CREATE TABLE `emotes` (
 
 CREATE TABLE `pollEmotes` (
     `poll_id` BIGINT NOT NULL,
-    `emote_id` BIGINT NOT NULL,
+    `emote_id` VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
     PRIMARY KEY (`poll_id`,`emote_id`),
     FOREIGN KEY (`poll_id`) REFERENCES `polls`(`message`)
         ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (`emote_id`) REFERENCES `emotes`(`emote`)
         ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `giveaways` (

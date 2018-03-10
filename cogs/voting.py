@@ -195,7 +195,7 @@ class VoteManager:
     def load_polls(self):
         session = self.bot.get_session
         sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
-        poll_rows = session.execute(sql).fetchall()
+        poll_rows = session.execute(sql)
         polls = {}
         for row in poll_rows:
             poll = polls.get(row['message'], Poll(self.bot, row['message'], row['channel'], row['title'],
@@ -216,6 +216,8 @@ class VoteManager:
         for poll in polls.values():
             self.polls[int(poll.message)] = poll
             poll.start()
+
+        session.close()
 
     @command(owner_only=True, pass_context=True)
     async def recalculate(self, ctx, msg_id, channel_id, *, message):
@@ -260,9 +262,10 @@ class VoteManager:
 
                 animated, name, emote_id = get_emote_name_id(emote)
                 if name is None:
-                    # TODO Better check for flag emotes
-                    if len(emote) > 1:
+                    if len(emote) > 2:
+                        # If length is more than 2 it's most likely not an unicode char
                         continue
+
                     emotes.append(emote)
                 else:
                     emotes.append((name, emote_id))
@@ -369,9 +372,10 @@ class VoteManager:
 
                 animated, name, emote_id = get_emote_name_id(emote)
                 if name is None:
-                    # TODO Better check for flag emotes
-                    if len(emote) > 1:
+                    if len(emote) > 2:
+                        # If length is more than 2 it's most likely not an unicode char
                         continue
+
                     emotes.append(emote)
                 else:
                     emotes.append((name, emote_id))
@@ -437,7 +441,7 @@ class VoteManager:
                 # add them so strict mode will count them in too
                 for emote in emotes:
                     if not isinstance(emote, tuple):
-                        name, id = emote, ord(emote)
+                        name, id = emote, emote
                         emotes_list.append(id)
                         server = 'NULL'
                     else:
@@ -445,7 +449,7 @@ class VoteManager:
                         emotes_list.append(id)
                         server = ctx.message.server.id
 
-                    values.append('("%s", %s, %s)' % (name, id, server))
+                    values.append('("%s", "%s", %s)' % (name, id, server))
 
                 # If emote is already in the table update its name
                 sql += ', '.join(values) + ' ON DUPLICATE KEY UPDATE name=VALUES(name)'
@@ -454,7 +458,7 @@ class VoteManager:
                 sql = 'INSERT IGNORE INTO `pollEmotes` (`poll_id`, `emote_id`) VALUES '
                 values = []
                 for id in emotes_list:
-                    values.append('(%s, %s)' % (msg.id, id))
+                    values.append('(%s, "%s")' % (msg.id, id))
 
                 sql += ', '.join(values)
                 session.execute(text(sql))

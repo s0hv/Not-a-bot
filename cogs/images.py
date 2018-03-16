@@ -8,7 +8,8 @@ from random import randint, random
 
 from PIL import Image, ImageSequence, ImageFont, ImageDraw
 from discord.ext.commands import cooldown, BucketType
-from selenium.webdriver import PhantomJS
+from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 import time
 import base64
@@ -35,9 +36,14 @@ class Pokefusion:
         self._client = client
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
         self._driver_lock = Lock(loop=bot.loop)
-        self.driver = PhantomJS(bot.config.phantomjs)
         self._bot = bot
         self._update_lock = Lock(loop=bot.loop)
+
+        p = '/usr/lib/chromium-browser/chromedriver'
+        options = Options()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        self.driver = Chrome(p, chrome_options=options)
 
     @property
     def bot(self):

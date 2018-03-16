@@ -163,7 +163,7 @@ class Logger(Cog):
         if len(message) > 2:
             m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.server)
             logger.info(m)
-            terminal.debug(m)
+            terminal.warning(m)
 
         for m in message:
             try:
@@ -211,7 +211,7 @@ class Logger(Cog):
         if len(message) > 4:
             m = '{0.id}: {0.name} On edit message had to post over 4 messages'.format(before.server)
             logger.info(m)
-            terminal.debug(m)
+            terminal.warning(m)
 
         for m in message:
             await self.bot.send_message(channel, m)

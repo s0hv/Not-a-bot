@@ -167,7 +167,7 @@ class Audio:
         if state.voice is None:
             try:
                 state.voice = await self.bot.join_voice_channel(summoned_channel)
-            except discord.ClientException as e:
+            except discord.ClientException:
                 terminal.exception('Failed to join vc')
                 if ctx.message.server.id in self.bot.connection._voice_clients:
                     state.voice = self.bot.connection._voice_clients.get(ctx.message.server.id)

@@ -45,6 +45,7 @@ class LastSeen(Cog):
             server_ids.append(int(update.server_id))
             times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
         self.bot.dbutils.multiple_last_seen(user_ids, usernames, server_ids, times)
+        del updates
 
     async def _check_loop(self):
         await asyncio.sleep(120)

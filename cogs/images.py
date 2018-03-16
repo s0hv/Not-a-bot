@@ -220,7 +220,6 @@ class Pokefusion:
 class Fun(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.driver = PhantomJS(self.bot.config.phantomjs)
         self.threadpool = ThreadPoolExecutor(3)
         self._driver_lock = Lock(loop=bot.loop)
         self.queue = Queue(loop=bot.loop)
@@ -549,25 +548,6 @@ class Fun(Cog):
         im.save(data, 'PNG')
         data.seek(0)
         await self.bot.send_file(ctx.message.channel, data, filename='pucci_reset.png')
-
-    async def get_url(self, url):
-        # Attempt at making phantomjs async friendly
-        # After visiting the url remember to put 1 item in self.queue
-        # Otherwise the browser will be locked
-
-        # If lock is not locked lock it until this operation finishes
-        unlock = False
-        if not self._driver_lock.locked():
-            await self._driver_lock.acquire()
-            unlock = True
-
-        f = partial(self.driver.get, url)
-        await self.bot.loop.run_in_executor(self.threadpool, f)
-        if unlock:
-            try:
-                self._driver_lock.release()
-            except RuntimeError:
-                pass
 
     @command(pass_context=True, ignore_extra=True)
     @cooldown(1, 10, BucketType.server)

@@ -34,7 +34,7 @@ class NNLogger(Cog):
         # No need to log bot commands
         if list(filter(lambda prefix: content.startswith(prefix), self._prefixes)):
             return
-        prefixes = self.bot.get_prefix(self.bot, msg)
+        prefixes = self.bot.get_command_prefix(self.bot, msg)
         if isinstance(prefixes, str):
             prefixes = (prefixes, )
         if list(filter(lambda prefix: content.startswith(prefix), prefixes)):

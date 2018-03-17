@@ -52,7 +52,7 @@ PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': Fa
 
 def _create_folder(path):
     if not os.path.exists(path):
-        os.mkdir(path)
+        os.makedirs(path)
 
 
 def create_folders():
@@ -76,7 +76,7 @@ if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autopla
         terminal.exception('Autoplaylist copying failed')
 
 
-class BlacklistTypes:
+class BlacklistTypes():
     GLOBAL = 0
     WHITELIST = 1
     BLACKLIST = 2

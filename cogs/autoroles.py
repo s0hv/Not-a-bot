@@ -37,7 +37,7 @@ class AutoRoles(Cog):
             if name != name2:
                 await self.bot._wants_to_be_noticed(after, server)
 
-        if self.bot.server_cache.keeproles(server.id):
+        if self.bot.guild_cache.keeproles(server.id):
             removed, added = self.compare_roles(before, after)
             if removed:
                 self.dbutil.remove_user_roles(removed, before.id)
@@ -46,7 +46,7 @@ class AutoRoles(Cog):
                 self.dbutil.add_user_roles(added, before.id, server.id)
 
     async def add_random_color(self, member):
-        if self.bot.server_cache.random_color(member.server.id) and hasattr(self.bot, 'colors'):
+        if self.bot.guild_cache.random_color(member.server.id) and hasattr(self.bot, 'colors'):
             colors = self.bot.colors.get(member.server.id, {}).values()
             color_ids = {r.role_id for r in colors}
             if not color_ids:
@@ -67,7 +67,7 @@ class AutoRoles(Cog):
             return
 
         roles = set()
-        if self.bot.server_cache.keeproles(server.id):
+        if self.bot.guild_cache.keeproles(server.id):
             sql = 'SELECT roles.id FROM `users` LEFT OUTER JOIN `userRoles` ON users.id=userRoles.user_id LEFT OUTER JOIN `roles` ON roles.id=userRoles.role_id ' \
                   'WHERE roles.server=%s AND users.id=%s' % (server.id, member.id)
 
@@ -78,7 +78,7 @@ class AutoRoles(Cog):
 
             roles.discard(server.default_role.id)
 
-            muted_role = self.bot.server_cache.mute_role(server.id)
+            muted_role = self.bot.guild_cache.mute_role(server.id)
             if muted_role in roles:
                 try:
                     await self.bot.add_role(member, muted_role)
@@ -86,7 +86,7 @@ class AutoRoles(Cog):
                 except:
                     logger.exception('[KeepRoles] Failed to add muted role first')
 
-        if self.bot.server_cache.random_color(server.id) and hasattr(self.bot, 'colors'):
+        if self.bot.guild_cache.random_color(server.id) and hasattr(self.bot, 'colors'):
             if not roles:
                 await self.add_random_color(member)
             else:
@@ -113,7 +113,7 @@ class AutoRoles(Cog):
             await self.bot._wants_to_be_noticed(member, server)
 
     async def on_member_remove(self, member):
-        if not self.bot.server_cache.keeproles(member.server.id):
+        if not self.bot.guild_cache.keeproles(member.server.id):
             return
 
         roles = [r.id for r in member.roles]

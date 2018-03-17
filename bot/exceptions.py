@@ -61,6 +61,12 @@ class PermissionError(BotException):
         return "You don't have the permission to use this command. \nRequired permissions are: " + self._message
 
 
+class CommandBlacklisted(PermissionError):
+    @property
+    def message(self):
+        return self._message
+
+
 class InvalidLevelException(BotException):
     def __init__(self, required, *args, **kwargs):
         super().__init__(*args, **kwargs)

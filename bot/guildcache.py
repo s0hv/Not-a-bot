@@ -3,7 +3,8 @@ from bot.exceptions import (NotEnoughPrefixes, PrefixExists,
                             PrefixDoesntExist)
 from sqlalchemy.exc import SQLAlchemyError
 
-class ServerCache:
+
+class GuildCache:
     def __init__(self, bot):
         self._bot = bot
         self._servers = {}

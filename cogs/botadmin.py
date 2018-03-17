@@ -155,7 +155,7 @@ class BotAdmin(Cog):
                 d = {**row}
                 del d['server']
 
-            self.bot.server_cache.update_server(server.id, **d)
+            self.bot.guild_cache.update_server(server.id, **d)
 
     @command(pass_context=True, owner_only=True)
     async def reconnect_vc(self, ctx):

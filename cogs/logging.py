@@ -95,12 +95,12 @@ class Logger(Cog):
         except SQLAlchemyError:
             self.session.rollback()
 
-        channel = self.bot.server_cache.join_channel(server.id)
+        channel = self.bot.guild_cache.join_channel(server.id)
         channel = server.get_channel(channel)
         if channel is None:
             return
 
-        message = self.bot.server_cache.join_message(server.id, default_message=True)
+        message = self.bot.guild_cache.join_message(server.id, default_message=True)
         if not message:
             return
 
@@ -128,12 +128,12 @@ class Logger(Cog):
         except SQLAlchemyError:
             self.session.rollback()
 
-        channel = self.bot.server_cache.leave_channel(server.id)
+        channel = self.bot.guild_cache.leave_channel(server.id)
         channel = server.get_channel(channel)
         if channel is None:
             return
 
-        message = self.bot.server_cache.leave_message(server.id, default_message=True)
+        message = self.bot.guild_cache.leave_message(server.id, default_message=True)
         if not message:
             return
 
@@ -148,7 +148,7 @@ class Logger(Cog):
         if msg.author.bot or msg.channel.id == '336917918040326166':
             return
 
-        channel = self.bot.server_cache.on_delete_channel(msg.server.id)
+        channel = self.bot.guild_cache.on_delete_channel(msg.server.id)
         channel = self.bot.get_channel(channel)
         if channel is None:
             return
@@ -157,7 +157,7 @@ class Logger(Cog):
         if not perms.send_messages:
             return
 
-        message = self.bot.server_cache.on_delete_message(msg.server.id, default_message=True)
+        message = self.bot.guild_cache.on_delete_message(msg.server.id, default_message=True)
         message = format_on_delete(msg, message)
         message = split_string(message, splitter='\n')
         if len(message) > 2:
@@ -190,12 +190,12 @@ class Logger(Cog):
         if before.author.bot or before.channel.id == '336917918040326166':
             return
 
-        channel = self.bot.server_cache.on_edit_channel(before.server.id)
+        channel = self.bot.guild_cache.on_edit_channel(before.server.id)
         channel = self.bot.get_channel(channel)
         if not channel:
             return
 
-        message = self.bot.server_cache.on_edit_message(before.server.id, default_message=True)
+        message = self.bot.guild_cache.on_edit_message(before.server.id, default_message=True)
         if message is None:
             return
 

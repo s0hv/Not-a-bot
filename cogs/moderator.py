@@ -105,11 +105,11 @@ class Moderator(Cog):
 
     async def on_message(self, message):
         server = message.server
-        if server and self.bot.server_cache.automute(server.id):
-            mute_role = self.bot.server_cache.mute_role(server.id)
+        if server and self.bot.guild_cache.automute(server.id):
+            mute_role = self.bot.guild_cache.mute_role(server.id)
             mute_role = discord.utils.find(lambda r: r.id == mute_role,
                                            message.server.roles)
-            limit = self.bot.server_cache.automute_limit(server.id)
+            limit = self.bot.guild_cache.automute_limit(server.id)
             if mute_role and len(message.mentions) + len(message.role_mentions) > limit:
                 blacklist = self.automute_blacklist.get(server.id, ())
                 if message.channel.id not in blacklist:
@@ -272,7 +272,7 @@ class Moderator(Cog):
 
     async def _mute_check(self, ctx, *user):
         server = ctx.message.server
-        mute_role = self.bot.server_cache.mute_role(server.id)
+        mute_role = self.bot.guild_cache.mute_role(server.id)
         if mute_role is None:
             await self.bot.say('No mute role set')
             return False
@@ -345,7 +345,7 @@ class Moderator(Cog):
             logger.exception('Could not delete untimeout')
 
     async def untimeout(self, user_id, server_id):
-        mute_role = self.bot.server_cache.mute_role(server_id)
+        mute_role = self.bot.guild_cache.mute_role(server_id)
         if mute_role is None:
             return
 
@@ -461,7 +461,7 @@ class Moderator(Cog):
     async def unmute(self, ctx, *user):
         """Unmute a user"""
         server = ctx.message.server
-        mute_role = self.bot.server_cache.mute_role(server.id)
+        mute_role = self.bot.guild_cache.mute_role(server.id)
         if mute_role is None:
             return await self.bot.say('No mute role set')
 
@@ -497,7 +497,7 @@ class Moderator(Cog):
 
         if not member:
             return await self.bot.say('User %s not found' % ' '.join(user))
-        muted_role = self.bot.server_cache.mute_role(server.id)
+        muted_role = self.bot.guild_cache.mute_role(server.id)
         if not muted_role:
             return await self.bot.say('No mute role set on this server')
 
@@ -760,7 +760,7 @@ class Moderator(Cog):
             await self.bot.bulk_delete(channel_id, message_ids[idx:idx+step])
 
     def get_modlog(self, server):
-        return server.get_channel(self.bot.server_cache.modlog(server.id))
+        return server.get_channel(self.bot.guild_cache.modlog(server.id))
 
 
 def setup(bot):

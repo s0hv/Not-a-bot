@@ -115,7 +115,7 @@ class Song:
             return
 
         self._downloading = True
-        logger.debug('Started downloading %s' % self.long_str)
+        logger.debug(f'Started downloading {self.long_str}')
         try:
             dl = self.config.download
 
@@ -126,9 +126,9 @@ class Song:
             loop = self.playlist.bot.loop
             if dl:
                 if not os.path.exists(self.dl_folder):
-                    terminal.info('Making directory %s' % self.dl_folder)
+                    terminal.info(f'Making directory {self.dl_folder}')
                     os.makedirs(self.dl_folder)
-                    logger.debug('Created dir {}'.format(self.dl_folder))
+                    logger.debug(f'Created dir {self.dl_folder}')
 
                 if self.filename is not None and os.path.exists(self.filename):
                     self.success = True
@@ -168,7 +168,7 @@ class Song:
 
         except Exception as e:
             logger.debug('Download error: {}'.format(e))
-            await self.playlist.bot.send_message(self.playlist.channel, 'Failed to download {0}\n{1}'.format(self.title, e))
+            await self.playlist.channel.send('Failed to download {0}\n{1}'.format(self.title, e))
 
         finally:
             self._downloading = False

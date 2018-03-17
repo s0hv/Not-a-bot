@@ -307,11 +307,14 @@ def slots2dict(obj, d: dict=None, replace=True):
     return d
 
 
-async def retry(f, *args, retries_=3, **kwargs):
+async def retry(f, *args, retries_=3, break_on=(), **kwargs):
     e = None
     for i in range(0, retries_):
         try:
             retval = await f(*args, **kwargs)
+        except break_on as e:
+            break
+
         except Exception as e_:
             e = e_
         else:
@@ -357,7 +360,7 @@ def get_image_from_message(ctx, *messages):
                 image = get_emote_url(image)
             else:
                 try:
-                    int(image)
+                    image = int(image)
                 except ValueError:
                     pass
                 else:
@@ -366,7 +369,7 @@ def get_image_from_message(ctx, *messages):
                         image = get_avatar(user)
 
     if image is None:
-        channel = ctx.message.channel
+        channel = ctx.channel
         server = channel.server
         session = ctx.bot.get_session
         sql = 'SELECT attachment FROM `messages` WHERE server={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(server.id, channel.id)
@@ -398,7 +401,7 @@ def random_color():
     """
     Create a random color to be used in discord
     Returns:
-        Random discord.Color
+        discord.Color
     """
 
     return discord.Color(randint(0, 16777215))
@@ -455,15 +458,15 @@ def call_later(func, loop, timeout, *args, **kwargs):
     return loop.create_task(wait())
 
 
-def get_users_from_ids(server, *ids):
+def get_users_from_ids(guild, *ids):
     users = []
     for i in ids:
         try:
-            int(i)
+            i = int(i)
         except ValueError:
             continue
 
-        user = server.get_member(i)
+        user = guild.get_member(i)
         if user:
             users.append(user)
 
@@ -480,14 +483,20 @@ def check_channel_mention(msg, word):
 
 def get_channel(channels, s, name_matching=False, only_text=True):
     channel = get_channel_id(s)
+    if channel:
+        channel = discord.utils.find(lambda c: c.id == s, channels)
+        if channel:
+            return channel
+
     try:
-        int(s)
+        s = int(s)
     except ValueError:
         pass
     else:
         channel = discord.utils.find(lambda c: c.id == s, channels)
 
     if not channel and name_matching:
+        s = str(s)
         channel = discord.utils.find(lambda c: c.name == s, channels)
         if not channel:
             return
@@ -503,7 +512,7 @@ def get_channel(channels, s, name_matching=False, only_text=True):
 def check_role_mention(msg, word, server):
     if msg.raw_role_mentions:
         id = msg.raw_role_mentions[0]
-        if id not in word:
+        if str(id) not in word:
             return False
         role = list(filter(lambda r: r.id == id, server.roles))
         if not role:
@@ -514,8 +523,7 @@ def check_role_mention(msg, word, server):
 
 def get_role(role, roles, name_matching=False):
     try:
-        int(role)
-        role_id = role
+        role_id = int(role)
     except ValueError:
         role_id = get_role_id(role)
 
@@ -545,21 +553,21 @@ def get_role_id(s):
     regex = re.compile(r'(?:<@&)?(\d+)(?:>)?(?: |$)')
     match = regex.match(s)
     if match:
-        return match.groups()[0]
+        return int(match.groups()[0])
 
 
 def get_user_id(s):
     regex = re.compile(r'(?:<@!?)?(\d+)(?:>)?(?: |$)')
     match = regex.match(s)
     if match:
-        return match.groups()[0]
+        return int(match.groups()[0])
 
 
 def get_channel_id(s):
     regex = re.compile(r'(?:<#)?(\d+)(?:>)?')
     match = regex.match(s)
     if match:
-        return match.groups()[0]
+        return int(match.groups()[0])
 
 
 def seconds2str(seconds):
@@ -591,12 +599,12 @@ def find_user(s, members, case_sensitive=False, ctx=None):
 
         try:
             uid = int(s)
-        except:
+        except ValueError:
             pass
         else:
-            found = list(filter(lambda u: int(u.id) == uid, members))
-            if found:
-                return found[0]
+            for user in members:
+                if user.id == uid:
+                    return user
 
     def filter_users(predicate):
         for member in members:
@@ -718,12 +726,12 @@ def check_perms(values, return_raw=False):
     return PermValues.RETURNS.get(smallest, False) if not return_raw else smallest
 
 
-def is_superset(ctx, command_):
-    if ctx.override_perms is None and command_.required_perms is not None:
+def is_superset(ctx):
+    if ctx.override_perms is None and ctx.command_.required_perms is not None:
         perms = ctx.message.channel.permissions_for(ctx.message.author)
 
-        if not perms.is_superset(command_.required_perms):
-            req = [r[0] for r in command_.required_perms if r[1]]
+        if not perms.is_superset(ctx.command_.required_perms):
+            req = [r[0] for r in ctx.command_.required_perms if r[1]]
             raise PermissionError('%s' % ', '.join(req))
 
     return True
@@ -736,12 +744,12 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         else:
             page = pages[starting_idx]
     except IndexError:
-        return await bot.send_message(ctx.message.channel, 'Page index %s is out of bounds' % starting_idx)
+        return await ctx.channel.send(f'Page index {starting_idx} is out of bounds')
 
     if embed:
-        message = await bot.send_message(ctx.message.channel, embed=page)
+        message = await ctx.channel.send(embed=page)
     else:
-        message = await bot.send_message(ctx.message.channel, page)
+        message = await ctx.channel.send(page)
     await bot.add_reaction(message, '◀')
     await bot.add_reaction(message, '▶')
 
@@ -750,18 +758,21 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
     if callable(page_method):
         async def send():
             if embed:
-                await bot.edit_message(message, embed=page_method(page, paged.index))
+                await message.edit(embed=page_method(page, paged.index))
             else:
-                await bot.edit_message(message, page_method(page, paged.index))
+                await message.edit(page_method(page, paged.index))
     else:
         async def send():
             if embed:
-                await bot.edit_message(message, embed=page)
+                await message.edit(embed=page)
             else:
-                await bot.edit_message(message, page)
+                await message.edit(page)
+
+    def check(reaction, user):
+        return paged.check(reaction, user) and ctx.author.id == user.id and reaction.message.id == message.id
 
     while True:
-        result = await bot.wait_for_reaction_change(user=ctx.message.author, message=message, timeout=60)
+        result = await bot.wait_for('reaction_changed', check=check, timeout=60)
         if result is None:
             return
 
@@ -775,3 +786,65 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
             await asyncio.sleep(3)
         except discord.HTTPException:
             return
+
+
+async def get_all_reaction_users(reaction, limit=100):
+    users = []
+    limits = [100 for i in range(limit // 100)]
+    remainder = limit % 100
+    if remainder > 0:
+        limits.append(remainder)
+
+    for limit in limits:
+        if users:
+            user = users[-1]
+        else:
+            user = None
+        _users = await reaction.users(limit=limit, after=user)
+        users.extend(_users)
+
+    return users
+
+
+async def create_custom_emoji(guild, *, name, image, already_b64=False, reason=None):
+    """Same as the base method but supports giving your own b64 encoded data"""
+    if not already_b64:
+        img = discord.utils._bytes_to_base64_data(image)
+    else:
+        img = image
+
+    data = await guild._state.http.create_custom_emoji(guild.id, name, img, reason=reason)
+    return guild._state.store_emoji(guild, data)
+
+
+def is_owner(ctx):
+    if ctx.command.owner_only and ctx.bot.owner_id != ctx.author.id:
+        raise PermissionError('Only the owner can use this command')
+
+    return True
+
+
+def check_blacklist(ctx):
+    bot = ctx.bot
+    if not hasattr(bot, 'check_auth'):
+        # No database blacklisting detected
+        return True
+
+    if not bot.check_auth(ctx):
+        return False
+
+    overwrite_perms = bot.check_blacklist('(command="%s" OR command IS NULL)' % ctx.command, ctx.author, ctx)
+    msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, None)
+    if isinstance(overwrite_perms, int):
+        if ctx.guild and ctx.guild.owner.id == ctx.author.id:
+            overwrite_perms = True
+        else:
+            overwrite_perms = PermValues.RETURNS.get(overwrite_perms, False)
+    ctx.override_perms = overwrite_perms
+
+    if overwrite_perms is False:
+        if msg is not None:
+            raise PermissionError(msg)
+        return False
+
+    return True

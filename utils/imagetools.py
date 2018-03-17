@@ -32,8 +32,6 @@ from sys import platform
 from threading import Lock
 
 import aiohttp
-#import cv2
-cv2 = None  # Remove cv2 import cuz it takes forever to import
 import geopatterns
 import magic
 import numpy as np
@@ -43,6 +41,9 @@ from colour import Color
 from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
+
+#import cv2
+cv2 = None  # Remove cv2 import cuz it takes forever to import
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -57,8 +58,7 @@ MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
 GLOW_LOCK = Lock()
 TRIMMING_LOCK = Lock()
 if not os.path.exists(IMAGES_PATH):
-    pass
-    #os.mkdir(IMAGES_PATH)
+    os.mkdir(IMAGES_PATH)
 
 
 def make_shiftable(color):

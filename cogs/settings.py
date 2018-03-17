@@ -20,7 +20,7 @@ class Settings(Cog):
 
     @property
     def cache(self):
-        return self.bot.server_cache
+        return self.bot.guild_cache
 
     # Required perms for all settings commands: Manage server
     @cooldown(1, 5)
@@ -111,7 +111,7 @@ class Settings(Cog):
         If channel is provided modlog will be set to that channel.
         channel can be a channel mention, channel id or channel name (case sensitive)"""
         if channel is None:
-            modlog = self.bot.server_cache.modlog(ctx.message.server.id)
+            modlog = self.bot.guild_cache.modlog(ctx.message.server.id)
             modlog = self.bot.get_channel(str(modlog))
             if modlog:
                 await self.bot.say('Current modlog channel is %s' % modlog.mention)
@@ -126,7 +126,7 @@ class Settings(Cog):
             ctx.command.reset_cooldown(ctx)
             return await self.bot.say('No channel found with {}'.format(channel))
 
-        self.bot.server_cache.set_modlog(channel_.server.id, channel_.id)
+        self.bot.guild_cache.set_modlog(channel_.server.id, channel_.id)
         await self.bot.send_message(channel_, 'Modlog set to this channel')
 
     @cooldown(1, 5, type=BucketType.server)
@@ -135,7 +135,7 @@ class Settings(Cog):
         """Get the current role for muted people on this server or set it"""
         server = ctx.message.server
         if role is None:
-            role = get_role(server, self.bot.server_cache.mute_role(server.id), name_matching=True)
+            role = get_role(server, self.bot.guild_cache.mute_role(server.id), name_matching=True)
             if role:
                 await self.bot.say('Current role for muted people is {0} `{0.id}`'.format(role))
             else:
@@ -153,7 +153,7 @@ class Settings(Cog):
 
             role = self.bot.get_role(server, ctx.message.raw_role_mentions[0])
 
-        self.bot.server_cache.set_mute_role(server.id, role.id)
+        self.bot.guild_cache.set_mute_role(server.id, role.id)
         await self.bot.say('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.server)
@@ -184,7 +184,7 @@ class Settings(Cog):
                 if not perms.administrator and not perms.manage_roles:
                     return await self.bot.say('This bot needs manage roles permissions to enable this feature')
                 msg = await self.bot.say('indexing roles')
-                if not await self.bot.dbutils.index_server_member_roles(server):
+                if not await self.bot.dbutils.index_guild_member_roles(server):
                     return await self.bot.say('Failed to index user roles')
 
                 await self.bot.edit_message(msg, new_content='Indexed roles in {0:.2f}s'.format(time.time()-t))

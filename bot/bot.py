@@ -23,35 +23,27 @@ SOFTWARE.
 """
 
 import asyncio
-import audioop
 import copy
+import enum
 import inspect
 import itertools
 import logging
-import shlex
-import subprocess
 import sys
-import threading
-import time
 import traceback
-from collections import deque
 
 import discord
-import enum
 from aiohttp import ClientSession
-from discord import (Object, InvalidArgument, ChannelType, ClientException,
-                     voice_client, Reaction)
+from discord import (Reaction)
 from discord import state
-from discord import client
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 from discord.ext.commands.errors import CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
-from discord.ext.commands.view import StringView
+from discord.http import HTTPClient
 
 from bot.formatter import Formatter
 from bot.globals import Auth
-from utils.utilities import is_superset
+from utils.utilities import is_superset, is_owner, check_blacklist
 
 try:
     import uvloop
@@ -83,20 +75,9 @@ class Command(commands.Command):
         self.checks.append(is_superset)
         if self.owner_only:
             terminal.info('registered owner_only command %s' % name)
+            self.checks.append(is_owner)
 
-    def can_run(self, context):
-        """
-        Now passes the command itself as a parameter too when doing the checks.
-        Useful when another command is checking
-        if the caller can run that command.
-        Normally the permission check would only get the required perms of the main
-        function that was called"""
-
-        predicates = self.checks
-        if not predicates:
-            # since we have no checks, then we just return True.
-            return True
-        return all(predicate(context, self) for predicate in predicates)
+        self.checks.append(check_blacklist)
 
 
 class Group(Command, commands.Group):
@@ -152,20 +133,20 @@ class ConnectionState(state.ConnectionState):
         found = self._get_message(message_id)
         if found is not None:
             self.dispatch('message_delete', found)
-            self.messages.remove(found)
+            self._messages.remove(found)
         else:
             self.dispatch('raw_message_delete', data)
 
     def parse_message_delete_bulk(self, data):
         message_ids = set(data.get('ids', []))
         to_be_deleted = []
-        for msg in self.messages:
+        for msg in self._messages:
             if msg.id in message_ids:
                 to_be_deleted.append(msg)
                 message_ids.remove(msg.id)
 
         for msg in to_be_deleted:
-            self.messages.remove(msg)
+            self._messages.remove(msg)
 
         if to_be_deleted:
             self.dispatch('bulk_message_delete', to_be_deleted)
@@ -175,22 +156,15 @@ class ConnectionState(state.ConnectionState):
     def parse_message_reaction_add(self, data):
         message = self._get_message(data['message_id'])
         if message is not None:
-            emoji = self._get_reaction_emoji(**data.pop('emoji'))
+            emoji = self.get_reaction_emoji(**data.pop('emoji'))
             reaction = discord.utils.get(message.reactions, emoji=emoji)
-
-            is_me = data['user_id'] == self.user.id
-
             if not reaction:
-                reaction = Reaction(
-                    message=message, emoji=emoji, me=is_me, **data)
+                reaction = Reaction(message=message, emoji=emoji, **data)
                 message.reactions.append(reaction)
             else:
                 reaction.count += 1
-                if is_me:
-                    reaction.me = True
 
-            channel = self.get_channel(data['channel_id'])
-            member = self._get_member(channel, data['user_id'])
+            member = self.get_user(data['user_id'])
 
             self.dispatch('reaction_add', reaction, member)
         else:
@@ -199,14 +173,28 @@ class ConnectionState(state.ConnectionState):
 
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
-        super().__init__(loop=loop, **options)
+        self.ws = None
+        self.loop = asyncio.get_event_loop() if loop is None else loop
+        self._listeners = {}
+        self.shard_id = options.get('shard_id')
+        self.shard_count = options.get('shard_count')
 
-        max_messages = options.get('max_messages')
-        if max_messages is None or max_messages < 100:
-            max_messages = 5000
+        connector = options.pop('connector', None)
+        proxy = options.pop('proxy', None)
+        proxy_auth = options.pop('proxy_auth', None)
+        self.http = HTTPClient(connector, proxy=proxy, proxy_auth=proxy_auth, loop=self.loop)
 
-        self.connection = ConnectionState(self.dispatch, self.request_offline_members,
-                                          self._syncer, max_messages, loop=self.loop)
+        self._connection = ConnectionState(dispatch=self.dispatch, chunker=self._chunker,
+                                           syncer=self._syncer, http=self.http, loop=self.loop, **options)
+
+        self._connection.shard_count = self.shard_count
+        self._closed = asyncio.Event(loop=self.loop)
+        self._ready = asyncio.Event(loop=self.loop)
+        self._connection._get_websocket = lambda g: self.ws
+
+        if discord.VoiceClient.warn_nacl:
+            discord.VoiceClient.warn_nacl = False
+            log.warning("PyNaCl is not installed, voice will NOT be supported")
 
 
 class Bot(commands.Bot, Client):
@@ -214,7 +202,7 @@ class Bot(commands.Bot, Client):
         if 'formatter' not in options:
             options['formatter'] = Formatter(width=150)
 
-        super().__init__(prefix, **options)
+        super().__init__(prefix, owner_id=config.owner, **options)
         self.remove_command('help')
         cmd = self.group(**{'name': 'help', 'pass_context': True, 'invoke_without_command': True,
                             'help': """Shows all commands you can use on this server.
@@ -232,7 +220,6 @@ class Bot(commands.Bot, Client):
 
         self.aiohttp_client = aiohttp
         self.config = config
-        self.owner = config.owner
         self.voice_clients_ = {}
 
     async def on_command_error(self, exception, context):
@@ -258,59 +245,19 @@ class Bot(commands.Bot, Client):
 
         channel = context.message.channel
         if isinstance(exception, commands.errors.CommandOnCooldown):
-            await self.send_message(channel, 'Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
+            await channel.send('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return
 
         if isinstance(exception, exceptions.BotException):
-            await self.send_message(channel, exception.message, delete_after=30)
+            await channel.send(exception.message, delete_after=30)
             return
 
         if isinstance(exception, commands.errors.MissingRequiredArgument):
-            return await self.send_message(channel, 'Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
+            return await channel.send('Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
 
         terminal.warning('Ignoring exception in command {}'.format(context.command))
         traceback.print_exception(type(exception), exception,
                                   exception.__traceback__, file=sys.stderr)
-
-    def command(self, *args, **kwargs):
-        """A shortcut decorator that invokes :func:`command` and adds it to
-        the internal command list via :meth:`add_command`.
-        """
-        def decorator(func):
-            result = commands.command(*args, cls=Command, **kwargs)(func)
-            self.add_command(result)
-            return result
-
-        return decorator
-
-    async def send_message(self, destination, content=None, *, tts=False, embed=None, delete_after=None):
-        """Same as the default implementation except you can specify a time
-        after which the message is deleted"""
-
-        channel_id, guild_id = await self._resolve_destination(destination)
-
-        content = str(content) if content is not None else None
-
-        if embed is not None:
-            embed = embed.to_dict()
-
-        data = await self.http.send_message(channel_id, content, guild_id=guild_id,
-                                            tts=tts, embed=embed)
-        channel = self.get_channel(data.get('channel_id'))
-        message = self.connection._create_message(channel=channel, **data)
-
-        if delete_after is not None:
-            async def delete():
-                message_id = message.id
-                try:
-                    await asyncio.sleep(delete_after, loop=self.loop)
-                    await self.http.delete_message(channel_id, message_id, guild_id)
-                except asyncio.CancelledError:
-                    await self.http.delete_message(channel_id, message_id, guild_id)
-
-            discord.compat.create_task(delete(), loop=self.loop)
-
-        return message
 
     @staticmethod
     def get_role_members(role, server):
@@ -323,9 +270,9 @@ class Bot(commands.Bot, Client):
 
     async def _help(self, ctx, *commands_, type=Formatter.ExtendedFilter):
         """Shows this message."""
-        destination = ctx.message.author if self.pm_help else ctx.message.channel
         author = ctx.message.author
-        is_owner = author.id == self.owner
+        destination = author if self.pm_help else ctx.message.channel
+        is_owner = author.id == self.owner_id
 
         def repl(obj):
             return commands.bot._mentions_transforms.get(obj.group(0), '')
@@ -341,8 +288,7 @@ class Bot(commands.Bot, Client):
             else:
                 command_ = self.commands.get(name)
                 if command_ is None:
-                    await self.send_message(destination,
-                                            self.command_not_found.format(name))
+                    await destination.send(self.command_not_found.format(name))
                     return
 
             pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
@@ -350,7 +296,7 @@ class Bot(commands.Bot, Client):
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
             command_ = self.commands.get(name)
             if command_ is None:
-                await self.send_message(destination, self.command_not_found.format(name))
+                await destination.send(self.command_not_found.format(name))
                 return
 
             for key in commands_[1:]:
@@ -358,13 +304,10 @@ class Bot(commands.Bot, Client):
                     key = commands.bot._mention_pattern.sub(repl, key)
                     command_ = command_.commands.get(key)
                     if command_ is None:
-                        await self.send_message(destination,
-                                                self.command_not_found.format(key))
+                        await destination.send(self.command_not_found.format(key))
                         return
                 except AttributeError:
-                    await self.send_message(destination,
-                                            self.command_has_no_subcommands.format(
-                                                    command_, key))
+                    await destination.send(self.command_has_no_subcommands.format(command_, key))
                     return
 
             pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
@@ -376,77 +319,49 @@ class Bot(commands.Bot, Client):
                 destination = ctx.message.author
 
         for page in pages:
-            await self.send_message(destination, embed=page)
+            await destination.send(embed=page)
 
     async def help(self, ctx, *commands_: str):
         await self._help(ctx, *commands_)
 
-    async def process_commands(self, message):
-        _internal_channel = message.channel
-        _internal_author = message.author
+    async def invoke(self, ctx):
+        """|coro|
 
-        view = StringView(message.content)
-        if self._skip_check(message.author, self.user):
-            return
+        Invokes the command given under the invocation context and
+        handles all the internal event dispatch mechanisms.
 
-        prefix = await self._get_prefix(message)
-        invoked_prefix = prefix
-
-        if not isinstance(prefix, (tuple, list)):
-            if not view.skip_string(prefix):
-                return
-        else:
-            invoked_prefix = discord.utils.find(view.skip_string, prefix)
-            if invoked_prefix is None:
-                return
-
-        invoker = view.get_word()
-        tmp = {
-            'bot': self,
-            'invoked_with': invoker,
-            'message': message,
-            'view': view,
-            'prefix': invoked_prefix,
-        }
-
-        ctx = Context(**tmp)
-        del tmp
-
-        if invoker in self.commands:
-            command = self.commands[invoker]
-            if command.owner_only and self.owner != message.author.id:
-                command.dispatch_error(exceptions.PermissionError('Only the owner can use this command'), ctx)
-                return
-
-            self.dispatch('command', command, ctx)
+        Parameters
+        -----------
+        ctx: :class:`.Context`
+            The invocation context to invoke.
+        """
+        if ctx.command is not None:
+            self.dispatch('command', ctx)
             try:
-                await command.invoke(ctx)
-            except discord.ext.commands.errors.MissingRequiredArgument as e:
-                command.dispatch_error(exceptions.MissingRequiredArgument(e), ctx)
+                if (await self.can_run(ctx, call_once=True)):
+                    await ctx.command.invoke(ctx)
             except CommandError as e:
-                ctx.command.dispatch_error(e, ctx)
+                await ctx.command.dispatch_error(ctx, e)
             else:
-                self.dispatch('command_completion', command, ctx)
-        elif invoker:
-            exc = CommandNotFound('Command "{}" is not found'.format(invoker))
-            self.dispatch('command_error', exc, ctx)
+                self.dispatch('command_completion', ctx)
+        elif ctx.invoked_with:
+            exc = CommandNotFound('Command "{}" is not found'.format(ctx.invoked_with))
+            self.dispatch('command_error', ctx, exc)
 
-    async def replace_role(self, member, replaced, roles):
-        replaced = map((lambda r: r.id if not isinstance(r, str) else r), replaced)
-        roles = map((lambda r: r.id if not isinstance(r, str) else r), roles)
-        new_roles = [r.id for r in member.roles]
-        for role in replaced:
-            if role in new_roles:
-                try:
-                    new_roles.remove(role)
-                except ValueError:
-                    pass
+    async def process_commands(self, message):
+        ctx = self.get_context(message, cls=Context)
+        await self.invoke(ctx)
 
-        for role in roles:
-            if role not in new_roles:
-                new_roles.append(role)
+    def command(self, *args, **kwargs):
+        """A shortcut decorator that invokes :func:`command` and adds it to
+        the internal command list via :meth:`add_command`.
+        """
+        def decorator(func):
+            result = command(*args, **kwargs)(func)
+            self.add_command(result)
+            return result
 
-        await self._replace_roles(member, new_roles)
+        return decorator
 
     def group(self, *args, **kwargs):
         def decorator(func):
@@ -456,441 +371,57 @@ class Bot(commands.Bot, Client):
 
         return decorator
 
-    async def get_all_reaction_users(self, reaction, limit=100):
-        users = []
-        limits = [100 for i in range(limit // 100)]
-        remainder = limit % 100
-        if remainder > 0:
-            limits.append(remainder)
+    def handle_reaction_changed(self, reaction, user):
+        removed = []
+        event = 'reaction_changed'
+        listeners = self._listeners.get(event)
 
-        for limit in limits:
-            if users:
-                user = users[-1]
-            else:
-                user = None
-            _users = await self.get_reaction_users(reaction, after=user, limit=limit)
-            users.extend(_users)
+        for i, (future, condition) in enumerate(listeners):
+            if future.cancelled():
+                removed.append(i)
+                continue
 
-        return users
-
-    async def add_roles(self, member, *roles):
-        logger.debug('Adding roles %s to %s in the server %s' % (' '.join(roles), member, member.server.id))
-        new_roles = set()
-        for r in roles:
-            id = r if isinstance(r, str) else r.id
-            new_roles.add(id)
-
-        for role in member.roles:
-            new_roles.add(role.id)
-
-        new_roles = list(new_roles)
-        await self._replace_roles(member, new_roles)
-        return new_roles
-
-    async def replace_roles(self, member, *roles):
-        new_roles = set()
-        for role in roles:
-            id = role if isinstance(role, str) else role.id
-            new_roles.add(id)
-
-        await self._replace_roles(member, list(new_roles))
-
-    async def add_role(self, user, role, server=None, reason=None):
-        if not isinstance(user, str):
-            user_id = user.id
-            server_id = user.server.id
-
-        else:
-            user_id = user
-            server_id = server.id if not isinstance(server, str) else server
-
-        role_id = role.id if not isinstance(role, str) else role
-        user = discord.utils.get(self.get_server(server_id).members, id=user_id)
-
-        # audit log reasons are put in the header of the request which would
-        # require subclassing because you can't modify the headers any other way
-        # headers={'X-Audit-Log-Reason': reason}
-        await self.http.add_role(server_id, user_id, role_id)
-
-    async def remove_role(self, user, role, server=None):
-        if not isinstance(user, str):
-            user_id = user.id
-            server_id = user.server.id
-
-        else:
-            user_id = user
-            server_id = server.id if not isinstance(server, str) else server
-
-        role_id = role.id if not isinstance(role, str) else role
-
-        user = discord.utils.get(self.get_server(server_id).members, id=user_id)
-        await self.http.remove_role(server_id, user_id, role_id)
-
-    async def remove_roles(self, member, *roles, remove_manually=False):
-        new_roles = [r.id for r in member.roles]
-        for r in roles:
-            id = r if isinstance(r, str) else r.id
             try:
-                new_roles.remove(id)
-            except ValueError:
-                pass
+                result = condition(reaction, user)
+            except Exception as e:
+                future.set_exception(e)
+                removed.append(i)
+            else:
+                if result:
+                    future.set_result((reaction, user))
+                removed.append(i)
 
-        await self._replace_roles(member, new_roles)
-        return new_roles
-
-    async def change_presence(self, *, game=None, status=None, afk=False):
-        if status is None:
-            status = 'online'
-        elif status is discord.Status.offline:
-            status = 'invisible'
+        if len(removed) == len(listeners):
+            self._listeners.pop(event)
         else:
-            status = str(status)
-
-        if discord.__version__ == '0.16.4' and game and game.type is None:
-            game.type = 0
-        await self.ws.change_presence(game=game, status=status, afk=afk)
-
-    async def create_custom_emoji(self, server, *, name, image, already_b64=False):
-        """Same as the base method but supports giving your own b64 encoded data"""
-        if not already_b64:
-            img = discord.utils._bytes_to_base64_data(image)
-        else:
-            img = image
-
-        data = await self.http.create_custom_emoji(server.id, name, img)
-        return discord.Emoji(server=server, **data)
-
-    async def bulk_delete(self, channel_id, message_ids):
-        await self.http.delete_messages(channel_id, message_ids)
-
-    async def delete_message(self, message, channel=None):
-        if not isinstance(message, str):
-            message_id = message.id
-            channel_id = message.channel.id
-        else:
-            message_id = message
-            channel_id = channel if isinstance(channel, str) else channel.id
-
-        await self.http.delete_message(channel_id, message_id)
-
-    async def wait_for_reaction_change(self, emoji=None, *, user=None, timeout=None, message=None, check=None):
-        """|coro|
-
-        See wait_for_reaction for documentation
-
-        Returns
-        --------
-        namedtuple
-            A namedtuple with attributes ``reaction`` and ``user`` similar to :func:`on_reaction_add`.
-        """
-
-        if emoji is None:
-            emoji_check = lambda r: True
-        elif isinstance(emoji, (str, discord.Emoji)):
-            emoji_check = lambda r: r.emoji == emoji
-        else:
-            emoji_check = lambda r: r.emoji in emoji
-
-        def predicate(reaction, reaction_user):
-            result = emoji_check(reaction)
-
-            if message is not None:
-                result = result and message.id == reaction.message.id
-
-            if user is not None:
-                result = result and user.id == reaction_user.id
-
-            if callable(check):
-                # the exception thrown by check is propagated through the future.
-                result = result and check(reaction, reaction_user)
-
-            return result
-
-        future = asyncio.Future(loop=self.loop)
-        self._listeners.append((predicate, future, WaitForType.reaction_changed))
-        try:
-            return (await asyncio.wait_for(future, timeout, loop=self.loop))
-        except asyncio.TimeoutError:
-            return None
+            for idx in reversed(removed):
+                del listeners[idx]
 
     def handle_reaction_add(self, reaction, user):
-        removed = []
-        for i, (condition, future, event_type) in enumerate(self._listeners):
-            if event_type is not client.WaitForType.reaction and event_type is not WaitForType.reaction_changed:
-                continue
-
-            if future.cancelled():
-                removed.append(i)
-                continue
-
-            try:
-                result = condition(reaction, user)
-            except Exception as e:
-                future.set_exception(e)
-                removed.append(i)
-            else:
-                if result:
-                    future.set_result(client.WaitedReaction(reaction, user))
-                    removed.append(i)
-
-        for idx in reversed(removed):
-            del self._listeners[idx]
+        self.handle_reaction_changed(reaction, user)
 
     def handle_reaction_remove(self, reaction, user):
-        removed = []
-        for i, (condition, future, event_type) in enumerate(self._listeners):
-            if event_type is not WaitForType.reaction_remove and event_type is not WaitForType.reaction_changed:
-                continue
-
-            if future.cancelled():
-                removed.append(i)
-                continue
-
-            try:
-                result = condition(reaction, user)
-            except Exception as e:
-                future.set_exception(e)
-                removed.append(i)
-            else:
-                if result:
-                    future.set_result(client.WaitedReaction(reaction, user))
-                    removed.append(i)
-
-        for idx in reversed(removed):
-            del self._listeners[idx]
-
-    async def join_voice_channel(self, channel):
-        if isinstance(channel, Object):
-            channel = self.get_channel(channel.id)
-
-        if getattr(channel, 'type', ChannelType.text) != ChannelType.voice:
-            raise InvalidArgument('Channel passed must be a voice channel')
-
-        server = channel.server
-
-        if self.is_voice_connected(server):
-            raise discord.ClientException('Already connected to a voice channel in this server')
-
-        log.info('attempting to join voice channel {0.name}'.format(channel))
-
-        def session_id_found(data):
-            user_id = data.get('user_id')
-            guild_id = data.get('guild_id')
-            return user_id == self.user.id and guild_id == server.id
-
-        # register the futures for waiting
-        session_id_future = self.ws.wait_for('VOICE_STATE_UPDATE', session_id_found)
-        voice_data_future = self.ws.wait_for('VOICE_SERVER_UPDATE', lambda d: d.get('guild_id') == server.id)
-
-        # request joining
-        await self.ws.voice_state(server.id, channel.id)
-        session_id_data = await asyncio.wait_for(session_id_future, timeout=10.0, loop=self.loop)
-        data = await asyncio.wait_for(voice_data_future, timeout=10.0, loop=self.loop)
-
-        kwargs = {
-            'user': self.user,
-            'channel': channel,
-            'data': data,
-            'loop': self.loop,
-            'session_id': session_id_data.get('session_id'),
-            'main_ws': self.ws
-        }
-
-        voice = VoiceClient(**kwargs)
-        try:
-            await voice.connect()
-        except asyncio.TimeoutError as e:
-            try:
-                await voice.disconnect()
-            except:
-                # we don't care if disconnect failed because connection failed
-                pass
-            raise e  # re-raise
-
-        self.connection._add_voice_client(server.id, voice)
-        return voice
-
-    async def reconnect_voice_client(self, server):
-        if server.id not in self.voice_clients_:
-            return
-
-        vc = self.voice_clients_.get(server.id)
-        _paused = False
-
-        player = vc.player
-        if vc.is_playing():
-            vc.pause()
-            _paused = True
-
-        try:
-            await vc.voice.disconnect()
-        except:
-            terminal.exception("Error disconnecting during reconnect")
-            self.voice_clients_.pop(server.id)
-
-        await asyncio.sleep(1)
-
-        if player:
-            new_vc = await self.join_voice_channel(vc.voice.channel)
-            vc.reload_voice(new_vc)
-
-            if _paused:
-                vc.resume()
+        self.handle_reaction_changed(reaction, user)
 
     @staticmethod
-    def get_role(server, role_id):
+    def get_role(guild, role_id):
         if role_id is None:
             return
         role_id = str(role_id)
-        return discord.utils.find(lambda r: r.id == role_id, server.roles)
+        return discord.utils.find(lambda r: r.id == role_id, guild.roles)
 
 
-class VoiceClient(discord.VoiceClient):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def create_ffmpeg_player(self, filename, *, use_avconv=False, pipe=False,
-                             stderr=None, after_input=None, options=None,
-                             before_options=None, headers=None, after=None,
-                             run_loops=0, reconnect=True, **kwargs):
-
-        command_ = 'ffmpeg' if not use_avconv else 'avconv'
-        input_name = '-' if pipe else shlex.quote(filename)
-
-        before_args = ''
-        if reconnect:
-            before_args = " -reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
-
-        if isinstance(headers, dict):
-            for key, value in headers.items():
-                before_args += "{}: {}\r\n".format(key, value)
-            before_args = ' -headers ' + shlex.quote(before_args)
-
-        if isinstance(before_options, str):
-            before_args += ' ' + before_options
-
-        input_args = ''
-        if isinstance(after_input, str):
-            input_args += ' ' + after_input
-
-        cmd = command_ + '{} -i {}{} -f s16le -ar {} -ac {} -loglevel error'
-        cmd = cmd.format(before_args, input_name, input_args, self.encoder.sampling_rate, self.encoder.channels)
-
-        if isinstance(options, str):
-            cmd = cmd + ' ' + options
-
-        cmd += ' pipe:1'
-
-        stdin = None if not pipe else filename
-        args = shlex.split(cmd)
-        try:
-            p = subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
-            return ProcessPlayer(p, self, after, run_loops=run_loops, **kwargs)
-        except FileNotFoundError as e:
-            raise ClientException('ffmpeg/avconv was not found in your PATH environment variable') from e
-        except subprocess.SubprocessError as e:
-            raise ClientException('Popen failed: {0.__name__} {1}'.format(type(e), str(e))) from e
-
-
-class Deque(deque):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def full(self):
-        return len(self) == self.maxlen
-
-
-class StreamPlayer(voice_client.StreamPlayer):
-    def __init__(self, *args, run_loops=0, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.bitrate = self.frame_size / self.delay
-        self.audio_buffer = Deque(maxlen=200)
-        self._stream_finished = threading.Event()
-        self.run_loops = run_loops
-        self.max_frameskip = 3
-
-    def buffer_audio(self):
-        if not self._stream_finished.is_set() and not self.audio_buffer.full():
-            d = self.buff.read(self.frame_size)
-            self.audio_buffer.append(d)
-            if not len(d) > 0:
-                self._stream_finished.set()
-
-    def _do_run(self):
-        self.loops = 0
-        self._start = time.time()
-        frameskip = 0
-        while not self._end.is_set():
-            # are we paused?
-            if not self._resumed.is_set():
-                # wait until we aren't
-                self._resumed.wait()
-
-            if not self._connected.is_set():
-                self.stop()
-                break
-
-            self.loops += 1
-            if self.audio_buffer:
-                data = self.audio_buffer.popleft()
-                self.buffer_audio()
-            else:
-                data = self.buff.read(self.frame_size)
-                while not self.audio_buffer.full() and not self._stream_finished.is_set() and not self._end.is_set():
-                    self.buffer_audio()
-            if frameskip > 0:
-                frameskip -= 1
-                self.run_loops += 1
-                continue
-
-            if self._volume != 1.0:
-                data = audioop.mul(data, 2, min(self._volume, 2.0))
-
-            if len(data) != self.frame_size:
-                self.stop()
-                break
-
-            self.player(data)
-            self.run_loops += 1
-            next_time = self._start + self.delay * self.loops
-            delay = self.delay + (next_time - time.time())
-            if delay < 0:
-                frameskip = min(self.max_frameskip, abs(int(delay/self.delay)))
-                continue
-            time.sleep(delay)
-
-    @property
-    def duration(self):
-        # TODO Make compatible with the speed command
-        return self.run_loops * self.frame_size / self.bitrate
-
-    @property
-    def loops_per_second(self):
-        return self.bitrate / self.frame_size
-
-
-class ProcessPlayer(StreamPlayer):
-    def __init__(self, process, client, after, **kwargs):
-        super().__init__(process.stdout, client.encoder,
-                         client._connected, client.play_audio, after, **kwargs)
-        self.process = process
-
-    def run(self):
-        super().run()
-
-        self.process.kill()
-        if self.process.poll() is None:
-            self.process.communicate()
-
-
-def command(*args, **kwargs):
-    kwargs.pop('cls', None)
-    return commands.command(*args, cls=Command, **kwargs)
+def command(*args, **attrs):
+    if 'cls' not in attrs:
+        attrs['cls'] = Command
+    return commands.command(*args, **attrs)
 
 
 def group(name=None, **attrs):
     """Uses custom Group class"""
-    return commands.command(name=name, cls=Group, **attrs)
+    if 'cls' not in attrs:
+        attrs['cls'] = Group
+    return commands.command(name=name, **attrs)
 
 
 class Context(commands.context.Context):

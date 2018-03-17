@@ -11,7 +11,7 @@ class DatabaseUtils:
     def bot(self):
         return self._bot
 
-    async def index_server_member_roles(self, server):
+    async def index_guild_member_roles(self, server):
         import time
         t = time.time()
         default_role = server.default_role.id

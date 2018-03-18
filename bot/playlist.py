@@ -50,9 +50,9 @@ logger = logging.getLogger('audio')
 
 
 class Playlist:
-    def __init__(self, bot, download=False):
+    def __init__(self, bot, download=False, channel=None):
         self.bot = bot
-        self.channel = None
+        self.channel = channel
         self.download = download
         self.playlist = deque()
         self.downloader = Downloader(CACHE)

@@ -35,6 +35,6 @@ __pycache__/
 data/pokefusion/sprPKMType_*
 
 # Hidden files
-.*
+.*/
 
 !database.sql

@@ -783,7 +783,7 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         try:
             await send()
             # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
         except discord.HTTPException:
             return
 
@@ -848,3 +848,28 @@ def check_blacklist(ctx):
         return False
 
     return True
+
+
+async def search(s, ctx, site, downloader, on_error=None):
+    search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
+    urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
+    max_results = 20
+    search_key = search_keys.get(site, 'ytsearch')
+    channel = ctx.channel
+    query = '{0}{1}:{2}'.format(search_key, max_results, s)
+
+    info = await downloader.extract_info(ctx.bot.loop, url=query,
+                                         on_error=on_error,
+                                         download=False)
+    if info is None or 'entries' not in info:
+        return await channel.send('Search gave no results', delete_after=60)
+
+    url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
+
+    def get_page(page, index):
+        id = page.get('id')
+        if id is None:
+            return page.get('url')
+        return url % id
+
+    await send_paged_message(ctx.bot, ctx, info['entries'], page_method=get_page)

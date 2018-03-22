@@ -96,6 +96,7 @@ class NotABot(Bot):
         self._dbutil = DatabaseUtils(self)
         self._setup()
         self.threadpool = ThreadPoolExecutor(4)
+        self.playlists = {}
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'
@@ -122,9 +123,9 @@ class NotABot(Bot):
         server_ids = {str(r[0]) for r in session.execute(sql).fetchall()}
         new_servers = {s.id for s in guilds}.difference(server_ids)
         for guild in guilds:
-            self.dbutil.index_server_roles(guild)
+            self.dbutil.index_guild_roles(guild)
 
-        self.dbutils.add_servers(*new_servers)
+        self.dbutils.add_guilds(*new_servers)
         sql = 'SELECT servers.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server'
         rows = {}
         for row in session.execute(sql).fetchall():

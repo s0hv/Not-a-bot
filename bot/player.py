@@ -48,10 +48,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
     ClientException
         The subprocess failed to be created.
     """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def create_ffmpeg_player(self, source, *, executable='ffmpeg', pipe=False, stderr=None,
+    def __init__(self, source, *, executable='ffmpeg', pipe=False, stderr=None,
                              before_options=None, after_input=None, options=None, reconnect=True):
         stdin = None if not pipe else source
         args = [executable]
@@ -172,3 +169,63 @@ class AudioPlayer(player.AudioPlayer):
     def seek(self, t):
         pass
         # TODO
+
+    def _set_source(self, source, run_loops=None, speed=None):
+        with self._lock:
+            self.pause()
+            if run_loops:
+                self._run_loops = run_loops
+
+            if speed:
+                self._speed_mod = speed
+
+            self.source = source
+            self.resume()
+
+    def set_source(self, source, run_loops=None, speed=None):
+        old = self.source
+        self._set_source(source, run_loops, speed)
+        del old
+
+
+def play(voice_client, source, *, after=None):
+    """Plays an :class:`AudioSource`.
+    Uses a custom AudioPlayer class
+
+    The finalizer, ``after`` is called after the source has been exhausted
+    or an error occurred.
+
+    If an error happens while the audio player is running, the exception is
+    caught and the audio player is then stopped.
+
+    Parameters
+    -----------
+    voice_client: :class:`VoiceClient`
+        The voice_client we are working with
+    source: :class:`AudioSource`
+        The audio source we're reading from.
+    after
+        The finalizer that is called after the stream is exhausted.
+        All exceptions it throws are silently discarded. This function
+        must have a single parameter, ``error``, that denotes an
+        optional exception that was raised during playing.
+
+    Raises
+    -------
+    ClientException
+        Already playing audio or not connected.
+    TypeError
+        source is not a :class:`AudioSource` or after is not a callable.
+    """
+
+    if not voice_client._connected:
+        raise ClientException('Not connected to voice.')
+
+    if voice_client.is_playing():
+        raise ClientException('Already playing audio.')
+
+    if not isinstance(source, player.AudioSource):
+        raise TypeError('source must an AudioSource not {0.__class__.__name__}'.format(source))
+
+    voice_client._player = AudioPlayer(source, voice_client, after=after)
+    voice_client._player.start()

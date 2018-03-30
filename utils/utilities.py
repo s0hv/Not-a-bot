@@ -35,6 +35,7 @@ from datetime import timedelta
 from random import randint
 
 import discord
+from discord import abc
 import numpy
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
@@ -61,6 +62,16 @@ class Object:
     # Empty class to store variables
     def __init__(self):
         pass
+
+
+# Made so only ids can be used
+class Snowflake(abc.Snowflake):
+    def __init__(self, id):
+        self.id = id
+
+    @property
+    def created_at(self):
+        return discord.utils.snowflake_time(self.id)
 
 
 def split_string(to_split, list_join='', maxlen=2000, splitter=' '):

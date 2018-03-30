@@ -15,7 +15,7 @@ class Autoresponds(Cog):
                 return
             if reaction.me:
                 return
-            await self.bot.add_reaction(reaction.message, '🇳🇿')
+            await reaction.message.add_reaction('🇳🇿')
 
     async def on_raw_reaction_add(self, data):
         if data['user_id'] == self.bot.user.id:
@@ -27,7 +27,7 @@ class Autoresponds(Cog):
 
     async def on_message(self, message):
         if r.findall(message.content):
-            await self.bot.add_reaction(message, '🇫')
+            await message.add_reaction('🇫')
 
 
 def setup(bot):

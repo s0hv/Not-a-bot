@@ -13,6 +13,7 @@ from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 import time
 import base64
+from discord import File
 
 from bot.bot import command
 from bot.exceptions import NoPokeFoundException, BotException
@@ -230,27 +231,27 @@ class Fun(Cog):
         img = get_image_from_message(ctx, image)
         if img is None:
             if image is not None:
-                await self.bot.say('No image found from %s' % image)
+                await ctx.send(f'No image found from {image}')
             else:
-                await self.bot.say('Please input a mention, emote or an image when using the command')
+                await ctx.send('Please input a mention, emote or an image when using the command')
 
             return
 
-        img = await self._dl_image(img)
+        img = await self._dl_image(ctx, img)
         return img
 
-    async def _dl_image(self, url):
+    async def _dl_image(self, ctx, url):
         try:
             img = await image_from_url(url, self.bot.aiohttp_client)
         except OverflowError:
-            await self.bot.say('Failed to download. File is too big')
+            await ctx.send('Failed to download. File is too big')
         except TypeError:
-            await self.bot.say('Link is not a direct link to an image')
+            await ctx.send('Link is not a direct link to an image')
         else:
             return img
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(3, 5, type=BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths(self, ctx, image=None):
         """Generate a top 10 anime deaths image based on provided image"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths.png')
@@ -258,7 +259,7 @@ class Fun(Cog):
         if img is None:
             return
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         x, y = 9, 10
         w, h = 854, 480
         template = Image.open(path)
@@ -275,10 +276,10 @@ class Fun(Cog):
         file = BytesIO()
         template.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
+        await ctx.send(file=File(file, filename='top10-anime-deaths.png'))
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(3, 5, type=BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths2(self, ctx, image=None):
         """same as anime_deaths but with a transparent bg"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths2.png')
@@ -286,7 +287,7 @@ class Fun(Cog):
         if img is None:
             return
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         x, y = 9, 10
         w, h = 854, 480
         template = Image.open(path)
@@ -303,10 +304,10 @@ class Fun(Cog):
         file = BytesIO()
         template.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
+        await ctx.send(file=File(file, filename='top10-anime-deaths.png'))
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(3, 5, type=BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(3, 5, type=BucketType.guild)
     async def trap(self, ctx, image=None):
         """Is it a trap?
         """
@@ -317,7 +318,7 @@ class Fun(Cog):
         path = os.path.join(TEMPLATES, 'is_it_a_trap.png')
         path2 = os.path.join(TEMPLATES, 'is_it_a_trap_layer.png')
         img = img.convert("RGBA")
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         x, y = 820, 396
         w, h = 355, 505
         rotation = -22.5
@@ -336,16 +337,16 @@ class Fun(Cog):
         file = BytesIO()
         template.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
+        await ctx.send(file=File(file, filename='is_it_a_trap.png'))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['jotaro_no'])
-    @cooldown(3, 5, BucketType.server)
+    @command(ignore_extra=True, aliases=['jotaro_no'])
+    @cooldown(3, 5, BucketType.guild)
     async def jotaro(self, ctx, image=None):
         """Jotaro wasn't pleased"""
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         # The size we want from the transformation
         width = 524
         height = 326
@@ -371,10 +372,10 @@ class Fun(Cog):
         file = BytesIO()
         white.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='jotaro_no.png')
+        await ctx.send(file=File(file, filename='jotaro_no.png'))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['jotaro_photo'])
-    @cooldown(2, 5, BucketType.server)
+    @command(ignore_extra=True, aliases=['jotaro_photo'])
+    @cooldown(2, 5, BucketType.guild)
     async def jotaro2(self, ctx, image=None):
         """Jotaro takes an image and looks at it"""
         # Set to false because discord doesn't embed it correctly
@@ -384,7 +385,7 @@ class Fun(Cog):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         r = 34.7
         x = 6
@@ -432,18 +433,18 @@ class Fun(Cog):
         file = BytesIO()
         frames[0].save(file, format=extension, save_all=True, append_images=frames[1:], duration=duration, **kwargs)
         if file.tell() > 8000000:
-            return await self.bot.say('Generated image was too big in filesize')
+            return await ctx.send('Generated image was too big in filesize')
         file.seek(0)
         file = await self.bot.loop.run_in_executor(self.threadpool, partial(optimize_gif, file.getvalue()))
-        await self.bot.send_file(ctx.message.channel, file, filename='jotaro_photo.{}'.format(extension))
+        await ctx.send(file=File(file, filename='jotaro_photo.{}'.format(extension)))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['jotaro3'])
-    @cooldown(2, 5, BucketType.server)
+    @command(ignore_extra=True, aliases=['jotaro3'])
+    @cooldown(2, 5, BucketType.guild)
     async def jotaro_smile(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         im = Image.open(os.path.join(TEMPLATES, 'jotaro_smile.png'))
         img = img.convert('RGBA')
@@ -462,10 +463,10 @@ class Fun(Cog):
         file = BytesIO()
         i.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='jotaro.png')
+        await ctx.send(file=File(file, filename='jotaro.png'))
 
-    @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
-    @cooldown(2, 5, BucketType.server)
+    @command(aliases=['tbc'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
     async def tobecontinued(self, ctx, image=None, no_sepia=False):
         """Make a to be continued picture
         Usage: {prefix}{name} `image/emote/mention` `[optional sepia filter off] on/off`
@@ -475,7 +476,7 @@ class Fun(Cog):
         if not img:
             return
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         if not no_sepia:
             img = sepia(img)
 
@@ -502,15 +503,15 @@ class Fun(Cog):
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='To_be_continued.png')
+        await ctx.send(file=File(file, filename='To_be_continued.png'))
 
-    @command(pass_context=True, aliases=['heaven', 'heavens_door'], ignore_extra=True)
-    @cooldown(2, 5, BucketType.server)
+    @command(aliases=['heaven', 'heavens_door'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
     async def overheaven(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if not img:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         overlay = Image.open(os.path.join(TEMPLATES, 'heaven.png'))
         base = Image.open(os.path.join(TEMPLATES, 'heaven_base.png'))
@@ -525,15 +526,15 @@ class Fun(Cog):
         data = BytesIO()
         base.save(data, 'PNG')
         data.seek(0)
-        await self.bot.send_file(ctx.message.channel, data, filename='overheaven.png')
+        await ctx.send(file=File(data, filename='overheaven.png'))
 
-    @command(pass_context=True, aliases=['puccireset'], ignore_extra=True)
-    @cooldown(2, 5, BucketType.server)
+    @command(aliases=['puccireset'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
     async def pucci(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if not img:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         img = img.convert('RGBA')
         im = Image.open(os.path.join(TEMPLATES, 'pucci_bg.png'))
@@ -547,22 +548,22 @@ class Fun(Cog):
         data = BytesIO()
         im.save(data, 'PNG')
         data.seek(0)
-        await self.bot.send_file(ctx.message.channel, data, filename='pucci_reset.png')
+        await ctx.send(file=File(data, filename='pucci_reset.png'))
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(1, 10, BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
     async def party(self, ctx, image=None):
         """Takes a long ass time to make the gif"""
         img = await self._get_image(ctx, image)
         if img is None:
             return
         channel = ctx.message.channel
-        await self.bot.send_typing(channel)
+        await ctx.trigger_typing()
         img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
-        await self.bot.send_file(channel, img, filename='party.gif')
+        await ctx.send(file=File(img, filename='party.gif'))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['poke'])
-    @cooldown(2, 2, type=BucketType.server)
+    @command(ignore_extra=True, aliases=['poke'])
+    @cooldown(2, 2, type=BucketType.guild)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):
         """
         Gets a random pokemon fusion from http://pokefusion.japeal.com
@@ -571,19 +572,19 @@ class Fun(Cog):
         Passing % as a parameter will randomize that value
         """
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, content=s, filename='pokefusion.png')
+        await ctx.send(s, file=File(file, filename='pokefusion.png'))
 
     @command(owner_only=True)
-    async def update_poke_cache(self):
+    async def update_poke_cache(self, ctx):
         if await self._pokefusion.update_cache() is False:
-            await self.bot.say('Failed to update cache')
+            await ctx.send('Failed to update cache')
         else:
-            await self.bot.say('Successfully updated cache')
+            await ctx.send('Successfully updated cache')
 
 
 def setup(bot):

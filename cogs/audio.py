@@ -226,6 +226,7 @@ class MusicPlayer:
         if self.is_playing():
             self.source.stop()
 
+
 class MusicPlayder:
     def __init__(self, bot, stop_state):
         self.play_next_song = asyncio.Event()  # Trigger for next song
@@ -520,16 +521,16 @@ class Audio:
         self.downloader = Downloader()
 
     def get_musicplayer(self, guild_id):
-        playlist = self.musicplayers.get(guild_id)
-        return playlist
+        musicplayer = self.musicplayers.get(guild_id)
+        return musicplayer
 
     async def check_playlist(self, ctx):
-        playlist = self.get_musicplayer(ctx.guild.id)
-        if playlist is None:
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if musicplayer is None:
             terminal.error('Playlist not found even when voice is playing')
             ctx.send('No playlist found. Reconnect the bot to fix this')
 
-        return playlist
+        return musicplayer
 
     @staticmethod
     def parse_seek(string: str):
@@ -652,11 +653,11 @@ class Audio:
         if not ctx.voice_client.is_playing():
             return await ctx.send('Not playing anything')
 
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             return
 
-        await playlist.playlist.add_from_song(Song.from_song(playlist.current), priority,
+        await musicplayer.playlist.add_from_song(Song.from_song(musicplayer.current), priority,
                                               channel=ctx.channel)
 
     @commands.cooldown(2, 3, type=BucketType.server)
@@ -672,11 +673,11 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             return
 
-        current = playlist.current
+        current = musicplayer.current
         if current is None or not ctx.voice_client.is_playing():
             return await ctx.send('Not playing anything')
 
@@ -767,8 +768,8 @@ class Audio:
                 terminal.debug('Failed to join vc')
                 return
 
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             success = await self._summon(ctx, create_task=False)
             if not success:
                 terminal.debug('Failed to join vc')
@@ -777,21 +778,20 @@ class Audio:
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
 
         maxlen = -1 if ctx.author.id == self.bot.owner_id else 10
-        return await playlist.playlist.add_song(song_name, maxlen=maxlen,
+        return await musicplayer.playlist.add_song(song_name, maxlen=maxlen,
                                                 channel=ctx.message.channel,
                                                 priority=priority, **metadata)
 
     @command(no_pm=True, enabled=False)
-    async def play_playlist(self, ctx, *, playlist):
+    async def play_playlist(self, ctx, *, musicplayer):
         """Queue a saved playlist"""
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             return
-        await playlist.playlist.add_from_playlist(playlist, ctx.message.channel)
+        await musicplayer.playlist.add_from_playlist(musicplayer, ctx.message.channel)
 
     async def _search(self, ctx, name):
         vc = True if ctx.author.voice else False
-        playlist = await self.check_playlist(ctx)
         if name.startswith('-yt '):
             site = 'yt'
             name = name.split('-yt ', 1)[1]
@@ -807,11 +807,11 @@ class Audio:
                 terminal.debug('Failed to join vc')
                 return await ctx.send('Failed to join vc')
 
-            playlist = await self.check_playlist(ctx)
-            if not playlist:
+            musicplayer = await self.check_playlist(ctx)
+            if not musicplayer:
                 return
 
-            _search = playlist.playlist.search(name, ctx, site)
+            _search = musicplayer.playlist.search(name, ctx, site)
         else:
             _search = search(name, ctx, site, self.downloader)
 
@@ -833,20 +833,20 @@ class Audio:
 
         channel = ctx.author.voice.channel
 
-        playlist = self.get_musicplayer(ctx.guild.id)
-        if playlist is None:
-            playlist = MusicPlayer(self.bot, self.stop_state, channel=ctx.channel)
-            self.musicplayers[ctx.guild.id] = playlist
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if musicplayer is None:
+            musicplayer = MusicPlayer(self.bot, self.close_player, channel=ctx.channel)
+            self.musicplayers[ctx.guild.id] = musicplayer
         else:
-            playlist.change_channel(ctx.channel)
+            musicplayer.change_channel(ctx.channel)
 
-        if playlist.voice is None:
-            playlist.voice = await channel.connect()
+        if musicplayer.voice is None:
+            musicplayer.voice = await channel.connect()
             if create_task:
-                playlist.start_playlist()
+                musicplayer.start_playlist()
         else:
-            if channel.id != playlist.voice.id:
-                await playlist.voice.move_to(channel)
+            if channel.id != musicplayer.voice.id:
+                await musicplayer.voice.move_to(channel)
 
         return True
 
@@ -870,11 +870,11 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             return
 
-        current = playlist.current
+        current = musicplayer.current
         if current is None:
             return await self.bot.say('Not playing anything right now', delete_after=20)
 
@@ -901,11 +901,11 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             return
 
-        current = playlist.current
+        current = musicplayer.current
         if current is None:
             return await self.bot.say('Not playing anything right now', delete_after=20)
 
@@ -931,11 +931,11 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        playlist = await self.check_playlist(ctx)
-        if not playlist:
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
             return
 
-        current = playlist.current
+        current = musicplayer.current
         if current is None:
             return await self.bot.say('Not playing anything right now', delete_after=20)
         mode = mode.lower()
@@ -977,8 +977,8 @@ class Audio:
         else:
             index = None
 
-        playlist = self.get_musicplayer(ctx.server.id)
-        await playlist.playlist.clear(index)
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        await musicplayer.playlist.clear(index)
 
     @commands.cooldown(3, 3, type=BucketType.server)
     @command(no_pm=True, aliases=['vol'])
@@ -988,18 +988,18 @@ class Audio:
         If no parameters are given it shows the current volume instead
         Effective values are between 0 and 200
         """
-        playlist = self.get_musicplayer(ctx.server.id)
+        musicplayer = self.get_musicplayer(ctx.server.id)
         if not await self.check_voice(ctx):
             return
 
-        source = playlist.source
+        source = musicplayer.source
 
         # If value is smaller than zero or it hasn't been given this shows the current volume
         if value < 0:
             await self.bot.say('Volume is currently at {:.0%}'.format(source.volume))
             return
 
-        playlist.volume = value / 100
+        musicplayer.volume = value / 100
         source.volume = value / 100
         await ctx.send('Set the volume to {:.0%}'.format(source.volume))
 
@@ -1007,13 +1007,13 @@ class Audio:
     @command(no_pm=True, aliases=['np'])
     async def playing(self, ctx):
         """Gets the currently playing song"""
-        playlist = self.get_musicplayer(ctx.server.id)
-        if playlist.current is None:
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        if musicplayer.current is None:
             await ctx.send('No songs currently in queue')
         else:
-            tr_pos = get_track_pos(playlist.current.duration, playlist.source.duration)
-            await ctx.send(playlist.current.long_str + ' {0}'.format(tr_pos),
-                           delete_after=playlist.current.duration)
+            tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.source.duration)
+            await ctx.send(musicplayer.current.long_str + ' {0}'.format(tr_pos),
+                           delete_after=musicplayer.current.duration)
 
     @commands.cooldown(1, 3, type=BucketType.user)
     @command(name='playnow', no_pm=True)
@@ -1022,8 +1022,8 @@ class Audio:
         Sets a song to the priority queue which is played as soon as possible
         after the other songs in that queue.
         """
-        playlist = self.get_musicplayer(ctx.server.id)
-        if playlist is None or playlist.voice is None:
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        if musicplayer is None or musicplayer.voice is None:
             success = await self._summon(ctx, create_task=False)
             if not success:
                 return
@@ -1034,8 +1034,8 @@ class Audio:
     @command(no_pm=True, aliases=['p'])
     async def pause(self, ctx):
         """Pauses the currently played song."""
-        playlist = self.get_musicplayer(ctx.server.id)
-        playlist.pause()
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        musicplayer.pause()
 
     @commands.cooldown(1, 60, type=BucketType.server)
     @command(enabled=False)
@@ -1043,15 +1043,15 @@ class Audio:
         if name:
             name = ' '.join(name)
 
-        state = self.get_musicplayer(ctx.server.id)
-        await state.playlist.current_to_file(name, ctx.message.channel)
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        await musicplayer.playlist.current_to_file(name, ctx.message.channel)
 
     @commands.cooldown(2, 3, type=BucketType.server)
     @command(no_pm=True, aliases=['r'])
     async def resume(self, ctx):
         """Resumes the currently played song."""
-        playlist = self.get_musicplayer(ctx.server.id)
-        playlist.resume()
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        musicplayer.resume()
 
     @command(name='bpm', no_pm=True, ignore_extra=True)
     @commands.cooldown(1, 8, BucketType.server)
@@ -1060,9 +1060,9 @@ class Audio:
         if not aubio:
             return await self.bot.say('BPM is not supported', delete_after=60)
 
-        playlist = self.get_musicplayer(ctx.server.id)
-        song = playlist.current
-        if not playlist.is_playing() or not song:
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        song = musicplayer.current
+        if not musicplayer.is_playing() or not song:
             return
 
         if song.bpm:
@@ -1128,28 +1128,28 @@ class Audio:
     @command(no_pm=True)
     async def shuffle(self, ctx):
         """Shuffles the current playlist"""
-        playlist = self.get_musicplayer(ctx.server.id)
-        await playlist.playlist.shuffle()
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        await musicplayer.playlist.shuffle()
         await ctx.send('Playlist shuffled')
 
     async def shutdown(self):
         self.clear_cache()
 
     @staticmethod
-    async def close_player(playlist):
-        if playlist is None:
+    async def close_player(musicplayer):
+        if musicplayer is None:
             return
 
-        if playlist.is_playing():
-            playlist.source.stop()
+        if musicplayer.is_playing():
+            musicplayer.source.stop()
 
         try:
-            if playlist.audio_player is not None:
-                playlist.audio_player.cancel()
+            if musicplayer.audio_player is not None:
+                musicplayer.audio_player.cancel()
 
-            if playlist.voice is not None:
-                await playlist.voice.disconnect()
-                playlist.voice = None
+            if musicplayer.voice is not None:
+                await musicplayer.voice.disconnect()
+                musicplayer.voice = None
 
         except Exception:
             terminal.exception('Error while stopping voice')
@@ -1168,9 +1168,9 @@ class Audio:
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
         """
-        playlist = self.get_musicplayer(ctx.server.id)
+        musicplayer = self.get_musicplayer(ctx.server.id)
 
-        await self.disconnect_voice(playlist)
+        await self.disconnect_voice(musicplayer)
 
         if not self.musicplayers:
             self.clear_cache()
@@ -1179,12 +1179,12 @@ class Audio:
     @command(no_pm=True, aliases=['skipsen', 'skipperino', 's'])
     async def skip(self, ctx):
         """Skips the current song"""
-        playlist = self.get_musicplayer(ctx.server.id)
-        if not playlist.is_playing():
+        musicplayer = self.get_musicplayer(ctx.server.id)
+        if not musicplayer.is_playing():
             await ctx.send('Not playing any music right now...')
             return
 
-        await playlist.skip(ctx.message.author)
+        await musicplayer.skip(ctx.message.author)
 
     @commands.cooldown(1, 5, type=BucketType.server)
     @command(name='queue', no_pm=True, aliases=['playlist'])
@@ -1197,7 +1197,6 @@ class Audio:
 
         musicplayer = self.get_musicplayer(ctx.server.id)
         playlist = list(musicplayer.playlist.playlist)  # good variable naming
-        channel = ctx.channel
 
         if index is not None:
             try:

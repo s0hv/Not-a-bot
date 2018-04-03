@@ -4,6 +4,7 @@ from utils.utilities import (split_string, is_image_url, format_on_delete, forma
 import logging
 from discord import errors
 from random import choice
+from discord.abc import PrivateChannel
 from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger('debug')
@@ -16,20 +17,20 @@ class Logger(Cog):
         self.session = bot.mysql.session
 
     def format_for_db(self, message):
-        is_pm = message.channel.is_private
+        is_pm = isinstance(message.channel, PrivateChannel)
         shard = self.bot.shard_id
-        server = int(message.server.id) if not is_pm else None
+        server = message.server.id if not is_pm else None
         # server_name = message.server.name if not is_pm else 'DM'
-        channel = int(message.channel.id) if not is_pm else None
+        channel = message.channel.id if not is_pm else None
         # channel_name = message.channel.name if not is_pm else None
         user = str(message.author)
-        user_id = int(message.author.id)
-        message_id = int(message.id)
+        user_id = message.author.id
+        message_id = message.id
         message_content = None if not is_pm else message.content  # BOI I need to know if my bot is abused in dms
 
         # Only save image links for later use in image commands
         attachment = message.attachments[0].get('url') if message.attachments else None
-        if attachment and not is_image_url(attachment):
+        if attachment and not attachment.width:
             attachment = None
 
         if attachment is None:
@@ -77,7 +78,7 @@ class Logger(Cog):
             self.session.execute(sql, d)
 
             self.session.commit()
-        except:
+        except SQLAlchemyError:
             self.session.rollback()
             self.session.close()
             self.session = self.bot.get_session
@@ -108,7 +109,7 @@ class Logger(Cog):
         if not perms.send_messages:
             return
 
-        if member.id == '287664210152783873':
+        if member.id == 287664210152783873:
             message = 'Cease the tag %s' % member.mention
         else:
             message = format_join_leave(member, message)
@@ -145,7 +146,7 @@ class Logger(Cog):
         await self.bot.send_message(channel, message)
 
     async def on_message_delete(self, msg):
-        if msg.author.bot or msg.channel.id == '336917918040326166':
+        if msg.author.bot or msg.channel.id == 336917918040326166:
             return
 
         channel = self.bot.guild_cache.on_delete_channel(msg.server.id)
@@ -169,7 +170,7 @@ class Logger(Cog):
             try:
                 await self.bot.send_message(channel, m)
             except errors.HTTPException:
-                await self.bot.send_message(self.bot.get_channel('252872751319089153'), '{} posted spam string'.format(msg.author))
+                await self.bot.send_message(self.bot.get_channel(252872751319089153), '{} posted spam string'.format(msg.author))
 
     async def on_message_edit(self, before, after):
         if before.content == after.content:
@@ -187,7 +188,7 @@ class Logger(Cog):
             except SQLAlchemyError:
                 pass
 
-        if before.author.bot or before.channel.id == '336917918040326166':
+        if before.author.bot or before.channel.id == 336917918040326166:
             return
 
         channel = self.bot.guild_cache.on_edit_channel(before.server.id)

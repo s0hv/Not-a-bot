@@ -19,57 +19,49 @@ class Stats(Cog):
         super().__init__(bot)
 
     async def on_message(self, message):
-        if message.server is None:
+        if message.guild is None:
             return
 
         if not message.raw_role_mentions:
             return
 
         roles = []
-        server = message.server
+        guild = message.guild
         for role_id in set(message.raw_role_mentions):
-            role = self.bot.get_role(server, role_id)
+            role = self.bot.get_role(guild, role_id)
             if role:
                 roles.append(role)
 
         if not roles:
             return
 
-        sql = 'INSERT INTO `mention_stats` (`server`, `role`, `role_name`) ' \
-              'VALUES '
+        sql = 'INSERT INTO `mention_stats` (`guild`, `role`, `role_name`) ' \
+              'VALUES (:guild, :role, :role_name)'
 
-        server_id = int(server.id)
-        l = len(roles) - 1
+        data = []
         for idx, role in enumerate(roles):
-            # sanitize name
-            role_name = str(text(':role').bindparams(role=role.name).compile(dialect=mysql.dialect(), compile_kwargs={"literal_binds": True}))
-
-            sql += '(%s, %s, %s)' % (server_id, int(role.id), role_name)
-            if l == idx:
-                continue
-
-            sql += ', '
+            data.append({'guild': guild.id, 'role': role.id, 'role_name': role.name})
 
         sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=VALUES(role_name)'
         session = self.bot.get_session
         try:
-            session.execute(sql)
+            session.execute(sql, data=data)
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to save mention stats')
 
-    @command(pass_context=True, no_pm=True)
-    @cooldown(2, 5, type=BucketType.server)
+    @command(no_pm=True)
+    @cooldown(2, 5, type=BucketType.guild)
     async def mention_stats(self, ctx, page=None):
         """Get stats on how many times which roles are mentioned on this server"""
-        server = ctx.message.server
+        guild = ctx.guild
 
         if page is not None:
             try:
                 # No one probably hasn't created this many roles
                 if len(page) > 6:
-                    return await self.bot.say('Page out of range')
+                    return await ctx.send('Page out of range')
 
                 page = int(page)
                 if page <= 0:
@@ -79,18 +71,18 @@ class Stats(Cog):
         else:
             page = 1
 
-        sql = 'SELECT * FROM `mention_stats` WHERE server={} ORDER BY amount DESC LIMIT {}'.format(server.id, 10*page)
+        sql = 'SELECT * FROM `mention_stats` WHERE guild={} ORDER BY amount DESC LIMIT {}'.format(guild.id, 10*page)
         session = self.bot.get_session
         rows = session.execute(sql).fetchall()
         if not rows:
-            return await self.bot.say('No role mentions logged on this server')
+            return await ctx.send('No role mentions logged on this server')
 
-        embed = discord.Embed(title='Most mentioned roles in server {}'.format(server.name))
+        embed = discord.Embed(title='Most mentioned roles in server {}'.format(guild.name))
         added = 0
         p = page*10
         for idx, row in enumerate(rows[p-10:p]):
             added += 1
-            role = self.bot.get_role(server, row['role'])
+            role = self.bot.get_role(guild, row['role'])
             if role:
                 role_name, role = role.name, role.id
             else:
@@ -100,11 +92,11 @@ class Stats(Cog):
                             value='<@&{}>\n{}\nwith {} mentions'.format(role, role_name, row['amount']))
 
         if added == 0:
-            return await self.bot.say('Page out of range')
+            return await ctx.send('Page out of range')
 
-        await self.bot.send_message(ctx.message.channel, embed=embed)
+        await ctx.send(embed=embed)
 
-    @command(pass_context=True, aliases=['seen'])
+    @command(aliases=['seen'])
     @cooldown(1, 5, BucketType.user)
     async def last_seen(self, ctx, *, name):
         """Get when a user was last seen"""
@@ -123,13 +115,13 @@ class Stats(Cog):
                 is_id = False
                 user = name
 
-        server = ctx.message.server
-        if server is not None:
-            server = int(server.id)
-            sql = 'SELECT * FROM `last_seen_users` WHERE (server_id=0 OR server_id=:server) AND '
+        guild = ctx.guild
+        if guild is not None:
+            guild = guild.id
+            sql = 'SELECT * FROM `last_seen_users` WHERE (guild_id=0 OR guild_id=:guild) AND '
         else:
-            server = 0
-            sql = 'SELECT * FROM `last_seen_users` WHERE server_id=0 AND'
+            guild = 0
+            sql = 'SELECT * FROM `last_seen_users` WHERE guild_id=0 AND'
 
         if is_id:
             sql += 'user_id=:user ORDER BY last_seen DESC LIMIT 2'
@@ -138,14 +130,14 @@ class Stats(Cog):
 
         session = self.bot.get_session
         try:
-            rows = session.execute(sql, {'server': server, 'user': user}).fetchall()
-        except SQLAlchemyError as e:
+            rows = session.execute(sql, {'guild': guild, 'user': user}).fetchall()
+        except SQLAlchemyError:
             terminal.exception('Failed to get last seen from db')
-            return await self.bot.say('Failed to get user because of an error')
+            return await ctx.send('Failed to get user because of an error')
 
         if len(rows) == 0:
-            return await self.bot.say("No users found with {}. Either the bot hasn't had the chance to log activity or the name was wrong."
-                                      "Names are case sensitive and must include the discrim".format(name))
+            return await ctx.send("No users found with {}. Either the bot hasn't had the chance to log activity or the name was wrong."
+                                  "Names are case sensitive and must include the discrim".format(name))
         local = None
         global_ = None
 
@@ -168,7 +160,7 @@ class Stats(Cog):
         if global_:
             msg += 'Last seen elsewhere {} UTC'.format(global_['last_seen'])
 
-        await self.bot.say(msg)
+        await ctx.send(msg)
 
 
 def setup(bot):

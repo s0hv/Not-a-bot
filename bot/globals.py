@@ -76,7 +76,7 @@ if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autopla
         terminal.exception('Autoplaylist copying failed')
 
 
-class BlacklistTypes():
+class BlacklistTypes:
     GLOBAL = 0
     WHITELIST = 1
     BLACKLIST = 2
@@ -119,4 +119,4 @@ class Perms:
     MANAGE_MESSAGES = Permissions(8192)
     ADMIN = Permissions(8)
     MANAGE_EMOJIS = Permissions(1073741824)
-    MANAGE_SERVER = Permissions(32)
+    MANAGE_GUILD = Permissions(32)

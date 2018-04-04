@@ -267,7 +267,7 @@ class VoteManager:
 
         await poll.count_votes()
 
-    @command(pass_context=True, aliases=['vote'], required_perms=Perms.MANAGE_MESSAGES | Perms.MANAGE_ROLE_CHANNEL | Perms.MANAGE_SERVER)
+    @command(pass_context=True, aliases=['vote'], required_perms=Perms.MANAGE_MESSAGES | Perms.MANAGE_ROLE_CHANNEL | Perms.MANAGE_GUILD)
     async def poll(self, ctx, *, message):
         """
         Creates a poll that expires by default in 60 seconds

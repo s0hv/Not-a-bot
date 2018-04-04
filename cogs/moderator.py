@@ -32,7 +32,7 @@ class Moderator(Cog):
         session = self.bot.get_session
         rows = session.execute(sql)
         for row in rows:
-            id_ = row['server_id']
+            id_ = row['guild_id']
             if id_ not in self.automute_blacklist:
                 s = set()
                 self.automute_blacklist[id_] = s
@@ -45,7 +45,7 @@ class Moderator(Cog):
         sql = 'SELECT * FROM `automute_whitelist`'
         rows = session.execute(sql)
         for row in rows:
-            id_ = row['server']
+            id_ = row['guild']
             if id_ not in self.automute_whitelist:
                 s = set()
                 self.automute_whitelist[id_] = s
@@ -62,39 +62,39 @@ class Moderator(Cog):
         for row in rows:
             try:
                 time = row['expires_on'] - datetime.utcnow()
-                server = row['server']
+                guild = row['guild']
                 user = row['user']
 
                 task = call_later(self.untimeout, self.bot.loop, time.total_seconds(),
-                                  user, server)
+                                  user, guild)
 
-                if server not in self.timeouts:
-                    server_timeouts = {}
-                    self.timeouts[server] = server_timeouts
+                if guild not in self.timeouts:
+                    guild_timeouts = {}
+                    self.timeouts[guild] = guild_timeouts
                 else:
-                    server_timeouts = self.timeouts.get(server)
+                    guild_timeouts = self.timeouts.get(guild)
 
-                t = server_timeouts.get(user)
+                t = guild_timeouts.get(user)
                 if t:
                     t.cancel()
 
-                server_timeouts[user] = task
-                task.add_done_callback(lambda f: server_timeouts.pop(user, None))
+                guild_timeouts[user] = task
+                task.add_done_callback(lambda f: guild_timeouts.pop(user, None))
 
             except:
                 logger.exception('Could not untimeout %s' % row)
 
-    async def send_to_modlog(self, server, *args, **kwargs):
-        if isinstance(server, int):
-            server = self.bot.get_server(server)
-            if not server:
+    async def send_to_modlog(self, guild, *args, **kwargs):
+        if isinstance(guild, int):
+            guild = self.bot.get_guild(guild)
+            if not guild:
                 return
 
-        channel = self.get_modlog(server)
+        channel = self.get_modlog(guild)
         if channel is None:
             return
 
-        perms = channel.permissions_for(channel.server.get_member(self.bot.user.id))
+        perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
         is_embed = 'embed' in kwargs
         if not perms.send_messages:
             return
@@ -105,18 +105,18 @@ class Moderator(Cog):
         await channel.send(*args, **kwargs)
 
     async def on_message(self, message):
-        server = message.server
-        if server and self.bot.guild_cache.automute(server.id):
-            mute_role = self.bot.guild_cache.mute_role(server.id)
+        guild = message.guild
+        if guild and self.bot.guild_cache.automute(guild.id):
+            mute_role = self.bot.guild_cache.mute_role(guild.id)
             mute_role = discord.utils.find(lambda r: r.id == mute_role,
-                                           message.server.roles)
-            limit = self.bot.guild_cache.automute_limit(server.id)
+                                           message.guild.roles)
+            limit = self.bot.guild_cache.automute_limit(guild.id)
             if mute_role and len(message.mentions) + len(message.role_mentions) > limit:
-                blacklist = self.automute_blacklist.get(server.id, ())
+                blacklist = self.automute_blacklist.get(guild.id, ())
                 if message.channel.id not in blacklist:
-                    whitelist = self.automute_whitelist.get(server.id, ())
+                    whitelist = self.automute_whitelist.get(guild.id, ())
                     invulnerable = discord.utils.find(lambda r: r.id in whitelist,
-                                                      message.server.roles)
+                                                      message.guild.roles)
                     user = message.author
                     if (invulnerable is None or invulnerable not in user.roles) and mute_role not in user.roles:
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
@@ -125,16 +125,16 @@ class Moderator(Cog):
                         embed.add_field(name='Reason', value='Too many mentions in a message')
                         embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                         embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
-                        await self.send_to_modlog(server, embed=embed)
+                        await self.send_to_modlog(guild, embed=embed)
                         return
 
     @group(invoke_without_command=True)
     @cooldown(2, 5, BucketType.guild)
     async def mute_whitelist(self, ctx):
         """Show roles whitelisted from automutes"""
-        server = ctx.message.server
-        roles = self.automute_whitelist.get(server.id, ())
-        roles = map(lambda r: self.bot.get_role(server, r), roles)
+        guild = ctx.guild
+        roles = self.automute_whitelist.get(guild.id, ())
+        roles = map(lambda r: self.bot.get_role(guild, r), roles)
         roles = [r for r in roles if r]
         if not roles:
             return await ctx.send('No roles whitelisted from automutes')
@@ -145,44 +145,44 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @mute_whitelist.command(required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES)
+    @mute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES)
     @cooldown(2, 5, BucketType.guild)
     async def add(self, ctx, *, role):
         """Add a role to the automute whitelist"""
-        server = ctx.message.server
-        roles = self.automute_whitelist.get(server.id)
+        guild = ctx.guild
+        roles = self.automute_whitelist.get(guild.id)
         if roles is None:
             roles = set()
-            self.automute_whitelist[server.id] = roles
+            self.automute_whitelist[guild.id] = roles
 
         if len(roles) >= 10:
             return await ctx.send('Maximum of 10 roles can be added to automute whitelist.')
 
-        role_ = get_role(role, server.roles, name_matching=True)
+        role_ = get_role(role, guild.roles, name_matching=True)
         if not role_:
             return await ctx.send('Role {} not found'.format(role))
 
-        success = self.bot.dbutils.add_automute_whitelist(server.id, role_.id)
+        success = self.bot.dbutils.add_automute_whitelist(guild.id, role_.id)
         if not success:
             return await ctx.send('Failed to add role because of an error')
 
         roles.add(role_.id)
         await ctx.send('Added role {0.name} `{0.id}`'.format(role_))
 
-    @mute_whitelist.command(required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
+    @mute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.guild)
     async def remove(self, ctx, *, role):
         """Remove a role from the automute whitelist"""
-        server = ctx.message.server
-        roles = self.automute_whitelist.get(server.id, ())
-        role_ = get_role(role, server.roles, name_matching=True)
+        guild = ctx.guild
+        roles = self.automute_whitelist.get(guild.id, ())
+        role_ = get_role(role, guild.roles, name_matching=True)
         if not role_:
             return await ctx.send('Role {} not found'.format(role))
 
         if role_.id not in roles:
             return await ctx.send('Role {0.name} not found in whitelist'.format(role_))
 
-        success = self.bot.dbutils.remove_automute_whitelist(server.id, role.id)
+        success = self.bot.dbutils.remove_automute_whitelist(guild.id, role.id)
         if not success:
             return await ctx.send('Failed to remove role because of an error')
 
@@ -194,9 +194,9 @@ class Moderator(Cog):
     async def automute_blacklist_(self, ctx):
         """Show channels that are blacklisted from automutes.
         That means automutes won't triggered from messages sent in those channels"""
-        server = ctx.message.server
-        channels = self.automute_blacklist.get(server.id, ())
-        channels = map(lambda c: server.get_channel(c), channels)
+        guild = ctx.guild
+        channels = self.automute_blacklist.get(guild.id, ())
+        channels = map(lambda c: guild.get_channel(c), channels)
         channels = [c for c in channels if c]
         if not channels:
             return await ctx.send('No channels blacklisted from automutes')
@@ -207,41 +207,41 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @automute_blacklist_.command(required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, name='add')
+    @automute_blacklist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, name='add')
     @cooldown(2, 5, BucketType.guild)
     async def add_(self, ctx, *, channel):
         """Add a channel to the automute blacklist"""
-        server = ctx.message.server
-        channels = self.automute_blacklist.get(server.id)
+        guild = ctx.guild
+        channels = self.automute_blacklist.get(guild.id)
         if channels is None:
             channels = set()
-            self.automute_whitelist[server.id] = channels
+            self.automute_whitelist[guild.id] = channels
 
-        channel_ = get_channel(server.channels, channel, name_matching=True)
+        channel_ = get_channel(guild.channels, channel, name_matching=True)
         if not channel_:
             return await ctx.send('Channel {} not found'.format(channel))
 
-        success = self.bot.dbutils.add_automute_blacklist(server.id, channel_.id)
+        success = self.bot.dbutils.add_automute_blacklist(guild.id, channel_.id)
         if not success:
             return await ctx.send('Failed to add channel because of an error')
 
         channels.add(channel_.id)
         await ctx.send('Added channel {0.name} `{0.id}`'.format(channel_))
 
-    @automute_blacklist_.command(required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_ROLES, name='remove', aliases=['del', 'delete'])
+    @automute_blacklist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.guild)
     async def remove_(self, ctx, *, channel):
         """Remove a channel from the automute blacklist"""
-        server = ctx.message.server
-        channels = self.automute_blacklist.get(server.id, ())
-        channel_ = get_channel(server.channels, channel, name_matching=True)
+        guild = ctx.guild
+        channels = self.automute_blacklist.get(guild.id, ())
+        channel_ = get_channel(guild.channels, channel, name_matching=True)
         if not channel_:
             return await ctx.send('Channel {} not found'.format(channel))
 
         if channel_.id not in channels:
             return await ctx.send('Channel {0.name} not found in blacklist'.format(channel_))
 
-        success = self.bot.dbutils.remove_automute_blacklist(server.id, channel.id)
+        success = self.bot.dbutils.remove_automute_blacklist(guild.id, channel.id)
         if not success:
             return await ctx.send('Failed to remove channel because of an error')
 
@@ -255,38 +255,38 @@ class Moderator(Cog):
         """Add a role to the server.
         random_color makes the bot choose a random color for the role and
         hoist will make the role show up in the member list"""
-        server = ctx.message.server
-        if server is None:
+        guild = ctx.guild
+        if guild is None:
             return await ctx.send('Cannot create roles in DM')
 
-        default_perms = server.default_role.permissions
+        default_perms = guild.default_role.permissions
         color = None
         if random_color:
             color = discord.Color(randint(0, 16777215))
         try:
-            r = await server.create_role(name=name, permissions=default_perms, colour=color,
-                                         mentionable=mentionable, hoist=hoist,
-                                         reason=f'responsible user {ctx.author} {ctx.author.id}')
+            r = await guild.create_role(name=name, permissions=default_perms, colour=color,
+                                        mentionable=mentionable, hoist=hoist,
+                                        reason=f'responsible user {ctx.author} {ctx.author.id}')
         except discord.HTTPException as e:
             return await ctx.send('Could not create role because of an error\n```%s```' % e)
 
         await ctx.send('Successfully created role %s `%s`' % (name, r.id))
 
     async def _mute_check(self, ctx, *user):
-        server = ctx.message.server
-        mute_role = self.bot.guild_cache.mute_role(server.id)
+        guild = ctx.guild
+        mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
             await ctx.send('No mute role set')
             return False
 
         users = ctx.message.mentions.copy()
-        users.extend(get_users_from_ids(server, *user))
+        users.extend(get_users_from_ids(guild, *user))
 
         if not users:
             await ctx.send('No user ids or mentions')
             return False
 
-        mute_role = self.bot.get_role(server, mute_role)
+        mute_role = self.bot.get_role(guild, mute_role)
         if mute_role is None:
             await ctx.send('Could not find the muted role')
             return False
@@ -302,9 +302,9 @@ class Moderator(Cog):
         else:
             return
 
-        server = ctx.message.server
+        guild = ctx.guild
 
-        if server.id == 217677285442977792 and user.id == 123050803752730624:
+        if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
@@ -314,15 +314,15 @@ class Moderator(Cog):
         except:
             await ctx.send('Could not mute user {}'.format(users[0]))
 
-        server_timeouts = self.timeouts.get(server.id, {})
-        task = server_timeouts.get(user.id)
+        guild_timeouts = self.timeouts.get(guild.id, {})
+        task = guild_timeouts.get(user.id)
         if task:
             task.cancel()
-            self.remove_timeout(user.id, server.id)
+            self.remove_timeout(user.id, guild.id)
 
         try:
             await ctx.send('Muted user {} `{}`'.format(user.name, user.id))
-            chn = self.get_modlog(server)
+            chn = self.get_modlog(guild)
             if chn:
                 author = ctx.author
                 description = '{} muted {} {}'.format(author.mention, user, user.id)
@@ -332,41 +332,41 @@ class Moderator(Cog):
                 embed.add_field(name='Reason', value=reason)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
-                await self.send_to_modlog(server, embed=embed)
+                await self.send_to_modlog(guild, embed=embed)
         except:
             pass
 
-    def remove_timeout(self, user_id, server_id):
+    def remove_timeout(self, user_id, guild_id):
         session = self.bot.get_session
         try:
-            sql = 'DELETE FROM `timeouts` WHERE `server`=:server AND `user`=:user'
-            session.execute(sql, params={'server': server_id, 'user': user_id})
+            sql = 'DELETE FROM `timeouts` WHERE `guild`=:guild AND `user`=:user'
+            session.execute(sql, params={'guild': guild_id, 'user': user_id})
             session.commit()
         except SQLAlchemyError:
             session.rollback()
             logger.exception('Could not delete untimeout')
 
-    async def untimeout(self, user_id, server_id):
-        mute_role = self.bot.guild_cache.mute_role(server_id)
+    async def untimeout(self, user_id, guild_id):
+        mute_role = self.bot.guild_cache.mute_role(guild_id)
         if mute_role is None:
             return
 
-        server = self.bot.get_server(server_id)
-        if server is None:
-            self.remove_timeout(user_id, server_id)
+        guild = self.bot.get_guild(guild_id)
+        if guild is None:
+            self.remove_timeout(user_id, guild_id)
             return
 
-        user = server.get_member(user_id)
+        user = guild.get_member(user_id)
         if not user:
-            self.remove_timeout(user_id, server_id)
+            self.remove_timeout(user_id, guild_id)
             return
 
-        if self.bot.get_role(server, mute_role):
+        if self.bot.get_role(guild, mute_role):
             try:
                 await user.remove_roles(mute_role, reason='Unmuted')
             except:
                 logger.exception('Could not autounmute user %s' % user.id)
-        self.remove_timeout(user.id, server.id)
+        self.remove_timeout(user.id, guild.id)
 
     @command(aliases=['temp_mute'], required_perms=manage_roles)
     async def timeout(self, ctx, user, *, timeout):
@@ -385,7 +385,7 @@ class Moderator(Cog):
 
         user = users[0]
         time, reason = parse_timeout(timeout)
-        server = ctx.guild
+        guild = ctx.guild
         if not time:
             return await ctx.send('Invalid time string')
 
@@ -397,12 +397,12 @@ class Moderator(Cog):
         if user.id in nigu_nerea and ctx.author.id in nigu_nerea:
             return await ctx.send("It's time to stop")
 
-        if server.id == 217677285442977792 and user.id == 123050803752730624:
+        if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         if time.days > 30:
             return await ctx.send("Timeout can't be longer than 30 days")
-        if server.id == 217677285442977792 and time.total_seconds() < 500:
+        if guild.id == 217677285442977792 and time.total_seconds() < 500:
             return await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
         if time.total_seconds() < 59:
             return await ctx.send('Minimum timeout is 1 minute')
@@ -411,10 +411,10 @@ class Moderator(Cog):
         expires_on = datetime2sql(now + time)
         session = self.bot.get_session
         try:
-            sql = 'INSERT INTO `timeouts` (`server`, `user`, `expires_on`) VALUES ' \
-                  '(:server, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
+            sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`) VALUES ' \
+                  '(:guild, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
 
-            d = {'server': ctx.message.server.id, 'user': user.id, 'expires_on': expires_on}
+            d = {'guild': ctx.guild.id, 'user': user.id, 'expires_on': expires_on}
             session.execute(sql, params=d)
             session.commit()
         except SQLAlchemyError:
@@ -422,7 +422,7 @@ class Moderator(Cog):
             logger.exception('Could not save timeout')
             return await ctx.send('Could not save timeout. Canceling action')
 
-        t = self.timeouts.get(server.id, {}).get(user.id)
+        t = self.timeouts.get(guild.id, {}).get(user.id)
         if t:
             t.cancel()
 
@@ -431,7 +431,7 @@ class Moderator(Cog):
         try:
             await user.add_roles(mute_role, reason=f'{ctx.author} {reason}')
             await ctx.send('Muted user {} for {}'.format(user, time))
-            chn = self.get_modlog(server)
+            chn = self.get_modlog(guild)
             if chn:
                 author = ctx.message.author
                 description = '{} muted {} `{}` for {}'.format(author.mention,
@@ -444,40 +444,40 @@ class Moderator(Cog):
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
 
-                await self.send_to_modlog(server, embed=embed)
+                await self.send_to_modlog(guild, embed=embed)
         except:
             await ctx.send('Could not mute user {}'.format(users[0]))
 
         task = call_later(self.untimeout, self.bot.loop,
                           time.total_seconds(), user.id, ctx.guild.id)
 
-        if server.id not in self.timeouts:
-            server_timeouts = {}
-            self.timeouts[server.id] = server_timeouts
+        if guild.id not in self.timeouts:
+            guild_timeouts = {}
+            self.timeouts[guild.id] = guild_timeouts
         else:
-            server_timeouts = self.timeouts.get(server.id)
+            guild_timeouts = self.timeouts.get(guild.id)
 
-        server_timeouts[user.id] = task
-        task.add_done_callback(lambda f: server_timeouts.pop(user.id, None))
+        guild_timeouts[user.id] = task
+        task.add_done_callback(lambda f: guild_timeouts.pop(user.id, None))
 
     @group(required_perms=manage_roles, invoke_without_command=True, no_pm=True)
     async def unmute(self, ctx, *user):
         """Unmute a user"""
-        server = ctx.guild
-        mute_role = self.bot.guild_cache.mute_role(server.id)
+        guild = ctx.guild
+        mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
             return await ctx.send('No mute role set')
 
         users = ctx.message.mentions.copy()
-        users.extend(get_users_from_ids(server, *user))
+        users.extend(get_users_from_ids(guild, *user))
 
         if not users:
             return await ctx.send('No user ids or mentions')
 
-        if server.id == 217677285442977792 and users[0].id == 123050803752730624:
+        if guild.id == 217677285442977792 and users[0].id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
-        mute_role = self.bot.get_role(server, mute_role)
+        mute_role = self.bot.get_role(guild, mute_role)
         if mute_role is None:
             return await ctx.send('Could not find the muted role')
 
@@ -487,27 +487,27 @@ class Moderator(Cog):
             await ctx.send('Could not unmute user {}'.format(users[0]))
         else:
             await ctx.send('Unmuted user {}'.format(users[0]))
-            t = self.timeouts.get(server.id, {}).get(users[0].id)
+            t = self.timeouts.get(guild.id, {}).get(users[0].id)
             if t:
                 t.cancel()
 
     async def _unmute_when(self, ctx, user):
-        server = ctx.guild
+        guild = ctx.guild
         if user:
-            member = find_user(' '.join(user), server.members, case_sensitive=True, ctx=ctx)
+            member = find_user(' '.join(user), guild.members, case_sensitive=True, ctx=ctx)
         else:
             member = ctx.author
 
         if not member:
             return await ctx.send('User %s not found' % ' '.join(user))
-        muted_role = self.bot.guild_cache.mute_role(server.id)
+        muted_role = self.bot.guild_cache.mute_role(guild.id)
         if not muted_role:
             return await ctx.send('No mute role set on this server')
 
         if not list(filter(lambda r: r.id == muted_role, member.roles)):
             return await ctx.send('%s is not muted' % member)
 
-        sql = 'SELECT expires_on FROM `timeouts` WHERE server=%s AND user=%s' % (server.id, member.id)
+        sql = 'SELECT expires_on FROM `timeouts` WHERE guild=%s AND user=%s' % (guild.id, member.id)
         session = self.bot.get_session
 
         row = session.execute(sql).first()
@@ -621,7 +621,7 @@ class Moderator(Cog):
         await self.send_to_modlog(channel.guild, embed=embed)
 
     @purge.command(name='from', required_perms=Perms.MANAGE_MESSAGES, no_pm=True, ignore_extra=True)
-    @cooldown(2, 4, BucketType.server)
+    @cooldown(2, 4, BucketType.guild)
     async def from_(self, ctx, mention, max_messages: str=10, channel=None):
         """
         Delete messages from a user
@@ -632,10 +632,10 @@ class Moderator(Cog):
         `channel` Channel if or mention where you want the messages to be purged from. If not set will delete messages from any channel the bot has access to.
         """
         user = get_user_id(mention)
-        server = ctx.guild
+        guild = ctx.guild
         # We have checked the members channel perms but we need to be sure the
         # perms are global when no channel is specified
-        if channel is None and not ctx.author.server_permissions.manage_messages and not ctx.override_perms:
+        if channel is None and not ctx.author.guild_permissions.manage_messages and not ctx.override_perms:
             return await ctx.send("You don't have the permission to purge from all channels")
 
         try:
@@ -649,25 +649,25 @@ class Moderator(Cog):
         if channel is not None:
             channel_ = channel
             channel = get_channel_id(channel)
-            channel = server.get_channel(channel)
+            channel = guild.get_channel(channel)
 
             if channel is None:
                 return ctx.send(f'Could not find channel {channel_}')
 
-        modlog = self.get_modlog(server)
+        modlog = self.get_modlog(guild)
 
         if channel is not None:
             messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user)
 
             if modlog and messages:
                 embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user})
-                await self.send_to_modlog(server, embed=embed)
+                await self.send_to_modlog(guild, embed=embed)
 
             return
 
         t = datetime.utcnow() - timedelta(days=14)
         t = datetime2sql(t)
-        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (server.id, user, t)
+        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (guild.id, user, t)
 
         if channel is not None:
             sql += 'AND channel=%s ' % channel.id
@@ -698,7 +698,7 @@ class Moderator(Cog):
                 ids.extend(channel_messages[k])
 
         if ids:
-            sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join(ids)
+            sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join([i.id for i in ids])
             try:
                 session.execute(sql)
                 session.commit()
@@ -708,7 +708,7 @@ class Moderator(Cog):
 
             if modlog:
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
-                await self.send_to_modlog(server, embed=embed)
+                await self.send_to_modlog(guild, embed=embed)
 
     @command(no_pm=True, ignore_extra=True, required_perms=discord.Permissions(4), aliases=['softbab'])
     async def softban(self, ctx, user, message_days=1):

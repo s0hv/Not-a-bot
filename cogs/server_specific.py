@@ -22,14 +22,14 @@ from numpy.random import choice
 logger = logging.getLogger('debug')
 
 
-def create_check(server_ids):
-    def server_check(ctx, command_):
-        return ctx.message.server.id in server_ids
+def create_check(guild_ids):
+    def guild_check(ctx, command_):
+        return ctx.guild.id in guild_ids
 
-    return server_check
+    return guild_check
 
 
-whitelist = ('217677285442977792', '353927534439825429')
+whitelist = (217677285442977792, 353927534439825429)
 main_check = create_check(whitelist)
 
 
@@ -48,77 +48,77 @@ class ServerSpecific(Cog):
             return
 
         for row in rows:
-            server = str(row['server'])
+            guild = str(row['guild'])
             channel = str(row['channel'])
             message = str(row['message'])
             title = row['title']
             winners = row['winners']
             timeout = max((row['expires_in'] - datetime.utcnow()).total_seconds(), 0)
-            call_later(self.remove_every, self.bot.loop, timeout, server, channel, message, title, winners)
+            call_later(self.remove_every, self.bot.loop, timeout, guild, channel, message, title, winners)
 
     @property
     def dbutil(self):
         return self.bot.dbutil
 
-    async def _check_role_grant(self, user, role_id, server_id):
+    async def _check_role_grant(self, ctx, user, role_id, guild_id):
         length = len(user.roles)
         if length == 1:
             user_role = 'user_role=%s' % role_id
         else:
             user_role = 'user_role IN (%s)' % ', '.join([r.id for r in user.roles])
 
-        sql = 'SELECT `role_id` FROM `role_granting` WHERE server_id=%s AND role_id=%s AND %s LIMIT 1' % (server_id, role_id, user_role)
+        sql = 'SELECT `role_id` FROM `role_granting` WHERE guild_id=%s AND role_id=%s AND %s LIMIT 1' % (guild_id, role_id, user_role)
         session = self.bot.get_session
         try:
             row = session.execute(sql).first()
             if not row:
                 return False
         except SQLAlchemyError:
-            await self.bot.say('Something went wrong. Try again in a bit')
+            await ctx.send('Something went wrong. Try again in a bit')
             return None
 
         return True
 
-    @command(pass_context=True, no_pm=True)
+    @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(main_check)
     async def grant(self, ctx, user, *, role):
         """Give a role to the specified user if you have the perms to do it"""
-        server = ctx.message.server
-        author = ctx.message.author
+        guild = ctx.guild
+        author = ctx.author
         length = len(author.roles)
         if length == 0:
             return
 
         target_user = get_user_id(user)
         if not target_user:
-            return await self.bot.say("User %s wasn't found" % user, delete_after=30)
+            return await ctx.send("User %s wasn't found" % user, delete_after=30)
 
-        role_ = get_role(role, server.roles, True)
+        role_ = get_role(role, guild.roles, True)
         if not role_:
-            return await self.bot.say('Role %s not found' % role)
+            return await ctx.send('Role %s not found' % role)
 
         role_id = role_.id
 
-        can_grant = await self._check_role_grant(author, role_id, server.id)
+        can_grant = await self._check_role_grant(ctx, author, role_id, guild.id)
         if can_grant is None:
             return
         elif can_grant is False:
-            return await self.bot.say("You don't have the permission to grant this role", delete_after=30)
+            return await ctx.send("You don't have the permission to grant this role", delete_after=30)
 
         try:
-            await self.bot.add_role(target_user, role_id, server)
+            await target_user.add_roles(role_, reason=f'{ctx.author} granted role')
         except HTTPException as e:
-            return await self.bot.say('Failed to add role\n%s' % e)
+            return await ctx.send('Failed to add role\n%s' % e)
 
-        await self.bot.say('👌')
+        await ctx.send('👌')
 
-    @command(pass_context=True, no_pm=True)
+    @command(no_pm=True)
     @cooldown(2, 4, type=BucketType.user)
     @check(main_check)
     async def ungrant(self, ctx, user, *, role):
         """Remove a role from a user if you have the perms"""
-        server = ctx.message.server
+        guild = ctx.guild
         author = ctx.message.author
         length = len(author.roles)
         if length == 0:
@@ -126,46 +126,46 @@ class ServerSpecific(Cog):
 
         target_user = get_user_id(user)
         if not target_user:
-            return await self.bot.say("User %s wasn't found" % user, delete_after=30)
+            return await ctx.send("User %s wasn't found" % user, delete_after=30)
 
-        role_ = get_role(role, server.roles, True)
+        role_ = get_role(role, guild.roles, True)
         if not role_:
-            return await self.bot.say('Role %s not found' % role)
+            return await ctx.send('Role %s not found' % role)
 
         role_id = role_.id
 
-        can_grant = await self._check_role_grant(author, role_id, server.id)
+        can_grant = await self._check_role_grant(ctx, author, role_id, guild.id)
         if can_grant is None:
             return
         elif can_grant is False:
-            return await self.bot.say("You don't have the permission to remove this role", delete_after=30)
+            return await ctx.send("You don't have the permission to remove this role", delete_after=30)
 
         try:
-            await self.bot.remove_role(target_user, role_id, server)
+            await target_user.remove_roles(role_, reason=f'{ctx.author} ungranted role')
         except HTTPException as e:
-            return await self.bot.say('Failed to remove role\n%s' % e)
+            return await ctx.send('Failed to remove role\n%s' % e)
 
-        await self.bot.say('👌')
+        await ctx.send('👌')
 
-    @command(pass_context=True, required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
+    @command(required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
     @cooldown(2, 4, type=BucketType.server)
     @check(main_check)
     async def add_grant(self, ctx, role, target_role):
         """Make the given role able to grant the target role"""
-        server = ctx.message.server
-        role_ = get_role(role, server.roles)
+        guild = ctx.guild
+        role_ = get_role(role, guild.roles)
         if not role_:
-            return await self.bot.say('Could not find role %s' % role, delete_after=30)
+            return await ctx.send('Could not find role %s' % role, delete_after=30)
 
-        target_role_ = get_role(target_role, server.roles)
+        target_role_ = get_role(target_role, guild.roles)
         if not target_role_:
-            return await self.bot.say('Could not find role %s' % target_role, delete_after=30)
+            return await ctx.send('Could not find role %s' % target_role, delete_after=30)
 
-        if not self.dbutil.add_roles(server.id, target_role_.id, role_.id):
-            return await self.bot.say('Could not add roles to database')
+        if not self.dbutil.add_roles(guild.id, target_role_.id, role_.id):
+            return await ctx.send('Could not add roles to database')
 
-        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role_id`, `server_id`) VALUES ' \
-              '(%s, %s, %s)' % (role_.id, target_role_.id, server.id)
+        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role_id`, `guild_id`) VALUES ' \
+              '(%s, %s, %s)' % (role_.id, target_role_.id, guild.id)
         session = self.bot.get_session
         try:
             session.execute(sql)
@@ -173,25 +173,25 @@ class ServerSpecific(Cog):
         except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add grant role')
-            return await self.bot.say('Failed to add perms. Exception logged')
+            return await ctx.send('Failed to add perms. Exception logged')
 
-        await self.bot.say('👌')
+        await ctx.send('👌')
 
-    @command(pass_context=True, required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
+    @command(required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(main_check)
     async def remove_grant(self, ctx, role, target_role):
         """Remove a grantable role from the target role"""
-        server = ctx.message.server
-        role_ = get_role(role, server.roles)
+        guild = ctx.guild
+        role_ = get_role(role, guild.roles)
         if not role_:
-            return await self.bot.say('Could not find role %s' % role, delete_after=30)
+            return await ctx.send('Could not find role %s' % role, delete_after=30)
 
-        target_role_ = get_role(target_role, server.roles)
+        target_role_ = get_role(target_role, guild.roles)
         if not target_role_:
-            return await self.bot.say('Could not find role %s' % target_role, delete_after=30)
+            return await ctx.send('Could not find role %s' % target_role, delete_after=30)
 
-        sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role_id=%s AND server_id=%s' % (role_.id, target_role_.id, server.id)
+        sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role_id=%s AND guild_id=%s' % (role_.id, target_role_.id, guild.id)
         session = self.bot.get_session
         try:
             session.execute(sql)
@@ -199,39 +199,39 @@ class ServerSpecific(Cog):
         except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to remove grant role')
-            return await self.bot.say('Failed to remove perms. Exception logged')
+            return await ctx.send('Failed to remove perms. Exception logged')
 
-        await self.bot.say('👌')
+        await ctx.send('👌')
 
-    @command(pass_context=True, no_pm=True, aliases=['get_grants', 'grants'])
+    @command(no_pm=True, aliases=['get_grants', 'grants'])
     @cooldown(1, 4)
     @check(main_check)
     async def show_grants(self, ctx, *user):
         """Shows the roles you or the specified user can grant"""
-        server = ctx.message.server
+        guild = ctx.guild
         if user:
             user = ' '.join(user)
-            user_ = find_user(user, server.members, case_sensitive=True, ctx=ctx)
+            user_ = find_user(user, guild.members, case_sensitive=True, ctx=ctx)
             if not user_:
-                return await self.bot.say("Couldn't find a user with %s" % user)
+                return await ctx.send("Couldn't find a user with %s" % user)
             author = user_
         else:
-            author = ctx.message.author
+            author = ctx.author
         session = self.bot.get_session
-        sql = 'SELECT `role_id` FROM `role_granting` WHERE server_id=%s AND user_role IN (%s)' % (server.id, ', '.join([r.id for r in author.roles]))
+        sql = 'SELECT `role_id` FROM `role_granting` WHERE guild_id=%s AND user_role IN (%s)' % (guild.id, ', '.join([r.id for r in author.roles]))
         try:
             rows = session.execute(sql).fetchall()
         except SQLAlchemyError:
             logger.exception('Failed to get role grants')
-            return await self.bot.say('Failed execute sql')
+            return await ctx.send('Failed execute sql')
 
         if not rows:
-            return await self.bot.say("{} can't grant any roles".format(author))
+            return await ctx.send("{} can't grant any roles".format(author))
 
         msg = 'Roles {} can grant:\n'.format(author)
         found = False
         for row in rows:
-            role = self.bot.get_role(server, row['role_id'])
+            role = self.bot.get_role(guild, row['role_id'])
             if not role:
                 continue
 
@@ -240,13 +240,13 @@ class ServerSpecific(Cog):
             msg += '{0.name} `{0.id}`\n'.format(role)
 
         if not found:
-            return await self.bot.say("{} can't grant any roles".format(author))
+            return await ctx.send("{} can't grant any roles".format(author))
 
         for s in split_string(msg, maxlen=2000, splitter='\n'):
-            await self.bot.say(s)
+            await ctx.send(s)
 
-    @command(pass_context=True)
-    @cooldown(1, 3, type=BucketType.server)
+    @command()
+    @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
     async def text(self, ctx):
         """Generate text"""
@@ -257,69 +257,69 @@ class ServerSpecific(Cog):
         script = '/home/pi/neural_networks/torch-rnn/sample.lua'
         cmd = '/home/pi/torch/install/bin/th %s -checkpoint %s -length 200 -gpu -1' % (script, p)
         p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='/home/pi/neural_networks/torch-rnn/')
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         while p.poll() is None:
             await asyncio.sleep(0.2)
 
         out, err = p.communicate()
-        await self.bot.say(out.decode('utf-8'))
+        await ctx.send(out.decode('utf-8'))
 
-    @command(pass_context=True, no_pm=True)
+    @command(no_pm=True)
     @cooldown(1, 3, type=BucketType.user)
-    @check(create_check(('217677285442977792', )))
+    @check(create_check((217677285442977792, )))
     async def default_role(self, ctx):
         """Temporary fix to easily get default role"""
         if self.bot.test_mode:
             return
 
-        server = ctx.message.server
-        role = self.bot.get_role(server, '352099343953559563')
+        guild = ctx.guild
+        role = self.bot.get_role(guild, 352099343953559563)
         if not role:
-            return await self.bot.say('Default role not found')
+            return await ctx.send('Default role not found')
 
-        member = ctx.message.author
+        member = ctx.author
         if role in member.roles:
-            return await self.bot.say('You already have the default role')
+            return await ctx.send('You already have the default role')
 
         try:
-            await self.bot.add_role(member, role)
+            await member.add_roles(role)
         except HTTPException as e:
-            return await self.bot.say('Failed to add default role because of an error.\n{}'.format(e))
+            return await ctx.send('Failed to add default role because of an error.\n{}'.format(e))
 
-        await self.bot.say('You now have the default role')
+        await ctx.send('You now have the default role')
 
-    @command(pass_context=True, required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_SERVER)
-    @cooldown(1, 3, type=BucketType.server)
+    @command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
+    @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
     async def toggle_every(self, ctx, winners: int, *, expires_in):
         """Host a giveaway to toggle the every role"""
         expires_in = parse_time(expires_in)
         if not expires_in:
-            return await self.bot.say('Invalid time string')
+            return await ctx.send('Invalid time string')
 
         if expires_in.days > 29:
-            return await self.bot.say('Maximum time is 29 days 23 hours 59 minutes and 59 seconds')
+            return await ctx.send('Maximum time is 29 days 23 hours 59 minutes and 59 seconds')
 
         if expires_in.total_seconds() < 300:
-            return await self.bot.say('Minimum time is 5 minutes')
+            return await ctx.send('Minimum time is 5 minutes')
 
         if winners < 1:
-            return await self.bot.say('There must be more than 1 winner')
+            return await ctx.send('There must be more than 1 winner')
 
         if winners > 30:
-            return await self.bot.say('Maximum amount of winners is 30')
+            return await ctx.send('Maximum amount of winners is 30')
 
-        channel = ctx.message.channel
-        server = ctx.message.server
-        perms = channel.permissions_for(server.get_member(self.bot.user.id))
+        channel = ctx.channel
+        guild = ctx.guild
+        perms = channel.permissions_for(guild.get_member(self.bot.user.id))
         if not perms.manage_roles and not perms.administrator:
-            return await self.bot.say('Invalid server perms')
+            return await ctx.send('Invalid server perms')
 
-        role = self.bot.get_role(server, '323098643030736919')
+        role = self.bot.get_role(guild, 323098643030736919)
         if role is None:
-            return await self.bot.say('Every role not found')
+            return await ctx.send('Every role not found')
 
-        sql = 'INSERT INTO `giveaways` (`server`, `title`, `message`, `channel`, `winners`, `expires_in`) VALUES (:server, :title, :message, :channel, :winners, :expires_in)'
+        sql = 'INSERT INTO `giveaways` (`guild`, `title`, `message`, `channel`, `winners`, `expires_in`) VALUES (:guild, :title, :message, :channel, :winners, :expires_in)'
 
         now = datetime.utcnow()
         expired_date = now + expires_in
@@ -334,38 +334,38 @@ class ServerSpecific(Cog):
             text = '{} winners | '.format(winners) + text
         embed.set_footer(text=text, icon_url=get_avatar(self.bot.user))
 
-        message = await self.bot.send_message(channel, embed=embed)
-        await self.bot.add_reaction(message, 'GWjojoGachiGASM:363025405562585088')
+        message = await channel.send(embed=embed)
+        await message.add_reaction('GWjojoGachiGASM:363025405562585088')
         session = self.bot.get_session
         try:
-            session.execute(sql, params={'server': int(server.id), 'title': 'Toggle every',
-                                         'message': int(message.id),
-                                         'channel': int(channel.id),
+            session.execute(sql, params={'guild': guild.id, 'title': 'Toggle every',
+                                         'message': message.id,
+                                         'channel': channel.id,
                                          'winners': winners,
                                          'expires_in': sql_date})
             session.commit()
         except SQLAlchemyError:
             logger.exception('Failed to create every toggle')
-            return await self.bot.say('SQL error')
+            return await ctx.send('SQL error')
 
-        call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(), server.id, channel.id, message.id, title, winners)
+        call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(), guild.id, channel.id, message.id, title, winners)
 
     def delete_giveaway_from_db(self, message_id):
         sql = 'DELETE FROM `giveaways` WHERE message=:message'
         session = self.bot.get_session
         try:
-            session.execute(sql, {'message': int(message_id)})
+            session.execute(sql, {'message': message_id})
             session.commit()
         except SQLAlchemyError:
             logger.exception('Failed to delete giveaway {}'.format(message_id))
 
-    async def remove_every(self, server, channel, message, title, winners):
-        server = self.bot.get_server(server)
-        if not server:
+    async def remove_every(self, guild, channel, message, title, winners):
+        guild = self.bot.get_guild(guild)
+        if not guild:
             self.delete_giveaway_from_db(message)
             return
 
-        role = self.bot.get_role(server, '323098643030736919')
+        role = self.bot.get_role(guild, 323098643030736919)
         if role is None:
             self.delete_giveaway_from_db(message)
             return
@@ -386,7 +386,7 @@ class ServerSpecific(Cog):
             emoji = reaction.emoji
             if isinstance(emoji, str):
                 continue
-            if emoji.id == '363025405562585088' and emoji.name == 'GWjojoGachiGASM':
+            if emoji.id == 363025405562585088 and emoji.name == 'GWjojoGachiGASM':
                 react = reaction
                 break
 
@@ -396,9 +396,8 @@ class ServerSpecific(Cog):
 
         title = 'Giveaway: {}'.format(title)
         description = 'No winners'
-
-        users = await self.bot.get_all_reaction_users(react, limit=react.count)
-        candidates = [server.get_member(user.id) for user in users if user.id != self.bot.user.id and server.get_member(user.id)]
+        users = await react.users(limit=react.count)
+        candidates = [guild.get_member(user.id) for user in users if user.id != self.bot.user.id and guild.get_member(user.id)]
         winners = choice(candidates, min(winners, len(candidates)), replace=False)
         if len(winners) > 0:
             winners = sorted(winners, key=lambda u: u.name)
@@ -407,15 +406,15 @@ class ServerSpecific(Cog):
         added = 0
         removed = 0
         for winner in winners:
-            winner = server.get_member(winner.id)
+            winner = guild.get_member(winner.id)
             if not winner:
                 continue
             if role in winner.roles:
-                retval = await retry(self.bot.remove_role, winner, role)
+                retval = await retry(winner.remove_roles, role, reason='Won every toggle giveaway')
                 removed += 1
 
             else:
-                retval = await retry(self.bot.add_role, winner, role)
+                retval = await retry(winner.add_roles, role, reason='Won every toggle giveaway')
                 added += 1
 
             if isinstance(retval, Exception):
@@ -423,24 +422,24 @@ class ServerSpecific(Cog):
 
         embed = discord.Embed(title=title, description=description, timestamp=datetime.utcnow())
         embed.set_footer(text='Expired at', icon_url=get_avatar(self.bot.user))
-        await self.bot.edit_message(message, embed=embed)
+        await message.edit(embed=embed)
         description += '\nAdded every to {} user(s) and removed it from {} user(s)'.format(added, removed)
-        await self.bot.send_message(message.channel, description)
+        await message.channel.send(description)
         self.delete_giveaway_from_db(message.id)
 
     async def on_member_join(self, member):
         if self.bot.test_mode:
             return
 
-        server = member.server
-        if server.id != '366940074635558912':
+        guild = member.guild
+        if guild.id != 366940074635558912:
             return
 
         if random() < 0.09:
             name = str(member.discriminator)
         else:
             name = str(randint(1000, 9999))
-        await self.bot.change_nickname(member, name)
+        await member.edit(nick=name, reason='Auto nick')
 
 
 def setup(bot):

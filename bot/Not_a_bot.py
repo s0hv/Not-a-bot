@@ -143,7 +143,7 @@ class NotABot(Bot):
                 rows[guild_id] = d
 
         for guild_id, row in rows.items():
-            self.guild_cache.update_cached_server(guild_id, **row)
+            self.guild_cache.update_cached_guild(guild_id, **row)
 
         for guild in guilds:
             if self.guild_cache.keeproles(guild.id):
@@ -261,7 +261,7 @@ class NotABot(Bot):
         d.pop('server', None)
         d.pop('prefix', None)
         d['prefixes'] = prefixes
-        self.guild_cache.update_cached_server(guild.id, **d)
+        self.guild_cache.update_cached_guild(guild.id, **d)
 
     async def on_guild_role_delete(self, role):
         self.dbutils.delete_role(role.id, role.server.id)

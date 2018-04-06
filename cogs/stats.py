@@ -28,7 +28,7 @@ class Stats(Cog):
         roles = []
         guild = message.guild
         for role_id in set(message.raw_role_mentions):
-            role = self.bot.get_role(guild, role_id)
+            role = self.bot.get_role(role_id, guild)
             if role:
                 roles.append(role)
 
@@ -82,7 +82,7 @@ class Stats(Cog):
         p = page*10
         for idx, row in enumerate(rows[p-10:p]):
             added += 1
-            role = self.bot.get_role(guild, row['role'])
+            role = self.bot.get_role(row['role'], guild)
             if role:
                 role_name, role = role.name, role.id
             else:

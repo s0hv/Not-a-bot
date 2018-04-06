@@ -49,7 +49,7 @@ class DatabaseUtils:
         logger.info('Deleted old records in %s' % (time.time() - t1))
         t1 = time.time()
 
-        sql = 'INSERT IGNORE INTO `userRoles` (`user_id`, `role_id`) VALUES '
+        sql = 'INSERT IGNORE INTO `userRoles` (`user`, `role`) VALUES '
         for u in members:
             for r in u.roles:
                 if r.id == default_role:
@@ -156,7 +156,7 @@ class DatabaseUtils:
             return
 
         session = self.bot.get_session
-        sql = 'INSERT IGNORE INTO `userRoles` (`user_id`, `role_id`) VALUES '
+        sql = 'INSERT IGNORE INTO `userRoles` (`user`, `role`) VALUES '
         l = len(role_ids) - 1
         for idx, r in enumerate(role_ids):
             sql += f'({user_id}, {r})'
@@ -176,7 +176,7 @@ class DatabaseUtils:
     def remove_user_roles(self, role_ids, user_id):
         session = self.bot.get_session
 
-        sql = 'DELETE FROM `userRoles` WHERE user_id=%s and role_id IN (%s)' % (user_id, ', '.join(map(lambda i: str(i), role_ids)))
+        sql = 'DELETE FROM `userRoles` WHERE user=%s and role IN (%s)' % (user_id, ', '.join(map(lambda i: str(i), role_ids)))
         try:
             session.execute(sql)
             session.commit()
@@ -225,7 +225,7 @@ class DatabaseUtils:
     def delete_user_roles(self, guild_id, user_id):
         session = self.bot.get_session
         try:
-            sql = f'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.guild={guild_id} AND userRoles.user_id={user_id}'
+            sql = f'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role WHERE roles.guild={guild_id} AND userRoles.user={user_id}'
             session.execute(sql)
             session.commit()
         except SQLAlchemyError:
@@ -235,7 +235,7 @@ class DatabaseUtils:
     def add_automute_blacklist(self, guild_id, *channel_ids):
         session = self.bot.get_session
 
-        sql = 'INSERT IGNORE INTO `automute_blacklist` (`guild_id`, `channel_id`) VALUES '
+        sql = 'INSERT IGNORE INTO `automute_blacklist` (`guild`, `channel`) VALUES '
         sql += ', '.join(map(lambda cid: f'({guild_id}, {cid})', channel_ids))
         try:
             session.execute(sql)
@@ -253,7 +253,7 @@ class DatabaseUtils:
             return True
 
         channel_ids = ', '.join(map(lambda cid: str(cid), channel_ids))
-        sql = f'DELETE FROM `automute_blacklist` WHERE guild_id={guild_id} AND channel_id IN ({channel_ids}) '
+        sql = f'DELETE FROM `automute_blacklist` WHERE guild={guild_id} AND channel IN ({channel_ids}) '
         try:
             session.execute(sql)
             session.commit()
@@ -299,7 +299,7 @@ class DatabaseUtils:
         return success
 
     def multiple_last_seen(self, user_ids, usernames, guild_id, timestamps):
-        sql = 'INSERT INTO `last_seen_users` (`user_id`, `username`, `guild_id`, `last_seen`) VALUES (:user, :username, :guild, :time) ON DUPLICATE KEY UPDATE last_seen=VALUES(`last_seen`), username=VALUES(`username`)'
+        sql = 'INSERT INTO `last_seen_users` (`user`, `username`, `guild`, `last_seen`) VALUES (:user, :username, :guild, :time) ON DUPLICATE KEY UPDATE last_seen=VALUES(`last_seen`), username=VALUES(`username`)'
         data = [{'user': uid, 'username': u, 'guild': s, 'time': t} for uid, u, s, t in zip(user_ids, usernames, guild_id, timestamps)]
         session = self.bot.get_session
         try:

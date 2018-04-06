@@ -260,9 +260,9 @@ class Bot(commands.Bot, Client):
                                   exception.__traceback__, file=sys.stderr)
 
     @staticmethod
-    def get_role_members(role, server):
+    def get_role_members(role, guild):
         members = []
-        for member in server.members:
+        for member in guild.members:
             if role in member.roles:
                 members.append(member)
 
@@ -404,7 +404,7 @@ class Bot(commands.Bot, Client):
         self.handle_reaction_changed(reaction, user)
 
     @staticmethod
-    def get_role(guild, role_id):
+    def get_role(role_id, guild):
         if role_id is None:
             return
         role_id = str(role_id)

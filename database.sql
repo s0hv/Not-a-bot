@@ -2,13 +2,11 @@ SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 SET time_zone = "+00:00";
 
 
-CREATE TABLE `servers` (
-    `server` BIGINT NOT NULL,
+CREATE TABLE `guilds` (
+    `guild` BIGINT NOT NULL,
     `prefix` VARCHAR(255) DEFAULT "!",
     `mute_role` BIGINT DEFAULT NULL,
     `modlog` BIGINT DEFAULT NULL,
-    `on_delete_channel` BIGINT DEFAULT NULL,
-    `on_edit_channel` BIGINT DEFAULT NULL,
     `keeproles` BOOL DEFAULT false,
 
     `automute` BOOL DEFAULT false,
@@ -19,39 +17,31 @@ CREATE TABLE `servers` (
     `on_join_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `on_leave_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 
+    `on_delete_channel` BIGINT DEFAULT NULL,
+    `on_edit_channel` BIGINT DEFAULT NULL,
     `on_edit_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `on_delete_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     --`on_bulk_delete` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `color_on_join` BOOL DEFAULT false,
 
-    PRIMARY KEY (`server`)
+    PRIMARY KEY (`guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `automute_whitelist` (
     `role` BIGINT NOT NULL,
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     PRIMARY KEY (`role`),
-    KEY (`server`),
+    KEY (`guild`),
     FOREIGN KEY (`role`) REFERENCES `roles` (`id`)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE `prefixes` (
     `prefix` VARCHAR(30) COLLATE utf8mb4_unicode_ci DEFAULT "!" NOT NULL,
-    `server` BIGINT NOT NULL,
-    PRIMARY KEY (`prefix`, `server`)
+    `guild` BIGINT NOT NULL,
+    PRIMARY KEY (`prefix`, `guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `serverColors` (
-    `server_id` BIGINT NOT NULL,
-    `color_id` BIGINT NOT NULL,
-    PRIMARY KEY (`server_id`, `color_id`)
-    FOREIGN KEY (`server_id`) REFERENCES `servers`(`server`)
-        ON DELETE CASCADE,
-    FOREIGN KEY (`color_id`) REFERENCES `colors`(`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
 
 
 CREATE TABLE `colors` (
@@ -75,11 +65,11 @@ CREATE TABLE `command_blacklist` (
     `user` BIGINT DEFAULT NULL,
     `role` BIGINT DEFAULT NULL,
     `channel` BIGINT DEFAULT NULL,
-    `server` BIGINT DEFAULT NULL,
+    `guild` BIGINT DEFAULT NULL,
     PRIMARY KEY (`id`),
     KEY (`user`),
     KEY (`role`),
-    KEY (`server`),
+    KEY (`guild`),
     KEY (`channel`)
 ) ENGINE=MyISAM;
 
@@ -100,7 +90,7 @@ CREATE TABLE `banned_users` (
 -- https://stackoverflow.com/a/8048494/6046713 restrict row count
 CREATE TABLE `messages` (
     `shard` SMALLINT DEFAULT NULL,
-    `server` BIGINT DEFAULT NULL,
+    `guild` BIGINT DEFAULT NULL,
     `channel` BIGINT DEFAULT NULL,
     `user` VARCHAR(64) COLLATE utf8mb4_unicode_ci NOT NULL,
     `user_id` BIGINT NOT NULL,
@@ -109,14 +99,14 @@ CREATE TABLE `messages` (
     `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `attachment` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     PRIMARY KEY (`message_id`),
-    KEY `server_id` (`server`),
-    KEY `channel_id` (`channel`)
+    KEY (`guild`),
+    KEY (`channel`),
     KEY (`user_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `polls` (
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     `title` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
     `strict` BOOL DEFAULT false,
     `message` BIGINT NOT NULL,
@@ -126,16 +116,16 @@ CREATE TABLE `polls` (
     `multiple_votes` BOOL DEFAULT false,
     `max_winners` SMALLINT UNSIGNED DEFAULT 1,
     PRIMARY KEY `message_id` (`message`),
-    KEY `server_id` (`server`)
+    KEY (`guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `emotes` (
     `name` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
     `emote` VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `server` BIGINT DEFAULT NULL,
+    `guild` BIGINT DEFAULT NULL,
     PRIMARY KEY (`emote`),
-    KEY `server_id` (`server`)
+    KEY (`guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -151,53 +141,53 @@ CREATE TABLE `pollEmotes` (
 
 
 CREATE TABLE `giveaways` (
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     `title` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
     `message` BIGINT NOT NULL,
     `channel` BIGINT NOT NULL,
     `winners` SMALLINT NOT NULL,
     `expires_in` datetime DEFAULT NULL,
     PRIMARY KEY `message_id` (`message`),
-    KEY `server_id` (`server`)
+    KEY (`guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `timeouts`(
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     `user` BIGINT NOT NULL,
     `expires_on` datetime NOT NULL,
-    PRIMARY KEY (`user`, `server`)
+    PRIMARY KEY (`user`, `guild`)
 ) ENGINE=InnoDB;
 
 
 CREATE TABLE `join_leave`(
     `user_id` BIGINT NOT NULL,
     `at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     `value` TINYINT NOT NULL,
-    PRIMARY KEY (`user_id`, `server`)
+    PRIMARY KEY (`user`, `guild`)
 ) ENGINE=InnoDB;
 
 
 CREATE TABLE `role_granting` (
     `user_role` BIGINT NOT NULL,
-    `role_id` BIGINT NOT NULL,
-    `server_id` BIGINT NOT NULL,
-    PRIMARY KEY (`user_role`, `role_id`),
-    KEY (`server_id`),
+    `role` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
+    PRIMARY KEY (`user_role`, `role`),
+    KEY (`guild`),
 
     FOREIGN KEY (`user_role`) REFERENCES `roles`(`id`)
         ON DELETE CASCADE,
-    FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`)
+    FOREIGN KEY (`role`) REFERENCES `roles`(`id`)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE `mention_stats`(
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     `role` BIGINT NOT NULL,
     `role_name` VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL,
     `amount` INT DEFAULT 1,
-    PRIMARY KEY (`server`, `role`)
+    PRIMARY KEY (`guild`, `role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -210,9 +200,9 @@ CREATE TABLE `users` (
 
 CREATE TABLE `roles` (
     `id` BIGINT NOT NULL,
-    `server` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
-    KEY (`server`)
+    KEY (`guild`)
 ) ENGINE=InnoDB;
 
 
@@ -226,10 +216,10 @@ CREATE TABLE `userRoles` (
 
 
 CREATE TABLE `automute_blacklist` (
-    `channel_id` BIGINT NOT NULL,
-    `server_id` BIGINT NOT NULL,
-    PRIMARY KEY (`channel_id`),
-    KEY (`server_id`)
+    `channel` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
+    PRIMARY KEY (`channel`),
+    KEY (`guild`)
 ) ENGINE=InnoDB;
 
 
@@ -239,11 +229,11 @@ CREATE TABLE `nn_text` (
 
 
 CREATE TABLE `last_seen_users` (
-    `user_id` BIGINT NOT NULL,
+    `user` BIGINT NOT NULL,
     `username` VARCHAR(40) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `server_id` BIGINT DEFAULT 0,
+    `guild` BIGINT DEFAULT 0,
     `last_seen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`user_id`, `server_id`),
+    PRIMARY KEY (`user`, `guild`),
     KEY (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -67,11 +67,11 @@ class Formatter(HelpFormatter):
                     can_run = False
 
                 if self.type == self.ExtendedFilter:
-                    sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE server=:server AND (command=:command OR command IS NULL) ' \
+                    sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=:guild AND (command=:command OR command IS NULL) ' \
                           'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
                     session = ctx.bot.get_session
                     try:
-                        rows = session.execute(sql, params={'server': int(user.server.id), 'command': self.command.name, 'user': user.id, 'channel': channel.id}).fetchall()
+                        rows = session.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id}).fetchall()
                         if rows:
                             can_run = check_perms(rows)
                     except SQLAlchemyError:
@@ -101,13 +101,13 @@ class Formatter(HelpFormatter):
 
         if self.is_bot():
             if self.type == self.ExtendedFilter:
-                sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE server=:server ' \
+                sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
                       'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
                 session = ctx.bot.get_session
                 command_blacklist = {}
                 try:
                     rows = session.execute(sql,
-                                           params={'server': int(user.server.id),
+                                           params={'guild': user.guild.id,
                                                    'user': user.id,
                                                    'channel': channel.id}).fetchall()
                     command_blacklist = {}

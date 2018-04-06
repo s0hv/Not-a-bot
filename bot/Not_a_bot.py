@@ -111,25 +111,25 @@ class NotABot(Bot):
 
     @staticmethod
     def get_command_prefix(self, message):
-        server = message.server
-        return self.default_prefix if not server else self.guild_cache.prefixes(server.id)
+        guild = message.guild
+        return self.default_prefix if not guild else self.guild_cache.prefixes(guild.id)
 
     async def cache_guilds(self):
         import time
         t = time.time()
         guilds = self.guilds
         session = self.get_session
-        sql = 'SELECT server FROM `servers`'
-        server_ids = {str(r[0]) for r in session.execute(sql).fetchall()}
-        new_servers = {s.id for s in guilds}.difference(server_ids)
+        sql = 'SELECT guild FROM `guilds`'
+        guild_ids = {r[0] for r in session.execute(sql).fetchall()}
+        new_guilds = {s.id for s in guilds}.difference(guild_ids)
         for guild in guilds:
             self.dbutil.index_guild_roles(guild)
 
-        self.dbutils.add_guilds(*new_servers)
-        sql = 'SELECT servers.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server'
+        self.dbutils.add_guilds(*new_guilds)
+        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild'
         rows = {}
         for row in session.execute(sql).fetchall():
-            guild_id = str(row['server'])
+            guild_id = row['guild']
             if guild_id in rows:
                 prefix = row['prefix']
                 if prefix is not None:
@@ -137,7 +137,7 @@ class NotABot(Bot):
 
             else:
                 d = {**row}
-                d.pop('server', None)
+                d.pop('guild', None)
                 d['prefixes'] = {d.get('prefix') or self.default_prefix}
                 d.pop('prefix')
                 rows[guild_id] = d
@@ -203,7 +203,7 @@ class NotABot(Bot):
         if not guild:
             return
 
-        role = self.get_role(guild, 348208141541834773)
+        role = self.get_role(348208141541834773, guild)
         if not role:
             return
 
@@ -216,7 +216,7 @@ class NotABot(Bot):
             try:
                 await role.edit(color=random_color())
             except discord.HTTPException:
-                role = self.get_role(guild, 348208141541834773)
+                role = self.get_role(348208141541834773, guild)
                 if role is None:
                     return
 
@@ -242,32 +242,32 @@ class NotABot(Bot):
 
     async def on_guild_join(self, guild):
         session = self.get_session
-        sql = 'INSERT IGNORE INTO `servers` (`server`) VALUES (%s)' % guild.id
+        sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (%s)' % guild.id
         try:
             session.execute(sql)
-            session.execute('INSERT IGNORE INTO `prefixes` (`server`) VALUES (%s)' % guild.id)
+            session.execute('INSERT IGNORE INTO `prefixes` (`guild`) VALUES (%s)' % guild.id)
             session.commit()
         except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to add new server')
 
-        sql = 'SELECT servers.*, prefixes.prefix FROM `servers` LEFT OUTER JOIN `prefixes` ON servers.server=prefixes.server WHERE servers.server=%s' % guild.id
+        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild WHERE guilds.guild=%s' % guild.id
         rows = session.execute(sql).fetchall()
         if not rows:
             return
 
         prefixes = {r['prefix'] for r in rows if r['prefix'] is not None} or {self.default_prefix}
         d = {**rows[0]}
-        d.pop('server', None)
+        d.pop('guild', None)
         d.pop('prefix', None)
         d['prefixes'] = prefixes
         self.guild_cache.update_cached_guild(guild.id, **d)
 
     async def on_guild_role_delete(self, role):
-        self.dbutils.delete_role(role.id, role.server.id)
+        self.dbutils.delete_role(role.id, role.guild.id)
 
     async def _wants_to_be_noticed(self, member, guild, remove=True):
-        role = self.get_role(guild, 318762162552045568)
+        role = self.get_role(318762162552045568, guild)
         if not role:
             return
 
@@ -302,7 +302,7 @@ class NotABot(Bot):
         if rows:
             return False
 
-        if ctx.message.server is None:
+        if ctx.guild is None:
             return True
 
         channel = ctx.channel
@@ -311,8 +311,8 @@ class NotABot(Bot):
         else:
             roles = 'role IS NULL'
 
-        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE server=%s AND %s ' \
-              'AND (user IS NULL OR user=%s) AND %s AND (channel IS NULL OR channel=%s)' % (user.server.id, command, user.id, roles, channel)
+        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=%s AND %s ' \
+              'AND (user IS NULL OR user=%s) AND %s AND (channel IS NULL OR channel=%s)' % (user.guild.id, command, user.id, roles, channel)
         rows = session.execute(sql).fetchall()
         if not rows:
             return None

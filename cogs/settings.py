@@ -144,13 +144,13 @@ class Settings(Cog):
 
         try:
             int(role)
-            role = self.bot.get_role(guild, role)
+            role = self.bot.get_role(role, guild)
         except ValueError:
             if not ctx.message.raw_role_mentions or ctx.message.raw_role_mentions[0] not in role:
                 ctx.command.reset_cooldown(ctx)
                 return await ctx.send('No valid role or role id mentions')
 
-            role = self.bot.get_role(guild, ctx.message.raw_role_mentions[0])
+            role = self.bot.get_role(ctx.message.raw_role_mentions[0], guild)
 
         self.bot.guild_cache.set_mute_role(guild.id, role.id)
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))

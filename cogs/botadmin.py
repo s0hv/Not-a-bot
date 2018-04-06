@@ -159,7 +159,7 @@ class BotAdmin(Cog):
                 d = {'prefix': self.bot.command_prefix}
             else:
                 d = {**row}
-                del d['server']
+                del d['guild']
 
             self.bot.guild_cache.update_guild(guild.id, **d)
 

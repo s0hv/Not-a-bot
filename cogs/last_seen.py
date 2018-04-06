@@ -6,10 +6,10 @@ from cogs.cog import Cog
 
 
 class UserSeen:
-    def __init__(self, user, server_id=None):
+    def __init__(self, user, guild_id=None):
         self.user_id = user.id
         self.username = str(user)
-        self.server_id = 0 if server_id is None else server_id
+        self.guild_id = 0 if guild_id is None else guild_id
         self.timestamp = datetime.utcnow()
 
 
@@ -28,15 +28,15 @@ class LastSeen(Cog):
         updates = self._updates
         self._updates = {}
         user_ids = []
-        server_ids = []
+        guild_ids = []
         times = []
         usernames = []
         for update in updates.values():
             user_ids.append(update.user_id)
             usernames.append(update.username)
-            server_ids.append(update.server_id)
+            guild_ids.append(update.guild_id)
             times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
-        self.bot.dbutils.multiple_last_seen(user_ids, usernames, server_ids, times)
+        self.bot.dbutils.multiple_last_seen(user_ids, usernames, guild_ids, times)
         del updates
 
     async def _check_loop(self):
@@ -67,8 +67,8 @@ class LastSeen(Cog):
             return True
 
     async def on_message(self, message):
-        server = None if not message.server else message.server.id
-        o = UserSeen(message.author, server)
+        guild = None if not message.guild else message.guild.id
+        o = UserSeen(message.author, guild)
         self._updates.add(o)
 
     async def on_member_update(self, before, after):
@@ -78,8 +78,8 @@ class LastSeen(Cog):
             return
 
     async def on_reaction_add(self, reaction, user):
-        server = None if not user.server else user.server.id
-        o = UserSeen(user, server)
+        guild = None if not user.guild else user.guild.id
+        o = UserSeen(user, guild)
         self._updates.add(o)
 
 

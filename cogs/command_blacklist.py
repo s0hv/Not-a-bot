@@ -20,7 +20,7 @@ class CommandBlacklist(Cog):
         super().__init__(bot)
 
     @group(ignore_extra=True, no_pm=True, required_perms=perms, invoke_without_command=True)
-    @cooldown(1, 5, type=BucketType.server)
+    @cooldown(1, 5, type=BucketType.guild)
     async def blacklist(self, ctx, command_: str, mention=None):
         """Blacklist a command for a user, role or channel
         To blacklist multiple commands at the same time wrap the command names in quotes
@@ -32,7 +32,7 @@ class CommandBlacklist(Cog):
             if mention is None:
                 whereclause = 'guild=%s AND type IN (%s, %s) AND command="%s" AND channel IS NULL AND role IS NULL AND user IS NULL' % (
                                guild.id, BlacklistTypes.BLACKLIST, BlacklistTypes.WHITELIST, name)
-                success = await self._set_blacklist(ctx, whereclause, server=int(guild.id), command=name)
+                success = await self._set_blacklist(ctx, whereclause, guild=guild.id, command=name)
                 if success:
                     await ctx.send('Blacklisted command {} from this server'.format(name))
                 elif success is None:
@@ -77,7 +77,7 @@ class CommandBlacklist(Cog):
         """
 
         guild = ctx.guild
-        values = {'command': None, 'server': int(guild.id), 'type': BlacklistTypes.BLACKLIST}
+        values = {'command': None, 'guild': guild.id, 'type': BlacklistTypes.BLACKLIST}
         where = 'guild=%s AND command IS NULL AND NOT type=%s AND user IS NULL AND role IS NULL AND channel IS NULL' % (guild.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(where, **values)
         if success:
@@ -90,7 +90,7 @@ class CommandBlacklist(Cog):
         await ctx.send(msg)
 
     async def _set_all_commands(self, ctx, guild, msg, mention, type=BlacklistTypes.BLACKLIST):
-        values = {'command': None, 'server': guild.id, 'type': type}
+        values = {'command': None, 'guild': guild.id, 'type': type}
         role = check_role_mention(msg, mention, guild)
         where = 'guild=%s AND command IS NULL AND NOT type=%s AND ' % (guild.id, BlacklistTypes.GLOBAL)
         type_string = 'Blacklisted' if type == BlacklistTypes.BLACKLIST else 'Whitelisted'
@@ -131,46 +131,46 @@ class CommandBlacklist(Cog):
 
         return True
 
-    @command(pass_context=True, required_perms=perms, ignore_extra=True, no_pm=True)
-    @cooldown(1, 5, type=BucketType.server)
+    @command(required_perms=perms, ignore_extra=True, no_pm=True)
+    @cooldown(1, 5, type=BucketType.guild)
     async def whitelist(self, ctx, command_: str, mention=None):
         """Whitelist a command for a user, role or channel
         To whitelist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel"""
         msg = ctx.message
-        server = msg.server
+        guild = msg.guild
 
         async def _whitelist(_command):
             name = _command.name
             if mention is None:
-                return await self.bot.say('Please mention the thing you want to whitelist. (user, role, channel)')
+                return await ctx.send('Please mention the thing you want to whitelist. (user, role, channel)')
 
             elif msg.mentions:
                 if mention != msg.mentions[0].mention:
-                    return await self.bot.say('Invalid user mention or arguments not provided correctly')
+                    return await ctx.send('Invalid user mention or arguments not provided correctly')
 
-                await self._add_user_whitelist(ctx, name, msg.mentions[0], server)
+                await self._add_user_whitelist(ctx, name, msg.mentions[0], guild)
 
             elif msg.raw_role_mentions:
                 id = msg.raw_role_mentions[0]
-                role = list(filter(lambda r: r.id == id, server.roles))
+                role = list(filter(lambda r: r.id == id, guild.roles))
                 if not role:
-                    return await self.bot.say('Invalid role mention or arguments not provided correctly')
+                    return await ctx.send('Invalid role mention or arguments not provided correctly')
 
-                await self._add_role_whitelist(ctx, name, role[0], server)
+                await self._add_role_whitelist(ctx, name, role[0], guild)
 
             elif msg.channel_mentions:
                 if mention != msg.channel_mentions[0].mention:
-                    return await self.bot.say('Invalid channel mention or arguments not provided correctly')
+                    return await ctx.send('Invalid channel mention or arguments not provided correctly')
 
-                await self._add_channel_whitelist(ctx, name, msg.channel_mentions[0], server)
+                await self._add_channel_whitelist(ctx, name, msg.channel_mentions[0], guild)
             else:
-                await self.bot.say('Could not get the user/role/channel from %s' % mention)
+                await ctx.send('Could not get the user/role/channel from %s' % mention)
 
         for command_ in command_.split(' '):
             _command = self.bot.get_command(command_)
             if _command is None:
-                await self.bot.say('Could not find command %s' % command_)
+                await ctx.send('Could not find command %s' % command_)
                 continue
             await _whitelist(_command)
 
@@ -236,73 +236,73 @@ class CommandBlacklist(Cog):
 
         return True
 
-    async def _add_user_blacklist(self, ctx, command_name, user, server):
-        whereclause = 'server=%s AND command="%s" AND user=%s AND NOT type=%s' % (
-                       server.id, command_name, user.id, BlacklistTypes.GLOBAL)
+    async def _add_user_blacklist(self, ctx, command_name, user, guild):
+        whereclause = 'guild=%s AND command="%s" AND user=%s AND NOT type=%s' % (
+                       guild.id, command_name, user.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(ctx, whereclause, command=command_name,
                                             user=user.id,
-                                            server=server.id)
+                                            guild=guild.id)
         if success:
             await ctx.send('Blacklisted command {0} from user {1} `{1.id}`'.format(command_name, user))
         elif success is None:
             await ctx.send('Removed command {0} blacklist from user {1} `{1.id}`'.format(command_name, user))
 
-    async def _add_role_blacklist(self, ctx, command_name, role, server):
-        whereclause = 'server=%s AND command="%s" AND role=%s AND NOT type=%s' % (
-                       server.id, command_name, role.id, BlacklistTypes.GLOBAL)
+    async def _add_role_blacklist(self, ctx, command_name, role, guild):
+        whereclause = 'guild=%s AND command="%s" AND role=%s AND NOT type=%s' % (
+            guild.id, command_name, role.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(ctx, whereclause, command=command_name,
                                             role=role.id,
-                                            server=server.id)
+                                            guild=guild.id)
         if success:
             await ctx.send('Blacklisted command {0} from role {1} `{1.id}`'.format(command_name, role))
         elif success is None:
             await ctx.send('Removed command {0} blacklist from role {1} `{1.id}`'.format(command_name, role))
 
-    async def _add_channel_blacklist(self, ctx, command_name, channel, server):
-        whereclause = 'server=%s AND command="%s" AND channel=%s AND NOT type=%s' % (
-        server.id, command_name, channel.id, BlacklistTypes.GLOBAL)
+    async def _add_channel_blacklist(self, ctx, command_name, channel, guild):
+        whereclause = 'guild=%s AND command="%s" AND channel=%s AND NOT type=%s' % (
+            guild.id, command_name, channel.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(ctx, whereclause, command=command_name,
                                             channel=channel.id,
-                                            server=server.id)
+                                            guild=guild.id)
         if success:
             await ctx.send('Blacklisted command {0} from channel {1} `{1.id}`'.format(command_name, channel))
         elif success is None:
             await ctx.send('Removed command {0} blacklist from channel {1} `{1.id}`'.format(command_name, channel))
 
-    async def _add_user_whitelist(self, ctx, command_name, user, server):
-        whereclause = 'server=%s AND command="%s" AND user=%s AND NOT type=%s' % (
-                       server.id, command_name, user.id, BlacklistTypes.GLOBAL)
+    async def _add_user_whitelist(self, ctx, command_name, user, guild):
+        whereclause = 'guild=%s AND command="%s" AND user=%s AND NOT type=%s' % (
+            guild.id, command_name, user.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(ctx, whereclause,
                                             type=BlacklistTypes.WHITELIST,
                                             command=command_name,
                                             user=user.id,
-                                            server=server.id)
+                                            guild=guild.id)
         if success:
             await ctx.send('Whitelisted command {0} from user {1} `{1.id}`'.format(command_name, user))
         elif success is None:
             await ctx.send('Removed command {0} whitelist from user {1} `{1.id}`'.format(command_name, user))
 
-    async def _add_role_whitelist(self, ctx, command_name, role, server):
-        whereclause = 'server=%s AND command="%s" AND role=%s AND NOT type=%s' % (
-                       server.id, command_name, role.id, BlacklistTypes.GLOBAL)
+    async def _add_role_whitelist(self, ctx, command_name, role, guild):
+        whereclause = 'guild=%s AND command="%s" AND role=%s AND NOT type=%s' % (
+            guild.id, command_name, role.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(ctx, whereclause,
                                             type=BlacklistTypes.WHITELIST,
                                             command=command_name,
                                             role=role.id,
-                                            server=server.id)
+                                            guild=guild.id)
         if success:
             await ctx.send('Whitelisted command {0} from role {1} `{1.id}`'.format(command_name, role))
         elif success is None:
             await ctx.send('Removed command {0} whitelist from role {1} `{1.id}`'.format(command_name, role))
 
-    async def _add_channel_whitelist(self, ctx, command_name, channel, server):
-        whereclause = 'server=%s AND command="%s" AND channel=%s AND NOT type=%s' % (
-                       server.id, command_name, channel.id, BlacklistTypes.GLOBAL)
+    async def _add_channel_whitelist(self, ctx, command_name, channel, guild):
+        whereclause = 'guild=%s AND command="%s" AND channel=%s AND NOT type=%s' % (
+            guild.id, command_name, channel.id, BlacklistTypes.GLOBAL)
         success = await self._set_blacklist(ctx, whereclause,
                                             type=BlacklistTypes.WHITELIST,
                                             command=command_name,
                                             channel=channel.id,
-                                            server=server.id)
+                                            guild=guild.id)
         if success:
             await ctx.send('Whitelisted command {0} from channel {1} `{1.id}`'.format(command_name, channel))
         elif success is None:
@@ -310,7 +310,7 @@ class CommandBlacklist(Cog):
 
     @command(owner_only=True)
     async def test_perms(self, ctx, command):
-        u = ctx.message.mentions[0] if ctx.message.mentions else ctx.message.author
+        u = ctx.message.mentions[0] if ctx.message.mentions else ctx.author
         await ctx.send(self.check_blacklist(command, u, ctx))
 
     def get_rows(self, whereclause, select='*'):
@@ -357,9 +357,9 @@ class CommandBlacklist(Cog):
             role_ = get_role(role, guild.roles, name_matching=True)
             if not role_:
                 return await ctx.send('No role found with {}'.format(role))
-            where = 'server={} AND user IS NULL AND channel IS NULL AND role={}'.format(guild.id, role_.id)
+            where = 'guild={} AND user IS NULL AND channel IS NULL AND role={}'.format(guild.id, role_.id)
         else:
-            where = 'server={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(guild.id)
+            where = 'guild={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(guild.id)
 
         rows = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.get_rows, where))
         if not rows:
@@ -375,7 +375,7 @@ class CommandBlacklist(Cog):
         for row in rows:
             if row['role'] != last:
                 last = row['role']
-                role = self.bot.get_role(guild, row['role'])
+                role = self.bot.get_role(row['role'], guild)
                 if role is None:
                     logger.warning('Role {} has been deleted and it has perms'.format(row['role']))
                     continue
@@ -492,7 +492,7 @@ class CommandBlacklist(Cog):
                 ', '.join(map(lambda r: r.id, user.roles)))
         else:
             roles = 'role IS NULL'
-        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE server=%s AND command="%s" ' \
+        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=%s AND command="%s" ' \
               'AND (user IS NULL OR user=%s) AND %s AND (channel IS NULL OR channel=%s)' % (
                   user.guild.id, command, user.id, roles, channel)
 
@@ -501,7 +501,7 @@ class CommandBlacklist(Cog):
             return True
 
         values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4,
-                  'channel': 0x8, 'server': 0x10}
+                  'channel': 0x8, 'guild': 0x10}
         returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False,
                    16: True, 18: False}
         smallest = 18
@@ -530,7 +530,7 @@ class CommandBlacklist(Cog):
             elif row['channel'] is not None:
                 v2 = values['channel']
             else:
-                v2 = values['server']
+                v2 = values['guild']
 
             v = v1 | v2
             if v < smallest:

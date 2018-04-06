@@ -90,7 +90,7 @@ class BlacklistTypes:
 
 class PermValues:
     VALUES = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4,
-              'channel': 0x8, 'server': 0x10}
+              'channel': 0x8, 'guild': 0x10}
     RETURNS = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False,
                16: True, 18: False}
     BLACKLIST_MESSAGES = {3: 'Command has been blacklisted for you',

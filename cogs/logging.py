@@ -19,8 +19,8 @@ class Logger(Cog):
     def format_for_db(self, message):
         is_pm = isinstance(message.channel, PrivateChannel)
         shard = self.bot.shard_id
-        server = message.server.id if not is_pm else None
-        # server_name = message.server.name if not is_pm else 'DM'
+        guild = message.guild.id if not is_pm else None
+        # guild_name = message.guild.name if not is_pm else 'DM'
         channel = message.channel.id if not is_pm else None
         # channel_name = message.channel.name if not is_pm else None
         user = str(message.author)
@@ -37,7 +37,7 @@ class Logger(Cog):
             attachment = self.get_image_from_embeds(message.embeds)
 
         return {'shard': shard,
-                'server': server,
+                'guild': guild,
                 'channel': channel,
                 'user': user,
                 'user_id': user_id,
@@ -67,12 +67,12 @@ class Logger(Cog):
             return attachment
 
     async def on_message(self, message):
-        sql = "INSERT INTO `messages` (`shard`, `server`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
-              "VALUES (:shard, :server, :channel, :user, :user_id, :message, :message_id, :attachment, :time)"
+        sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
+              "VALUES (:shard, :guild, :channel, :user, :user_id, :message, :message_id, :attachment, :time)"
 
         d = self.format_for_db(message)
 
-        # terminal.info(str((shard, server, server_name, channel, channel_name, user, user_id, message.content, message_id, attachment)))
+        # terminal.info(str((shard, guild, guild_name, channel, channel_name, user, user_id, message.content, message_id, attachment)))
 
         try:
             self.session.execute(sql, d)
@@ -84,28 +84,28 @@ class Logger(Cog):
             self.session = self.bot.get_session
 
     async def on_member_join(self, member):
-        server = member.server
-        sql = "INSERT INTO `join_leave` (`user_id`, `server`, `value`) VALUES " \
-              "(:user_id, :server, :value) ON DUPLICATE KEY UPDATE value=1"
+        guild = member.guild
+        sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
+              "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1"
 
         try:
             self.session.execute(sql, {'user_id': member.id,
-                                       'server': server.id,
+                                       'guild': guild.id,
                                        'value': 1})
             self.session.commit()
         except SQLAlchemyError:
             self.session.rollback()
 
-        channel = self.bot.guild_cache.join_channel(server.id)
-        channel = server.get_channel(channel)
+        channel = self.bot.guild_cache.join_channel(guild.id)
+        channel = guild.get_channel(channel)
         if channel is None:
             return
 
-        message = self.bot.guild_cache.join_message(server.id, default_message=True)
+        message = self.bot.guild_cache.join_message(guild.id, default_message=True)
         if not message:
             return
 
-        perms = channel.permissions_for(channel.server.get_member(self.bot.user.id))
+        perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
         if not perms.send_messages:
             return
 
@@ -117,28 +117,28 @@ class Logger(Cog):
         await self.bot.send_message(channel, message)
 
     async def on_member_remove(self, member):
-        server = member.server
-        sql = "INSERT INTO `join_leave` (`user_id`, `server`, `value`) VALUES " \
-              "(:user_id, :server, :value) ON DUPLICATE KEY UPDATE value=-1"
+        guild = member.guild
+        sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
+              "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1"
 
         try:
             self.session.execute(sql, {'user_id': member.id,
-                                       'server': server.id,
+                                       'guild': guild.id,
                                        'value': -1})
             self.session.commit()
         except SQLAlchemyError:
             self.session.rollback()
 
-        channel = self.bot.guild_cache.leave_channel(server.id)
-        channel = server.get_channel(channel)
+        channel = self.bot.guild_cache.leave_channel(guild.id)
+        channel = guild.get_channel(channel)
         if channel is None:
             return
 
-        message = self.bot.guild_cache.leave_message(server.id, default_message=True)
+        message = self.bot.guild_cache.leave_message(guild.id, default_message=True)
         if not message:
             return
 
-        perms = channel.permissions_for(channel.server.get_member(self.bot.user.id))
+        perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
         if not perms.send_messages:
             return
 
@@ -149,20 +149,20 @@ class Logger(Cog):
         if msg.author.bot or msg.channel.id == 336917918040326166:
             return
 
-        channel = self.bot.guild_cache.on_delete_channel(msg.server.id)
+        channel = self.bot.guild_cache.on_delete_channel(msg.guild.id)
         channel = self.bot.get_channel(channel)
         if channel is None:
             return
 
-        perms = channel.permissions_for(channel.server.get_member(self.bot.user.id))
+        perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
         if not perms.send_messages:
             return
 
-        message = self.bot.guild_cache.on_delete_message(msg.server.id, default_message=True)
+        message = self.bot.guild_cache.on_delete_message(msg.guild.id, default_message=True)
         message = format_on_delete(msg, message)
         message = split_string(message, splitter='\n')
         if len(message) > 2:
-            m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.server)
+            m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.guild)
             logger.info(m)
             terminal.warning(m)
 
@@ -178,8 +178,8 @@ class Logger(Cog):
             if not image:
                 return
 
-            sql = "INSERT INTO `messages` (`shard`, `server`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
-                  "VALUES (:shard, :server, :channel, :user, :user_id, :message, :message_id, :attachment, :time) ON DUPLICATE KEY UPDATE attachment=IFNULL(attachment, :attachment)"
+            sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
+                  "VALUES (:shard, :guild, :channel, :user, :user_id, :message, :message_id, :attachment, :time) ON DUPLICATE KEY UPDATE attachment=IFNULL(attachment, :attachment)"
             session = self.bot.get_session
             d = self.format_for_db(after)
             try:
@@ -191,12 +191,12 @@ class Logger(Cog):
         if before.author.bot or before.channel.id == 336917918040326166:
             return
 
-        channel = self.bot.guild_cache.on_edit_channel(before.server.id)
+        channel = self.bot.guild_cache.on_edit_channel(before.guild.id)
         channel = self.bot.get_channel(channel)
         if not channel:
             return
 
-        message = self.bot.guild_cache.on_edit_message(before.server.id, default_message=True)
+        message = self.bot.guild_cache.on_edit_message(before.guild.id, default_message=True)
         if message is None:
             return
 
@@ -204,24 +204,24 @@ class Logger(Cog):
         if message is None:
             return
 
-        perms = channel.permissions_for(channel.server.get_member(self.bot.user.id))
+        perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
         if not perms.send_messages:
             return
 
         message = split_string(message, maxlen=2000)
         if len(message) > 4:
-            m = '{0.id}: {0.name} On edit message had to post over 4 messages'.format(before.server)
+            m = '{0.id}: {0.name} On edit message had to post over 4 messages'.format(before.guild)
             logger.info(m)
             terminal.warning(m)
 
         for m in message:
             await self.bot.send_message(channel, m)
 
-    async def on_server_role_delete(self, role):
-            self.bot.dbutil.delete_role(role.id, role.server.id)
+    async def on_guild_role_delete(self, role):
+            self.bot.dbutil.delete_role(role.id, role.guild.id)
 
-    async def on_server_role_create(self, role):
-        self.bot.dbutil.add_roles(role.server.id, role.id)
+    async def on_guild_role_create(self, role):
+        self.bot.dbutil.add_roles(role.guild.id, role.id)
 
     async def on_command_completion(self, cmd, ctx):
         entries = []

@@ -48,9 +48,9 @@ class ServerSpecific(Cog):
             return
 
         for row in rows:
-            guild = str(row['guild'])
-            channel = str(row['channel'])
-            message = str(row['message'])
+            guild = row['guild']
+            channel = row['channel']
+            message = row['message']
             title = row['title']
             winners = row['winners']
             timeout = max((row['expires_in'] - datetime.utcnow()).total_seconds(), 0)
@@ -67,7 +67,7 @@ class ServerSpecific(Cog):
         else:
             user_role = 'user_role IN (%s)' % ', '.join([r.id for r in user.roles])
 
-        sql = 'SELECT `role_id` FROM `role_granting` WHERE guild_id=%s AND role_id=%s AND %s LIMIT 1' % (guild_id, role_id, user_role)
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND %s LIMIT 1' % (guild_id, role_id, user_role)
         session = self.bot.get_session
         try:
             row = session.execute(sql).first()
@@ -98,9 +98,7 @@ class ServerSpecific(Cog):
         if not role_:
             return await ctx.send('Role %s not found' % role)
 
-        role_id = role_.id
-
-        can_grant = await self._check_role_grant(ctx, author, role_id, guild.id)
+        can_grant = await self._check_role_grant(ctx, author, role_.id, guild.id)
         if can_grant is None:
             return
         elif can_grant is False:
@@ -132,9 +130,7 @@ class ServerSpecific(Cog):
         if not role_:
             return await ctx.send('Role %s not found' % role)
 
-        role_id = role_.id
-
-        can_grant = await self._check_role_grant(ctx, author, role_id, guild.id)
+        can_grant = await self._check_role_grant(ctx, author, role_.id, guild.id)
         if can_grant is None:
             return
         elif can_grant is False:
@@ -164,7 +160,7 @@ class ServerSpecific(Cog):
         if not self.dbutil.add_roles(guild.id, target_role_.id, role_.id):
             return await ctx.send('Could not add roles to database')
 
-        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role_id`, `guild_id`) VALUES ' \
+        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role`, `guild`) VALUES ' \
               '(%s, %s, %s)' % (role_.id, target_role_.id, guild.id)
         session = self.bot.get_session
         try:
@@ -191,7 +187,7 @@ class ServerSpecific(Cog):
         if not target_role_:
             return await ctx.send('Could not find role %s' % target_role, delete_after=30)
 
-        sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role_id=%s AND guild_id=%s' % (role_.id, target_role_.id, guild.id)
+        sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role=%s AND guild=%s' % (role_.id, target_role_.id, guild.id)
         session = self.bot.get_session
         try:
             session.execute(sql)
@@ -218,7 +214,7 @@ class ServerSpecific(Cog):
         else:
             author = ctx.author
         session = self.bot.get_session
-        sql = 'SELECT `role_id` FROM `role_granting` WHERE guild_id=%s AND user_role IN (%s)' % (guild.id, ', '.join([r.id for r in author.roles]))
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND user_role IN (%s)' % (guild.id, ', '.join([r.id for r in author.roles]))
         try:
             rows = session.execute(sql).fetchall()
         except SQLAlchemyError:
@@ -231,7 +227,7 @@ class ServerSpecific(Cog):
         msg = 'Roles {} can grant:\n'.format(author)
         found = False
         for row in rows:
-            role = self.bot.get_role(guild, row['role_id'])
+            role = self.bot.get_role(row['role'], guild)
             if not role:
                 continue
 
@@ -273,7 +269,7 @@ class ServerSpecific(Cog):
             return
 
         guild = ctx.guild
-        role = self.bot.get_role(guild, 352099343953559563)
+        role = self.bot.get_role(352099343953559563, guild)
         if not role:
             return await ctx.send('Default role not found')
 
@@ -315,7 +311,7 @@ class ServerSpecific(Cog):
         if not perms.manage_roles and not perms.administrator:
             return await ctx.send('Invalid server perms')
 
-        role = self.bot.get_role(guild, 323098643030736919)
+        role = self.bot.get_role(323098643030736919, guild)
         if role is None:
             return await ctx.send('Every role not found')
 
@@ -365,7 +361,7 @@ class ServerSpecific(Cog):
             self.delete_giveaway_from_db(message)
             return
 
-        role = self.bot.get_role(guild, 323098643030736919)
+        role = self.bot.get_role(323098643030736919, guild)
         if role is None:
             self.delete_giveaway_from_db(message)
             return

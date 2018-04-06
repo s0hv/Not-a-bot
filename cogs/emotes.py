@@ -1,7 +1,7 @@
-from bot.bot import command, group
-from discord.ext.commands import cooldown
 from discord.ext import commands
-import discord
+from discord.ext.commands import cooldown
+
+from bot.bot import group
 from utils.utilities import split_string
 
 
@@ -55,7 +55,7 @@ class Emotes:
             strings = split_string(g + l, maxlen=2000, splitter='\n')
 
             for s in strings:
-                await guild.send(s)
+                await ctx.send(s)
 
     @cooldown(1, 10, type=commands.BucketType.guild)
     @emotes.command(name='global')

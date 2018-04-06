@@ -289,7 +289,7 @@ class Colors(Cog):
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
         if r:
             k, r = r
-            if self.bot.get_role(guild, r.role_id):
+            if self.bot.get_role(r.role_id, guild):
                 return await ctx.send('This color already exists')
             else:
                 self._colors.get(guild.id, {}).pop(k, None)
@@ -314,7 +314,8 @@ class Colors(Cog):
             return await ctx.send('Failed to add color')
 
         if self._colors.get(guild.id):
-            role = self.bot.get_role(guild, list(self._colors[guild.id].keys())[0])
+            role = self.bot.get_role(list(self._colors[guild.id].keys())[0],
+                                     guild)
             if role:
                 try:
                     await color_role.edit(position=max(1, role.position))
@@ -384,7 +385,7 @@ class Colors(Cog):
             return await ctx.send(f"Couldn't find color {name}")
 
         role_id = color[0]
-        role = self.bot.get_role(guild, role_id)
+        role = self.bot.get_role(role_id, guild)
         if not role:
             self.bot.dbutils.delete_role(role_id, guild.id)
             self._delete_color(guild.id, role_id)

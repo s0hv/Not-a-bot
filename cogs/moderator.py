@@ -134,7 +134,7 @@ class Moderator(Cog):
         """Show roles whitelisted from automutes"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
-        roles = map(lambda r: self.bot.get_role(guild, r), roles)
+        roles = map(lambda r: self.bot.get_role(r, guild), roles)
         roles = [r for r in roles if r]
         if not roles:
             return await ctx.send('No roles whitelisted from automutes')
@@ -286,7 +286,7 @@ class Moderator(Cog):
             await ctx.send('No user ids or mentions')
             return False
 
-        mute_role = self.bot.get_role(guild, mute_role)
+        mute_role = self.bot.get_role(mute_role, guild)
         if mute_role is None:
             await ctx.send('Could not find the muted role')
             return False
@@ -361,7 +361,7 @@ class Moderator(Cog):
             self.remove_timeout(user_id, guild_id)
             return
 
-        if self.bot.get_role(guild, mute_role):
+        if self.bot.get_role(mute_role, guild):
             try:
                 await user.remove_roles(mute_role, reason='Unmuted')
             except:
@@ -477,7 +477,7 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and users[0].id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
-        mute_role = self.bot.get_role(guild, mute_role)
+        mute_role = self.bot.get_role(mute_role, guild)
         if mute_role is None:
             return await ctx.send('Could not find the muted role')
 

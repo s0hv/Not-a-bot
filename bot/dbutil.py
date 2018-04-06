@@ -40,7 +40,7 @@ class DatabaseUtils:
         all_members = [str(u.id) for u in _m]
 
         t1 = time.time()
-        sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.server={} AND userRoles.user_id IN ({})'.format(guild.id, ', '.join(all_members))
+        sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.guild={} AND userRoles.user_id IN ({})'.format(guild.id, ', '.join(all_members))
 
         # Deletes all server records
         # sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` WHERE roles.server=%s AND userRoles.role_id=roles.id'
@@ -70,12 +70,12 @@ class DatabaseUtils:
     def index_guild_roles(self, guild):
         session = self.bot.get_session
         roles = guild.roles
-        roles = [{'id': r.id, 'server': guild.id} for r in roles]
+        roles = [{'id': r.id, 'guild': guild.id} for r in roles]
         role_ids = [str(r.id) for r in guild.roles]
-        sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES (:id, :server)'
+        sql = 'INSERT IGNORE INTO `roles` (`id`, `guild`) VALUES (:id, :guild)'
         try:
             session.execute(sql, roles)
-            sql = 'DELETE FROM `roles` WHERE server={} AND NOT id IN ({})'.format(guild.id, ', '.join(role_ids))
+            sql = 'DELETE FROM `roles` WHERE guild={} AND NOT id IN ({})'.format(guild.id, ', '.join(role_ids))
             session.execute(sql)
             session.commit()
         except SQLAlchemyError:
@@ -87,11 +87,11 @@ class DatabaseUtils:
         if not ids:
             return
         session = self.bot.get_session
-        ids = [{'server': i} for i in ids]
-        sql = 'INSERT IGNORE INTO `servers` (`server`) VALUES (:server)'
+        ids = [{'guild': i} for i in ids]
+        sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (:guild)'
         try:
             session.execute(sql, ids)
-            sql = 'INSERT IGNORE INTO `prefixes` (`server`) VALUES (:server)'
+            sql = 'INSERT IGNORE INTO `prefixes` (`guild`) VALUES (:guild)'
             session.execute(sql, ids)
             session.commit()
         except SQLAlchemyError:
@@ -102,7 +102,7 @@ class DatabaseUtils:
 
     def add_roles(self, guild_id, *role_ids):
         session = self.bot.get_session
-        sql = 'INSERT IGNORE INTO `roles` (`id`, `server`) VALUES '
+        sql = 'INSERT IGNORE INTO `roles` (`id`, `guild`) VALUES '
         l = len(role_ids) - 1
         for idx, r in enumerate(role_ids):
             sql += f'({r}, {guild_id})'
@@ -187,11 +187,11 @@ class DatabaseUtils:
             return False
 
     def add_prefix(self, guild_id, prefix):
-        sql = 'INSERT INTO `prefixes` (`server`, `prefix`) VALUES (:server, :prefix)'
+        sql = 'INSERT INTO `prefixes` (`guild`, `prefix`) VALUES (:guild, :prefix)'
         session = self.bot.get_session
 
         try:
-            session.execute(sql, params={'server': guild_id, 'prefix': prefix})
+            session.execute(sql, params={'guild': guild_id, 'prefix': prefix})
             session.commit()
             return True
         except SQLAlchemyError:
@@ -200,11 +200,11 @@ class DatabaseUtils:
             return False
 
     def remove_prefix(self, guild_id, prefix):
-        sql = 'DELETE FROM `prefixes` WHERE server=:server AND prefix=:prefix'
+        sql = 'DELETE FROM `prefixes` WHERE guild=:guild AND prefix=:prefix'
         session = self.bot.get_session
 
         try:
-            session.execute(sql, params={'server': guild_id, 'prefix': prefix})
+            session.execute(sql, params={'guild': guild_id, 'prefix': prefix})
             session.commit()
             return True
         except SQLAlchemyError:
@@ -214,7 +214,7 @@ class DatabaseUtils:
 
     def delete_role(self, role_id, guild_id):
         session = self.bot.get_session
-        sql = f'DELETE FROM `roles` WHERE id={role_id} AND server={guild_id}'
+        sql = f'DELETE FROM `roles` WHERE id={role_id} AND guild={guild_id}'
         try:
             session.execute(sql)
             session.commit()
@@ -225,7 +225,7 @@ class DatabaseUtils:
     def delete_user_roles(self, guild_id, user_id):
         session = self.bot.get_session
         try:
-            sql = f'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.server={guild_id} AND userRoles.user_id={user_id}'
+            sql = f'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.guild={guild_id} AND userRoles.user_id={user_id}'
             session.execute(sql)
             session.commit()
         except SQLAlchemyError:
@@ -235,7 +235,7 @@ class DatabaseUtils:
     def add_automute_blacklist(self, guild_id, *channel_ids):
         session = self.bot.get_session
 
-        sql = 'INSERT IGNORE INTO `automute_blacklist` (`server_id`, `channel_id`) VALUES '
+        sql = 'INSERT IGNORE INTO `automute_blacklist` (`guild_id`, `channel_id`) VALUES '
         sql += ', '.join(map(lambda cid: f'({guild_id}, {cid})', channel_ids))
         try:
             session.execute(sql)
@@ -253,7 +253,7 @@ class DatabaseUtils:
             return True
 
         channel_ids = ', '.join(map(lambda cid: str(cid), channel_ids))
-        sql = f'DELETE FROM `automute_blacklist` WHERE server_id={guild_id} AND channel_id IN ({channel_ids}) '
+        sql = f'DELETE FROM `automute_blacklist` WHERE guild_id={guild_id} AND channel_id IN ({channel_ids}) '
         try:
             session.execute(sql)
             session.commit()
@@ -269,7 +269,7 @@ class DatabaseUtils:
         if not role_ids:
             return True
 
-        sql = 'INSERT IGNORE INTO `automute_whitelist` (`server`, `role`) VALUES '
+        sql = 'INSERT IGNORE INTO `automute_whitelist` (`guild`, `role`) VALUES '
         sql += ', '.join(map(lambda rid: f'({guild_id}, {rid})', role_ids))
         try:
             session.execute(sql)
@@ -287,7 +287,7 @@ class DatabaseUtils:
             return True
 
         role_ids = ', '.join(map(lambda r: str(r), role_ids))
-        sql = f'DELETE FROM `automute_whitelist` WHERE server={guild_id} AND role IN ({role_ids})'
+        sql = f'DELETE FROM `automute_whitelist` WHERE guild={guild_id} AND role IN ({role_ids})'
         try:
             session.execute(sql)
             session.commit()
@@ -299,8 +299,8 @@ class DatabaseUtils:
         return success
 
     def multiple_last_seen(self, user_ids, usernames, guild_id, timestamps):
-        sql = 'INSERT INTO `last_seen_users` (`user_id`, `username`, `server_id`, `last_seen`) VALUES (:user, :username, :server, :time) ON DUPLICATE KEY UPDATE last_seen=VALUES(`last_seen`), username=VALUES(`username`)'
-        data = [{'user': uid, 'username': u, 'server': s, 'time': t} for uid, u, s, t in zip(user_ids, usernames, guild_id, timestamps)]
+        sql = 'INSERT INTO `last_seen_users` (`user_id`, `username`, `guild_id`, `last_seen`) VALUES (:user, :username, :guild, :time) ON DUPLICATE KEY UPDATE last_seen=VALUES(`last_seen`), username=VALUES(`username`)'
+        data = [{'user': uid, 'username': u, 'guild': s, 'time': t} for uid, u, s, t in zip(user_ids, usernames, guild_id, timestamps)]
         session = self.bot.get_session
         try:
             session.execute(sql, data)

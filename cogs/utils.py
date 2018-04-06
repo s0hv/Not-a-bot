@@ -25,12 +25,12 @@ class Utilities(Cog):
         super().__init__(bot)
         self._runtime = re.compile(r'(?P<days>\d+)*?(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
 
-    @command(pass_context=True, ignore_extra=True)
+    @command(ignore_extra=True)
     async def ping(self, ctx):
         """Ping pong"""
         local_delay = datetime.utcnow().timestamp() - ctx.message.timestamp.timestamp()
         t = time.time()
-        msg = await self.bot.say('Pong!')
+        await ctx.trigger_typing()
         t = time.time() - t
         message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms'.format(t*1000, local_delay*1000)
         if hasattr(self.bot, 'get_session'):
@@ -39,23 +39,23 @@ class Utilities(Cog):
             sql_t = time.time() - sql_t
             message += '\nDatabase ping {:.0f}ms'.format(sql_t*1000)
 
-        await self.bot.edit_message(msg, message)
+        await ctx.send(message)
 
-    @command(ignore_extra=True, aliases=['e', 'emoji'])
-    async def emote(self, emote: str):
+    @command(aliases=['e', 'emoji'])
+    async def emote(self, ctx, emote: str):
         """Get the link to an emote"""
         emote = get_emote_url(emote)
         if emote is None:
-            return await self.bot.say('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
+            return await ctx.send('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
 
-        await self.bot.say(emote)
+        await ctx.send(emote)
 
     @cooldown(1, 1, type=BucketType.user)
-    @command(pass_context=True, aliases=['howtoping'])
+    @command(aliases=['howtoping'])
     async def how2ping(self, ctx, *, user):
         """Searches a user by their name and get the string you can use to ping them"""
-        if ctx.message.server:
-            members = ctx.message.server.members
+        if ctx.guild:
+            members = ctx.guild.members
         else:
             members = self.bot.get_all_members()
 
@@ -76,28 +76,27 @@ class Utilities(Cog):
         found = filter_users(lambda u: str(u).startswith(user))
         s = '`<@!{}>` {}'
         if found:
-            return await self.bot.say(s.format(found.id, str(found)))
+            return await ctx.send(s.format(found.id, str(found)))
 
         found = filter_users(lambda u: user in str(u))
 
         if found:
-            return await self.bot.say(
-                s.format(found.id, str(found)))
+            return await ctx.send(s.format(found.id, str(found)))
 
         else:
-            return await self.bot.say('No users found with %s' % user)
+            return await ctx.send('No users found with %s' % user)
 
-    @command(ignore_extra=True, aliases=['src', 'source_code'])
-    async def source(self):
+    @command(aliases=['src', 'source_code'])
+    async def source(self, ctx):
         """Source code for this bot"""
-        await self.bot.say('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
+        await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
 
     def _unpad_zero(self, value):
         if not isinstance(value, str):
             return
         return value.lstrip('0')
 
-    @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'], pass_context=True)
+    @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'])
     @cooldown(2, 5, BucketType.user)
     async def stats(self, ctx):
         """Get stats about this bot"""
@@ -108,10 +107,14 @@ class Utilities(Cog):
             uptime = subprocess.check_output(shlex.split('ps -o etime= -p "%s"' % pid)).decode('utf-8').strip()
             match = self._runtime.match(uptime)
             if match:
-                uptime = '{minutes}m {seconds}s'
+                uptime = ''
                 d = match.groupdict()
                 d = {k: self._unpad_zero(v) for k, v in d.items()}
 
+                if d['seconds']:
+                    uptime += '{seconds}s'
+                if d['minutes']:
+                    uptime += '{minutes}m'
                 if d['hours']:
                     uptime = '{hours}h ' + uptime
                 if d['days']:
@@ -123,7 +126,7 @@ class Utilities(Cog):
             uptime = "%s uptime support isn't implemented" % sys.platform
 
         users = len([a for a in self.bot.get_all_members()])
-        servers = len(self.bot.servers)
+        guilds = len(self.bot.guilds)
         try:
             # use pmap to find the memory usage of this process and turn it to megabytes
             # Since shlex doesn't care about pipes | I have to do this
@@ -151,45 +154,45 @@ class Utilities(Cog):
         embed.add_field(name='discord.py version', value=discord.__version__)
         embed.add_field(name='Uptime', value=uptime)
         embed.add_field(name='Users', value=str(users))
-        embed.add_field(name='Servers', value=str(servers), inline=True)
+        embed.add_field(name='Servers', value=str(guilds), inline=True)
         embed.add_field(name='Memory usage', value=memory_usage)
         embed.add_field(name='Last updated', value=last_updated)
         embed.set_thumbnail(url=get_avatar(self.bot.user))
         embed.set_author(name=self.bot.user.name, icon_url=get_avatar(self.bot.user))
 
-        await self.bot.send_message(ctx.message.channel, embed=embed)
+        await ctx.send(embed=embed)
 
-    @command(name='roles', pass_context=True, ignore_extra=True)
-    @cooldown(1, 5, type=BucketType.server)
+    @command(name='roles', ignore_extra=True)
+    @cooldown(1, 5, type=BucketType.guild)
     async def get_roles(self, ctx, page=''):
         """Get roles on this server"""
-        server_roles = sorted(ctx.message.server.roles, key=lambda r: r.name)
+        guild_roles = sorted(ctx.guild.roles, key=lambda r: r.name)
         idx = 0
         if page:
             try:
                 idx = int(page) - 1
                 if idx < 0:
-                    return await self.bot.say('Index must be bigger than 0')
+                    return await ctx.send('Index must be bigger than 0')
             except ValueError:
-                return await self.bot.say('%s is not a valid integer' % page, delete_after=30)
+                return await ctx.send('%s is not a valid integer' % page, delete_after=30)
 
-        roles = 'A total of %s roles\n' % len(server_roles)
-        for role in server_roles:
+        roles = 'A total of %s roles\n' % len(guild_roles)
+        for role in guild_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
         roles = split_string(roles, splitter='\n', maxlen=1990)
         await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
 
     @command(aliases=['created_at'], ignore_extra=True)
-    @cooldown(1, 5, type=BucketType.server)
-    async def snowflake_time(self, user_id):
-        """Gets account creation date from the specified user id"""
+    @cooldown(1, 5, type=BucketType.guild)
+    async def snowflake_time(self, ctx, id):
+        """Gets creation date from the specified discord id"""
         try:
-            int(user_id)
+            int(id)
         except ValueError:
-            return await self.bot.say("{} isn't a valid integer".format(user_id))
+            return await ctx.send("{} isn't a valid integer".format(id))
 
-        await self.bot.say(str(discord.utils.snowflake_time(user_id)))
+        await ctx.send(str(discord.utils.snowflake_time(id)))
 
 
 def setup(bot):

@@ -1,10 +1,8 @@
-from cogs.cog import Cog
-from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from bot.bot import command
-from sqlalchemy.exc import SQLAlchemyError
-from utils.utilities import check_user_mention
+from datetime import datetime
+
+from cogs.cog import Cog
 
 
 class UserSeen:
@@ -14,17 +12,11 @@ class UserSeen:
         self.server_id = 0 if server_id is None else server_id
         self.timestamp = datetime.utcnow()
 
-    def __hash__(self):
-        return hash((self.user_id + ' ' + str(self.server_id)))
-
-    def __eq__(self, other):
-        return self.user_id == other.user_id and self.server_id == other.server_id
-
 
 class LastSeen(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._updates = {}
+        self._updates = set()
         self.threadpool = ThreadPoolExecutor(4)
         self._update_task = self.bot.loop.create_task(self._status_loop())
         self._update_task_checker = self.bot.loop.create_task(self._check_loop())
@@ -40,9 +32,9 @@ class LastSeen(Cog):
         times = []
         usernames = []
         for update in updates.values():
-            user_ids.append(int(update.user_id))
+            user_ids.append(update.user_id)
             usernames.append(update.username)
-            server_ids.append(int(update.server_id))
+            server_ids.append(update.server_id)
             times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
         self.bot.dbutils.multiple_last_seen(user_ids, usernames, server_ids, times)
         del updates
@@ -77,18 +69,18 @@ class LastSeen(Cog):
     async def on_message(self, message):
         server = None if not message.server else message.server.id
         o = UserSeen(message.author, server)
-        self._updates[o] = o
+        self._updates.add(o)
 
     async def on_member_update(self, before, after):
         if self.status_changed(before, after):
             o = UserSeen(after, None)
-            self._updates[o] = o
+            self._updates.add(o)
             return
 
     async def on_reaction_add(self, reaction, user):
         server = None if not user.server else user.server.id
         o = UserSeen(user, server)
-        self._updates[o] = o
+        self._updates.add(o)
 
 
 def setup(bot):

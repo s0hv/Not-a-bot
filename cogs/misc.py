@@ -9,25 +9,23 @@ class Misc(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(pass_context=True)
+    @command()
     @cooldown(1, 2, type=BucketType.user)
     async def math(self, ctx, *, query):
         """Queries a math problem to be solved by wolfram alpha"""
-        await self.bot.send_message(ctx.message.channel,
-                                    await wolfram.math(query,
-                                                       self.bot.aiohttp_client,
+        await ctx.send(ctx.channel, await wolfram.math(query, self.bot.aiohttp_client,
                                                        self.bot.config.wolfram_key))
 
-    @command(name='say', pass_context=True)
+    @command(name='say')
     async def say_command(self, ctx, *, words):
         """Says the text that was put as a parameter"""
-        await self.bot.say('{0} {1}'.format(ctx.message.author.mention, words))
+        await ctx.send('{0} {1}'.format(ctx.author.mention, words))
 
     @command(ignore_extra=True, aliases=['twitchquotes'])
     @cooldown(1, 2, type=BucketType.server)
-    async def twitchquote(self, tts=None):
+    async def twitchquote(self, ctx, tts=None):
         """Random twitch quote from twitchquotes.com"""
-        await self.bot.say(await memes.twitch_poems(self.bot.aiohttp_client), tts=bool_check(str(tts)))
+        await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=bool_check(str(tts)))
 
 
 def setup(bot):

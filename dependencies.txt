@@ -12,14 +12,14 @@ colour
 sqlalchemy
 numpy
 gtts (for join leave messages in voice chat)
-PIL
+pillow
 geopatterns
 colorthief
 matplotlib
 beautifulsoup4
 python-magic
 ansicolors
-pymsql
+pymysql
 selenium
 colormath
 

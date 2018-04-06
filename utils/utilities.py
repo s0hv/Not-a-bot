@@ -35,6 +35,7 @@ from datetime import timedelta
 from random import randint
 
 import discord
+from discord import abc
 import numpy
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
@@ -61,6 +62,16 @@ class Object:
     # Empty class to store variables
     def __init__(self):
         pass
+
+
+# Made so only ids can be used
+class Snowflake(abc.Snowflake):
+    def __init__(self, id):
+        self.id = id
+
+    @property
+    def created_at(self):
+        return discord.utils.snowflake_time(self.id)
 
 
 def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
@@ -806,7 +817,7 @@ async def get_all_reaction_users(reaction, limit=100):
     return users
 
 
-async def create_custom_emoji(guild, *, name, image, already_b64=False, reason=None):
+async def create_custom_emoji(guild, name, image, already_b64=False, reason=None):
     """Same as the base method but supports giving your own b64 encoded data"""
     if not already_b64:
         img = discord.utils._bytes_to_base64_data(image)
@@ -873,3 +884,16 @@ async def search(s, ctx, site, downloader, on_error=None):
         return url % id
 
     await send_paged_message(ctx.bot, ctx, info['entries'], page_method=get_page)
+
+
+def basic_check(author=None, channel=None):
+    def check(msg):
+        if author and author.id != msg.author.id:
+            return False
+
+        if channel and channel.id != msg.channel.id:
+            return False
+
+        return True
+
+    return check

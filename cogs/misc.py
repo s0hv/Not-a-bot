@@ -13,8 +13,8 @@ class Misc(Cog):
     @cooldown(1, 2, type=BucketType.user)
     async def math(self, ctx, *, query):
         """Queries a math problem to be solved by wolfram alpha"""
-        await ctx.send(ctx.channel, await wolfram.math(query, self.bot.aiohttp_client,
-                                                       self.bot.config.wolfram_key))
+        await ctx.send(await wolfram.math(query, self.bot.aiohttp_client,
+                                          self.bot.config.wolfram_key))
 
     @command(name='say')
     async def say_command(self, ctx, *, words):
@@ -22,7 +22,7 @@ class Misc(Cog):
         await ctx.send('{0} {1}'.format(ctx.author.mention, words))
 
     @command(ignore_extra=True, aliases=['twitchquotes'])
-    @cooldown(1, 2, type=BucketType.server)
+    @cooldown(1, 2, type=BucketType.guild)
     async def twitchquote(self, ctx, tts=None):
         """Random twitch quote from twitchquotes.com"""
         await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=bool_check(str(tts)))

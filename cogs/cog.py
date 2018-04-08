@@ -27,7 +27,7 @@ class Cog(GroupMixin):
                 entries.append(command.name)
             entries = list(reversed(entries))
             entries.append(cmd.name)
-            data.append({'parent': entries[0], 'cmd': ' '.join(entries[1:]) or 0})
+            data.append({'parent': entries[0], 'cmd': ' '.join(entries[1:]) or ""})
 
         self.bot.dbutil.add_commands(data)
 

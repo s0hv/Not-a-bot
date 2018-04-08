@@ -158,6 +158,10 @@ class AudioPlayer(player.AudioPlayer):
             time.sleep(delay)
 
     @property
+    def run_loops(self):
+        return self._run_loops
+
+    @property
     def duration(self):
         # TODO Make compatible with the speed command
         return self._run_loops * self.DELAY * self._speed_mod

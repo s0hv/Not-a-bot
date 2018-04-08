@@ -187,7 +187,7 @@ class Settings(Cog):
                     return await ctx.send('Failed to index user roles')
 
                 await msg.edit(content='Indexed roles in {0:.2f}s'.format(time.time()-t))
-            except:
+            except discord.DiscordException:
                 pass
             finally:
                 lock.release()
@@ -195,7 +195,7 @@ class Settings(Cog):
         self.cache.set_keeproles(guild.id, boolean)
         await ctx.send('Keeproles set to %s' % str(boolean))
 
-    @settings.command(required_perms=Perms.MANAGE_ROLES|Perms.MANAGE_GUILD)
+    @settings.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
     @cooldown(2, 10, BucketType.guild)
     async def random_color(self, ctx, value: bool=None):
         """Check if random color is on or change the current value of it.

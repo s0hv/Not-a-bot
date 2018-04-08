@@ -34,7 +34,7 @@ terminal = logging.getLogger('terminal')
 class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
-                 'options', 'dl_folder', '_downloading', 'on_ready', 'player',
+                 'options', 'dl_folder', '_downloading', 'on_ready', 'volume',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
@@ -63,9 +63,9 @@ class Song:
         self.dl_folder = self.playlist.downloader.dl_folder
         self._downloading = False
         self.on_ready = asyncio.Event()
-        self.player = None
         self.bpm = None
         self.last_update = 0
+        self.volume = None
 
     @classmethod
     def from_song(cls, song, **kwargs):

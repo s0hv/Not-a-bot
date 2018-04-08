@@ -78,7 +78,7 @@ class Ganypepe(Bot):
                 if print_err:
                     terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
-                    self.say('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    pass
 
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))
@@ -91,5 +91,5 @@ class Ganypepe(Bot):
 
             pass
 
-    async def test(self):
-        await self.say('test')
+    async def test(self, ctx):
+        await ctx.send('test')

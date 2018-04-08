@@ -46,7 +46,7 @@ async def math(calculation, client, key):
                 return "I don't even math"
 
             pods = soup.find_all('pod', primary='true')
-            answers = None
+            answers = ''
             for pod in pods:
                 try:
                     txt = pod.find('plaintext').text

@@ -28,7 +28,7 @@ class Utilities(Cog):
     @command(ignore_extra=True)
     async def ping(self, ctx):
         """Ping pong"""
-        local_delay = datetime.utcnow().timestamp() - ctx.message.timestamp.timestamp()
+        local_delay = datetime.utcnow().timestamp() - ctx.message.created_at.timestamp()
         t = time.time()
         await ctx.trigger_typing()
         t = time.time() - t
@@ -91,7 +91,8 @@ class Utilities(Cog):
         """Source code for this bot"""
         await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
 
-    def _unpad_zero(self, value):
+    @staticmethod
+    def _unpad_zero(value):
         if not isinstance(value, str):
             return
         return value.lstrip('0')

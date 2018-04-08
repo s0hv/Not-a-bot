@@ -23,7 +23,7 @@ logger = logging.getLogger('debug')
 
 
 def create_check(guild_ids):
-    def guild_check(ctx, command_):
+    def guild_check(ctx):
         return ctx.guild.id in guild_ids
 
     return guild_check
@@ -144,7 +144,7 @@ class ServerSpecific(Cog):
         await ctx.send('👌')
 
     @command(required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
-    @cooldown(2, 4, type=BucketType.server)
+    @cooldown(2, 4, type=BucketType.guild)
     @check(main_check)
     async def add_grant(self, ctx, role, target_role):
         """Make the given role able to grant the target role"""

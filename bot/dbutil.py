@@ -1,7 +1,7 @@
 import logging
 logger = logging.getLogger('debug')
 from sqlalchemy.exc import SQLAlchemyError
-
+from discord.errors import InvalidArgument
 
 class DatabaseUtils:
     def __init__(self, bot):
@@ -33,14 +33,17 @@ class DatabaseUtils:
         logger.info('added roles in %s' % (time.time() - t))
         t1 = time.time()
 
-        await self.bot.request_offline_members(guild)
-        logger.info('added offline users in %s' % (time.time() - t1))
+        try:
+            await self.bot.request_offline_members(guild)
+            logger.info('added offline users in %s' % (time.time() - t1))
+        except InvalidArgument:
+            pass
         _m = list(guild.members)
         members = list(filter(lambda u: len(u.roles) > 1, _m))
         all_members = [str(u.id) for u in _m]
 
         t1 = time.time()
-        sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role_id WHERE roles.guild={} AND userRoles.user_id IN ({})'.format(guild.id, ', '.join(all_members))
+        sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role WHERE roles.guild={} AND userRoles.user IN ({})'.format(guild.id, ', '.join(all_members))
 
         # Deletes all server records
         # sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` WHERE roles.server=%s AND userRoles.role_id=roles.id'
@@ -348,7 +351,7 @@ class DatabaseUtils:
 
         return True
 
-    def command_used(self, parent, name=0):
+    def command_used(self, parent, name=""):
         if name is None:
             name = 0
         sql = 'UPDATE `command_stats` SET `uses`=(`uses`+1) WHERE parent=:parent AND cmd=:cmd'

@@ -381,9 +381,9 @@ def get_image_from_message(ctx, *messages):
 
     if image is None:
         channel = ctx.channel
-        server = channel.server
+        guild = channel.guild
         session = ctx.bot.get_session
-        sql = 'SELECT attachment FROM `messages` WHERE server={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(server.id, channel.id)
+        sql = 'SELECT attachment FROM `messages` WHERE guild={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(guild.id, channel.id)
         try:
             rows = session.execute(sql).fetchall()
             for row in rows:
@@ -472,11 +472,6 @@ def call_later(func, loop, timeout, *args, **kwargs):
 def get_users_from_ids(guild, *ids):
     users = []
     for i in ids:
-        try:
-            i = int(i)
-        except ValueError:
-            continue
-
         user = guild.get_member(i)
         if user:
             users.append(user)
@@ -520,12 +515,12 @@ def get_channel(channels, s, name_matching=False, only_text=True):
     return channel
 
 
-def check_role_mention(msg, word, server):
+def check_role_mention(msg, word, guild):
     if msg.raw_role_mentions:
         id = msg.raw_role_mentions[0]
         if str(id) not in word:
             return False
-        role = list(filter(lambda r: r.id == id, server.roles))
+        role = list(filter(lambda r: r.id == id, guild.roles))
         if not role:
             return False
         return role[0]
@@ -728,7 +723,7 @@ def check_perms(values, return_raw=False):
         elif value['channel'] is not None:
             v2 = PermValues.VALUES['channel']
         else:
-            v2 = PermValues.VALUES['server']
+            v2 = PermValues.VALUES['guild']
 
         v = v1 | v2
         if v < smallest:
@@ -738,11 +733,11 @@ def check_perms(values, return_raw=False):
 
 
 def is_superset(ctx):
-    if ctx.override_perms is None and ctx.command_.required_perms is not None:
+    if ctx.override_perms is None and ctx.command.required_perms is not None:
         perms = ctx.message.channel.permissions_for(ctx.message.author)
 
-        if not perms.is_superset(ctx.command_.required_perms):
-            req = [r[0] for r in ctx.command_.required_perms if r[1]]
+        if not perms.is_superset(ctx.command.required_perms):
+            req = [r[0] for r in ctx.command.required_perms if r[1]]
             raise PermissionError('%s' % ', '.join(req))
 
     return True
@@ -761,8 +756,8 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         message = await ctx.channel.send(embed=page)
     else:
         message = await ctx.channel.send(page)
-    await bot.add_reaction(message, '◀')
-    await bot.add_reaction(message, '▶')
+    await message.add_reaction('◀')
+    await message.add_reaction('▶')
 
     paged = PagedMessage(pages, starting_idx=starting_idx)
 
@@ -771,20 +766,21 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
             if embed:
                 await message.edit(embed=page_method(page, paged.index))
             else:
-                await message.edit(page_method(page, paged.index))
+                await message.edit(content=page_method(page, paged.index))
     else:
         async def send():
             if embed:
                 await message.edit(embed=page)
             else:
-                await message.edit(page)
+                await message.edit(content=page)
 
     def check(reaction, user):
         return paged.check(reaction, user) and ctx.author.id == user.id and reaction.message.id == message.id
 
     while True:
-        result = await bot.wait_for('reaction_changed', check=check, timeout=60)
-        if result is None:
+        try:
+            result = await bot.wait_for('reaction_changed', check=check, timeout=60)
+        except asyncio.TimeoutError:
             return
 
         page = paged.reaction_changed(*result)
@@ -794,7 +790,7 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         try:
             await send()
             # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
-            await asyncio.sleep(2)
+            await asyncio.sleep(0.5)
         except discord.HTTPException:
             return
 
@@ -836,6 +832,9 @@ def is_owner(ctx):
 
 
 def check_blacklist(ctx):
+    if getattr(ctx, 'skip_check', False):
+        return True
+
     bot = ctx.bot
     if not hasattr(bot, 'check_auth'):
         # No database blacklisting detected

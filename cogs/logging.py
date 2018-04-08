@@ -6,7 +6,7 @@ from discord import errors
 from random import choice
 from discord.abc import PrivateChannel
 from sqlalchemy.exc import SQLAlchemyError
-
+from discord.embeds import EmptyEmbed
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
@@ -29,8 +29,8 @@ class Logger(Cog):
         message_content = None if not is_pm else message.content  # BOI I need to know if my bot is abused in dms
 
         # Only save image links for later use in image commands
-        attachment = message.attachments[0].get('url') if message.attachments else None
-        if attachment and not attachment.width:
+        attachment = message.attachments[0].url if message.attachments else None
+        if attachment and not attachment[0].width:
             attachment = None
 
         if attachment is None:
@@ -44,27 +44,27 @@ class Logger(Cog):
                 'message': message_content,
                 'message_id': message_id,
                 'attachment': attachment,
-                'time': message.timestamp}
+                'time': message.created_at}
 
     @staticmethod
     def get_image_from_embeds(embeds):
         for embed in embeds:
-            embed_type = embed.get('type', None)
+            embed_type = embed.type
             if embed_type == 'video':
-                attachment = embed.get('thumbnail', {}).get('url')
+                attachment = embed.thumbnail.url
                 if attachment:
                     return attachment
                 else:
                     continue
 
             elif embed_type == 'rich':
-                attachment = embed.get('image', {}).get('url')
+                attachment = embed.image.url
             elif embed_type == 'image':
-                attachment = embed.get('url')
+                attachment = embed.url
             else:
                 continue
 
-            return attachment
+            return attachment if attachment != EmptyEmbed else None
 
     async def on_message(self, message):
         sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
@@ -223,16 +223,16 @@ class Logger(Cog):
     async def on_guild_role_create(self, role):
         self.bot.dbutil.add_roles(role.guild.id, role.id)
 
-    async def on_command_completion(self, cmd, ctx):
+    async def on_command_completion(self, ctx):
         entries = []
-        command = cmd
+        command = ctx.command
         while command.parent is not None:
             command = command.parent
             entries.append(command.name)
         entries = list(reversed(entries))
-        entries.append(cmd.name)
+        entries.append(command.name)
         parent = entries[0]
-        self.bot.dbutil.command_used(parent, entries[1:] or 0)
+        self.bot.dbutil.command_used(parent, ' '.join(entries[1:]) or "")
 
 
 def setup(bot):

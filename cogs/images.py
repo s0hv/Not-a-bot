@@ -40,7 +40,8 @@ class Pokefusion:
         self._bot = bot
         self._update_lock = Lock(loop=bot.loop)
 
-        p = '/usr/lib/chromium-browser/chromedriver'
+        #p = '/usr/lib/chromium-browser/chromedriver'
+        p = self.bot.config.chromedriver
         options = Options()
         options.add_argument('--headless')
         options.add_argument('--disable-gpu')
@@ -210,7 +211,7 @@ class Pokefusion:
         font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 36)
         draw = ImageDraw.Draw(bg)
         w, h = draw.textsize(name, font)
-        draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - 5), name, font=font, fill='black')
+        draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - h), name, font=font, fill='black')
 
         s = 'Fusion of {} and {}'.format(self._poke_reverse[dex_n[0]], self._poke_reverse[dex_n[1]])
         if color:

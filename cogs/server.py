@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import logging
 
@@ -78,17 +79,20 @@ class Server(Cog):
         if is_url(link):
             if not name:
                 await ctx.send('What do you want to name the emote as', delete_after=30)
-                msg = await self.bot.wait_for('message', check=basic_check(author=author, channel=ctx.channel), timeout=30)
+                try:
+                    msg = await self.bot.wait_for('message', check=basic_check(author=author, channel=ctx.channel), timeout=30)
+                except asyncio.TimeoutError:
+                     msg = None
                 if not msg:
                     return await ctx.send('Took too long.')
-            data = await self._dl(link)
+            data = await self._dl(ctx, link)
             name = ' '.join(name)
 
         else:
             if not ctx.message.attachments:
                 return await ctx.send('No image provided')
 
-            data = await self._dl(ctx.message.attachments[0].get('url'))
+            data = await self._dl(ctx, ctx.message.attachments[0].get('url'))
             name = link + ' '.join(name)
 
         if not data:

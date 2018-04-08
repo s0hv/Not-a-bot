@@ -32,7 +32,7 @@ class Moderator(Cog):
         session = self.bot.get_session
         rows = session.execute(sql)
         for row in rows:
-            id_ = row['guild_id']
+            id_ = row['guild']
             if id_ not in self.automute_blacklist:
                 s = set()
                 self.automute_blacklist[id_] = s
@@ -40,7 +40,7 @@ class Moderator(Cog):
             else:
                 s = self.automute_blacklist[id_]
 
-            s.add(row['channel_id'])
+            s.add(row['channel'])
 
         sql = 'SELECT * FROM `automute_whitelist`'
         rows = session.execute(sql)
@@ -311,7 +311,7 @@ class Moderator(Cog):
         try:
             user = users[0]
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
-        except:
+        except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(users[0]))
 
         guild_timeouts = self.timeouts.get(guild.id, {})
@@ -333,7 +333,7 @@ class Moderator(Cog):
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
                 await self.send_to_modlog(guild, embed=embed)
-        except:
+        except discord.HTTPException:
             pass
 
     def remove_timeout(self, user_id, guild_id):
@@ -364,7 +364,7 @@ class Moderator(Cog):
         if self.bot.get_role(mute_role, guild):
             try:
                 await user.remove_roles(mute_role, reason='Unmuted')
-            except:
+            except discord.HTTPException:
                 logger.exception('Could not autounmute user %s' % user.id)
         self.remove_timeout(user.id, guild.id)
 
@@ -445,7 +445,7 @@ class Moderator(Cog):
                 embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
 
                 await self.send_to_modlog(guild, embed=embed)
-        except:
+        except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(users[0]))
 
         task = call_later(self.untimeout, self.bot.loop,
@@ -483,7 +483,7 @@ class Moderator(Cog):
 
         try:
             await users[0].remove_roles(mute_role, reason=f'Responsible user {ctx.author}')
-        except:
+        except discord.HTTPException:
             await ctx.send('Could not unmute user {}'.format(users[0]))
         else:
             await ctx.send('Unmuted user {}'.format(users[0]))
@@ -530,13 +530,14 @@ class Moderator(Cog):
         await self._unmute_when(ctx, user)
 
     # Only use this inside commands
-    async def _set_channel_lock(self, ctx, locked: bool):
+    @staticmethod
+    async def _set_channel_lock(ctx, locked: bool):
         channel = ctx.channel
         everyone = ctx.guild.default_role
         overwrite = channel.overwrites_for(everyone)
         overwrite.send_messages = False if locked else None
         try:
-            await channel.set_permissions(everyone, overwrite, reason=f'Responsible user {ctx.author}')
+            await channel.set_permissions(everyone, overwrite=overwrite, reason=f'Responsible user {ctx.author}')
         except discord.HTTPException as e:
             return await ctx.send('Failed to lock channel because of an error: %s. '
                                   'Bot might lack the permissions to do so' % e)
@@ -546,7 +547,7 @@ class Moderator(Cog):
                 await ctx.send('Locked channel %s' % channel.name)
             else:
                 await ctx.send('Unlocked channel %s' % channel.name)
-        except:
+        except discord.HTTPException:
             pass
 
     @staticmethod
@@ -611,7 +612,8 @@ class Moderator(Cog):
 
         max_messages = min(500, max_messages)
 
-        messages = await channel.purge(limit=max_messages, reason=f'{ctx.author} purged messages')
+        # purge doesn't support reasons yet
+        messages = await channel.purge(limit=max_messages)  # , reason=f'{ctx.author} purged messages')
 
         modlog = self.get_modlog(channel.guild)
         if not modlog:
@@ -691,8 +693,8 @@ class Moderator(Cog):
         for k in channel_messages:
             channel = self.bot.get_channel(k)
             try:
-                await self.delete_messages(channel, channel_messages[k], reason=reason)
-            except:
+                await self.delete_messages(channel, channel_messages[k])
+            except discord.HTTPException:
                 logger.exception('Could not delete messages')
             else:
                 ids.extend(channel_messages[k])
@@ -726,12 +728,12 @@ class Moderator(Cog):
             await guild.ban(Snowflake(user_), reason=f'{ctx.author} softbanned', delete_message_days=message_days)
         except discord.Forbidden:
             return await ctx.send("The bot doesn't have ban perms")
-        except:
+        except discord.HTTPException:
             return await ctx.send('Something went wrong while trying to ban. Try again')
 
         try:
             await guild.unban(Snowflake(user_), reason=f'{ctx.author} softbanned')
-        except:
+        except discord.HTTPException:
             return await ctx.send('Failed to unban after ban')
 
         member = guild.get_member(user_)
@@ -755,14 +757,12 @@ class Moderator(Cog):
         """Set send_messages permission override on current channel to default position"""
         await self._set_channel_lock(ctx, False)
 
-    async def delete_messages(self, channel, message_ids, reason=None):
+    @staticmethod
+    async def delete_messages(channel, message_ids):
         """Delete messages in bulk and take the message limit into account"""
         step = 100
         for idx in range(0, len(message_ids), step):
-            # await channel.delete_messages(channel_messages[k], reason=reason)
-            # Have to use this since channel.delete_messages doesn't support giving a reason
-            await self.bot.http.delete_messages(channel.id, message_ids=[m.id for m in message_ids],
-                                                reason=reason)
+            await channel.delete_messages(message_ids)
 
     def get_modlog(self, guild):
         return guild.get_channel(self.bot.guild_cache.modlog(guild.id))
@@ -770,4 +770,3 @@ class Moderator(Cog):
 
 def setup(bot):
     bot.add_cog(Moderator(bot))
-

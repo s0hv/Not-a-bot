@@ -110,33 +110,6 @@ class ConnectionState(state.ConnectionState):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def parse_message_update(self, data):
-        message = self._get_message(data.get('id'))
-        if message is not None:
-            older_message = copy.copy(message)
-            if 'call' in data:
-                # call state message edit
-                message._handle_call(data['call'])
-            elif 'content' not in data:
-                # embed only edit
-                message.embeds = data['embeds']
-            else:
-                message._update(channel=message.channel, **data)
-
-            self.dispatch('message_edit', older_message, message)
-
-        else:
-            self.dispatch('uncached_message_edit', data)
-
-    def parse_message_delete(self, data):
-        message_id = data.get('id')
-        found = self._get_message(message_id)
-        if found is not None:
-            self.dispatch('message_delete', found)
-            self._messages.remove(found)
-        else:
-            self.dispatch('raw_message_delete', data)
-
     def parse_message_delete_bulk(self, data):
         message_ids = set(data.get('ids', []))
         to_be_deleted = []
@@ -152,23 +125,6 @@ class ConnectionState(state.ConnectionState):
             self.dispatch('bulk_message_delete', to_be_deleted)
         if message_ids:
             self.dispatch('raw_bulk_message_delete', message_ids)
-
-    def parse_message_reaction_add(self, data):
-        message = self._get_message(data['message_id'])
-        if message is not None:
-            emoji = self.get_reaction_emoji(**data.pop('emoji'))
-            reaction = discord.utils.get(message.reactions, emoji=emoji)
-            if not reaction:
-                reaction = Reaction(message=message, emoji=emoji, **data)
-                message.reactions.append(reaction)
-            else:
-                reaction.count += 1
-
-            member = self.get_user(data['user_id'])
-
-            self.dispatch('reaction_add', reaction, member)
-        else:
-            self.dispatch('raw_reaction_add', data)
 
 
 class Client(discord.Client):
@@ -222,7 +178,7 @@ class Bot(commands.Bot, Client):
         self.config = config
         self.voice_clients_ = {}
 
-    async def on_command_error(self, exception, context):
+    async def on_command_error(self, context, exception):
         """|coro|
 
         The default command error handler provided by the bot.
@@ -279,22 +235,22 @@ class Bot(commands.Bot, Client):
 
         # help by itself just lists our own commands.
         if len(commands_) == 0:
-            pages = self.formatter.format_help_for(ctx, self, is_owner=is_owner, type=type)
+            pages = await self.formatter.format_help_for(ctx, self, is_owner=is_owner, type=type)
         elif len(commands_) == 1:
             # try to see if it is a cog name
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
             if name in self.cogs:
                 command_ = self.cogs[name]
             else:
-                command_ = self.commands.get(name)
+                command_ = self.get_command(name)
                 if command_ is None:
                     await destination.send(self.command_not_found.format(name))
                     return
 
-            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
+            pages = await self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
         else:
             name = commands.bot._mention_pattern.sub(repl, commands_[0])
-            command_ = self.commands.get(name)
+            command_ = self.get_command(name)
             if command_ is None:
                 await destination.send(self.command_not_found.format(name))
                 return
@@ -310,7 +266,7 @@ class Bot(commands.Bot, Client):
                     await destination.send(self.command_has_no_subcommands.format(command_, key))
                     return
 
-            pages = self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
+            pages = await self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
 
         if self.pm_help is None:
             characters = sum(map(lambda l: len(l), pages))
@@ -349,7 +305,7 @@ class Bot(commands.Bot, Client):
             self.dispatch('command_error', ctx, exc)
 
     async def process_commands(self, message):
-        ctx = self.get_context(message, cls=Context)
+        ctx = await self.get_context(message, cls=Context)
         await self.invoke(ctx)
 
     def command(self, *args, **kwargs):
@@ -375,7 +331,8 @@ class Bot(commands.Bot, Client):
         removed = []
         event = 'reaction_changed'
         listeners = self._listeners.get(event)
-
+        if not listeners:
+            return
         for i, (future, condition) in enumerate(listeners):
             if future.cancelled():
                 removed.append(i)
@@ -389,7 +346,7 @@ class Bot(commands.Bot, Client):
             else:
                 if result:
                     future.set_result((reaction, user))
-                removed.append(i)
+                    removed.append(i)
 
         if len(removed) == len(listeners):
             self._listeners.pop(event)
@@ -407,7 +364,6 @@ class Bot(commands.Bot, Client):
     def get_role(role_id, guild):
         if role_id is None:
             return
-        role_id = str(role_id)
         return discord.utils.find(lambda r: r.id == role_id, guild.roles)
 
 
@@ -425,12 +381,14 @@ def group(name=None, **attrs):
 
 
 class Context(commands.context.Context):
-    __slots__ = ['user_permissions', 'override_perms']
+    __slots__ = ['override_perms', 'skip_check']
 
     def __init__(self, **attrs):
         super().__init__(**attrs)
-        self.user_permissions = attrs.pop('user_permissions', None)
         self.override_perms = attrs.pop('override_perms', None)
+
+        # Used when wanting to skip database check like in help command
+        self.skip_check = attrs.pop('skip_check', False)
 
 
 class FormatterDeprecated(HelpFormatter):

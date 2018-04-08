@@ -17,7 +17,7 @@ class PagedMessage:
         return self._idx
 
     def check(self, reaction, user):
-        if reaction not in (self._prev, self._next):
+        if reaction.emoji not in (self._prev, self._next):
             return False
         else:
             return True

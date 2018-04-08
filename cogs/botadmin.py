@@ -4,7 +4,7 @@ import time
 from importlib import reload, import_module
 
 from discord.ext.commands.core import GroupMixin
-from discord.errors import HTTPException
+from discord.errors import HTTPException, InvalidArgument
 from bot.bot import command
 from cogs.cog import Cog
 
@@ -136,7 +136,10 @@ class BotAdmin(Cog):
     async def notice_me(self, ctx):
         guild = ctx.message.guild
         if guild.id == 217677285442977792:
-            await self.bot.request_offline_members(guild)
+            try:
+                await self.bot.request_offline_members(guild)
+            except InvalidArgument:
+                pass
             for member in list(guild.members):
                 await self.bot._wants_to_be_noticed(member, guild)
 

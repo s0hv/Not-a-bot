@@ -45,7 +45,7 @@ class Stats(Cog):
         sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=VALUES(role_name)'
         session = self.bot.get_session
         try:
-            session.execute(sql, data=data)
+            session.execute(sql, data)
             session.commit()
         except SQLAlchemyError:
             session.rollback()
@@ -118,13 +118,13 @@ class Stats(Cog):
         guild = ctx.guild
         if guild is not None:
             guild = guild.id
-            sql = 'SELECT * FROM `last_seen_users` WHERE (guild_id=0 OR guild_id=:guild) AND '
+            sql = 'SELECT * FROM `last_seen_users` WHERE (guild=0 OR guild=:guild) AND '
         else:
             guild = 0
-            sql = 'SELECT * FROM `last_seen_users` WHERE guild_id=0 AND'
+            sql = 'SELECT * FROM `last_seen_users` WHERE guild=0 AND'
 
         if is_id:
-            sql += 'user_id=:user ORDER BY last_seen DESC LIMIT 2'
+            sql += 'user=:user ORDER BY last_seen DESC LIMIT 2'
         else:
             sql += 'username=:user ORDER BY last_seen DESC LIMIT 2'
 
@@ -142,7 +142,7 @@ class Stats(Cog):
         global_ = None
 
         for row in rows:
-            if row['server_id'] == 0:
+            if row['guild'] == 0:
                 global_ = row
 
             else:
@@ -150,9 +150,9 @@ class Stats(Cog):
 
         if user_id is None:
             if local:
-                user_id = local['user_id']
+                user_id = local['user']
             else:
-                user_id = global_['user_id']
+                user_id = global_['user']
 
         msg = 'User {} `{}`\n'.format(name, user_id)
         if local:

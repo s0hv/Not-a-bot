@@ -42,7 +42,7 @@ from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
 
-#import cv2
+# import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
 
 logger = logging.getLogger('debug')
@@ -51,7 +51,7 @@ IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
 MAGICK = 'magick '
 try:
     subprocess.call(['magick'], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except:
+except FileNotFoundError:
     MAGICK = ''
 
 MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
@@ -152,7 +152,7 @@ def replace_color(im, color1, color2):
     data = np.array(im)  # "data" is a height x width x 4 numpy array
     red, green, blue, alpha = data.T  # Temporarily unpack the bands for readability
 
-    r,g,b = color1
+    r, g, b = color1
     # Replace white with red... (leaves alpha values alone...)
     white_areas = (red == r) & (blue == b) & (green == g)
     data[..., :-1][white_areas.T] = color2  # Transpose back needed
@@ -268,8 +268,6 @@ def get_palette(img, colors=6, quality=5):
 
 def create_geopattern_background(size, s, color=None, generator='overlapping_circles'):
     pattern = GeoPattern(s, generator=generator, color=color)
-    svg = os.path.join(IMAGES_PATH, 'bg.svg')
-
     args = '{}convert -size 100x100 svg:- png:-'.format(MAGICK)
     p = subprocess.Popen(args.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(pattern.svg_string.encode('utf-8'))
@@ -311,7 +309,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
                 p = p.replace('\\', '/')  # Windows paths don't work in cv2
 
             img = cv2.imread(p)
-        except:
+        except OSError:
             return image
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -336,7 +334,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
     # Create empty mask, draw filled polygon on it corresponding to largest contour
     # Mask is black, polygon is white
     mask = np.zeros(edges.shape)
-    cv2.fillConvexPoly(mask, max_contour[0], (255))
+    cv2.fillConvexPoly(mask, max_contour[0], 255)
 
     # Smooth mask, then blur it
     mask = cv2.dilate(mask, None, iterations=MASK_DILATE_ITER)

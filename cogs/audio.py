@@ -22,12 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import argparse
 import asyncio
 import logging
 import os
 import random
-from discord.player import PCMVolumeTransformer
 import re
 import time
 from collections import deque
@@ -38,15 +36,17 @@ from discord.activity import Activity, ActivityType
 from discord.errors import HTTPException
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
+from discord.player import PCMVolumeTransformer
 
+from bot import player
 from bot.bot import command
+from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
 from bot.playlist import Playlist
 from bot.song import Song
-from bot import player
 from utils.utilities import mean_volume, search
-from bot.downloader import Downloader
+import time
 
 try:
     import aubio
@@ -86,12 +86,15 @@ class MusicPlayer:
         self.current = None
         self.channel = channel
         self._source = None
+        self.repeat = False
+        self._disconnect = disconnect
 
         self.playlist = Playlist(bot, download=True, channel=self.channel)
         self.autoplaylist = bot.config.autoplaylist
         self.volume = self.bot.config.default_volume
         self.volume_multiplier = bot.config.volume_multiplier
         self.audio_player = None
+        self.activity_check = None
 
     def change_channel(self, channel):
         self.channel = channel
@@ -99,10 +102,37 @@ class MusicPlayer:
 
     def start_playlist(self):
         self.audio_player = self.bot.loop.create_task(self._play_audio())
+        self.activity_check = self.bot.loop.create_task(self._activity_check())
 
     @property
     def source(self):
         return self._source
+
+    @property
+    def player(self):
+        if self.voice:
+            return self.voice._player
+
+    @property
+    def duration(self):
+        if self.player:
+            return self.player.duration
+
+    @property
+    def current_volume(self):
+        if self.source:
+            return self.source.volume
+        return 0
+
+    @current_volume.setter
+    def current_volume(self, vol):
+        if vol < 0:
+            return
+        vol = min(2, vol)
+        if self.source:
+            self.source.volume = vol
+        if self.current:
+            self.current.volume = vol
 
     def _get_volume_from_db(self, db):
         rms = pow(10, db / 20) * 32767
@@ -114,12 +144,32 @@ class MusicPlayer:
                                         duration=self.current.duration), timeout=20, loop=self.bot.loop)
             if db is not None and abs(db) >= 0.1:
                 volume = self._get_volume_from_db(db)
-                self.source.volume = volume
+                if self.source:
+                    self.current_volume = volume
+                if self.current:
+                    self.current.volume = volume
 
         except asyncio.TimeoutError:
             logger.debug('Mean volume timed out')
         except asyncio.CancelledError:
             pass
+
+    async def _activity_check(self):
+        async def stop():
+            await self._disconnect(self)
+            self.voice = None
+
+        while True:
+            await asyncio.sleep(60)
+            if self.voice is None:
+                return await stop()
+
+            users = self.voice.channel.members
+            users = list(filter(lambda x: not x.bot, users))
+            if not users:
+                await self.send('No voice activity. Disconnecting')
+                await stop()
+                return
 
     async def _play_audio(self):
         while self.voice and self.voice.is_connected():
@@ -133,8 +183,8 @@ class MusicPlayer:
                         await self.playlist.not_empty.wait()
                         continue
 
-            else:
-                self.current = await self.playlist.next_song()
+                else:
+                    self.current = await self.playlist.next_song()
 
             logger.debug(f'Next song is {self.current}')
             logger.debug('Waiting for dl')
@@ -167,37 +217,41 @@ class MusicPlayer:
             self._source = player.FFmpegPCMAudio(file, before_options=self.current.before_options,
                                                  options=self.current.options)
             self._source = PCMVolumeTransformer(self.source)
-            if self.bot.config.auto_volume and isinstance(file, str) and not self.current.is_live:
+            if self.current.volume is None and self.bot.config.auto_volume and isinstance(file, str) and not self.current.is_live:
                 volume_task = asyncio.ensure_future(self.set_mean_volume(file))
             else:
                 volume_task = None
 
-            self.source.volume = self.volume
+            self.source.volume = self.current.volume or self.volume
 
             dur = get_track_pos(self.current.duration, 0)
             s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(
-                self.current, dur, self.current.player.volume)
+                self.current, dur, self.source.volume)
             if self.current.requested_by:
                 s += f' enqueued by {self.current.requested_by}'
             await self.send(s, delete_after=self.current.duration)
 
-            self.voice.play(self.source, after=self.on_stop)
+            self.skip(None)
+            player.play(self.voice, self.source, after=self.on_stop)
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')
             await self.playlist.download_next()
             await self.play_next.wait()
-            if volume_task is not None:
-                volume_task.cancel()
 
-    def on_stop(self):
+            if not self.repeat:
+                self.current = None
+                if volume_task is not None:
+                    volume_task.cancel()
+
+    def on_stop(self, e):
+        if e:
+            logger.debug(f'Player caught an error {e}')
         self.bot.loop.call_soon_threadsafe(self.play_next.set)
         self.playlist.on_stop()
 
-    async def change_status(self, s, url=None, timestamps=None):
-        activity = Activity(type=ActivityType.listening, state='Listening to',
-                            url=url, details=s,
-                            timestamps=timestamps)
+    async def change_status(self, s):
+        activity = Activity(type=ActivityType.listening, name=s)
         await self.bot.change_presence(activity=activity)
 
     async def send(self, msg, **kwargs):
@@ -216,15 +270,18 @@ class MusicPlayer:
 
     def pause(self):
         if self.is_playing():
-            self.source.pause()
+            self.voice.pause()
 
     def resume(self):
         if self.is_playing():
-            self.source.resume()
+            self.voice.resume()
 
     def skip(self, author):
         if self.is_playing():
-            self.source.stop()
+            self.voice.stop()
+
+    def stop(self):
+        self.voice.stop()
 
 
 class MusicPlayder:
@@ -503,7 +560,7 @@ class MusicPlayder:
 
             if self.right_version_playing.is_set():
                 author = author.mention
-                await self.bot.say('FUCK YOU! %s' % author)
+                await ctx.send('FUCK YOU! %s' % author)
                 return
 
             self.player.stop()
@@ -684,10 +741,10 @@ class Audio:
 
         seek_time = self.parse_seek(where)
         run_loops = time.strptime(seek_time.split('.')[0], '-ss %H:%M:%S')[3:6]
-        run_loops = int(((run_loops[0] * 60 + run_loops[1]) * 60 + run_loops[2]) * current.player.loops_per_second)
-        await self._seek(ctx, current, seek_time, run_loops=run_loops)
+        run_loops = int(((run_loops[0] * 60 + run_loops[1]) * 60 + run_loops[2]) * musicplayer.voice._player.loops_per_second)
+        await self._seek(ctx, musicplayer, current, seek_time, run_loops=run_loops)
 
-    async def _seek(self, ctx, current, seek_command, options=None, run_loops=None,
+    async def _seek(self, ctx, musicplayer, current, seek_command, options=None, run_loops=None,
                     speed=None):
         """
         
@@ -701,7 +758,7 @@ class Audio:
             options: passed to create_ffmpeg_player options
 
             run_loops: How many audio loops have we gone through. 
-                       If None current.player.run_loops is used.
+                       If None musicplayer.player.run_loops is used.
                        This is makes duration work after seeking.
 
         Returns:
@@ -711,17 +768,17 @@ class Audio:
             options = current.options
 
         if not isinstance(run_loops, int):
-            run_loops = current.player.run_loops
+            run_loops = musicplayer.player.run_loops
 
         before_options = '-nostdin ' + seek_command
         logger.debug(':seek: Changing before options from {0} to {1}'.format(current.before_options, before_options))
         logger.debug('Seeking with command {0} and these options: before_options="{1}", options="{2}"'.format(seek_command, before_options, options))
-        volume = current.player.volume
+        volume = musicplayer.current_volume
 
         new_source = player.FFmpegPCMAudio(current.filename, before_options=before_options,
                                            options=options)
         new_source = PCMVolumeTransformer(new_source, volume=volume)
-        ctx.voice_client._player.set_source(new_source, run_loops=run_loops, speed=speed)
+        musicplayer.player.set_source(new_source, run_loops=run_loops, speed=speed)
 
     async def _parse_play(self, string, ctx, metadata=None):
         options = {}
@@ -763,7 +820,8 @@ class Audio:
         return await self.play_song(ctx, song_name)
 
     async def play_song(self, ctx, song_name, priority=False, **metadata):
-        if not await self.check_voice(ctx):
+        success = False
+        if ctx.voice_client is None:
             success = await self._summon(ctx, create_task=False)
             if not success:
                 terminal.debug('Failed to join vc')
@@ -771,17 +829,16 @@ class Audio:
 
         musicplayer = await self.check_playlist(ctx)
         if not musicplayer:
-            success = await self._summon(ctx, create_task=False)
-            if not success:
-                terminal.debug('Failed to join vc')
-                return
+            return
 
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
 
         maxlen = -1 if ctx.author.id == self.bot.owner_id else 10
-        return await musicplayer.playlist.add_song(song_name, maxlen=maxlen,
-                                                channel=ctx.message.channel,
-                                                priority=priority, **metadata)
+        await musicplayer.playlist.add_song(song_name, maxlen=maxlen,
+                                            channel=ctx.message.channel,
+                                            priority=priority, **metadata)
+        if success:
+            musicplayer.start_playlist()
 
     @command(no_pm=True, enabled=False)
     async def play_playlist(self, ctx, *, musicplayer):
@@ -803,16 +860,21 @@ class Audio:
             site = 'yt'
 
         if vc:
-            success = await self._summon(ctx, create_task=False)
-            if not success:
-                terminal.debug('Failed to join vc')
-                return await ctx.send('Failed to join vc')
+            musicplayer = self.get_musicplayer(ctx.guild.id)
+            success = False
+            if not musicplayer:
+                success = await self._summon(ctx, create_task=False)
+                if not success:
+                    terminal.debug('Failed to join vc')
+                    return await ctx.send('Failed to join vc')
 
             musicplayer = await self.check_playlist(ctx)
             if not musicplayer:
                 return
 
             _search = musicplayer.playlist.search(name, ctx, site)
+            if success:
+                musicplayer.start_playlist()
         else:
             _search = search(name, ctx, site, self.downloader)
 
@@ -856,6 +918,26 @@ class Audio:
         """Summons the bot to join your voice channel."""
         return await self._summon(ctx)
 
+    @commands.cooldown(2, 5, BucketType.guild)
+    @command(ignore_extra=True, no_pm=True)
+    async def repeat(self, ctx, value: bool=None):
+        if not await self.check_voice(ctx):
+            return
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
+            return
+
+        if value is None:
+            musicplayer.repeat = not musicplayer.repeat
+
+        if musicplayer.repeat:
+            s = 'Repeat set on :recycle:'
+
+        else:
+            s = 'Repeat set off'
+
+        await ctx.send(s)
+
     @commands.cooldown(1, 5, commands.BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
     async def speed(self, ctx, value: str):
@@ -864,9 +946,9 @@ class Audio:
         try:
             v = float(value)
             if v > 2 or v < 0.5:
-                return await self.bot.say('Value must be between 0.5 and 2', delete_after=20)
+                return await ctx.send('Value must be between 0.5 and 2', delete_after=20)
         except ValueError as e:
-            return await self.bot.say('{0} is not a number\n{1}'.format(value, e), delete_after=20)
+            return await ctx.send('{0} is not a number\n{1}'.format(value, e), delete_after=20)
 
         if not await self.check_voice(ctx):
             return
@@ -877,15 +959,15 @@ class Audio:
 
         current = musicplayer.current
         if current is None:
-            return await self.bot.say('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
 
-        sec = ctx.voice_client._player.duration
+        sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)
         options = self._parse_filters(current.options, 'atempo', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
         current.options = options
-        await self._seek(ctx, current, seek, options=options, speed=v)
+        await self._seek(ctx, musicplayer, current, seek, options=options, speed=v)
 
     @commands.cooldown(1, 5, commands.BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
@@ -895,9 +977,9 @@ class Audio:
         try:
             v = int(value)
             if not (-60 <= v <= 60):
-                return await self.bot.say('Value must be between -60 and 60', delete_after=20)
+                return await ctx.send('Value must be between -60 and 60', delete_after=20)
         except ValueError as e:
-            return await self.bot.say('{0} is not an integer\n{1}'.format(value, e), delete_after=20)
+            return await ctx.send('{0} is not an integer\n{1}'.format(value, e), delete_after=20)
 
         if not await self.check_voice(ctx):
             return
@@ -908,16 +990,16 @@ class Audio:
 
         current = musicplayer.current
         if current is None:
-            return await self.bot.say('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
 
-        sec = ctx.voice_client._player.duration
+        sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)
         value = 'g=%s' % value
         options = self._parse_filters(current.options, 'bass', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
         current.options = options
-        await self._seek(ctx, current, seek, options=options)
+        await self._seek(ctx, musicplayer, current, seek, options=options)
 
     @commands.cooldown(2, 5, commands.BucketType.guild)
     @command(no_pm=True, ignore_extra=True)
@@ -938,13 +1020,13 @@ class Audio:
 
         current = musicplayer.current
         if current is None:
-            return await self.bot.say('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
         mode = mode.lower()
         modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off', 'left', 'right')
         if mode not in modes:
-            return await self.bot.say('Incorrect mode specified')
+            return await ctx.send('Incorrect mode specified')
 
-        sec = ctx.voice_client._player.duration
+        sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = self._seek_from_timestamp(sec)
         if mode in ('left', 'right'):
@@ -953,7 +1035,7 @@ class Audio:
         else:
             options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
         current.options = options
-        await self._seek(ctx, current, seek, options=options)
+        await self._seek(ctx, musicplayer, current, seek, options=options)
 
     @command(no_pm=True)
     async def clear(self, ctx, *, items):
@@ -979,7 +1061,7 @@ class Audio:
             index = None
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
-        await musicplayer.playlist.clear(index)
+        await musicplayer.playlist.clear(index, ctx.channel)
 
     @commands.cooldown(3, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['vol'])
@@ -993,26 +1075,24 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        source = musicplayer.source
-
         # If value is smaller than zero or it hasn't been given this shows the current volume
         if value < 0:
-            await self.bot.say('Volume is currently at {:.0%}'.format(source.volume))
+            await ctx.send('Volume is currently at {:.0%}'.format(musicplayer.current_volume))
             return
 
+        musicplayer.current_volume = value / 100
         musicplayer.volume = value / 100
-        source.volume = value / 100
-        await ctx.send('Set the volume to {:.0%}'.format(source.volume))
+        await ctx.send('Set the volume to {:.0%}'.format(musicplayer.current_volume))
 
     @commands.cooldown(1, 4, type=BucketType.guild)
     @command(no_pm=True, aliases=['np'])
     async def playing(self, ctx):
         """Gets the currently playing song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
-        if musicplayer.current is None:
+        if musicplayer.player is None:
             await ctx.send('No songs currently in queue')
         else:
-            tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.source.duration)
+            tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
             await ctx.send(musicplayer.current.long_str + ' {0}'.format(tr_pos),
                            delete_after=musicplayer.current.duration)
 
@@ -1024,12 +1104,15 @@ class Audio:
         after the other songs in that queue.
         """
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        success = False
         if musicplayer is None or musicplayer.voice is None:
             success = await self._summon(ctx, create_task=False)
             if not success:
                 return
 
         await self.play_song(ctx, song_name, priority=True)
+        if success:
+            musicplayer.start_playlist()
 
     @commands.cooldown(2, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['p'])
@@ -1059,7 +1142,7 @@ class Audio:
     async def bpm(self, ctx):
         """Gets the currently playing songs bpm using aubio"""
         if not aubio:
-            return await self.bot.say('BPM is not supported', delete_after=60)
+            return await ctx.send('BPM is not supported', delete_after=60)
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         song = musicplayer.current
@@ -1067,10 +1150,10 @@ class Audio:
             return
 
         if song.bpm:
-            return await self.bot.say('BPM for {} is about **{}**'.format(song.title, round(song.bpm, 1)))
+            return await ctx.send('BPM for {} is about **{}**'.format(song.title, round(song.bpm, 1)))
 
         if song.duration == 0:
-            return await self.bot.say('Cannot determine bpm because duration is 0', delete_after=90)
+            return await ctx.send('Cannot determine bpm because duration is 0', delete_after=90)
 
         import subprocess
         import shlex
@@ -1082,7 +1165,7 @@ class Audio:
             p = subprocess.Popen(args, stdout=subprocess.PIPE)
         except Exception:
             terminal.exception('Failed to get bpm')
-            return await self.bot.say('Error while getting bpm', delete_after=20)
+            return await ctx.send('Error while getting bpm', delete_after=20)
 
         from utils.utilities import write_wav
 
@@ -1117,7 +1200,7 @@ class Audio:
 
             bpm = len(beats) / song.duration * 60
             song.bpm = bpm
-            return await self.bot.say('BPM for {} is about **{}**'.format(song.title, round(bpm, 1)))
+            return await ctx.send('BPM for {} is about **{}**'.format(song.title, round(bpm, 1)))
         finally:
             try:
                 s.close()
@@ -1142,7 +1225,7 @@ class Audio:
             return
 
         if musicplayer.is_playing():
-            musicplayer.source.stop()
+            musicplayer.stop()
 
         try:
             if musicplayer.audio_player is not None:
@@ -1185,7 +1268,7 @@ class Audio:
             await ctx.send('Not playing any music right now...')
             return
 
-        await musicplayer.skip(ctx.message.author)
+        musicplayer.skip(ctx.author)
 
     @commands.cooldown(1, 5, type=BucketType.guild)
     @command(name='queue', no_pm=True, aliases=['playlist'])
@@ -1221,8 +1304,8 @@ class Audio:
         expected_time = 0
         if musicplayer.current is not None:
             response = f'Currently playing **{musicplayer.current.title}**\n'
-            if musicplayer.player:
-                expected_time = musicplayer.current.duration - musicplayer.voice._player.duration
+            if musicplayer.voice:
+                expected_time = musicplayer.current.duration - musicplayer.duration
 
         if not playlist:
             return await ctx.send(response)
@@ -1266,7 +1349,7 @@ class Audio:
         playlist = musicplayer.playlist
         if not playlist:
             return
-        time_left = musicplayer.current.duration - musicplayer.voice._player.duration
+        time_left = musicplayer.current.duration - musicplayer.duration
         for song in list(playlist)[:index]:
             time_left += song.duration
 
@@ -1276,12 +1359,12 @@ class Audio:
     @command(no_pm=True, aliases=['dur'])
     async def duration(self, ctx):
         """Gets the duration of the current song"""
-        if await self.check_voice(ctx):
+        if not await self.check_voice(ctx):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer.is_playing():
-            dur = musicplayer.voice_player.duration
+            dur = musicplayer.duration
             msg = get_track_pos(musicplayer.current.duration, dur)
             await ctx.send(msg)
         else:
@@ -1292,7 +1375,7 @@ class Audio:
         """The multiplier that is used when dynamically calculating the volume"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not value:
-            return await self.bot.say('Current volume multiplier is %s' % str(musicplayer.volume_multiplier))
+            return await ctx.send('Current volume multiplier is %s' % str(musicplayer.volume_multiplier))
         try:
             value = float(value)
             musicplayer.volume_multiplier = value
@@ -1344,7 +1427,7 @@ class Audio:
             current = musicplayer.current
             if current is None or current.webpage_url is None:
                 terminal.debug('No name specified in add_to')
-                await self.bot.say('No song to add', delete_after=30)
+                await ctx.send('No song to add', delete_after=30)
                 return
 
             data = current.webpage_url
@@ -1352,7 +1435,7 @@ class Audio:
 
         elif 'playlist' in name:
             async def on_error(e):
-                await self.bot.say('Failed to get playlist %s' % e)
+                await ctx.send('Failed to get playlist %s' % e)
 
             info = await musicplayer.playlist.extract_info(name, on_error=on_error)
             if info is None:
@@ -1360,7 +1443,7 @@ class Audio:
 
             links = await musicplayer.playlist.process_playlist(info, channel=ctx.message.channel)
             if links is None:
-                await self.bot.say('Incompatible playlist')
+                await ctx.send('Incompatible playlist')
 
             data = '\n'.join(links)
 
@@ -1395,7 +1478,10 @@ class Audio:
             for song in musicplayer.playlist.playlist:
                 songs += [song.id]
         cachedir = os.path.join(os.getcwd(), 'data', 'audio', 'cache')
-        files = os.listdir(cachedir)
+        try:
+            files = os.listdir(cachedir)
+        except (OSError, FileNotFoundError):
+            return
 
         def check_list(string):
             if song.id is not None and song.id in string:

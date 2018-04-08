@@ -62,7 +62,6 @@ initial_cogs = [
     'cogs.images',
     'cogs.jojo',
     'cogs.logging',
-    'cogs.management',
     'cogs.misc',
     'cogs.moderator',
     'cogs.neural_networks',
@@ -233,8 +232,9 @@ class NotABot(Bot):
             msg = 'waddup'
             await channel.send(msg)
 
-            herecome = await self.wait_for('message', timeout=12, check=lambda m: m.author==message.author and m.content=='here come')
-            if herecome is None:
+            try:
+                await self.wait_for('message', timeout=12, check=lambda m: m.author == message.author and m.content == 'here come')
+            except asyncio.TimeoutError:
                 await channel.send(':(')
             else:
                 await channel.send('dat boi')
@@ -307,12 +307,12 @@ class NotABot(Bot):
 
         channel = ctx.channel
         if user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: r.id, user.roles)))
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
 
-        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=%s AND %s ' \
-              'AND (user IS NULL OR user=%s) AND %s AND (channel IS NULL OR channel=%s)' % (user.guild.id, command, user.id, roles, channel)
+        sql = f'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild={user.guild.id} AND {command} ' \
+              f'AND (user IS NULL OR user={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
         rows = session.execute(sql).fetchall()
         if not rows:
             return None
@@ -362,7 +362,7 @@ class NotABot(Bot):
                 if (await self.can_run(ctx, call_once=True)):
                     await ctx.command.invoke(ctx)
             except CommandError as e:
-                await self.on_command_error(e, ctx)
+                await self.on_command_error(ctx, e)
                 return
             else:
                 self.dispatch('command_completion', ctx)

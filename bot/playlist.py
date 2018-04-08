@@ -101,8 +101,8 @@ class Playlist:
             else:
                 terminal.warning('Numpy is not installed. Cannot delete songs by index')
                 await channel.send('Clearing by indices is not supported')
-
-            await channel.send('Playlist cleared')
+            if channel:
+                await channel.send('Playlist cleared')
 
     async def search(self, name, ctx, site='yt', priority=False, in_vc=True):
         search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
@@ -127,7 +127,10 @@ class Playlist:
             return msg in ['y', 'yes', 'n', 'no', 'stop']
 
         async def _wait_for_message():
-            return await self.bot.wait_for('message', timeout=60, check=check)
+            try:
+                return await self.bot.wait_for('message', timeout=60, check=check)
+            except asyncio.TimeoutError:
+                return
 
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
         message = None

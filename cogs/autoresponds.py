@@ -17,13 +17,13 @@ class Autoresponds(Cog):
                 return
             await reaction.message.add_reaction('🇳🇿')
 
-    async def on_raw_reaction_add(self, data):
-        if data['user_id'] == self.bot.user.id:
+    async def on_raw_reaction_add(self, emoji, message_id, channel_id, user_id):
+        if user_id == self.bot.user.id:
             return
 
-        if data['emoji']['name'] != '🇳🇿':
+        if emoji.name != '🇳🇿':
             return
-        await self.bot.http.add_reaction(data['message_id'], data['channel_id'], '🇳🇿')
+        await self.bot.http.add_reaction(message_id, channel_id, '🇳🇿')
 
     async def on_message(self, message):
         if r.findall(message.content):

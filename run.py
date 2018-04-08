@@ -50,6 +50,12 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
 terminal.addHandler(handler)
 
+logger = logging.getLogger('audio')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='audio.log', encoding='utf-8', mode='a')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+
 terminal.info('testing colors')
 terminal.debug('test')
 terminal.warning('test')

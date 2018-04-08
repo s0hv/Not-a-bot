@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -8,13 +9,16 @@ from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
+from discord.errors import InvalidArgument
 from discord.ext.commands import cooldown, BucketType
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
+
 from bot.bot import command
 from bot.globals import Perms
 from cogs.cog import Cog
-from utils.utilities import split_string, get_role, y_n_check, y_check, Snowflake
+from utils.utilities import split_string, get_role, y_n_check, y_check, \
+    Snowflake
 
 logger = logging.getLogger('debug')
 
@@ -368,7 +372,10 @@ class Colors(Cog):
             if msg.author.id != author.id:
                 return False
             return y_n_check(msg)
-        msg = await self.bot.wait_for('message', timeout=60, check=check)
+        try:
+            msg = await self.bot.wait_for('message', timeout=60, check=check)
+        except asyncio.TimeoutError:
+            msg = None
         if msg is None or not y_check(msg.content):
             return await ctx.send('Cancelling', delete_after=60)
 
@@ -448,7 +455,10 @@ class Colors(Cog):
         if not self._colors:
             return await ctx.send('No colors')
 
-        await self.bot.request_offline_members(guild)
+        try:
+            await self.bot.request_offline_members(guild)
+        except InvalidArgument:
+            pass
         roles = guild.roles
         colored = 0
         duplicate_colors = 0

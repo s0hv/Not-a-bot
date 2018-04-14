@@ -45,7 +45,7 @@ from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
 from bot.playlist import Playlist
 from bot.song import Song
-from utils.utilities import mean_volume, search
+from utils.utilities import mean_volume, search, parse_seek
 import time
 
 try:
@@ -55,11 +55,6 @@ except ImportError:
 
 
 logger = logging.getLogger('audio')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='audio.log', encoding='utf-8', mode='a')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
-
 terminal = logging.getLogger('terminal')
 
 
@@ -95,6 +90,7 @@ class MusicPlayer:
         self.volume_multiplier = bot.config.volume_multiplier
         self.audio_player = None
         self.activity_check = None
+        self._speed_mod = 1
 
     def change_channel(self, channel):
         self.channel = channel
@@ -117,6 +113,8 @@ class MusicPlayer:
     def duration(self):
         if self.player:
             return self.player.duration
+
+        return 0
 
     @property
     def current_volume(self):
@@ -186,6 +184,16 @@ class MusicPlayer:
                 else:
                     self.current = await self.playlist.next_song()
 
+            if self.current is None:
+                if not self.autoplaylist:
+                    await self.playlist.not_empty.wait()
+                continue
+
+            if self.repeat:
+                speed = self._speed_mod
+            else:
+                speed = 1
+
             logger.debug(f'Next song is {self.current}')
             logger.debug('Waiting for dl')
 
@@ -195,7 +203,7 @@ class MusicPlayer:
             except asyncio.TimeoutError:
                 logger.debug(f'Song {self.current.webpage_url} download timed out')
                 await self.send(f'Failed to download {self.current}')
-                del self.current
+                self.current = None
                 continue
 
             logger.debug('Done waiting')
@@ -232,7 +240,7 @@ class MusicPlayer:
             await self.send(s, delete_after=self.current.duration)
 
             self.skip(None)
-            player.play(self.voice, self.source, after=self.on_stop)
+            player.play(self.voice, self.source, after=self.on_stop, speed=speed)
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')
@@ -592,6 +600,7 @@ class Audio:
 
     @staticmethod
     def parse_seek(string: str):
+        t = re.compile(r'(?P<days>\d+)*?(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
         hours = '00'
         minutes = '00'
         seconds = '00'
@@ -625,7 +634,7 @@ class Audio:
         h, m, s = str(int(h)), str(int(m)), str(int(s))
         ms = str(round(ms, 3))[2:]
 
-        return '-ss {0}:{1}:{2}.{3}'.format(h.zfill(2), m.zfill(2), s.zfill(2), ms)
+        return {'h': h, 'm': m, 's': s, 'ms': ms}
 
     @staticmethod
     def _parse_filters(options: str, filter_name: str, value: str, remove=False):
@@ -739,12 +748,13 @@ class Audio:
         if current is None or not ctx.voice_client.is_playing():
             return await ctx.send('Not playing anything')
 
-        seek_time = self.parse_seek(where)
-        run_loops = time.strptime(seek_time.split('.')[0], '-ss %H:%M:%S')[3:6]
-        run_loops = int(((run_loops[0] * 60 + run_loops[1]) * 60 + run_loops[2]) * musicplayer.voice._player.loops_per_second)
-        await self._seek(ctx, musicplayer, current, seek_time, run_loops=run_loops)
+        seek = parse_seek(where)
+        if seek is None:
+            return ctx.send('Invalid time string')
 
-    async def _seek(self, ctx, musicplayer, current, seek_command, options=None, run_loops=None,
+        await self._seek(musicplayer, current, seek)
+
+    async def _seek(self, musicplayer, current, seek_dict, options=None,
                     speed=None):
         """
         
@@ -753,32 +763,18 @@ class Audio:
 
             current: The song that we want to seek
 
-            seek_command: A command that is passed to before_options
+            seek_dict: A command that is passed to before_options
 
             options: passed to create_ffmpeg_player options
-
-            run_loops: How many audio loops have we gone through. 
-                       If None musicplayer.player.run_loops is used.
-                       This is makes duration work after seeking.
-
         Returns:
             None
         """
         if options is None:
             options = current.options
 
-        if not isinstance(run_loops, int):
-            run_loops = musicplayer.player.run_loops
+        logger.debug('Seeking with dict {0} and these options: before_options="{1}", options="{2}"'.format(seek_dict, current.before_options, options))
 
-        before_options = '-nostdin ' + seek_command
-        logger.debug(':seek: Changing before options from {0} to {1}'.format(current.before_options, before_options))
-        logger.debug('Seeking with command {0} and these options: before_options="{1}", options="{2}"'.format(seek_command, before_options, options))
-        volume = musicplayer.current_volume
-
-        new_source = player.FFmpegPCMAudio(current.filename, before_options=before_options,
-                                           options=options)
-        new_source = PCMVolumeTransformer(new_source, volume=volume)
-        musicplayer.player.set_source(new_source, run_loops=run_loops, speed=speed)
+        musicplayer.player.seek(current.filename, seek_dict, before_options=current.before_options, options=options, speed=speed)
 
     async def _parse_play(self, string, ctx, metadata=None):
         options = {}
@@ -908,8 +904,10 @@ class Audio:
             if create_task:
                 musicplayer.start_playlist()
         else:
-            if channel.id != musicplayer.voice.id:
+            if channel.id != musicplayer.voice.channel.id:
                 await musicplayer.voice.move_to(channel)
+            elif musicplayer.voice.is_connected():
+                await musicplayer.voice.channel.connect()
 
         return True
 
@@ -967,7 +965,8 @@ class Audio:
         options = self._parse_filters(current.options, 'atempo', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
         current.options = options
-        await self._seek(ctx, musicplayer, current, seek, options=options, speed=v)
+        musicplayer._speed_mod = v
+        await self._seek(musicplayer, current, seek, options=options, speed=v)
 
     @commands.cooldown(1, 5, commands.BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
@@ -999,7 +998,7 @@ class Audio:
         options = self._parse_filters(current.options, 'bass', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
         current.options = options
-        await self._seek(ctx, musicplayer, current, seek, options=options)
+        await self._seek(musicplayer, current, seek, options=options)
 
     @commands.cooldown(2, 5, commands.BucketType.guild)
     @command(no_pm=True, ignore_extra=True)
@@ -1035,7 +1034,7 @@ class Audio:
         else:
             options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
         current.options = options
-        await self._seek(ctx, musicplayer, current, seek, options=options)
+        await self._seek(musicplayer, current, seek, options=options)
 
     @command(no_pm=True)
     async def clear(self, ctx, *, items):
@@ -1046,6 +1045,10 @@ class Audio:
             {prefix}{name} 1-4 7-9 5
             would delete songs at positions 1 to 4, 5 and 7 to 9
         """
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
         if items != 'all':
             indexes = items.split(' ')
             index = []
@@ -1060,7 +1063,6 @@ class Audio:
         else:
             index = None
 
-        musicplayer = self.get_musicplayer(ctx.guild.id)
         await musicplayer.playlist.clear(index, ctx.channel)
 
     @commands.cooldown(3, 3, type=BucketType.guild)
@@ -1089,7 +1091,7 @@ class Audio:
     async def playing(self, ctx):
         """Gets the currently playing song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
-        if musicplayer.player is None:
+        if not musicplayer or musicplayer.player is None:
             await ctx.send('No songs currently in queue')
         else:
             tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
@@ -1119,7 +1121,8 @@ class Audio:
     async def pause(self, ctx):
         """Pauses the currently played song."""
         musicplayer = self.get_musicplayer(ctx.guild.id)
-        musicplayer.pause()
+        if musicplayer:
+            musicplayer.pause()
 
     @commands.cooldown(1, 60, type=BucketType.guild)
     @command(enabled=False)
@@ -1135,6 +1138,8 @@ class Audio:
     async def resume(self, ctx):
         """Resumes the currently played song."""
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
         musicplayer.resume()
 
     @command(name='bpm', no_pm=True, ignore_extra=True)
@@ -1145,6 +1150,9 @@ class Audio:
             return await ctx.send('BPM is not supported', delete_after=60)
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
         song = musicplayer.current
         if not musicplayer.is_playing() or not song:
             return
@@ -1213,6 +1221,8 @@ class Audio:
     async def shuffle(self, ctx):
         """Shuffles the current playlist"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
         await musicplayer.playlist.shuffle()
         await ctx.send('Playlist shuffled')
 
@@ -1253,6 +1263,8 @@ class Audio:
         This also clears the queue.
         """
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
 
         await self.disconnect_voice(musicplayer)
 
@@ -1264,6 +1276,9 @@ class Audio:
     async def skip(self, ctx):
         """Skips the current song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
         if not musicplayer.is_playing():
             await ctx.send('Not playing any music right now...')
             return
@@ -1280,6 +1295,9 @@ class Audio:
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
         playlist = list(musicplayer.playlist.playlist)  # good variable naming
 
         if index is not None:
@@ -1329,6 +1347,8 @@ class Audio:
     async def length(self, ctx):
         """Gets the length of the current queue"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
         if musicplayer.current is None or not musicplayer.playlist.playlist:
             return await ctx.send('No songs in queue')
 
@@ -1363,6 +1383,8 @@ class Audio:
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
         if musicplayer.is_playing():
             dur = musicplayer.duration
             msg = get_track_pos(musicplayer.current.duration, dur)

@@ -6,6 +6,7 @@ import time
 from discord import player
 from discord.errors import ClientException
 from discord.opus import Encoder as OpusEncoder
+from utils.utilities import seek_to_sec, parse_seek
 
 log = logging.getLogger('discord')
 
@@ -86,22 +87,6 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
             return b''
         return ret
 
-    def cleanup(self):
-        proc = self._process
-        if proc is None:
-            return
-
-        log.info('Preparing to terminate ffmpeg process %s.', proc.pid)
-        proc.kill()
-        if proc.poll() is None:
-            log.info('ffmpeg process %s has not terminated. Waiting to terminate...', proc.pid)
-            proc.communicate()
-            log.info('ffmpeg process %s should have terminated with a return code of %s.', proc.pid, proc.returncode)
-        else:
-            log.info('ffmpeg process %s successfully terminated with return code of %s.', proc.pid, proc.returncode)
-
-        self._process = None
-
 
 class AudioPlayer(player.AudioPlayer):
     DELAY = OpusEncoder.FRAME_LENGTH / 1000.0
@@ -159,20 +144,39 @@ class AudioPlayer(player.AudioPlayer):
 
     @property
     def run_loops(self):
-        return self._run_loops
+        return self._run_loops * self._speed_mod
 
     @property
     def duration(self):
         # TODO Make compatible with the speed command
-        return self._run_loops * self.DELAY * self._speed_mod
+        return self.run_loops * self.DELAY
 
     @property
     def loops_per_second(self):
         return self.bitrate / OpusEncoder.FRAME_SIZE
 
-    def seek(self, t):
-        pass
-        # TODO
+    def seek(self, f, seek_dict, before_options='', options='', speed=None):
+        seek_dict = {k: v.zfill(2) if k != 'ms' else v for k, v in seek_dict.items()}
+        seek_time = ' -ss {0[h]}:{0[m]}:{0[s]}.{0[ms]}'.format(seek_dict)
+
+        if not before_options:
+            before_options = f'-nostdin {seek_time}'
+        else:
+            before_options += seek_time
+
+        new_source = FFmpegPCMAudio(f, before_options=before_options,
+                                    options=options)
+
+        volume = getattr(self.source, 'volume', 0.15)
+        new_source = player.PCMVolumeTransformer(new_source, volume=volume)
+
+        run_loops = seek_to_sec(seek_dict) * self.loops_per_second
+        if speed:
+            run_loops = run_loops // speed
+        elif self._speed_mod != 1:
+            run_loops = run_loops // self._speed_mod
+
+        self.set_source(new_source, run_loops, speed)
 
     def _set_source(self, source, run_loops=None, speed=None):
         with self._lock:
@@ -192,7 +196,7 @@ class AudioPlayer(player.AudioPlayer):
         del old
 
 
-def play(voice_client, source, *, after=None):
+def play(voice_client, source, *, after=None, speed=1):
     """Plays an :class:`AudioSource`.
     Uses a custom AudioPlayer class
 
@@ -213,6 +217,8 @@ def play(voice_client, source, *, after=None):
         All exceptions it throws are silently discarded. This function
         must have a single parameter, ``error``, that denotes an
         optional exception that was raised during playing.
+    speed
+        The speed at which the audio is playing
 
     Raises
     -------
@@ -231,5 +237,5 @@ def play(voice_client, source, *, after=None):
     if not isinstance(source, player.AudioSource):
         raise TypeError('source must an AudioSource not {0.__class__.__name__}'.format(source))
 
-    voice_client._player = AudioPlayer(source, voice_client, after=after)
+    voice_client._player = AudioPlayer(source, voice_client, after=after, speed_mod=speed)
     voice_client._player.start()

@@ -56,6 +56,7 @@ terminal = logging.getLogger('terminal')
 time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
 timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
                            re.DOTALL)
+seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
 
 
 class Object:
@@ -896,3 +897,15 @@ def basic_check(author=None, channel=None):
         return True
 
     return check
+
+
+def parse_seek(s):
+    match = seek_regex.match(s)
+    if not match:
+        return
+
+    return {k: v or '0' for k, v in match.groupdict().items()}
+
+
+def seek_to_sec(seek_dict):
+    return int(seek_dict['h'])*3600 + int(seek_dict['m'])*60 + int(seek_dict['s'])

@@ -1,3 +1,4 @@
+import audioop
 import logging
 import shlex
 import subprocess
@@ -6,7 +7,7 @@ import time
 from discord import player
 from discord.errors import ClientException
 from discord.opus import Encoder as OpusEncoder
-from utils.utilities import seek_to_sec, parse_seek
+from utils.utilities import seek_to_sec
 
 log = logging.getLogger('discord')
 
@@ -96,6 +97,7 @@ class AudioPlayer(player.AudioPlayer):
         self._run_loops = run_loops
         self.frameskip = frameskip
         self._speed_mod = speed_mod
+        self.sfx_source = None
 
         self.bitrate = OpusEncoder.FRAME_SIZE / self.DELAY
 
@@ -103,6 +105,7 @@ class AudioPlayer(player.AudioPlayer):
         self.loops = 0
         self._start = time.time()
         frameskip = 0
+        data2 = None
         # getattr lookup speed ups
         play_audio = self.client.send_audio_packet
 
@@ -123,6 +126,19 @@ class AudioPlayer(player.AudioPlayer):
 
             self.loops += 1
             data = self.source.read()
+
+            """
+            # sfx in one audio loop
+            if self.sfx_source:
+                data2 = self.sfx_source.read()
+                if not data2:
+                    self.sfx_source.cleanup()
+                    self.sfx_source = None
+                    data2 = None
+                    
+            if data2:
+                data = audioop.add(data, data2, 2)
+            """
 
             if frameskip > 0:
                 frameskip -= 1
@@ -148,7 +164,6 @@ class AudioPlayer(player.AudioPlayer):
 
     @property
     def duration(self):
-        # TODO Make compatible with the speed command
         return self.run_loops * self.DELAY
 
     @property

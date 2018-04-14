@@ -80,7 +80,6 @@ class MusicPlayer:
         self.voice = None
         self.current = None
         self.channel = channel
-        self._source = None
         self.repeat = False
         self._disconnect = disconnect
 
@@ -102,7 +101,8 @@ class MusicPlayer:
 
     @property
     def source(self):
-        return self._source
+        if self.player:
+            return self.player.source
 
     @property
     def player(self):
@@ -222,25 +222,24 @@ class MusicPlayer:
                 continue
 
             logger.debug(f'Opening file with the name "{file}" and options "{self.current.before_options}" "{self.current.options}"')
-            self._source = player.FFmpegPCMAudio(file, before_options=self.current.before_options,
+            source = player.FFmpegPCMAudio(file, before_options=self.current.before_options,
                                                  options=self.current.options)
-            self._source = PCMVolumeTransformer(self.source)
+            source = PCMVolumeTransformer(source)
             if self.current.volume is None and self.bot.config.auto_volume and isinstance(file, str) and not self.current.is_live:
                 volume_task = asyncio.ensure_future(self.set_mean_volume(file))
             else:
                 volume_task = None
 
-            self.source.volume = self.current.volume or self.volume
+            source.volume = self.current.volume or self.volume
 
             dur = get_track_pos(self.current.duration, 0)
-            s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(
-                self.current, dur, self.source.volume)
+            s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, source.volume)
             if self.current.requested_by:
                 s += f' enqueued by {self.current.requested_by}'
             await self.send(s, delete_after=self.current.duration)
 
             self.skip(None)
-            player.play(self.voice, self.source, after=self.on_stop, speed=speed)
+            player.play(self.voice, source, after=self.on_stop, speed=speed)
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')
@@ -807,6 +806,14 @@ class Audio:
 
         logger.debug('Parse play returned {0}, {1}'.format(song_name, metadata))
         return song_name, metadata
+
+    @command(enabled=False)
+    async def sfx(self, ctx):
+        musicplayer = await self.check_playlist(ctx)
+        if not musicplayer:
+            return
+
+        musicplayer.player.source2 = player.FFmpegPCMAudio('file', reconnect=False)
 
     @command(no_pm=True)
     @commands.cooldown(1, 3, type=BucketType.user)

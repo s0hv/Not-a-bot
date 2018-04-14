@@ -58,7 +58,7 @@ class Song:
 
         self.options = kwargs.pop('options', '')
         if '-vn -b:a' not in self.options:
-            self.options = ' '.join((self.options, '-vn -b:a 128k')).strip()
+            self.options = ' '.join((self.options, '-vn -b:a 128k -bufsize 256K')).strip()
 
         self.dl_folder = self.playlist.downloader.dl_folder
         self._downloading = False

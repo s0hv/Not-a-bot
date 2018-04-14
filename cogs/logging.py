@@ -114,7 +114,7 @@ class Logger(Cog):
         else:
             message = format_join_leave(member, message)
 
-        await self.bot.send_message(channel, message)
+        await channel.send(message)
 
     async def on_member_remove(self, member):
         guild = member.guild
@@ -143,7 +143,7 @@ class Logger(Cog):
             return
 
         message = format_join_leave(member, message)
-        await self.bot.send_message(channel, message)
+        await channel.send(message)
 
     async def on_message_delete(self, msg):
         if msg.author.bot or msg.channel.id == 336917918040326166:
@@ -168,9 +168,9 @@ class Logger(Cog):
 
         for m in message:
             try:
-                await self.bot.send_message(channel, m)
+                await channel.send(m)
             except errors.HTTPException:
-                await self.bot.send_message(self.bot.get_channel(252872751319089153), '{} posted spam string'.format(msg.author))
+                await self.bot.get_channel(252872751319089153).send('{} posted spam string'.format(msg.author))
 
     async def on_message_edit(self, before, after):
         if before.content == after.content:
@@ -215,7 +215,7 @@ class Logger(Cog):
             terminal.warning(m)
 
         for m in message:
-            await self.bot.send_message(channel, m)
+            await channel.send(m)
 
     async def on_guild_role_delete(self, role):
             self.bot.dbutil.delete_role(role.id, role.guild.id)

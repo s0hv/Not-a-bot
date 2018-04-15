@@ -105,7 +105,6 @@ class AudioPlayer(player.AudioPlayer):
         self.loops = 0
         self._start = time.time()
         frameskip = 0
-        data2 = None
         # getattr lookup speed ups
         play_audio = self.client.send_audio_packet
 

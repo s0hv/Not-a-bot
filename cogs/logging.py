@@ -30,7 +30,7 @@ class Logger(Cog):
 
         # Only save image links for later use in image commands
         attachment = message.attachments[0].url if message.attachments else None
-        if attachment and not attachment[0].width:
+        if attachment and not message.attachments[0].width:
             attachment = None
 
         if attachment is None:

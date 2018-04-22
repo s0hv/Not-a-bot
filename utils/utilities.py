@@ -135,7 +135,7 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
         start = int(duration * 0.2)
         stop = start + 180
     cmd = '{0} -i {1} -ss {2} -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file, start, stop)
-
+    audio.debug(cmd)
     args = shlex.split(cmd)
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -791,7 +791,7 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         try:
             await send()
             # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1)
         except discord.HTTPException:
             return
 

@@ -1,5 +1,6 @@
 from cogs.cog import Cog
 import re
+from discord import Client
 
 
 r = re.compile('(?:^| )billy(?: |$)')
@@ -9,21 +10,14 @@ class Autoresponds(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    async def on_reaction_add(self, reaction, user):
-        if isinstance(reaction.emoji, str) and reaction.emoji == '🇳🇿':
-            if user.id == self.bot.user.id:
-                return
-            if reaction.me:
-                return
-            await reaction.message.add_reaction('🇳🇿')
+    async def on_raw_reaction_add(self, payload):
+        if payload.emoji.name == '🇳🇿':
 
-    async def on_raw_reaction_add(self, emoji, message_id, channel_id, user_id):
-        if user_id == self.bot.user.id:
-            return
+            if payload.user_id == self.bot.user.id:
+                return
 
-        if emoji.name != '🇳🇿':
-            return
-        await self.bot.http.add_reaction(message_id, channel_id, '🇳🇿')
+            await self.bot.http.add_reaction(payload.message_id,
+                                             payload.channel_id, '🇳🇿')
 
     async def on_message(self, message):
         if r.findall(message.content):

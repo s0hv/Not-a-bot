@@ -87,6 +87,9 @@ class NotABot(Bot):
         self.cdm = cdm
         self.default_prefix = prefix
         self.test_mode = test_mode
+        if test_mode:
+            self.loop.set_debug(True)
+
         self._random_color = None
         self.polls = {}
         self.timeouts = {}

@@ -36,7 +36,8 @@ from validators import url as valid_url
 from bot.downloader import Downloader
 from bot.globals import CACHE, PLAYLISTS
 from bot.song import Song
-from utils.utilities import read_lines, write_playlist, timestamp, seconds2str
+from utils.utilities import (read_lines, write_playlist, timestamp, seconds2str)
+from bot.paged_message import PagedMessage
 
 terminal = logging.getLogger('terminal')
 
@@ -116,57 +117,63 @@ class Playlist:
         if info is None or 'entries' not in info:
             return await channel.send('Search gave no results', delete_after=60)
 
-        async def _say(msg):
-            return await channel.send(msg)
-
-        def check(msg):
-            if ctx.author.id != message.author.id or msg.channel.id != channel.id:
-                return False
-
-            msg = msg.content.lower().strip()
-            return msg in ['y', 'yes', 'n', 'no', 'stop']
-
-        async def _wait_for_message():
-            try:
-                return await self.bot.wait_for('message', timeout=60, check=check)
-            except asyncio.TimeoutError:
-                return
-
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
-        message = None
-        for entry in info['entries']:
+        entries = info['entries']
+        length = len(entries)
+        paged = PagedMessage(entries)
+        emoji = ('◀', '▶', '✅', '❌')
+
+        def get_url(entry):
             if entry.get('id') is None:
                 new_url = entry.get('url')
             else:
                 new_url = url % entry['id']
 
-            s = 'Is this the right one? (`Y`/`N`/`STOP`) {}'.format(new_url)
-            if message is not None:
-                try:
-                    await message.edit(s)
-                except:
-                    message = await _say(s)
-            else:
-                message = await _say(s)
+            return new_url
 
-            returned = await _wait_for_message()
-            if returned is None or returned.content.lower() in 'stop':
-                try:
+        def get_page(entry, idx):
+            new_url = get_url(entry)
+            return f'Send `Y` to confirm or `STOP` to stop\n{new_url} {idx+1}/{length}'
+
+        entry = entries[0]
+        message = await ctx.channel.send(get_page(entry, 0))
+        await message.add_reaction('◀')
+        await message.add_reaction('▶')
+        await message.add_reaction('✅')
+        await message.add_reaction('❌')
+
+        def check(reaction, user):
+            return reaction.emoji in emoji and ctx.author.id == user.id and reaction.message.id == message.id
+
+        while True:
+            try:
+                result = await self.bot.wait_for('reaction_changed', check=check,
+                                                 timeout=60)
+            except asyncio.TimeoutError:
+                return await ctx.send('Took too long.')
+
+            reaction = result[0]
+            if reaction.emoji == '✅':
+                if in_vc:
                     await message.delete()
-                    await _say('Cancelling search')
-                except:
-                    pass
+                    await self._add_url(get_url(entry), priority=priority,
+                                        channel=channel)
+
                 return
 
-            if returned.content.lower().strip() in ['n', 'no']:
+            if reaction.emoji == '❌':
+                return
+
+            entry = paged.reaction_changed(*result)
+            if entry is None:
                 continue
 
-            if in_vc:
-                await message.delete()
-                await self._add_url(new_url, priority=priority, channel=channel)
-            return True
-
-        await _say(f'That was all of them. Max amount of results is {max_results}')
+            try:
+                await message.edit(content=get_page(entry, paged.index))
+                # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
+                await asyncio.sleep(1)
+            except discord.HTTPException:
+                return
 
     async def _add_from_info(self, channel=None, priority=False, no_message=False, metadata=None, **info):
         try:

@@ -142,10 +142,8 @@ class MusicPlayer:
                                         duration=self.current.duration), timeout=20, loop=self.bot.loop)
             if db is not None and abs(db) >= 0.1:
                 volume = self._get_volume_from_db(db)
-                if self.source:
-                    self.current_volume = volume
-                if self.current:
-                    self.current.volume = volume
+                logger.debug(f'parsed volume {volume}')
+                self.current_volume = volume
 
         except asyncio.TimeoutError:
             logger.debug('Mean volume timed out')
@@ -589,7 +587,7 @@ class Audio:
         musicplayer = self.musicplayers.get(guild_id)
         return musicplayer
 
-    async def check_playlist(self, ctx):
+    async def check_player(self, ctx):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
             terminal.error('Playlist not found even when voice is playing')
@@ -699,8 +697,8 @@ class Audio:
         """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
-    @command(aliases=['q'], no_pm=True, ignore_extra=True)
-    async def queue_np(self, ctx):
+    @command(aliases=['q', 'queue_np'], no_pm=True, ignore_extra=True)
+    async def queue_now_playing(self, ctx):
         """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
 
@@ -719,7 +717,7 @@ class Audio:
         if not ctx.voice_client.is_playing():
             return await ctx.send('Not playing anything')
 
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -739,7 +737,7 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -809,7 +807,7 @@ class Audio:
 
     @command(enabled=False)
     async def sfx(self, ctx):
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -830,7 +828,7 @@ class Audio:
                 terminal.debug('Failed to join vc')
                 return
 
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -846,7 +844,7 @@ class Audio:
     @command(no_pm=True, enabled=False)
     async def play_playlist(self, ctx, *, musicplayer):
         """Queue a saved playlist"""
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
         await musicplayer.playlist.add_from_playlist(musicplayer, ctx.message.channel)
@@ -871,17 +869,16 @@ class Audio:
                     terminal.debug('Failed to join vc')
                     return await ctx.send('Failed to join vc')
 
-            musicplayer = await self.check_playlist(ctx)
+            musicplayer = await self.check_player(ctx)
             if not musicplayer:
                 return
 
-            _search = musicplayer.playlist.search(name, ctx, site)
+            await musicplayer.playlist.search(name, ctx, site)
             if success:
                 musicplayer.start_playlist()
         else:
-            _search = search(name, ctx, site, self.downloader)
+            await search(name, ctx, site, self.downloader)
 
-        await _search
 
     @command()
     @commands.cooldown(1, 5, type=BucketType.user)
@@ -928,7 +925,7 @@ class Audio:
     async def repeat(self, ctx, value: bool=None):
         if not await self.check_voice(ctx):
             return
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -958,7 +955,7 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -990,7 +987,7 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -1020,7 +1017,7 @@ class Audio:
         if not await self.check_voice(ctx):
             return
 
-        musicplayer = await self.check_playlist(ctx)
+        musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
 
@@ -1090,8 +1087,27 @@ class Audio:
             return
 
         musicplayer.current_volume = value / 100
-        musicplayer.volume = value / 100
         await ctx.send('Set the volume to {:.0%}'.format(musicplayer.current_volume))
+
+    @commands.cooldown(2, 2, type=BucketType.guild)
+    @command(no_pm=True, aliases=['default_vol', 'd_vol'])
+    async def default_volume(self, ctx, value: int=-1):
+        """
+        Sets the default volume of the player that will be used when song specific volume isn't set.
+        If no parameters are given it shows the current default volume instead
+        Effective values are between 0 and 200
+        """
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not await self.check_voice(ctx):
+            return
+
+        # If value is smaller than zero or it hasn't been given this shows the current volume
+        if value < 0:
+            await ctx.send('Default volume is currently at {:.0%}'.format(musicplayer.volume))
+            return
+
+        musicplayer.volume = min(value / 100, 2)
+        await ctx.send('Set the default volume to {:.0%}'.format(musicplayer.volume))
 
     @commands.cooldown(1, 4, type=BucketType.guild)
     @command(no_pm=True, aliases=['np'])
@@ -1102,8 +1118,7 @@ class Audio:
             await ctx.send('No songs currently in queue')
         else:
             tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
-            await ctx.send(musicplayer.current.long_str + ' {0}'.format(tr_pos),
-                           delete_after=musicplayer.current.duration)
+            await ctx.send(musicplayer.current.long_str + ' {0}'.format(tr_pos))
 
     @commands.cooldown(1, 3, type=BucketType.user)
     @command(name='playnow', no_pm=True)
@@ -1415,14 +1430,17 @@ class Audio:
     @command(no_pm=True)
     async def link(self, ctx):
         """Link to the current song"""
-        if await self.check_voice(ctx):
+        if not await self.check_voice(ctx):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if musicplayer is None:
+            return
+
         current = musicplayer.current
         if not current:
             return await ctx.send('Not playing anything')
-        await ctx.send('Link to **{0.title}**: {0.webpage_url}'.format(current))
+        await ctx.send('Link to **{0.title}** {0.webpage_url}'.format(current))
 
     @commands.cooldown(1, 4)
     @command(name='delete', no_pm=True, aliases=['del', 'd'], auth=Auth.MOD)

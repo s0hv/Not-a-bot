@@ -124,7 +124,7 @@ class AutoRoles(Cog):
 
         if roles:
             self.dbutil.add_user_roles(roles, member.id, member.guild.id)
-            logger.debug('{}/{} saved roles {}'.format(member.guild.id, member.id, ', '.join(roles)))
+            logger.debug('{}/{} saved roles {}'.format(member.guild.id, member.id, ', '.join(map(str, roles))))
 
     @staticmethod
     def compare_roles(before, after):

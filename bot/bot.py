@@ -72,12 +72,42 @@ class Command(commands.Command):
         self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
         self.usage = kwargs.pop('usage', None)
-        self.checks.append(is_superset)
+
         if self.owner_only:
             terminal.info('registered owner_only command %s' % name)
             self.checks.append(is_owner)
 
         self.checks.append(check_blacklist)
+        self.checks.append(is_superset)
+
+    async def can_run(self, ctx):
+        original = ctx.command
+        ctx.command = self
+
+        try:
+            if not (await ctx.bot.can_run(ctx)):
+                raise commands.errors.CheckFailure('The global check functions for command {0.qualified_name} failed.'.format(self))
+
+            cog = self.instance
+            if cog is not None:
+                try:
+                    local_check = getattr(cog, '_{0.__class__.__name__}__local_check'.format(cog))
+                except AttributeError:
+                    pass
+                else:
+                    ret = await discord.utils.maybe_coroutine(local_check, ctx)
+                    if not ret:
+                        return False
+
+            predicates = self.checks
+            if not predicates:
+                # since we have no checks, then we just return True.
+                return True
+
+            return await discord.utils.async_all(predicate(ctx) for predicate in predicates) or ctx.override_perms
+
+        finally:
+            ctx.command = original
 
 
 class Group(Command, commands.Group):

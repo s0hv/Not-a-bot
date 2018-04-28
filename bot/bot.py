@@ -199,10 +199,13 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, exceptions.SilentException):
             return
 
-        channel = context.message.channel
+        channel = context.channel
         if isinstance(exception, commands.errors.CommandOnCooldown):
             await channel.send('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return
+
+        if isinstance(exception, commands.errors.BadArgument):
+            await channel.send(str(exception))
 
         if isinstance(exception, exceptions.BotException):
             await channel.send(exception.message, delete_after=30)

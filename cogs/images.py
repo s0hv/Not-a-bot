@@ -40,11 +40,14 @@ class Pokefusion:
         self._bot = bot
         self._update_lock = Lock(loop=bot.loop)
 
-        #p = '/usr/lib/chromium-browser/chromedriver'
         p = self.bot.config.chromedriver
         options = Options()
         options.add_argument('--headless')
         options.add_argument('--disable-gpu')
+        binary = self.bot.config.chrome
+        if binary:
+            options.binary_location = binary
+
         self.driver = Chrome(p, chrome_options=options)
 
     @property

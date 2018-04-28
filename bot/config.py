@@ -131,6 +131,7 @@ class Config:
         self.sfx_game = self.config.get('BotOptions', 'SfxGame', fallback=None)
         self.phantomjs = self.config.get('BotOptions', 'PhantomJS', fallback='phantomjs')
         self.chromedriver = self.config.get('BotOptions', 'Chromedriver', fallback='chromedriver')
+        self.chrome = self.config.get('BotOptions', 'Chrome', fallback=None)
 
         try:
             self.delete_messages = self.config.getboolean('BotOptions', 'DeleteMessages', fallback=False)

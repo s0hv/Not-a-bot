@@ -7,6 +7,7 @@ import sys
 import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
+import psutil
 
 import discord
 from discord.ext.commands import cooldown, BucketType
@@ -123,26 +124,35 @@ class Utilities(Cog):
 
                 uptime = uptime.format(**d)
 
+            try:
+                # use pmap to find the memory usage of this process and turn it to megabytes
+                # Since shlex doesn't care about pipes | I have to do this
+                s1 = subprocess.Popen(shlex.split('pmap %s' % os.getpid()),
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
+                s2 = subprocess.Popen(
+                    shlex.split('grep -Po "total +\K([0-9])+(?=K)"'),
+                    stdin=s1.stdout, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+                s1.stdin.close()
+                memory_usage = s2.communicate()[0].decode('utf-8')
+                memory_usage = str(round(int(memory_usage) / 1024, 1)) + 'MB'
+            except:
+                logger.exception('Failed to get mem usage')
+                memory_usage = 'N/A'
+
         else:
-            uptime = "%s uptime support isn't implemented" % sys.platform
+            process = psutil.Process(os.getpid())
+            memory_usage = round(process.memory_info().rss / 1048576, 2)
+            memory_usage = f'{memory_usage}MB'
+
+            uptime = time.time() - process.create_time()
+            d = datetime.utcfromtimestamp(uptime)
+            uptime = f'{d.day-1}d {d.hour}h {d.minute}m {d.second}s'
 
         users = len([a for a in self.bot.get_all_members()])
         guilds = len(self.bot.guilds)
-        try:
-            # use pmap to find the memory usage of this process and turn it to megabytes
-            # Since shlex doesn't care about pipes | I have to do this
-            s1 = subprocess.Popen(shlex.split('pmap %s' % os.getpid()),
-                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                  stderr=subprocess.PIPE)
-            s2 = subprocess.Popen(
-                shlex.split('grep -Po "total +\K([0-9])+(?=K)"'),
-                stdin=s1.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            s1.stdin.close()
-            memory_usage = s2.communicate()[0].decode('utf-8')
-            memory_usage = str(round(int(memory_usage)/1024, 1)) + 'MB'
-        except:
-            logger.exception('Failed to get mem usage')
-            memory_usage = 'N/A'
 
         try:
             # Get the last time the bot was updated

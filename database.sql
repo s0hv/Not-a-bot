@@ -4,25 +4,25 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `guilds` (
     `guild` BIGINT NOT NULL,
-    `prefix` VARCHAR(255) DEFAULT "!",
     `mute_role` BIGINT DEFAULT NULL,
     `modlog` BIGINT DEFAULT NULL,
     `keeproles` BOOL DEFAULT false,
-
-    `automute` BOOL DEFAULT false,
-    `automute_limit` TINYINT DEFAULT 10,
 
     `on_join_channel` BIGINT DEFAULT NULL,
     `on_leave_channel` BIGINT DEFAULT NULL,
     `on_join_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `on_leave_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
 
+    `color_on_join` BOOL DEFAULT false,
+
     `on_delete_channel` BIGINT DEFAULT NULL,
     `on_edit_channel` BIGINT DEFAULT NULL,
     `on_edit_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `on_delete_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     --`on_bulk_delete` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    `color_on_join` BOOL DEFAULT false,
+
+    `automute` BOOL DEFAULT false,
+    `automute_limit` TINYINT DEFAULT 10,
 
     PRIMARY KEY (`guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -207,10 +207,10 @@ CREATE TABLE `roles` (
 
 
 CREATE TABLE `userRoles` (
-    `user_id` BIGINT NOT NULL,
-    `role_id` BIGINT NOT NULL,
-    PRIMARY KEY (`user_id`,`role_id`),
-    FOREIGN KEY (`role_id`) REFERENCES `roles`(`id`)
+    `user` BIGINT NOT NULL,
+    `role` BIGINT NOT NULL,
+    PRIMARY KEY (`user`,`role`),
+    FOREIGN KEY (`role`) REFERENCES `roles`(`id`)
         ON DELETE CASCADE
 ) ENGINE=InnoDB;
 

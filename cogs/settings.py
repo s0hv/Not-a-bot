@@ -294,7 +294,7 @@ class Settings(Cog):
 
     @on_delete.command(required_permissions=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.guild)
-    async def channel(self, ctx, *, channel=None):
+    async def channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel deleted messages are logged in to"""
         guild = ctx.guild
         if channel is None:
@@ -304,10 +304,6 @@ class Settings(Cog):
             else:
                 await ctx.send('Currently logging deleted messages to <#{}>'.format(channel))
             return
-
-        channel = get_channel(guild.channels, channel, name_matching=True)
-        if channel is None:
-            return await ctx.send('No channel id or mention provided')
 
         success = self.cache.set_on_delete_channel(guild.id, channel.id)
         if not success:

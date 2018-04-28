@@ -309,7 +309,7 @@ def slots2dict(obj, d: dict=None, replace=True):
         if k.startswith('_'):  # We don't want any private variables
             continue
 
-        v = getattr(obj, k)
+        v = getattr(obj, k, None)
         if not callable(v):    # Don't need methods here
             if not replace and k in d:
                 continue
@@ -510,7 +510,7 @@ def get_channel(channels, s, name_matching=False, only_text=True):
     else:
         return
 
-    if only_text and channel.type != discord.ChannelType.text:
+    if only_text and not isinstance(channel, discord.TextChannel):
         return
 
     return channel

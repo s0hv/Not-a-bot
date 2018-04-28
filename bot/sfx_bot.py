@@ -82,13 +82,12 @@ class Ganypepe(Bot):
 
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))
-        await self.change_presence(game=discord.Game(name=self.config.sfx_game))
+        await self.change_presence(activity=discord.Game(name=self.config.sfx_game))
         await self._load_cogs()
         try:
             cmd = command('test')(self.test)
             self.add_command(cmd)
         except (TypeError, discord.ClientException) as e:
-
             pass
 
     async def test(self, ctx):

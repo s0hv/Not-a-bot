@@ -155,7 +155,7 @@ class Audio:
 
         return playlist
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['summon2'])
+    @command(no_pm=True, ignore_extra=True, aliases=['summon2'])
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
         summoned_channel = ctx.message.author.voice_channel

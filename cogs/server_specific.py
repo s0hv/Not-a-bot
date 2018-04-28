@@ -214,7 +214,7 @@ class ServerSpecific(Cog):
         else:
             author = ctx.author
         session = self.bot.get_session
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND user_role IN (%s)' % (guild.id, ', '.join((str(r) for r in author.roles)))
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND user_role IN (%s)' % (guild.id, ', '.join((str(r.id) for r in author.roles)))
         try:
             rows = session.execute(sql).fetchall()
         except SQLAlchemyError:

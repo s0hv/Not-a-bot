@@ -82,17 +82,13 @@ class ServerSpecific(Cog):
     @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(main_check)
-    async def grant(self, ctx, user, *, role):
+    async def grant(self, ctx, user: discord.Member, *, role):
         """Give a role to the specified user if you have the perms to do it"""
         guild = ctx.guild
         author = ctx.author
         length = len(author.roles)
         if length == 0:
             return
-
-        target_user = get_user_id(user)
-        if not target_user:
-            return await ctx.send("User %s wasn't found" % user, delete_after=30)
 
         role_ = get_role(role, guild.roles, True)
         if not role_:
@@ -105,7 +101,7 @@ class ServerSpecific(Cog):
             return await ctx.send("You don't have the permission to grant this role", delete_after=30)
 
         try:
-            await target_user.add_roles(role_, reason=f'{ctx.author} granted role')
+            await user.add_roles(role_, reason=f'{ctx.author} granted role')
         except HTTPException as e:
             return await ctx.send('Failed to add role\n%s' % e)
 
@@ -114,17 +110,13 @@ class ServerSpecific(Cog):
     @command(no_pm=True)
     @cooldown(2, 4, type=BucketType.user)
     @check(main_check)
-    async def ungrant(self, ctx, user, *, role):
+    async def ungrant(self, ctx, user: discord.Member, *, role):
         """Remove a role from a user if you have the perms"""
         guild = ctx.guild
         author = ctx.message.author
         length = len(author.roles)
         if length == 0:
             return
-
-        target_user = get_user_id(user)
-        if not target_user:
-            return await ctx.send("User %s wasn't found" % user, delete_after=30)
 
         role_ = get_role(role, guild.roles, True)
         if not role_:
@@ -137,7 +129,7 @@ class ServerSpecific(Cog):
             return await ctx.send("You don't have the permission to remove this role", delete_after=30)
 
         try:
-            await target_user.remove_roles(role_, reason=f'{ctx.author} ungranted role')
+            await user.remove_roles(role_, reason=f'{ctx.author} ungranted role')
         except HTTPException as e:
             return await ctx.send('Failed to remove role\n%s' % e)
 

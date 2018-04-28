@@ -65,7 +65,7 @@ class ServerSpecific(Cog):
         if length == 1:
             user_role = 'user_role=%s' % role_id
         else:
-            user_role = 'user_role IN (%s)' % ', '.join([r.id for r in user.roles])
+            user_role = 'user_role IN (%s)' % ', '.join((str(r.id) for r in user.roles))
 
         sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND %s LIMIT 1' % (guild_id, role_id, user_role)
         session = self.bot.get_session

@@ -303,13 +303,12 @@ class Moderator(Cog):
             return
 
         guild = ctx.guild
-
+        user = users[0]
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         try:
-            user = users[0]
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
         except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(users[0]))

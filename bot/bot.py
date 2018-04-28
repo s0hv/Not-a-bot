@@ -235,14 +235,14 @@ class Bot(commands.Bot, Client):
             return
 
         if isinstance(exception, commands.errors.BadArgument):
-            await channel.send(str(exception))
+            await channel.send(str(exception), delete_after=300)
 
         if isinstance(exception, exceptions.BotException):
-            await channel.send(exception.message, delete_after=30)
+            await channel.send(exception.message, delete_after=300)
             return
 
         if isinstance(exception, commands.errors.MissingRequiredArgument):
-            return await channel.send('Missing arguments. {}'.format(str(exception.__cause__)), delete_after=60)
+            return await channel.send(str(exception), delete_after=300)
 
         terminal.warning('Ignoring exception in command {}'.format(context.command))
         traceback.print_exception(type(exception), exception,

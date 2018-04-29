@@ -21,6 +21,7 @@ from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
                               gradient_flash, sepia, optimize_gif)
 from utils.utilities import get_image_from_message, find_coeffs
+from selenium.common.exceptions import UnexpectedAlertPresentException
 
 logger = logging.getLogger('debug')
 TEMPLATES = os.path.join('data', 'templates')
@@ -108,7 +109,7 @@ class Pokefusion:
                 self._pokemon[name.lower()] = idx + 1
                 self._poke_reverse[idx + 1] = name.lower()
 
-            self._last_dex_number = len(pokemon)
+            self._last_dex_number = len(pokemon) - 1
             types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
             await self.cache_types(start=max(len(list(types)), 1))
             self._last_updated = time.time()
@@ -176,7 +177,12 @@ class Pokefusion:
 
         url = 'http://pokefusion.japeal.com/PKMColourV5.php?ver=3.2&p1={}&p2={}&c={}&e=noone'.format(*dex_n, color)
         async with self._driver_lock:
-            await self.get_url(url)
+            try:
+                await self.get_url(url)
+            except UnexpectedAlertPresentException:
+                self.driver.switch_to.alert.accept()
+                raise BotException('Invalid pokemon given')
+
             data = self.driver.execute_script("return document.getElementById('image1').src")
             types = self.driver.execute_script("return document.querySelectorAll('*[width=\"30\"]')")
             name = self.driver.execute_script("return document.getElementsByTagName('b')[0].textContent")

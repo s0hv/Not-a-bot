@@ -362,7 +362,7 @@ class Moderator(Cog):
 
         if self.bot.get_role(mute_role, guild):
             try:
-                await user.remove_roles(mute_role, reason='Unmuted')
+                await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
             except discord.HTTPException:
                 logger.exception('Could not autounmute user %s' % user.id)
         self.remove_timeout(user.id, guild.id)

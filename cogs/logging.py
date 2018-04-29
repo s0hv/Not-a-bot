@@ -14,7 +14,7 @@ terminal = logging.getLogger('terminal')
 class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.session = bot.mysql.session
+        self.session = bot.get_session
 
     def format_for_db(self, message):
         is_pm = isinstance(message.channel, PrivateChannel)
@@ -218,7 +218,7 @@ class Logger(Cog):
             await channel.send(m)
 
     async def on_guild_role_delete(self, role):
-            self.bot.dbutil.delete_role(role.id, role.guild.id)
+        self.bot.dbutil.delete_role(role.id, role.guild.id)
 
     async def on_guild_role_create(self, role):
         self.bot.dbutil.add_roles(role.guild.id, role.id)

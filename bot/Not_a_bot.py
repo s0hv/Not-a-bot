@@ -25,21 +25,18 @@ SOFTWARE.
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
 
 import discord
-from discord.ext import commands
 from discord.ext.commands import CommandNotFound, CommandError
-from discord.ext.commands.view import StringView
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot import exceptions
-from bot.bot import Bot, Context
+from bot.bot import Bot
 from bot.cooldown import CooldownManager
 from bot.dbutil import DatabaseUtils
-from bot.globals import BlacklistTypes, PermValues
+from bot.globals import BlacklistTypes
 from bot.guildcache import GuildCache
 from utils.utilities import (split_string, slots2dict, retry, random_color,
                              check_perms)
@@ -102,14 +99,11 @@ class NotABot(Bot):
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'
-        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
-                               encoding='utf8')
+        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db), encoding='utf8')
         session_factory = sessionmaker(bind=engine)
         Session = scoped_session(session_factory)
         self._Session = Session
-        self.mysql = Object()
-        self.mysql.session = self.get_session
-        self.mysql.engine = engine
+        self._engine = engine
 
     @staticmethod
     def get_command_prefix(self, message):
@@ -130,7 +124,7 @@ class NotABot(Bot):
         self.dbutils.add_guilds(*new_guilds)
         sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild'
         rows = {}
-        for row in session.execute(sql).fetchall():
+        for row in await self.loop.run_in_executor(self.threadpool, session.execute, sql):
             guild_id = row['guild']
             if guild_id in rows:
                 prefix = row['prefix']
@@ -190,10 +184,10 @@ class NotABot(Bot):
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))
         self.dbutil.add_command('help')
+        await self.cache_guilds()
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         if self.config.default_activity:
             await self.change_presence(activity=discord.Activity(**self.config.default_activity))
-        await self.cache_guilds()
         if self._random_color is None:
             self._random_color = self.loop.create_task(self._random_color_task())
         terminal.debug('READY')

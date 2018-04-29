@@ -156,7 +156,7 @@ class Utilities(Cog):
 
         try:
             # Get the last time the bot was updated
-            last_updated = format_rfc2822(os.stat('.git/refs/heads/master').st_mtime, localtime=True)
+            last_updated = format_rfc2822(os.stat('.git/refs/heads/rewrite').st_mtime, localtime=True)
         except:
             logger.exception('Failed to get last updated')
             last_updated = 'N/A'

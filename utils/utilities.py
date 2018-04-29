@@ -461,13 +461,13 @@ def call_later(func, loop, timeout, *args, **kwargs):
     async def wait():
         if timeout > 0:
             try:
-                await asyncio.sleep(timeout)
+                await asyncio.sleep(timeout, loop=loop)
             except asyncio.CancelledError:
                 return
 
         await func(*args, **kwargs)
 
-    return loop.create_task(wait())
+    return asyncio.run_coroutine_threadsafe(wait(), loop)
 
 
 def get_users_from_ids(guild, *ids):

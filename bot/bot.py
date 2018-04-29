@@ -236,6 +236,7 @@ class Bot(commands.Bot, Client):
 
         if isinstance(exception, commands.errors.BadArgument):
             await channel.send(str(exception), delete_after=300)
+            return
 
         if isinstance(exception, exceptions.BotException):
             await channel.send(exception.message, delete_after=300)

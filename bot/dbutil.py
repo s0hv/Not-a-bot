@@ -3,6 +3,7 @@ logger = logging.getLogger('debug')
 from sqlalchemy.exc import SQLAlchemyError
 from discord.errors import InvalidArgument
 
+
 class DatabaseUtils:
     def __init__(self, bot):
         self._bot = bot
@@ -10,6 +11,22 @@ class DatabaseUtils:
     @property
     def bot(self):
         return self._bot
+
+    async def execute(self, sql, commit=True, **params):
+        session = self.bot.get_session
+        
+        def _execute(sql, **params):
+            try:
+                row = session.execute(sql, **params)
+                if commit:
+                    session.commit()
+            except SQLAlchemyError:
+                session.rollback()
+                logger.exception('Failed to execute sql')
+                return False
+            return row
+
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, _execute, sql, **params)
 
     async def index_guild_member_roles(self, guild):
         import time

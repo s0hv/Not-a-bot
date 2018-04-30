@@ -225,14 +225,14 @@ class Logger(Cog):
 
     async def on_command_completion(self, ctx):
         entries = []
-        command = ctx.command
+        cmd = ctx.command
+        command = cmd
         while command.parent is not None:
             command = command.parent
             entries.append(command.name)
         entries = list(reversed(entries))
-        entries.append(command.name)
-        parent = entries[0]
-        self.bot.dbutil.command_used(parent, ' '.join(entries[1:]) or "")
+        entries.append(cmd.name)
+        self.bot.dbutil.command_used(entries[0], ' '.join(entries[1:]) or "")
 
 
 def setup(bot):

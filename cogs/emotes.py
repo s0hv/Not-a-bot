@@ -3,11 +3,12 @@ from discord.ext.commands import cooldown
 
 from bot.bot import group
 from utils.utilities import split_string
+from cogs.cog import Cog
 
 
-class Emotes:
+class Emotes(Cog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
 
     @staticmethod
     def get_emotes(guild):

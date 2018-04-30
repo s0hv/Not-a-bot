@@ -11,7 +11,7 @@ import psutil
 
 import discord
 from discord.ext.commands import cooldown, BucketType
-
+from sqlalchemy.exc import SQLAlchemyError
 from bot.bot import command
 from cogs.cog import Cog
 from utils.utilities import (random_color, get_avatar, split_string, get_emote_url,
@@ -103,27 +103,13 @@ class Utilities(Cog):
     async def stats(self, ctx):
         """Get stats about this bot"""
         pid = os.getpid()
-
-        # We have a lot of linux only cmd commands here so most things won't show values on other OSs
+        process = psutil.Process(pid)
+        uptime = time.time() - process.create_time()
+        d = datetime.utcfromtimestamp(uptime)
+        uptime = f'{d.day-1}d {d.hour}h {d.minute}m {d.second}s'
+        memory_usage = round(process.memory_info().rss / 1048576, 2)
+        memory_usage = f' Current: {memory_usage}MB'
         if sys.platform == 'linux':
-            uptime = subprocess.check_output(shlex.split('ps -o etime= -p "%s"' % pid)).decode('utf-8').strip()
-            match = self._runtime.match(uptime)
-            if match:
-                uptime = ''
-                d = match.groupdict()
-                d = {k: self._unpad_zero(v) for k, v in d.items()}
-
-                if d['seconds']:
-                    uptime += '{seconds}s'
-                if d['minutes']:
-                    uptime += '{minutes}m'
-                if d['hours']:
-                    uptime = '{hours}h ' + uptime
-                if d['days']:
-                    uptime = '{days}d ' + uptime
-
-                uptime = uptime.format(**d)
-
             try:
                 # use pmap to find the memory usage of this process and turn it to megabytes
                 # Since shlex doesn't care about pipes | I have to do this
@@ -136,20 +122,12 @@ class Utilities(Cog):
                     stdin=s1.stdout, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
                 s1.stdin.close()
-                memory_usage = s2.communicate()[0].decode('utf-8')
-                memory_usage = str(round(int(memory_usage) / 1024, 1)) + 'MB'
+                memory = s2.communicate()[0].decode('utf-8')
+                memory = str(round(int(memory) / 1024, 1)) + 'MB'
+                memory_usage += f'\nVirtual size: {memory}'
+
             except:
-                logger.exception('Failed to get mem usage')
-                memory_usage = 'N/A'
-
-        else:
-            process = psutil.Process(os.getpid())
-            memory_usage = round(process.memory_info().rss / 1048576, 2)
-            memory_usage = f'{memory_usage}MB'
-
-            uptime = time.time() - process.create_time()
-            d = datetime.utcfromtimestamp(uptime)
-            uptime = f'{d.day-1}d {d.hour}h {d.minute}m {d.second}s'
+                logger.exception('Failed to get extended mem usage')
 
         users = len([a for a in self.bot.get_all_members()])
         guilds = len(self.bot.guilds)
@@ -157,17 +135,37 @@ class Utilities(Cog):
         try:
             # Get the last time the bot was updated
             last_updated = format_rfc2822(os.stat('.git/refs/heads/rewrite').st_mtime, localtime=True)
-        except:
+        except OSError:
             logger.exception('Failed to get last updated')
             last_updated = 'N/A'
+
+        sql = 'SELECT * FROM `command_stats` ORDER BY `uses` DESC LIMIT 3'
+        session = self.bot.get_session
+        try:
+            rows = session.execute(sql)
+        except SQLAlchemyError:
+            logger.exception('Failed to get command stats')
+            top_cmd = 'Failed to get command stats'
+        else:
+            top_cmd = ''
+            i = 1
+            for row in rows:
+                name = row['parent']
+                cmd = row['cmd']
+                if cmd:
+                    name += ' ' + cmd
+
+                top_cmd += f'{i}. `{name}` with {row["uses"]} uses\n'
+                i += 1
 
         embed = discord.Embed(title='Stats', colour=random_color())
         embed.add_field(name='discord.py version', value=discord.__version__)
         embed.add_field(name='Uptime', value=uptime)
+        embed.add_field(name='Servers', value=str(guilds))
         embed.add_field(name='Users', value=str(users))
-        embed.add_field(name='Servers', value=str(guilds), inline=True)
         embed.add_field(name='Memory usage', value=memory_usage)
         embed.add_field(name='Last updated', value=last_updated)
+        embed.add_field(name='Most used commands', value=top_cmd, inline=False)
         embed.set_thumbnail(url=get_avatar(self.bot.user))
         embed.set_author(name=self.bot.user.name, icon_url=get_avatar(self.bot.user))
 

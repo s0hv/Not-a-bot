@@ -332,7 +332,7 @@ class DatabaseUtils:
 
         return True
 
-    def add_command(self, parent, name=0):
+    def add_command(self, parent, name=""):
         sql = 'INSERT IGNORE INTO `command_stats` (`parent`, `cmd`) VALUES (:parent, :cmd)'
         session = self.bot.get_session
         try:
@@ -370,7 +370,7 @@ class DatabaseUtils:
 
     def command_used(self, parent, name=""):
         if name is None:
-            name = 0
+            name = ""
         sql = 'UPDATE `command_stats` SET `uses`=(`uses`+1) WHERE parent=:parent AND cmd=:cmd'
         session = self.bot.get_session
         try:

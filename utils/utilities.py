@@ -274,7 +274,7 @@ def get_picture_from_msg(msg):
         return
 
     if len(msg.attachments) > 0:
-        return msg.attachments[0]['url']
+        return msg.attachments[0].url
 
     words = msg.content.split(' ')
     for word in words:
@@ -361,8 +361,8 @@ def get_emote_name_id(s):
 
 def get_image_from_message(ctx, *messages):
     image = None
-    if len(ctx.message.attachments) > 0:
-        image = ctx.message.attachments[0]['url']
+    if len(ctx.message.attachments) > 0 and isinstance(ctx.message.attachments[0].width, int):
+        image = ctx.message.attachments[0].url
     elif messages and messages[0] is not None:
         image = str(messages[0])
         if not test_url(image):
@@ -646,7 +646,7 @@ def is_image_url(url):
 
 def msg2dict(msg):
     d = {}
-    attachments = [attachment['url'] for attachment in msg.attachments if 'url' in attachment]
+    attachments = [attachment.url for attachment in msg.attachments]
     d['attachments'] = ', '.join(attachments)
     return d
 

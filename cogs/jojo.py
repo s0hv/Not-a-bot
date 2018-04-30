@@ -34,6 +34,7 @@ from io import BytesIO
 from itertools import zip_longest
 from threading import Lock
 
+import discord
 import numpy as np
 from PIL import Image, ImageFont
 from colour import Color
@@ -51,7 +52,7 @@ from utils.imagetools import (create_shadow, create_text, create_glow,
                               color_distance, MAX_COLOR_DIFF)
 from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text,
-                             get_image_from_message)
+                             get_image_from_message, basic_check)
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
@@ -221,30 +222,34 @@ class JoJo:
         return msg.content.lower() in GeoPattern.available_generators
 
     @command(aliases=['stand'])
-    async def standify(self, *, stand):
+    async def standify(self, ctx, *, stand):
         """Standify text using these brackets 『』"""
         stand = self._standify_text(stand)
-        await self.bot.say(stand)
+        await ctx.send(stand)
 
     @command(aliases=['stand2'])
-    async def standify2(self, *, stand):
+    async def standify2(self, ctx, *, stand):
         """Standify text using these brackets 「」"""
         stand = self._standify_text(stand, 1)
-        await self.bot.say(stand)
+        await ctx.send(stand)
 
-    @command(pass_context=True, aliases=['stand3'])
+    @command(aliases=['stand3'])
     async def standify3(self, ctx, *, stand):
         """Standify text using no brackets"""
-        stand = ' '.join(ctx.message.clean_content.split(' ')[1:])
         stand = self._standify_text(stand, 2)
-        await self.bot.say(stand)
+        await ctx.send(stand)
 
-    async def subcommand(self, content, delete_after=None, **kwargs):
-        m_ = await self.bot.say(content, delete_after=delete_after)
-        msg = await self.bot.wait_for_message(**kwargs)
+    async def subcommand(self, ctx, content, delete_after=60, author=None, channel=None, check=None):
+        m_ = await ctx.send(content, delete_after=delete_after)
+        if callable(check):
+            def _check(msg):
+                return check(msg) and basic_check(author, channel)
+        else:
+            _check = basic_check(author, channel)
+        msg = await self.bot.wait_for('message', check=_check, timeout=delete_after)
         return m_, msg
 
-    @command(pass_context=True, aliases=['stand_generator'], ignore_extra=True)
+    @command(aliases=['stand_generator'], ignore_extra=True)
     @cooldown(1, 10, BucketType.user)
     async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
         """Generate a stand card. Arguments are stand name, user name and an image
@@ -253,9 +258,9 @@ class JoJo:
         will enable advanced mode which gives the ability to tune some numbers.
         Use quotes for names that have spaces e.g. {prefix}{name} "Star Platinum" "Jotaro Kujo" [image]
         """
-        author = ctx.message.author
+        author = ctx.author
         name = author.name
-        channel = ctx.message.channel
+        channel = ctx.channel
         stand = self._standify_text(stand, 2)
         user = '[STAND MASTER]\n' + user
         stand = '[STAND NAME]\n' + stand
@@ -269,35 +274,35 @@ class JoJo:
             advanced = advanced.strip() == '-advanced'
 
         if advanced:
-            await self.bot.say('`{}` Advanced mode activated'.format(name), delete_after=20)
+            await ctx.send('`{}` Advanced mode activated'.format(name), delete_after=20)
 
         image_ = get_image_from_message(ctx, image)
 
         img = await image_from_url(image_, self.bot.aiohttp_client)
         if img is None:
             image = image_ if image is None else image
-            return await self.bot.say('`{}` Could not extract image from {}. Stopping command'.format(name, image))
+            return await ctx.send('`{}` Could not extract image from {}. Stopping command'.format(name, image))
 
-        m_, msg = await self.subcommand(
+        m_, msg = await self.subcommand(ctx,
             '`{}` Give the stand **stats** in the given order ranging from **A** to **E** '
             'separated by **spaces**.\nDefault value is E\n`{}`'.format(name, '` `'.join(POWERS)),
-            timeout=120, author=author, channel=channel)
+            delete_after=120, author=author, channel=channel)
 
-        await self.bot.delete_message(m_)
+        await m_.delete()
         if msg is None:
-            await self.bot.say('{} cancelling stand generation'.format(author.name))
+            await ctx.send('{} cancelling stand generation'.format(author.name))
             return
 
         stats = msg.content.split(' ')
         stats = dict(zip_longest(POWERS, stats[:6]))
 
-        m_, msg = await self.subcommand(
+        m_, msg = await self.subcommand(ctx,
             '`{}` Use a custom background by uploading a **picture** or using a **link**. '
             'Posting something other than an image will use the **generated background**'.format(name),
-            timeout=120, author=author, channel=channel)
+            delete_after=120, author=author, channel=channel)
 
         bg = get_picture_from_msg(msg)
-        await self.bot.delete_message(m_)
+        await m_.delete()
         if bg is not None:
             try:
                 bg = bg.strip()
@@ -307,22 +312,22 @@ class JoJo:
                 bg = resize_keep_aspect_ratio(bg, size, True)
             except Exception:
                 logger.exception('Failed to get background')
-                await self.bot.say('`{}` Failed to use custom background. Using generated one'.format(name),
-                                   delete_after=60.0)
+                await ctx.send('`{}` Failed to use custom background. Using generated one'.format(name),
+                               delete_after=60.0)
                 bg = None
 
         if bg is None:
             color = None
             pattern = random.choice(GeoPattern.available_generators)
-            m_, msg = await self.subcommand(
+            m_, msg = await self.subcommand(ctx,
                 "`{}` Generating background. Select a **pattern** and **color** separated by space. "
                 "Otherwise they'll will be randomly chosen. Available patterns:\n"
                 '{}'.format(name, '\n'.join(GeoPattern.available_generators)),
-                timeout=120, channel=channel, author=author)
+                delete_after=120, channel=channel, author=author)
 
-            await self.bot.delete_message(m_)
+            await m_.delete()
             if msg is None:
-                await self.bot.say('`{}` Selecting randomly'.format(name), delete_after=20)
+                await ctx.send('`{}` Selecting randomly'.format(name), delete_after=20)
             if msg is not None:
                 msg = msg.content.split(' ')
                 pa, c = None, None
@@ -334,36 +339,36 @@ class JoJo:
                 if pa in GeoPattern.available_generators:
                     pattern = pa
                 else:
-                    await self.bot.say('`{}` Pattern {} not found. Selecting randomly'.format(name, pa),
-                                       delete_after=20)
+                    await ctx.send('`{}` Pattern {} not found. Selecting randomly'.format(name, pa),
+                                   delete_after=20)
 
                 try:
                     color = Color(c)
                 except:
-                    await self.bot.say('`{}` {} not an available color'.format(name, c),
-                                       delete_after=20)
+                    await ctx.send('`{}` {} not an available color'.format(name, c),
+                                   delete_after=20)
 
             bg, color = create_geopattern_background(size, stand + user,
                                                      generator=pattern, color=color)
 
         if advanced:
-            m_, msg = await self.subcommand(
+            m_, msg = await self.subcommand(ctx,
                 '`{}` Input color value change as an **integer**. Default is {}. '
                 'You can also input a **color** instead of the change value. '
                 'The resulting color will be used in the stats circle'.format(name, shift),
-                timeout=120, channel=channel, author=author)
+                delete_after=120, channel=channel, author=author)
 
             try:
                 shift = int(msg.content.split(' ')[0])
-            except:
+            except ValueError:
                 try:
                     color = Color(msg.content.split(' ')[0])
                     shift = 0
                 except:
-                    await self.bot.say('`{}` Could set color or color change int. Using default values'.format(name),
-                                       delete_after=15)
+                    await ctx.send('`{}` Could not set color or color change int. Using default values'.format(name),
+                                   delete_after=15)
 
-            await self.bot.delete_message(m_)
+            await m_.delete()
 
         bg_color = Color(color)
         shift_color(color, shift)  # Shift color hue and saturation so it's not the same as the bg
@@ -376,7 +381,7 @@ class JoJo:
                 stat_img = Image.open(path)
             except:
                 logger.exception('Could not create image')
-                return await self.bot.say('`{}` Could not create picture because of an error.'.format(name))
+                return await ctx.send('`{}` Could not create picture because of an error.'.format(name))
         plt.close(fig)
         stat_img = stat_img.resize((int(stat_img.width * 0.85),
                                     int(stat_img.height * 0.85)),
@@ -402,34 +407,34 @@ class JoJo:
         if img is not None:
             im = trim_image(img)
 
-            m_, msg = await self.subcommand(
+            m_, msg = await self.subcommand(ctx,
                 '`{}` Try to automatically remove background (y/n)? '
                 'This might fuck the picture up and will take a moment'.format(name),
-                author=author, channel=channel, timeout=120, check=y_n_check)
-            await self.bot.delete_message(m_)
+                author=author, channel=channel, delete_after=120, check=y_n_check)
+            await m_.delete()
             if msg and msg.content.lower() in ['y', 'yes']:
                 kwargs = {}
                 if advanced:
-                    m_, msg = await self.subcommand(
+                    m_, msg = await self.subcommand(ctx,
                         '`{}` Change the arguments of background removing. Available'
                         ' arguments are `blur`, `canny_thresh_1`, `canny_thresh_2`, '
                         '`mask_dilate_iter`, `mask_erode_iter`. '
                         'Accepted values are integers.\nArguments are added like this '
                         '`-blur 30 -canny_thresh_2 50`. All arguments are optional'.format(name),
-                        channel=channel, author=author, timeout=140)
-                    await self.bot.delete_message(m_)
-                    await self.bot.send_typing(channel)
+                        channel=channel, author=author, delete_after=140)
+                    await m_.delete()
+                    await channel.trigger_typing()
                     if msg is not None:
                         try:
                             kwargs = self.parser.parse_known_args(msg.content.split(' '))[0].__dict__
                         except:
-                            await self.bot.say('`{}` Could not get arguments from {}'.format(name, msg.content),
+                            await ctx.send('`{}` Could not get arguments from {}'.format(name, msg.content),
                                                delete_after=20)
 
                 try:
                     im = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(remove_background, im, **kwargs))
                 except Exception as e:
-                    await self.bot.say('`{}` Could not remove background because of an error {}'.format(name, e),
+                    await ctx.send('`{}` Could not remove background because of an error {}'.format(name, e),
                                        delete_after=30)
 
             box = (500, 600)
@@ -437,14 +442,14 @@ class JoJo:
             im = create_shadow(im, 70, 3, -22, -7).convert('RGBA')
             full.paste(im, (full.width - im.width, int((full.height - im.height)/2)), im)
 
-        self.bot.send_typing(channel)
+        await channel.trigger_typing()
         full.paste(text2,(int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)), text2)
         bg.paste(full, (0, 0), full)
 
         file = BytesIO()
         bg.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(channel, file, filename='stand_card.png')
+        await ctx.send(file=discord.File(file, filename='stand_card.png'))
 
 
 def setup(bot):

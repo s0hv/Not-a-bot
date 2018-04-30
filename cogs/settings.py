@@ -93,19 +93,19 @@ class Settings(Cog):
 
     @cooldown(2, 10)
     @prefix.command(required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
-    async def add(self, ctx, prefix):
+    async def add(self, ctx, prefix: str):
         """Add a prefix to this server"""
         await self._add_prefix(ctx, ctx.guild.id, prefix)
 
     @cooldown(2, 10)
     @prefix.command(aliases=['delete', 'del'], required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
-    async def remove(self, ctx, prefix):
+    async def remove(self, ctx, prefix: str):
         """Remove and active prefix from use"""
         await self._remove_prefix(ctx, ctx.guild.id, prefix)
 
     @cooldown(1, 5, type=BucketType.guild)
     @settings.command(ignore_extra=True, required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
-    async def modlog(self, ctx, channel: str=None):
+    async def modlog(self, ctx, channel: discord.TextChannel=None):
         """If no parameters are passed gets the current modlog
         If channel is provided modlog will be set to that channel.
         channel can be a channel mention, channel id or channel name (case sensitive)"""
@@ -120,17 +120,12 @@ class Settings(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        channel_ = get_channel(ctx.guild.channels, channel, name_matching=True)
-        if not channel_:
-            ctx.command.reset_cooldown(ctx)
-            return await ctx.send('No channel found with {}'.format(channel))
-
-        self.bot.guild_cache.set_modlog(channel_.guild.id, channel_.id)
-        await channel_.send('Modlog set to this channel')
+        self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
+        await channel.send('Modlog set to this channel')
 
     @cooldown(1, 5, type=BucketType.guild)
     @settings.command(ignore_extra=True, required_perms=Perms.MANAGE_ROLES)
-    async def mute_role(self, ctx, role=None):
+    async def mute_role(self, ctx, role: discord.Role=None):
         """Get the current role for muted people on this server or set it"""
         guild = ctx.guild
         if role is None:
@@ -141,16 +136,6 @@ class Settings(Cog):
                 await ctx.send('No role set for muted people')
             ctx.command.reset_cooldown(ctx)
             return
-
-        try:
-            int(role)
-            role = self.bot.get_role(role, guild)
-        except ValueError:
-            if not ctx.message.raw_role_mentions or ctx.message.raw_role_mentions[0] not in role:
-                ctx.command.reset_cooldown(ctx)
-                return await ctx.send('No valid role or role id mentions')
-
-            role = self.bot.get_role(ctx.message.raw_role_mentions[0], guild)
 
         self.bot.guild_cache.set_mute_role(guild.id, role.id)
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
@@ -356,7 +341,7 @@ class Settings(Cog):
 
     @on_edit.command(name='channel', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.guild)
-    async def channel_(self, ctx, *, channel=None):
+    async def channel_(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel message edits are logged to"""
         guild = ctx.guild
         if channel is None:
@@ -366,10 +351,6 @@ class Settings(Cog):
             else:
                 await ctx.send('Currently logging edited messages to <#{}>'.format(channel))
             return
-
-        channel = get_channel(guild.channels, channel, name_matching=True)
-        if channel is None:
-            return await ctx.send('No channel id or mention provided')
 
         success = self.cache.set_on_edit_channel(guild.id, channel.id)
         if not success:
@@ -415,7 +396,7 @@ class Settings(Cog):
 
     @join_message.command(name='channel', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
     @cooldown(2, 10, BucketType.guild)
-    async def join_channel(self, ctx, *, channel=None):
+    async def join_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the join/welcome message channel"""
         guild = ctx.guild
         if channel is None:
@@ -425,10 +406,6 @@ class Settings(Cog):
             else:
                 await ctx.send('Currently logging members who join in <#{}>'.format(channel))
             return
-
-        channel = get_channel(guild.channels, channel, name_matching=True)
-        if channel is None:
-            return await ctx.send('No channel id or mention provided')
 
         success = self.cache.set_join_channel(guild.id, channel.id)
         if not success:
@@ -474,7 +451,7 @@ class Settings(Cog):
 
     @leave_message.command(name='channel', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
     @cooldown(2, 10, BucketType.guild)
-    async def leave_channel(self, ctx, *, channel=None):
+    async def leave_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Set the channel that user leave messages are sent to"""
         guild = ctx.guild
         if channel is None:
@@ -484,10 +461,6 @@ class Settings(Cog):
             else:
                 await ctx.send('Currently logging members who leave in <#{}>'.format(channel))
             return
-
-        channel = get_channel(guild.channels, channel, name_matching=True)
-        if channel is None:
-            return await ctx.send('No channel id or mention provided')
 
         success = self.cache.set_leave_channel(guild.id, channel.id)
         if not success:

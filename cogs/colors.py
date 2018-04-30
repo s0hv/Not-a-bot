@@ -21,6 +21,7 @@ from utils.utilities import split_string, get_role, y_n_check, y_check, \
     Snowflake
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Color:
@@ -39,7 +40,6 @@ class Color:
 
 
 class Colors(Cog):
-
     def __init__(self, bot):
         super().__init__(bot)
         self._colors = {}
@@ -61,10 +61,13 @@ class Colors(Cog):
 
             self._add_color(**row)
 
-    def _add_color2db(self, color):
+    def _add_color2db(self, color, update=False):
         self.bot.dbutils.add_roles(color.guild_id, color.role_id)
         sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
               '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
+        if update:
+            sql += ' ON DUPLICATE KEY UPDATE name=:name, value=:value, lab_l=:lab_l, lab_a=:lab_a, lab_b=:lab_b'
+
         session = self.bot.get_session
         try:
             session.execute(sql, params={'id': color.role_id,
@@ -81,12 +84,47 @@ class Colors(Cog):
         else:
             return True
 
+    @staticmethod
+    def check_rgb(rgb, to_role=True):
+        """
+
+        :param rgb: rgb tuple
+        :param to_role: whether to convert the value to the one that shows on discord (False) or to the one you want to show (True)
+        :return: new rgb tuple if change was needed
+        """
+        if max(rgb) == 0:
+            if to_role:
+                # Because #000000 is reserved for another color this must be used for black
+                rgb = (0, 0, 1/255)
+            else:
+                # color #000000 uses the default color on discord which is the following color
+                rgb = (185/255, 187/255, 190/255)
+
+        return rgb
+
+    def rgb2lab(self, rgb, to_role=True):
+        rgb = self.check_rgb(rgb, to_role=to_role)
+        return convert_color(sRGBColor(*rgb), LabColor)
+
+    def _update_color(self, color, role, to_role=True):
+        r, g, b = role.color.to_rgb()
+        lab = self.rgb2lab((r/255, g/255, b/255), to_role=to_role)
+        color.value = role.color.value
+        color.lab = lab
+        self._add_color2db(color, update=True)
+        return color
+
     def _add_color(self, guild, id, name, value, lab_l, lab_a, lab_b):
         if not isinstance(guild, int):
             guild_id = guild.id
 
         else:
             guild_id = guild
+            guild = self.bot.get_guild(guild_id)
+
+        role = self.bot.get_role(id, guild)
+        if role is None:
+            return self._delete_color(guild_id, id)
 
         color = Color(id, name, value, guild_id, (lab_l, lab_a, lab_b))
 
@@ -95,13 +133,19 @@ class Colors(Cog):
         else:
             self._colors[guild_id] = {id: color}
 
+        if role.color.value != value:
+            self._update_color(color, role)
+
         return color
 
     def _delete_color(self, guild_id, role_id):
         try:
-            del self._colors[guild_id][role_id]
+            color = self._colors[guild_id].pop(role_id)
+            logger.debug(f'Deleting color {color.name} with value {color.value} from guild {guild_id}')
         except KeyError:
-            pass
+            logger.debug(f'Deleting color {role_id} from guild {guild_id}')
+
+        self.bot.dbutils.delete_role(role_id, guild_id)
 
     def get_color(self, name, guild_id):
         name = name.lower()
@@ -134,7 +178,7 @@ class Colors(Cog):
             except:
                 return
 
-        return rgb
+        return self.check_rgb(rgb)
 
     def closest_match(self, color, guild):
         colors = self._colors.get(guild.id)
@@ -145,8 +189,7 @@ class Colors(Cog):
         if not rgb:
             return
 
-        color = sRGBColor(*rgb, is_upscaled=True)
-        color = convert_color(color, LabColor)
+        color = self.rgb2lab(rgb)
         closest_match = None
         similarity = 0
         for c in colors.values():
@@ -157,8 +200,19 @@ class Colors(Cog):
 
         return closest_match, similarity
 
-    async def guild_role_delete(self, role):
+    async def on_guild_role_delete(self, role):
         self._delete_color(role.guild.id, role.id)
+
+    async def on_guild_role_update(self, before, after):
+        if before.color.value != after.color.value:
+            color = self._colors.get(before.guild.id, {}).get(before.id)
+            if not color:
+                return
+
+            if before.name != after.name and before.name == color.name:
+                color.name = after.name
+
+            self._update_color(color, before, to_role=False)
 
     async def _add_colors_from_roles(self, roles, ctx):
         guild = ctx.guild
@@ -178,16 +232,13 @@ class Colors(Cog):
                 await ctx.send('Color {0.name} already exists'.format(role))
                 continue
 
-            lab = convert_color(sRGBColor(*color.to_tuple(), is_upscaled=True), LabColor)
+            lab = self.rgb2lab(color.to_rgb())
             color = Color(role.id, role.name, color.value, guild.id, lab)
             if self._add_color2db(color):
                 await ctx.send('Color {} created'.format(role))
                 colors[role.id] = color
             else:
                 await ctx.send('Failed to create color {0.name}'.format(role))
-
-    async def on_guild_role_delete(self, role):
-        self._colors.get(role.guild.id, {}).pop(role.id, None)
 
     @command(no_pm=True, aliases=['colour'])
     @cooldown(1, 2, type=BucketType.user)
@@ -288,7 +339,8 @@ class Colors(Cog):
             return await ctx.send(f'Color {color} not found')
 
         guild = ctx.guild
-        color = sRGBColor(*rgb)
+        lab = self.rgb2lab(rgb)
+        color = convert_color(lab, sRGBColor)
         value = int(color.get_rgb_hex()[1:], 16)
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
         if r:
@@ -298,7 +350,7 @@ class Colors(Cog):
             else:
                 self._colors.get(guild.id, {}).pop(k, None)
 
-        color = convert_color(color, LabColor)
+        color = lab
 
         default_perms = guild.default_role.permissions
         try:
@@ -394,18 +446,17 @@ class Colors(Cog):
         role_id = color[0]
         role = self.bot.get_role(role_id, guild)
         if not role:
-            self.bot.dbutils.delete_role(role_id, guild.id)
             self._delete_color(guild.id, role_id)
             await ctx.send(f'Removed color {color[1]}')
             return
 
         try:
             await role.delete(reason=f'{ctx.author} deleted this color')
-            self.bot.dbutils.delete_role(role_id, guild.id)
             self._delete_color(guild.id, role_id)
         except discord.DiscordException as e:
             return await ctx.send(f'Failed to remove color because of an error\n```{e}```')
         except:
+            logger.exception('Failed to remove color')
             return await ctx.send('Failed to remove color because of an error')
 
         await ctx.send(f'Removed color {color[1]}')
@@ -452,7 +503,7 @@ class Colors(Cog):
         """Color users that don't have a color role"""
         guild = ctx.guild
         color_ids = list(self._colors.get(guild.id, {}).keys())
-        if not self._colors:
+        if not color_ids:
             return await ctx.send('No colors')
 
         try:
@@ -467,20 +518,23 @@ class Colors(Cog):
             found = [r for r in m_roles if r.id in color_ids]
             if not found:
                 color = choice(color_ids)
-                role = [r for r in roles if r.id == color]
+                role = filter(lambda r: r.id == color, roles)
                 try:
-                    await member.add_roles(*role)
+                    await member.add_roles(next(role))
                     colored += 1
-                except:
-                    pass
+                except discord.errors.Forbidden:
+                    return
+                except discord.HTTPException:
+                    continue
+
             elif len(found) > 1:
                 try:
                     removed_roles = color_ids.copy()
                     removed_roles.remove(found[0].id)
-                    await member.remove_roles([Snowflake(r) for r in removed_roles], reason='Removing duplicate colors', atomic=False)
+                    await member.remove_roles(*map(Snowflake, removed_roles), reason='Removing duplicate colors', atomic=False)
                     duplicate_colors += 1
                 except:
-                    pass
+                    logger.exception('failed to remove duplicate colors')
 
         await ctx.send('Colored %s user(s) without color role\n'
                        'Removed duplicate colors from %s user(s)' % (colored, duplicate_colors))

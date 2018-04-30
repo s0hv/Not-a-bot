@@ -1,12 +1,15 @@
-from cogs.cog import Cog
-from utils.utilities import (split_string, is_image_url, format_on_delete, format_on_edit,
-                             format_join_leave)
 import logging
+
 from discord import errors
-from random import choice
 from discord.abc import PrivateChannel
-from sqlalchemy.exc import SQLAlchemyError
 from discord.embeds import EmptyEmbed
+from sqlalchemy import exc
+from sqlalchemy.exc import SQLAlchemyError
+
+from cogs.cog import Cog
+from utils.utilities import (split_string, format_on_delete, format_on_edit,
+                             format_join_leave)
+
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
@@ -14,7 +17,6 @@ terminal = logging.getLogger('terminal')
 class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.session = bot.get_session
 
     def format_for_db(self, message):
         is_pm = isinstance(message.channel, PrivateChannel)
@@ -73,28 +75,31 @@ class Logger(Cog):
         d = self.format_for_db(message)
 
         # terminal.info(str((shard, guild, guild_name, channel, channel_name, user, user_id, message.content, message_id, attachment)))
+        session = self.bot.get_session
 
         try:
-            self.session.execute(sql, d)
+            session.execute(sql, d)
 
-            self.session.commit()
+            session.commit()
+        except exc.DBAPIError as e:
+            if e.connection_invalidated:
+                self.bot.engine.connect()
         except SQLAlchemyError:
-            self.session.rollback()
-            self.session.close()
-            self.session = self.bot.get_session
+            session.rollback()
 
     async def on_member_join(self, member):
         guild = member.guild
         sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1"
 
+        session = self.bot.get_session
         try:
-            self.session.execute(sql, {'user_id': member.id,
+            session.execute(sql, {'user_id': member.id,
                                        'guild': guild.id,
                                        'value': 1})
-            self.session.commit()
+            session.commit()
         except SQLAlchemyError:
-            self.session.rollback()
+            session.rollback()
 
         channel = self.bot.guild_cache.join_channel(guild.id)
         channel = guild.get_channel(channel)
@@ -121,13 +126,14 @@ class Logger(Cog):
         sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1"
 
+        session = self.bot.get_session
         try:
-            self.session.execute(sql, {'user_id': member.id,
+            session.execute(sql, {'user_id': member.id,
                                        'guild': guild.id,
                                        'value': -1})
-            self.session.commit()
+            session.commit()
         except SQLAlchemyError:
-            self.session.rollback()
+            session.rollback()
 
         channel = self.bot.guild_cache.leave_channel(guild.id)
         channel = guild.get_channel(channel)

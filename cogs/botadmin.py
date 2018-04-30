@@ -1,14 +1,16 @@
 import asyncio
 import logging
+import pprint
 import time
+from functools import partial
 from importlib import reload, import_module
 
-from discord.ext.commands.core import GroupMixin
+import discord
 from discord.errors import HTTPException, InvalidArgument
+from discord.ext.commands.core import GroupMixin
+
 from bot.bot import command
 from cogs.cog import Cog
-from functools import partial
-
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -19,20 +21,48 @@ class BotAdmin(Cog):
         super().__init__(bot)
 
     @command(name='eval', owner_only=True)
-    async def eval_(self, ctx, *, message):
-        try:
-            retval = eval(message)
-            if asyncio.iscoroutine(retval):
-                retval = await retval
+    async def eval_(self, ctx, *, code: str):
+        context = {'ctx': ctx,
+                   'author': ctx.author,
+                   'guild': ctx.guild,
+                   'message': ctx.message,
+                   'channel': ctx.channel,
+                   'bot': ctx.bot}
 
-        except Exception as e:
-            logger.exception('Failed to eval')
-            retval = 'Exception\n%s' % e
+        if '\n' in code:
+            lines = list(filter(bool, code.split('\n')))
+            last = lines[-1]
+            if not last.strip().startswith('return'):
+                whitespace = len(last) - len(last.strip())
+                lines[-1] = ' ' * whitespace + 'return ' + last  # if code doesn't have a return make one
+
+            lines = '\n'.join('    ' + i for i in lines)
+            code = f'def f():\n{lines}\nx = f()'  # Transform the code to a function
+            local = {}  # The variables outside of the function f() get stored here
+
+            try:
+                exec(compile(code, '<eval>', 'exec'), context, local)
+                retval = pprint.pformat(local['x'])
+            except Exception as e:
+                retval = f'{type(e).__name__}: {e}'
+
+        else:
+            try:
+                retval = eval(code, context)
+                if asyncio.iscoroutine(retval):
+                    retval = await retval
+
+            except Exception as e:
+                logger.exception('Failed to eval')
+                retval = f'{type(e).__name__}: {e}'
 
         if not isinstance(retval, str):
             retval = str(retval)
 
-        await ctx.send(retval)
+        if len(retval) > 2000:
+            await ctx.send(file=discord.File(retval, filename='result.txt'))
+        else:
+            await ctx.send(retval)
 
     @command(name='exec', owner_only=True)
     async def exec_(self, ctx, *, message):

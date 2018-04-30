@@ -99,7 +99,8 @@ class NotABot(Bot):
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'
-        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db), encoding='utf8')
+        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
+                               encoding='utf8', pool_recycle=36000)
         session_factory = sessionmaker(bind=engine)
         Session = scoped_session(session_factory)
         self._Session = Session
@@ -152,6 +153,10 @@ class NotABot(Bot):
     @property
     def get_session(self):
         return self._Session()
+
+    @property
+    def engine(self):
+        return self._engine
 
     @property
     def guild_cache(self):

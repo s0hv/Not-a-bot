@@ -194,7 +194,7 @@ class Utilities(Cog):
 
     @command(aliases=['created_at'], ignore_extra=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def snowflake_time(self, ctx, id):
+    async def snowflake_time(self, ctx, id: int):
         """Gets creation date from the specified discord id"""
         try:
             int(id)

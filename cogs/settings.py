@@ -268,7 +268,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @on_delete.command(required_permissions=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     async def set(self, ctx, *, message_format):
         """
@@ -292,7 +292,7 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @on_delete.command(required_permissions=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.guild)
     async def channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel deleted messages are logged in to"""
@@ -330,7 +330,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @on_edit.command(name='set', required_permissions=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @on_edit.command(name='set', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     async def set_(self, ctx, *, message_format):
         """
@@ -354,7 +354,7 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @on_edit.command(name='channel', required_permissions=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @on_edit.command(name='channel', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
     @cooldown(2, 10, BucketType.guild)
     async def channel_(self, ctx, *, channel=None):
         """Check or set the channel message edits are logged to"""
@@ -392,7 +392,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @join_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @join_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     async def join_set(self, ctx, *, message):
         """Set the welcome message on this server
@@ -451,7 +451,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @leave_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @leave_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     async def leave_set(self, ctx, *, message):
         """Set the leave message on this server

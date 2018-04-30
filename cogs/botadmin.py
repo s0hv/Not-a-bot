@@ -7,6 +7,8 @@ from discord.ext.commands.core import GroupMixin
 from discord.errors import HTTPException, InvalidArgument
 from bot.bot import command
 from cogs.cog import Cog
+from functools import partial
+
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -76,8 +78,12 @@ class BotAdmin(Cog):
         t = time.time()
         try:
             cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
-            self.bot.unload_extension(cog_name)
-            self.bot.load_extension(cog_name)
+
+            def unload_load():
+                self.bot.unload_extension(cog_name)
+                self.bot.load_extension(cog_name)
+
+            await self.bot.loop.run_in_executor(self.bot.threadpool, unload_load)
         except Exception as e:
             command_ = self.bot.get_command(name)
             if not command_:
@@ -97,7 +103,8 @@ class BotAdmin(Cog):
     @command(owner_only=True)
     async def reload_all(self, ctx):
         t = time.time()
-        errors = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot._load_cogs)
+        self.bot._unload_cogs()
+        errors = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.bot._load_cogs, print_err=False))
         t = (time.time() - t) * 1000
         for error in errors:
             await self.bot.say(error)

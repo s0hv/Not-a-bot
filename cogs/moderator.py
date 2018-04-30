@@ -130,7 +130,7 @@ class Moderator(Cog):
 
     @group(invoke_without_command=True)
     @cooldown(2, 5, BucketType.guild)
-    async def mute_whitelist(self, ctx):
+    async def automute_whitelist(self, ctx):
         """Show roles whitelisted from automutes"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
@@ -145,7 +145,7 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @mute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES)
+    @automute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES)
     @cooldown(2, 5, BucketType.guild)
     async def add(self, ctx, *, role):
         """Add a role to the automute whitelist"""
@@ -169,7 +169,7 @@ class Moderator(Cog):
         roles.add(role_.id)
         await ctx.send('Added role {0.name} `{0.id}`'.format(role_))
 
-    @mute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
+    @automute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.guild)
     async def remove(self, ctx, *, role):
         """Remove a role from the automute whitelist"""
@@ -428,7 +428,7 @@ class Moderator(Cog):
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
 
         try:
-            await user.add_roles(mute_role, reason=f'{ctx.author} {reason}')
+            await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
             await ctx.send('Muted user {} for {}'.format(user, time))
             chn = self.get_modlog(guild)
             if chn:

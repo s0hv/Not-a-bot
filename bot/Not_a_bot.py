@@ -166,6 +166,7 @@ class NotABot(Bot):
         return self._dbutil
 
     def _load_cogs(self, print_err=True):
+        s = self.get_session
         if not print_err:
             errors = []
         for cog in initial_cogs:
@@ -173,13 +174,17 @@ class NotABot(Bot):
                 self.load_extension(cog)
             except Exception as e:
                 if print_err:
-                    import traceback
                     terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
                     errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
+        s.close()
         if not print_err:
             return errors
+
+    def _unload_cogs(self):
+        for c in initial_cogs:
+            self.unload_extension(c)
 
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))

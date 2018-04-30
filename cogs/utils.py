@@ -24,7 +24,6 @@ terminal = logging.getLogger('terminal')
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._runtime = re.compile(r'(?P<days>\d+)*?(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
 
     @command(ignore_extra=True)
     async def ping(self, ctx):
@@ -33,7 +32,7 @@ class Utilities(Cog):
         t = time.time()
         await ctx.trigger_typing()
         t = time.time() - t
-        message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms'.format(t*1000, local_delay*1000)
+        message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms\nWebsocket ping {:.0f}ms'.format(t*1000, local_delay*1000, self.bot.latency*1000)
         if hasattr(self.bot, 'get_session'):
             sql_t = time.time()
             self.bot.get_session.execute('SELECT 1').fetchall()

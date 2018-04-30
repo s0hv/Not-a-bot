@@ -71,14 +71,18 @@ class Command(commands.Command):
         self.owner_only = kwargs.pop('owner_only', False)
         self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
-        self.usage = kwargs.pop('usage', None)
+
+        if [k for k in kwargs.keys() if 'perm' in k]:
+            raise PermissionError('Bad permission kwarg in command {}. Should be required_perms'.format(self, self.cog_name))
 
         if self.owner_only:
             terminal.info('registered owner_only command %s' % name)
             self.checks.append(is_owner)
 
         self.checks.append(check_blacklist)
-        self.checks.append(is_superset)
+
+        if self.required_perms is not None:
+            self.checks.append(is_superset)
 
     async def can_run(self, ctx):
         original = ctx.command

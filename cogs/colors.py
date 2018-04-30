@@ -325,7 +325,7 @@ class Colors(Cog):
         name, match = matches
         await ctx.send('Found color {0} {1[hex]}'.format(name, match))
 
-    @command(no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['add_colour'])
+    @command(no_pm=True, required_perms=Perms.MANAGE_ROLES, aliases=['add_colour'])
     @cooldown(1, 3, type=BucketType.guild)
     async def add_color(self, ctx, color: str, *name):
         """Add a new color to the guild"""
@@ -376,7 +376,7 @@ class Colors(Cog):
                 try:
                     await color_role.edit(position=max(1, role.position))
                 except:
-                    pass
+                    logger.exception('Failed to move color to position')
 
             self._colors[guild.id][color_role.id] = color_
         else:
@@ -384,7 +384,7 @@ class Colors(Cog):
 
         await ctx.send('Added color {} {}'.format(name, str(d_color)))
 
-    @command(no_pm=True, perms=Perms.MANAGE_ROLES, aliases=['colors_from_roles'])
+    @command(no_pm=True, required_perms=Perms.MANAGE_ROLES, aliases=['colors_from_roles'])
     @cooldown(1, 3, type=BucketType.guild)
     async def add_colors_from_roles(self, ctx, *, roles):
         """Turn existing role(s) to colors.
@@ -433,7 +433,7 @@ class Colors(Cog):
 
         await self._add_colors_from_roles(success, ctx)
 
-    @command(no_pm=True, perms=Perms.MANAGE_ROLES,
+    @command(no_pm=True, required_perms=Perms.MANAGE_ROLES,
              aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
     @cooldown(1, 3, type=BucketType.guild)
     async def delete_color(self, ctx, *, name):

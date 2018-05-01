@@ -423,8 +423,8 @@ class DatabaseUtils:
 
         sql = f'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild={user.guild.id} AND {command} ' \
               f'AND (user IS NULL OR user={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
-        rows = session.execute(sql)
-        if not rows.fetchall():
+        rows = session.execute(sql).fetchall()
+        if not rows:
             return None
 
         """

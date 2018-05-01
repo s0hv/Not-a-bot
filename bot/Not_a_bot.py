@@ -95,6 +95,7 @@ class NotABot(Bot):
         self._dbutil = DatabaseUtils(self)
         self._setup()
         self.threadpool = ThreadPoolExecutor(4)
+        self.loop.set_default_executor(self.threadpool)
         self.playlists = {}
 
     def _setup(self):
@@ -300,45 +301,10 @@ class NotABot(Bot):
         message = message.format(name=str(user), message=content, **d)
         return split_string(message)
 
-    def check_blacklist(self, command, user, ctx):
-        session = self.get_session
-        sql = 'SELECT * FROM `command_blacklist` WHERE type=%s AND %s ' \
-              'AND (user=%s OR user IS NULL) LIMIT 1' % (BlacklistTypes.GLOBAL, command, user.id)
-        rows = session.execute(sql).fetchall()
-
-        if rows:
-            return False
-
-        if ctx.guild is None:
+    def _check_auth(self, user_id, auth_level):
+        if auth_level == 0:
             return True
 
-        channel = ctx.channel
-        if user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
-        else:
-            roles = 'role IS NULL'
-
-        sql = f'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild={user.guild.id} AND {command} ' \
-              f'AND (user IS NULL OR user={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
-        rows = session.execute(sql).fetchall()
-        if not rows:
-            return None
-
-        """
-        Here are the returns
-            1 user AND whitelist
-            3 user AND blacklist
-            4 whitelist AND role
-            6 blacklist AND role
-            8 channel AND whitelist
-            10 channel AND blacklist
-            16 whitelist AND server
-            18 blacklist AND server
-        """
-
-        return check_perms(rows, return_raw=True)
-
-    def _check_auth(self, user_id, auth_level):
         session = self.get_session
         sql = 'SELECT `auth_level` FROM `bot_staff` WHERE user=%s' % user_id
         rows = session.execute(sql).fetchall()

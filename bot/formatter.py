@@ -63,7 +63,7 @@ class Formatter(HelpFormatter):
                 signature = 'This command is owner only\n' + signature
             elif self.type == self.Filtered or self.type == self.ExtendedFilter:
                 try:
-                    can_run = self.command.can_run(ctx) and ctx.bot.can_run(ctx)
+                    can_run = await self.command.can_run(ctx) and await ctx.bot.can_run(ctx)
                 except CommandError:
                     can_run = False
 

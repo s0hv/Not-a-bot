@@ -12,6 +12,8 @@ from cogs.cog import Cog
 from utils.utilities import (get_users_from_ids, call_later, parse_timeout,
                              datetime2sql, get_avatar, get_user_id, get_channel_id,
                              find_user, seconds2str, get_role, get_channel, Snowflake)
+from bot.converters import MentionedMember, MentionedUser
+
 
 logger = logging.getLogger('debug')
 manage_roles = discord.Permissions(268435456)
@@ -272,38 +274,28 @@ class Moderator(Cog):
 
         await ctx.send('Successfully created role %s `%s`' % (name, r.id))
 
-    async def _mute_check(self, ctx, *user):
+    async def _mute_check(self, ctx):
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
             await ctx.send('No mute role set')
             return False
 
-        users = ctx.message.mentions.copy()
-        users.extend(get_users_from_ids(guild, *user))
-
-        if not users:
-            await ctx.send('No user ids or mentions')
-            return False
-
         mute_role = self.bot.get_role(mute_role, guild)
         if mute_role is None:
-            await ctx.send('Could not find the muted role')
+            await ctx.send('Could not find the mute role')
             return False
 
-        return users, mute_role
+        return mute_role
 
     @command(required_perms=manage_roles)
-    async def mute(self, ctx, user, *reason):
+    async def mute(self, ctx, user: MentionedMember, *reason):
         """Mute a user. Only works if the server has set the mute role"""
-        retval = await self._mute_check(ctx, user)
-        if isinstance(retval, tuple):
-            users, mute_role = retval
-        else:
+        mute_role = await self._mute_check(ctx)
+        if not mute_role:
             return
 
         guild = ctx.guild
-        user = users[0]
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
@@ -311,7 +303,8 @@ class Moderator(Cog):
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
         except discord.HTTPException:
-            await ctx.send('Could not mute user {}'.format(users[0]))
+            await ctx.send('Could not mute user {}'.format(user))
+            return
 
         guild_timeouts = self.timeouts.get(guild.id, {})
         task = guild_timeouts.get(user.id)
@@ -368,7 +361,7 @@ class Moderator(Cog):
         self.remove_timeout(user.id, guild.id)
 
     @command(aliases=['temp_mute'], required_perms=manage_roles)
-    async def timeout(self, ctx, user, *, timeout):
+    async def timeout(self, ctx, user: MentionedMember, *, timeout):
         """Mute user for a specified amount of time
          `timeout` is the duration of the mute.
          The format is `n d|days` `n h|hours` `n m|min|minutes` `n s|sec|seconds` `reason`
@@ -376,13 +369,10 @@ class Moderator(Cog):
          Maximum length for a timeout is 30 days
          e.g. `{prefix}{name} <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
         """
-        retval = await self._mute_check(ctx, user)
-        if isinstance(retval, tuple):
-            users, mute_role = retval
-        else:
+        mute_role = await self._mute_check(ctx)
+        if not mute_role:
             return
 
-        user = users[0]
         time, reason = parse_timeout(timeout)
         guild = ctx.guild
         if not time:
@@ -398,6 +388,10 @@ class Moderator(Cog):
 
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
+
+        r = self.bot.get_role(339841138393612288, guild)
+        if r in user.roles and r in ctx.author.roles:
+            return await ctx.send('All hail our leader <@!222399701390065674>')
 
         if time.days > 30:
             return await ctx.send("Timeout can't be longer than 30 days")
@@ -445,7 +439,7 @@ class Moderator(Cog):
 
                 await self.send_to_modlog(guild, embed=embed)
         except discord.HTTPException:
-            await ctx.send('Could not mute user {}'.format(users[0]))
+            await ctx.send('Could not mute user {}'.format(user))
 
         task = call_later(self.untimeout, self.bot.loop,
                           time.total_seconds(), user.id, ctx.guild.id)
@@ -460,20 +454,14 @@ class Moderator(Cog):
         task.add_done_callback(lambda f: guild_timeouts.pop(user.id, None))
 
     @group(required_perms=manage_roles, invoke_without_command=True, no_pm=True)
-    async def unmute(self, ctx, *user):
+    async def unmute(self, ctx, user: MentionedMember):
         """Unmute a user"""
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
             return await ctx.send('No mute role set')
 
-        users = ctx.message.mentions.copy()
-        users.extend(get_users_from_ids(guild, *user))
-
-        if not users:
-            return await ctx.send('No user ids or mentions')
-
-        if guild.id == 217677285442977792 and users[0].id == 123050803752730624:
+        if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         mute_role = self.bot.get_role(mute_role, guild)
@@ -481,12 +469,12 @@ class Moderator(Cog):
             return await ctx.send('Could not find the muted role')
 
         try:
-            await users[0].remove_roles(mute_role, reason=f'Responsible user {ctx.author}')
+            await user.remove_roles(mute_role, reason=f'Responsible user {ctx.author}')
         except discord.HTTPException:
-            await ctx.send('Could not unmute user {}'.format(users[0]))
+            await ctx.send('Could not unmute user {}'.format(user))
         else:
-            await ctx.send('Unmuted user {}'.format(users[0]))
-            t = self.timeouts.get(guild.id, {}).get(users[0].id)
+            await ctx.send('Unmuted user {}'.format(user))
+            t = self.timeouts.get(guild.id, {}).get(user.id)
             if t:
                 t.cancel()
 
@@ -595,16 +583,10 @@ class Moderator(Cog):
 
     @group(required_perms=Perms.MANAGE_MESSAGES, invoke_without_command=True, no_pm=True)
     @cooldown(2, 4, BucketType.guild)
-    async def purge(self, ctx, max_messages: str=10):
+    async def purge(self, ctx, max_messages: int=10):
         """Purges n amount of messages from a channel.
         maximum value of max_messages is 500 and the default is 10"""
         channel = ctx.channel
-
-        try:
-            max_messages = int(max_messages)
-        except ValueError:
-            return await ctx.send('%s is not a valid integer' % max_messages)
-
         if max_messages > 1000000:
             return await ctx.send("Either you tried to delete over 1 million messages or just put it there as an accident. "
                                   "Either way that's way too much for me to handle")
@@ -623,45 +605,29 @@ class Moderator(Cog):
 
     @purge.command(name='from', required_perms=Perms.MANAGE_MESSAGES, no_pm=True, ignore_extra=True)
     @cooldown(2, 4, BucketType.guild)
-    async def from_(self, ctx, mention, max_messages: str=10, channel=None):
+    async def from_(self, ctx, user: MentionedUser, max_messages: int=10, channel: discord.TextChannel=None):
         """
         Delete messages from a user
-        `mention` The user mention or id of the user we want to purge messages from
+        `user` The user mention or id of the user we want to purge messages from
 
         [OPTIONAL]
         `max_messages` Maximum amount of messages that can be deleted. Defaults to 10 and max value is 300.
         `channel` Channel if or mention where you want the messages to be purged from. If not set will delete messages from any channel the bot has access to.
         """
-        user = get_user_id(mention)
         guild = ctx.guild
         # We have checked the members channel perms but we need to be sure the
         # perms are global when no channel is specified
         if channel is None and not ctx.author.guild_permissions.manage_messages and not ctx.override_perms:
             return await ctx.send("You don't have the permission to purge from all channels")
 
-        try:
-            max_messages = int(max_messages)
-        except ValueError:
-            return await ctx.send('%s is not a valid integer' % max_messages)
-
         max_messages = min(300, max_messages)
-        reason = f'{ctx.author} Deleted messages'
-
-        if channel is not None:
-            channel_ = channel
-            channel = get_channel_id(channel)
-            channel = guild.get_channel(channel)
-
-            if channel is None:
-                return ctx.send(f'Could not find channel {channel_}')
-
         modlog = self.get_modlog(guild)
 
         if channel is not None:
-            messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user)
+            messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user.id)
 
             if modlog and messages:
-                embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user})
+                embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user.id})
                 await self.send_to_modlog(guild, embed=embed)
 
             return
@@ -712,7 +678,7 @@ class Moderator(Cog):
                 await self.send_to_modlog(guild, embed=embed)
 
     @command(no_pm=True, ignore_extra=True, required_perms=discord.Permissions(4), aliases=['softbab'])
-    async def softban(self, ctx, user, message_days=1):
+    async def softban(self, ctx, user: MentionedMember, message_days=1):
         """Ban and unban a user from the server deleting that users messages from
         n amount of days in the process"""
         user_ = get_user_id(user)

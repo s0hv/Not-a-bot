@@ -1,7 +1,13 @@
 import logging
-logger = logging.getLogger('debug')
-from sqlalchemy.exc import SQLAlchemyError
+
+import discord
 from discord.errors import InvalidArgument
+from sqlalchemy.exc import SQLAlchemyError
+
+from bot.globals import BlacklistTypes
+from utils.utilities import check_perms
+
+logger = logging.getLogger('debug')
 
 
 class DatabaseUtils:
@@ -382,3 +388,55 @@ class DatabaseUtils:
             return False
 
         return True
+
+    def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
+        """
+
+        Args:
+            command: Name of the command
+            user: member/user object
+            ctx: The context
+            fetch_raw: if True the value of the active permission override is returned
+                       if False will return a bool when the users permissions will be overridden
+                       or None when no entries were found
+
+
+        Returns: int, bool, None
+            See fetch_raw to see possible return values
+        """
+        session = self.bot.get_session
+        sql = 'SELECT * FROM `command_blacklist` WHERE type=%s AND %s ' \
+              'AND (user=%s OR user IS NULL) LIMIT 1' % (BlacklistTypes.GLOBAL, command, user.id)
+        rows = session.execute(sql)
+
+        if rows.first():
+            return False
+
+        if ctx.guild is None:
+            return True
+
+        channel = ctx.channel
+        if isinstance(user, discord.Member) and user.roles:
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
+        else:
+            roles = 'role IS NULL'
+
+        sql = f'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild={user.guild.id} AND {command} ' \
+              f'AND (user IS NULL OR user={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
+        rows = session.execute(sql)
+        if not rows.fetchall():
+            return None
+
+        """
+        Here are the returns
+            1 user AND whitelist
+            3 user AND blacklist
+            4 whitelist AND role
+            6 blacklist AND role
+            8 channel AND whitelist
+            10 channel AND blacklist
+            16 whitelist AND server
+            18 blacklist AND server
+        """
+
+        return check_perms(rows, return_raw=fetch_raw)

@@ -832,7 +832,7 @@ def is_owner(ctx):
     return True
 
 
-def check_blacklist(ctx):
+async def check_blacklist(ctx):
     if getattr(ctx, 'skip_check', False):
         return True
 
@@ -844,7 +844,7 @@ def check_blacklist(ctx):
     if not bot.check_auth(ctx):
         return False
 
-    overwrite_perms = bot.check_blacklist('(command="%s" OR command IS NULL)' % ctx.command, ctx.author, ctx)
+    overwrite_perms = await bot.loop.run_in_executor(bot.threadpool, bot.dbutil.check_blacklist, '(command="%s" OR command IS NULL)' % ctx.command, ctx.author, ctx, True)
     msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, None)
     if isinstance(overwrite_perms, int):
         if ctx.guild and ctx.guild.owner.id == ctx.author.id:

@@ -309,9 +309,9 @@ class CommandBlacklist(Cog):
             await ctx.send('Removed command {0} whitelist from channel {1} `{1.id}`'.format(command_name, channel))
 
     @command(owner_only=True)
-    async def test_perms(self, ctx, command):
-        u = ctx.message.mentions[0] if ctx.message.mentions else ctx.author
-        await ctx.send(self.check_blacklist(command, u, ctx))
+    async def test_perms(self, ctx, user: discord.Member, command_):
+        value = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot.dbutil.check_blacklist, f'(command="{command_}" OR command IS NULL)', user, ctx, True)
+        await ctx.send(value or 'No special perms')
 
     def get_rows(self, whereclause, select='*'):
         session = self.bot.get_session
@@ -472,71 +472,6 @@ class CommandBlacklist(Cog):
         s = split_string(s, maxlen=2000, splitter='\n')
         for ss in s:
             await ctx.author.send(ss)
-
-    def check_blacklist(self, command, user, ctx):
-        session = self.bot.get_session
-        sql = 'SELECT * FROM `command_blacklist` WHERE type=%s AND command="%s" ' \
-              'AND (user=%s OR user IS NULL) LIMIT 1' % (
-               BlacklistTypes.GLOBAL, command, user.id)
-        rows = session.execute(sql).fetchall()
-
-        if rows:
-            return False
-
-        if ctx.guild is None:
-            return True
-
-        channel = ctx.channel.id
-        if user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(
-                ', '.join(map(lambda r: r.id, user.roles)))
-        else:
-            roles = 'role IS NULL'
-        sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=%s AND command="%s" ' \
-              'AND (user IS NULL OR user=%s) AND %s AND (channel IS NULL OR channel=%s)' % (
-                  user.guild.id, command, user.id, roles, channel)
-
-        rows = session.execute(sql).fetchall()
-        if not rows:
-            return True
-
-        values = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4,
-                  'channel': 0x8, 'guild': 0x10}
-        returns = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False,
-                   16: True, 18: False}
-        smallest = 18
-        """
-        Here are the returns
-            1 user AND whitelist
-            3 user AND blacklist
-            4 whitelist AND role
-            6 blacklist AND role
-            8 channel AND whitelist
-            10 channel AND blacklist
-            16 whitelist AND server
-            18 blacklist AND server
-        """
-
-        for row in rows:
-            if row['type'] == BlacklistTypes.WHITELIST:
-                v1 = values['whitelist']
-            else:
-                v1 = values['blacklist']
-
-            if row['user'] is not None:
-                v2 = values['user']
-            elif row['role'] is not None:
-                v2 = values['role']
-            elif row['channel'] is not None:
-                v2 = values['channel']
-            else:
-                v2 = values['guild']
-
-            v = v1 | v2
-            if v < smallest:
-                smallest = v
-
-        return returns[smallest]
 
 
 def setup(bot):

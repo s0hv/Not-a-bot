@@ -423,6 +423,17 @@ class Moderator(Cog):
 
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
+            try:
+                sql = 'INSERT INTO `timeout_logs` (`guild`, `user`, `time`, `reason`) VALUES ' \
+                      '(:guild, :user, :time, :reason)'
+                d = {'guild': guild.id, 'user': ctx.author.id,
+                     'time': time.total_seconds(), 'reason': reason}
+                session.execute(sql, **d)
+                session.commit()
+            except SQLAlchemyError:
+                session.rollback()
+                logger.exception('Fail to log timeout')
+
             await ctx.send('Muted user {} for {}'.format(user, time))
             chn = self.get_modlog(guild)
             if chn:

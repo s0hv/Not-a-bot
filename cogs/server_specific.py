@@ -252,6 +252,16 @@ class ServerSpecific(Cog):
         out, err = p.communicate()
         await ctx.send(out.decode('utf-8'))
 
+    @command(owner_only=True, aliases=['flip'])
+    @check(main_check)
+    async def flip_the_switch(self, ctx, value:bool=None):
+        if value is None:
+            self.bot.anti_abuse_switch = not self.bot.anti_abuse_switch
+        else:
+            self.bot.anti_abuse_switch = value
+
+        await ctx.send(f'Switch set to {self.bot.anti_abuse_switch}')
+
     @command(no_pm=True)
     @cooldown(1, 3, type=BucketType.user)
     @check(create_check((217677285442977792, )))

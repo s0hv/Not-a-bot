@@ -390,7 +390,7 @@ class Moderator(Cog):
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         r = self.bot.get_role(339841138393612288, guild)
-        if r in user.roles and r in ctx.author.roles:
+        if self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
 
         if time.days > 30:

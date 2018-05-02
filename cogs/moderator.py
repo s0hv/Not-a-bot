@@ -428,7 +428,7 @@ class Moderator(Cog):
                       '(:guild, :user, :time, :reason)'
                 d = {'guild': guild.id, 'user': ctx.author.id,
                      'time': time.total_seconds(), 'reason': reason}
-                session.execute(sql, **d)
+                session.execute(sql, params=d)
                 session.commit()
             except SQLAlchemyError:
                 session.rollback()

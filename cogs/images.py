@@ -590,13 +590,15 @@ class Fun(Cog):
         if img.format == 'PNG':
             img = ImageChops.multiply(img, im)
             data = self.save_image(img)
+            name = 'blurple.png'
         else:
             def multiply(frame):
                 return ImageChops.multiply(frame, im)
 
             data = await self.bot.loop.run_in_executor(self.threadpool, partial(func_to_gif, img, multiply,  get_raw=True))
+            name = 'blurple.gif'
 
-        await ctx.send(file=File(data, filename='blurple.png'))
+        await ctx.send(file=File(data, filename=name))
 
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)

@@ -586,7 +586,7 @@ class Fun(Cog):
         if img is None:
             return
         im = Image.new('RGBA', img.size, color='#7289DA')
-
+        img = img.convert('RGBA')
         if img.format == 'GIF':
             def multiply(frame):
                 return ImageChops.multiply(frame, im)

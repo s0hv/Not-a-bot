@@ -6,7 +6,7 @@ from functools import partial
 from io import BytesIO
 from random import randint, random
 
-from PIL import Image, ImageSequence, ImageFont, ImageDraw
+from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops
 from discord.ext.commands import cooldown, BucketType
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
@@ -19,7 +19,7 @@ from bot.bot import command
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
-                              gradient_flash, sepia, optimize_gif)
+                              gradient_flash, sepia, optimize_gif, func_to_gif)
 from utils.utilities import get_image_from_message, find_coeffs
 from selenium.common.exceptions import UnexpectedAlertPresentException
 
@@ -236,6 +236,13 @@ class Fun(Cog):
         self.queue = Queue(loop=bot.loop)
         self.queue.put_nowait(1)
         self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
+
+    @staticmethod
+    def save_image(img, format='PNG'):
+        data = BytesIO()
+        img.save(data, format)
+        data.seek(0)
+        return data
 
     async def _get_image(self, ctx, image):
         img = get_image_from_message(ctx, image)
@@ -567,10 +574,27 @@ class Fun(Cog):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        channel = ctx.message.channel
+
         await ctx.trigger_typing()
         img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
         await ctx.send(file=File(img, filename='party.gif'))
+
+    @command(ignore_extra=True)
+    @cooldown(2, 2, type=BucketType.guild)
+    async def blurple(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        im = Image.new('RGBA', img.size, color='#7289DA')
+
+        if img.format == 'PNG':
+            img = ImageChops.multiply(img, im)
+            data = self.save_image(img)
+        else:
+            def multiply(frame):
+                return ImageChops.multiply(frame, im)
+
+            data = await self.bot.loop.run_in_executor(self.threadpool, partial(func_to_gif, img, multiply,  get_raw=True))
+
+        await ctx.send(file=File(data, filename='blurple.png'))
 
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)

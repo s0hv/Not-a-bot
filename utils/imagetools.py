@@ -515,6 +515,41 @@ def create_text(s, font, fill, canvas_size, point=(10, 10)):
     return text
 
 
+def get_duration(frames):
+    if isinstance(frames[0].info.get('duration', None), list):
+        duration = frames[0].info['duration']
+    else:
+        duration = [frame.info.get('duration', 20) for frame in frames]
+    return duration
+
+
+def func_to_gif(img, f, get_raw=True):
+    if max(img.size) > 600:
+        frames = [resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
+                  for frame in ImageSequence.Iterator(img)]
+    else:
+        frames = [frame.convert('RGBA') for frame in ImageSequence.Iterator(img)]
+
+    if len(frames) > 100:
+        raise ValueError('Maximum amount of frames is 100')
+
+    images = []
+    for frame in frames:
+        images.append(f(frame))
+
+    data = BytesIO()
+    duration = get_duration(frames)
+    images[0].info['duration'] = duration
+    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535)
+    data.seek(0)
+    if get_raw:
+        data = optimize_gif(data.getvalue())
+    else:
+        data = Image.open(data)
+
+    return data
+
+
 def gradient_flash(im, get_raw=True):
     """
     When get_raw is True gif is optimized with magick fixing some problems that PIL

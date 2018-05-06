@@ -92,7 +92,7 @@ class Server(Cog):
             if not ctx.message.attachments:
                 return await ctx.send('No image provided')
 
-            data = await self._dl(ctx, ctx.message.attachments[0].get('url'))
+            data = await self._dl(ctx, ctx.message.attachments[0].url)
             name = link + ' '.join(name)
 
         if not data:

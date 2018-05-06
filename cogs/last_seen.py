@@ -63,7 +63,7 @@ class LastSeen(Cog):
         if before.status != after.status:
             return True
 
-        if getattr(before.game, 'name', None) != getattr(after.game, 'name', None):
+        if before.activity != after.activity:
             return True
 
     async def on_message(self, message):

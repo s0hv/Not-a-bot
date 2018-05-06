@@ -583,6 +583,8 @@ class Fun(Cog):
     @cooldown(2, 2, type=BucketType.guild)
     async def blurple(self, ctx, image=None):
         img = await self._get_image(ctx, image)
+        if img is None:
+            return
         im = Image.new('RGBA', img.size, color='#7289DA')
 
         if img.format == 'PNG':

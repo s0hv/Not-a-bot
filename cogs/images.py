@@ -587,16 +587,16 @@ class Fun(Cog):
             return
         im = Image.new('RGBA', img.size, color='#7289DA')
 
-        if img.format == 'PNG':
-            img = ImageChops.multiply(img, im)
-            data = self.save_image(img)
-            name = 'blurple.png'
-        else:
+        if img.format == 'GIF':
             def multiply(frame):
                 return ImageChops.multiply(frame, im)
 
             data = await self.bot.loop.run_in_executor(self.threadpool, partial(func_to_gif, img, multiply,  get_raw=True))
             name = 'blurple.gif'
+        else:
+            img = ImageChops.multiply(img, im)
+            data = self.save_image(img)
+            name = 'blurple.png'
 
         await ctx.send(file=File(data, filename=name))
 

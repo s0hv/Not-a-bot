@@ -62,6 +62,7 @@ initial_cogs = [
     'cogs.misc',
     'cogs.moderator',
     'cogs.neural_networks',
+    'cogs.pokemon',
     'cogs.search',
     'cogs.server',
     'cogs.server_specific',

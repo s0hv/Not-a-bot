@@ -36,6 +36,7 @@ try:
 except:
     _wd = os.getcwd()
 
+DATA = join(_wd, 'data')
 PLAYLISTS = join(_wd, 'data', 'playlists')
 AUTOPLAYLIST = join(PLAYLISTS, 'autoplaylist.txt')
 ADD_AUTOPLAYLIST = join(PLAYLISTS, 'add_autoplaylist.txt')
@@ -43,8 +44,10 @@ DELETE_AUTOPLAYLIST = join(PLAYLISTS, 'delete_autoplaylist.txt')
 SFX_FOLDER = join(_wd, 'data', 'audio', 'sfx')
 TTS = join(_wd, 'data', 'audio', 'tts')
 CACHE = join(_wd, 'data', 'audio', 'cache')
+POKESTATS = join(DATA, 'pokestats')
 PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
 PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
+
 PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': False,
                       'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,
                       'edit_permissions': False, 'level': 0, 'whitelist': None, 'blacklist': None}

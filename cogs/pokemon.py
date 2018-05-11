@@ -150,6 +150,18 @@ class Pokemon(Cog):
         s += '```'
         await ctx.send(s)
 
+    @command(aliases=['pstats_format'], ignore_extra=True)
+    async def pstat_format(self, ctx):
+        await ctx.send("""Level 100 Pikachu
+        2305/2610XP
+        Nature: Hasty
+        HP: 300
+        Attack: 300
+        Defense: 300
+        Sp. Atk: 300
+        Sp. Def: 300
+        Speed: 300""")
+
 
 def setup(bot):
     bot.add_cog(Pokemon(bot))

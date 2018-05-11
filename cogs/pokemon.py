@@ -95,7 +95,7 @@ class Pokemon(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(aliases=['pstats'])
+    @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3)
     async def poke_stats(self, ctx, *, stats):
         """
@@ -105,15 +105,16 @@ class Pokemon(Cog):
         How to use:
         Use p!info (use whatever prefix pokecord has on the server instead of p!)
         Copy the fields from Level to Speed. Then use the command as follows
+
         {prefix}pstats Level 100 Pikachu
-2305/2610XP
-Nature: Hasty
-HP: 300
-Attack: 300
-Defense: 300
-Sp. Atk: 300
-Sp. Def: 300
-Speed: 300
+        2305/2610XP
+        Nature: Hasty
+        HP: 300
+        Attack: 300
+        Defense: 300
+        Sp. Atk: 300
+        Sp. Def: 300
+        Speed: 300
         """
         match = pokestats.match(stats)
         if not match:

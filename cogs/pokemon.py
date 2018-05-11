@@ -9,6 +9,7 @@ from bot.bot import command
 from discord.ext.commands import cooldown
 from bot.exceptions import BotException
 from discord.ext.commands.errors import BadArgument
+from utils.utilities import basic_check
 
 
 pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\nNature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
@@ -29,6 +30,10 @@ with open(os.path.join(POKESTATS, 'pokemon.csv'), 'r', encoding='utf-8') as f:
 
 with open(os.path.join(POKESTATS, 'natures.json'), 'r') as f:
     natures = json.load(f)
+
+# Good work from https://github.com/xKynn/PokecordCatcher
+with open(os.path.join(POKESTATS, 'pokemonrefs.json'), 'r') as f:
+    pokemonrefs = json.load(f)
 
 
 # Below functions ported from https://github.com/dalphyx/pokemon-stat-calculator
@@ -97,7 +102,7 @@ class Pokemon(Cog):
 
     @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3)
-    async def poke_stats(self, ctx, *, stats):
+    async def poke_stats(self, ctx, *, stats=None):
         """
         Calculate how good your pokemons stats are.
         To be used in combination with pokecord
@@ -105,6 +110,9 @@ class Pokemon(Cog):
         How to use:
         Use p!info (use whatever prefix pokecord has on the server instead of p!)
         Copy the fields from Level to Speed. Then use the command as follows
+        {prefix}pstats
+
+        or manually
 
         {prefix}pstats Level 100 Pikachu
         2305/2610XP
@@ -116,12 +124,37 @@ class Pokemon(Cog):
         Sp. Def: 300
         Speed: 300
         """
-        match = pokestats.match(stats)
-        if not match:
-            await ctx.send("Failed to parse stats. Make sure it's the correct format")
-            return
+        if not stats:
+            async for msg in ctx.channel.history():
+                if msg.author.id != 365975655608745985:
+                    continue
+                if not msg.embeds:
+                    continue
+                embed = msg.embeds[0]
+                if embed.title.startswith('Level '):
+                    stats = embed.title + '\n' + embed.description.replace('*', '')
 
-        stats = match.groupdict()
+                    match = pokestats.match(stats)
+                    if not match:
+                        await ctx.send("Failed to parse stats. Make sure it's the correct format")
+                        return
+
+                    pokemon_name = pokemonrefs.get(embed.image.url.split('/')[-1].split('.')[0])
+                    if not pokemon_name:
+                        await ctx.send('Could not get pokemon name from message. Please give the name of the pokemon')
+                        msg = await self.bot.wait_for('message', check=basic_check(author=ctx.author, channel=ctx.channel), timeout=30)
+                        pokemon_name = msg.content
+
+                    stats = match.groupdict()
+                    stats['name'] = pokemon_name
+        else:
+            match = pokestats.match(stats)
+
+            if not match:
+                await ctx.send("Failed to parse stats. Make sure it's the correct format")
+                return
+
+            stats = match.groupdict()
         try:
             level = int(stats['level'])
         except ValueError:

@@ -93,7 +93,13 @@ def from_max_stat(min: int, max: int, value: int) -> tuple:
     """
     d = value - min
     from_max = max - value
-    return d/(max-min), from_max
+    diff = max - min
+    if diff == 0:
+        delta = 'N/A'
+    else:
+        delta = d/diff
+
+    return delta, from_max
 
 
 class Pokemon(Cog):
@@ -125,6 +131,27 @@ class Pokemon(Cog):
         Speed: 300
         """
         if not stats:
+            async def process_embed(embed):
+                stats = embed.title + '\n' + embed.description.replace('*', '')
+
+                match = pokestats.match(stats)
+                if not match:
+                    await ctx.send("Failed to parse stats. Make sure it's the correct format")
+                    return
+
+                pokemon_name = pokemonrefs.get(embed.image.url.split('/')[-1].split('.')[0])
+                if not pokemon_name:
+                    await ctx.send('Could not get pokemon name from message. Please give the name of the pokemon')
+                    msg = await self.bot.wait_for('message', check=basic_check(author=ctx.author,channel=ctx.channel),
+                                                  timeout=30)
+                    pokemon_name = msg.content
+
+                stats = match.groupdict()
+                stats['name'] = pokemon_name
+
+                return stats
+
+            _embed = None
             async for msg in ctx.channel.history():
                 if msg.author.id != 365975655608745985:
                     continue
@@ -132,21 +159,17 @@ class Pokemon(Cog):
                     continue
                 embed = msg.embeds[0]
                 if embed.title.startswith('Level '):
-                    stats = embed.title + '\n' + embed.description.replace('*', '')
+                    if ctx.author.avatar_url.startswith(embed.thumbnail.url):
+                        _embed = embed
+                        break
+                    if _embed is None:
+                        _embed = embed
 
-                    match = pokestats.match(stats)
-                    if not match:
-                        await ctx.send("Failed to parse stats. Make sure it's the correct format")
-                        return
+            if _embed is None:
+                await ctx.send('Could not find p!info message')
+                return
 
-                    pokemon_name = pokemonrefs.get(embed.image.url.split('/')[-1].split('.')[0])
-                    if not pokemon_name:
-                        await ctx.send('Could not get pokemon name from message. Please give the name of the pokemon')
-                        msg = await self.bot.wait_for('message', check=basic_check(author=ctx.author, channel=ctx.channel), timeout=30)
-                        pokemon_name = msg.content
-
-                    stats = match.groupdict()
-                    stats['name'] = pokemon_name
+            stats = await process_embed(_embed)
         else:
             match = pokestats.match(stats)
 
@@ -179,7 +202,10 @@ class Pokemon(Cog):
             fill2 = ' ' * (4 - len(str(max)))
             fill3 = ' ' * (6 - len(str(from_max)))
 
-            s += f'{name}:{fill}{max}{fill2}| {from_max}{fill3}| {diff*100:.0f}%\n'
+            if isinstance(diff, float):
+                diff = f'{diff*100:.0f}%'
+
+            s += f'{name}:{fill}{max}{fill2}| {from_max}{fill3}| {diff}\n'
         s += '```'
         await ctx.send(s)
 

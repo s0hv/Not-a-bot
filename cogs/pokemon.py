@@ -11,7 +11,7 @@ from bot.exceptions import BotException
 from discord.ext.commands.errors import BadArgument
 
 
-pokestats = re.compile(r'Level (?P<level>\d+) (?P<name>.+?)\n.+?\nNature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
+pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\nNature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
 pokemon = {}
 stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
@@ -22,6 +22,9 @@ with open(os.path.join(POKESTATS, 'pokemon.csv'), 'r', encoding='utf-8') as f:
     reader = csv.DictReader(f)
     keys = ('ndex', 'hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
     for row in reader:
+        if row['species'].lower() in pokemon:
+            continue
+
         pokemon[row['species'].lower()] = {k: int(row[k]) for k in keys}
 
 with open(os.path.join(POKESTATS, 'natures.json'), 'r') as f:
@@ -29,19 +32,19 @@ with open(os.path.join(POKESTATS, 'natures.json'), 'r') as f:
 
 
 # Below functions ported from https://github.com/dalphyx/pokemon-stat-calculator
-def calc_stat(iv, base_stat, ev=0, level=1, nature=1):
-    base_result = math.floor(((iv + base_stat * 2 + ev / 4) * level / 100 + 5))
-    result = math.floor(base_result * nature)
-    return result
+# Formulas from https://bulbapedia.bulbagarden.net/wiki/Statistic
+def calc_stat(iv, base, ev=0, level=1, nature=1):
+    result = math.floor(((2 * base + iv + ev / 4) * level) / 100 + 5) * nature
+    return math.floor(result)
 
 
-def calc_hp_stats(iv, base_stat, ev, level):
+def calc_hp_stats(iv, base, ev, level):
     # No.292 Shedinja's HP always be 1.
-    if base_stat == 1:
+    if base == 1:
         return 1
 
-    result = math.floor((iv + base_stat * 2 + ev / 4) * level / 100 + 10 + level)
-    return result
+    result = ((2 * base + iv + ev / 4) * level) / 100 + level + 10
+    return math.floor(result)
 
 
 def get_base_stats(name: str):
@@ -95,6 +98,23 @@ class Pokemon(Cog):
     @command(aliases=['pstats'])
     @cooldown(1, 3)
     async def poke_stats(self, ctx, *, stats):
+        """
+        Calculate how good your pokemons stats are.
+        To be used in combination with pokecord
+
+        How to use:
+        Use p!info (use whatever prefix pokecord has on the server instead of p!)
+        Copy the fields from Level to Speed. Then use the command as follows
+        {prefix}pstats Level 100 Pikachu
+2305/2610XP
+Nature: Hasty
+HP: 300
+Attack: 300
+Defense: 300
+Sp. Atk: 300
+Sp. Def: 300
+Speed: 300
+        """
         match = pokestats.match(stats)
         if not match:
             await ctx.send("Failed to parse stats. Make sure it's the correct format")
@@ -116,7 +136,7 @@ class Pokemon(Cog):
             max_stats = calc_all_stats(stats['name'], level, stats['nature'])
             min_stats = calc_all_stats(stats['name'], level, stats['nature'], ivs=MIN_IV, evs=MIN_IV)
         except KeyError as e:
-            return await ctx.send(f"{e}\nMake sure you replace the nickname to the pokemons real name or this won't work")
+            return await ctx.send(f"{e}\nMake sure you replace the nickname to the pokemons real name in the message or this won't work")
 
         s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: max value | delta | percentage\n'
         for min, max, name in zip(min_stats, max_stats, stat_names):

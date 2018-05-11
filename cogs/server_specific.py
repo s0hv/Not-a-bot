@@ -252,6 +252,16 @@ class ServerSpecific(Cog):
         out, err = p.communicate()
         await ctx.send(out.decode('utf-8'))
 
+    @command(owner_only=True, aliases=['flip'])
+    @check(main_check)
+    async def flip_the_switch(self, ctx, value:bool=None):
+        if value is None:
+            self.bot.anti_abuse_switch = not self.bot.anti_abuse_switch
+        else:
+            self.bot.anti_abuse_switch = value
+
+        await ctx.send(f'Switch set to {self.bot.anti_abuse_switch}')
+
     @command(no_pm=True)
     @cooldown(1, 3, type=BucketType.user)
     @check(create_check((217677285442977792, )))
@@ -288,7 +298,7 @@ class ServerSpecific(Cog):
         if expires_in.days > 29:
             return await ctx.send('Maximum time is 29 days 23 hours 59 minutes and 59 seconds')
 
-        if expires_in.total_seconds() < 300:
+        if not self.bot.test_mode and expires_in.total_seconds() < 300:
             return await ctx.send('Minimum time is 5 minutes')
 
         if winners < 1:
@@ -303,7 +313,7 @@ class ServerSpecific(Cog):
         if not perms.manage_roles and not perms.administrator:
             return await ctx.send('Invalid server perms')
 
-        role = self.bot.get_role(323098643030736919, guild)
+        role = self.bot.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082, guild)
         if role is None:
             return await ctx.send('Every role not found')
 
@@ -323,7 +333,11 @@ class ServerSpecific(Cog):
         embed.set_footer(text=text, icon_url=get_avatar(self.bot.user))
 
         message = await channel.send(embed=embed)
-        await message.add_reaction('GWjojoGachiGASM:363025405562585088')
+        try:
+            await message.add_reaction('GWjojoGachiGASM:363025405562585088')
+        except:
+            pass
+
         session = self.bot.get_session
         try:
             session.execute(sql, params={'guild': guild.id, 'title': 'Toggle every',
@@ -353,7 +367,7 @@ class ServerSpecific(Cog):
             self.delete_giveaway_from_db(message)
             return
 
-        role = self.bot.get_role(323098643030736919, guild)
+        role = self.bot.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082, guild)
         if role is None:
             self.delete_giveaway_from_db(message)
             return
@@ -364,10 +378,13 @@ class ServerSpecific(Cog):
             return
 
         try:
-            message = await self.bot.get_message(channel, message)
+            message = await channel.get_message(message)
         except discord.NotFound:
+            logger.exception('Could not find message for every toggle')
             self.delete_giveaway_from_db(message)
             return
+        except Exception:
+            logger.exception('Failed to get toggle every message')
 
         react = None
         for reaction in message.reactions:
@@ -384,7 +401,7 @@ class ServerSpecific(Cog):
 
         title = 'Giveaway: {}'.format(title)
         description = 'No winners'
-        users = await react.users(limit=react.count)
+        users = await react.users(limit=react.count).flatten()
         candidates = [guild.get_member(user.id) for user in users if user.id != self.bot.user.id and guild.get_member(user.id)]
         winners = choice(candidates, min(winners, len(candidates)), replace=False)
         if len(winners) > 0:

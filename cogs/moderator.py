@@ -390,7 +390,7 @@ class Moderator(Cog):
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         r = self.bot.get_role(339841138393612288, guild)
-        if r in user.roles and r in ctx.author.roles:
+        if self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
 
         if time.days > 30:
@@ -423,6 +423,17 @@ class Moderator(Cog):
 
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
+            try:
+                sql = 'INSERT INTO `timeout_logs` (`guild`, `user`, `time`, `reason`) VALUES ' \
+                      '(:guild, :user, :time, :reason)'
+                d = {'guild': guild.id, 'user': ctx.author.id,
+                     'time': time.total_seconds(), 'reason': reason}
+                session.execute(sql, params=d)
+                session.commit()
+            except SQLAlchemyError:
+                session.rollback()
+                logger.exception('Fail to log timeout')
+
             await ctx.send('Muted user {} for {}'.format(user, time))
             chn = self.get_modlog(guild)
             if chn:
@@ -518,7 +529,7 @@ class Moderator(Cog):
 
     # Only use this inside commands
     @staticmethod
-    async def _set_channel_lock(ctx, locked: bool):
+    async def _set_channel_lock(ctx, locked: bool, zawarudo=False):
         channel = ctx.channel
         everyone = ctx.guild.default_role
         overwrite = channel.overwrites_for(everyone)
@@ -531,9 +542,15 @@ class Moderator(Cog):
 
         try:
             if locked:
-                await ctx.send('Locked channel %s' % channel.name)
+                if not zawarudo:
+                    await ctx.send('Locked channel %s' % channel.name)
+                else:
+                    await ctx.send(f'Time has stopped in {channel.mention}')
             else:
-                await ctx.send('Unlocked channel %s' % channel.name)
+                if not zawarudo:
+                    await ctx.send('Unlocked channel %s' % channel.name)
+                else:
+                    await ctx.send('Toki wo tomare')
         except discord.HTTPException:
             pass
 
@@ -710,17 +727,17 @@ class Moderator(Cog):
 
         await ctx.send(s)
 
-    @command(ignore_extra=True, required_perms=lock_perms)
+    @command(ignore_extra=True, required_perms=lock_perms, aliases=['zawarudo'])
     @cooldown(2, 5, BucketType.guild)
     async def lock(self, ctx):
         """Set send_messages permission override of everyone to false on current channel"""
-        await self._set_channel_lock(ctx, True)
+        await self._set_channel_lock(ctx, True, zawarudo=ctx.invoked_with == 'zawarudo')
 
-    @command(ignore_extra=True, required_perms=lock_perms)
+    @command(ignore_extra=True, required_perms=lock_perms, aliases=['tokiwotomare'])
     @cooldown(2, 5, BucketType.guild)
     async def unlock(self, ctx):
         """Set send_messages permission override on current channel to default position"""
-        await self._set_channel_lock(ctx, False)
+        await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwotomare')
 
     @staticmethod
     async def delete_messages(channel, message_ids):

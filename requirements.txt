@@ -5,7 +5,7 @@ colormath
 colorthief
 colour
 opencv-python
--e git+https://github.com/cristobalcl/geopatterns.git
+-e git+https://github.com/cristobalcl/geopatterns.git#egg=geopatterns
 gtts
 matplotlib
 numpy

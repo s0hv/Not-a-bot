@@ -311,7 +311,7 @@ class NotABot(Bot):
         sql = 'SELECT `auth_level` FROM `bot_staff` WHERE user=%s' % user_id
         rows = session.execute(sql).fetchall()
         if not rows:
-            return True
+            return False
 
         if rows[0]['auth_level'] >= auth_level:
             return True

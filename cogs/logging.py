@@ -5,6 +5,8 @@ from discord.abc import PrivateChannel
 from discord.embeds import EmptyEmbed
 from sqlalchemy import exc
 from sqlalchemy.exc import SQLAlchemyError
+from queue import Queue
+import asyncio
 
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_delete, format_on_edit,
@@ -17,6 +19,27 @@ terminal = logging.getLogger('terminal')
 class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self._q = Queue()
+        self._logging = asyncio.ensure_future(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop), loop=self.bot.loop)
+
+    def _logging_loop(self):
+        while True:
+            try:
+                sql, params = self._q.get()
+            except (ValueError, TypeError):
+                continue
+
+            session = self.bot.get_session
+
+            try:
+                session.execute(sql, params)
+
+                session.commit()
+            except exc.DBAPIError as e:
+                if e.connection_invalidated:
+                    self.bot.engine.connect()
+            except SQLAlchemyError:
+                session.rollback()
 
     def format_for_db(self, message):
         is_pm = isinstance(message.channel, PrivateChannel)
@@ -75,31 +98,16 @@ class Logger(Cog):
         d = self.format_for_db(message)
 
         # terminal.info(str((shard, guild, guild_name, channel, channel_name, user, user_id, message.content, message_id, attachment)))
-        session = self.bot.get_session
-
-        try:
-            session.execute(sql, d)
-
-            session.commit()
-        except exc.DBAPIError as e:
-            if e.connection_invalidated:
-                self.bot.engine.connect()
-        except SQLAlchemyError:
-            session.rollback()
+        self._q.put_nowait((sql, d))
 
     async def on_member_join(self, member):
         guild = member.guild
         sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1"
 
-        session = self.bot.get_session
-        try:
-            session.execute(sql, {'user_id': member.id,
-                                       'guild': guild.id,
-                                       'value': 1})
-            session.commit()
-        except SQLAlchemyError:
-            session.rollback()
+        self._q.put_nowait((sql, {'user_id': member.id,
+                                   'guild': guild.id,
+                                   'value': 1}))
 
         channel = self.bot.guild_cache.join_channel(guild.id)
         channel = guild.get_channel(channel)
@@ -126,14 +134,9 @@ class Logger(Cog):
         sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1"
 
-        session = self.bot.get_session
-        try:
-            session.execute(sql, {'user_id': member.id,
-                                       'guild': guild.id,
-                                       'value': -1})
-            session.commit()
-        except SQLAlchemyError:
-            session.rollback()
+        self._q.put_nowait((sql, {'user_id': member.id,
+                                   'guild': guild.id,
+                                   'value': -1}))
 
         channel = self.bot.guild_cache.leave_channel(guild.id)
         channel = guild.get_channel(channel)
@@ -186,13 +189,9 @@ class Logger(Cog):
 
             sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
                   "VALUES (:shard, :guild, :channel, :user, :user_id, :message, :message_id, :attachment, :time) ON DUPLICATE KEY UPDATE attachment=IFNULL(attachment, :attachment)"
-            session = self.bot.get_session
+
             d = self.format_for_db(after)
-            try:
-                session.execute(sql, d)
-                session.commit()
-            except SQLAlchemyError:
-                pass
+            self._q.put_nowait((sql, d))
 
         if before.author.bot or before.channel.id == 336917918040326166:
             return
@@ -224,10 +223,10 @@ class Logger(Cog):
             await channel.send(m)
 
     async def on_guild_role_delete(self, role):
-        self.bot.dbutil.delete_role(role.id, role.guild.id)
+        await self.bot.dbutil.delete_role(role.id, role.guild.id)
 
     async def on_guild_role_create(self, role):
-        self.bot.dbutil.add_roles(role.guild.id, role.id)
+        await self.bot.dbutil.add_roles(role.guild.id, role.id)
 
     async def on_command_completion(self, ctx):
         entries = []
@@ -238,7 +237,7 @@ class Logger(Cog):
             entries.append(command.name)
         entries = list(reversed(entries))
         entries.append(cmd.name)
-        self.bot.dbutil.command_used(entries[0], ' '.join(entries[1:]) or "")
+        await self.bot.dbutil.command_used(entries[0], ' '.join(entries[1:]) or "")
 
 
 def setup(bot):

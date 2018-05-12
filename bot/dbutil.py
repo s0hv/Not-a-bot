@@ -18,38 +18,35 @@ class DatabaseUtils:
     def bot(self):
         return self._bot
 
-    async def execute(self, sql, commit=True, **params):
-        session = self.bot.get_session
-        
-        def _execute(sql, **params):
+    async def execute(self, sql, *args, commit=False, **params):
+        def _execute():
+            session = self.bot.get_session
             try:
-                row = session.execute(sql, **params)
+                row = session.execute(sql, *args, **params)
                 if commit:
                     session.commit()
-            except SQLAlchemyError:
+            except SQLAlchemyError as e:
                 session.rollback()
-                logger.exception('Failed to execute sql')
-                return False
+                raise e
+
             return row
 
-        return await self.bot.loop.run_in_executor(self.bot.threadpool, _execute, sql, **params)
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, _execute)
 
     async def index_guild_member_roles(self, guild):
         import time
         t = time.time()
         default_role = guild.default_role.id
-        session = self.bot.get_session
 
-        def execute(sql_):
+        async def execute(sql_, commit=True):
             try:
-                session.execute(sql_)
+                await self.execute(sql_, commit=commit)
             except SQLAlchemyError:
-                session.rollback()
                 logger.exception('Failed to execute sql')
                 return False
             return True
 
-        success = self.index_guild_roles(guild)
+        success = await self.index_guild_roles(guild)
         if not success:
             return success
 
@@ -70,7 +67,7 @@ class DatabaseUtils:
 
         # Deletes all server records
         # sql = 'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` WHERE roles.server=%s AND userRoles.role_id=roles.id'
-        if not execute(sql):
+        if not await execute(sql):
             return False
         logger.info('Deleted old records in %s' % (time.time() - t1))
         t1 = time.time()
@@ -85,49 +82,43 @@ class DatabaseUtils:
 
         sql = sql.rstrip(',')
 
-        if not execute(sql):
+        if not await execute(sql):
             return False
 
-        session.commit()
         logger.info('added user roles in %s' % (time.time() - t1))
         logger.info('indexed users in %s seconds' % (time.time() - t))
         return True
 
-    def index_guild_roles(self, guild):
-        session = self.bot.get_session
+    async def index_guild_roles(self, guild):
         roles = guild.roles
         roles = [{'id': r.id, 'guild': guild.id} for r in roles]
         role_ids = [str(r.id) for r in guild.roles]
         sql = 'INSERT IGNORE INTO `roles` (`id`, `guild`) VALUES (:id, :guild)'
         try:
-            session.execute(sql, roles)
+            await self.execute(sql, roles, commit=True)
             sql = 'DELETE FROM `roles` WHERE guild={} AND NOT id IN ({})'.format(guild.id, ', '.join(role_ids))
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
+            logger.exception('Failed to index guild roles')
             return False
         return True
 
-    def add_guilds(self, *ids):
+    async def add_guilds(self, *ids):
         if not ids:
             return
-        session = self.bot.get_session
+
         ids = [{'guild': i} for i in ids]
         sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (:guild)'
         try:
-            session.execute(sql, ids)
+            await self.execute(sql, ids, commit=True)
             sql = 'INSERT IGNORE INTO `prefixes` (`guild`) VALUES (:guild)'
-            session.execute(sql, ids)
-            session.commit()
+            await self.execute(sql, ids, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add new servers to db')
             return False
         return True
 
-    def add_roles(self, guild_id, *role_ids):
-        session = self.bot.get_session
+    async def add_roles(self, guild_id, *role_ids):
         sql = 'INSERT IGNORE INTO `roles` (`id`, `guild`) VALUES '
         l = len(role_ids) - 1
         for idx, r in enumerate(role_ids):
@@ -136,30 +127,24 @@ class DatabaseUtils:
                 sql += ', '
 
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add roles')
             return False
 
         return True
 
-    def add_user(self, user_id):
+    async def add_user(self, user_id):
         sql = f'INSERT IGNORE INTO `users` (`id`) VALUES ({user_id})'
-        session = self.bot.get_session
         try:
-            session.execute(sql)
-            session.commit()
+            self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add user')
             return False
 
         return True
 
-    def add_users(self, *user_ids):
-        session = self.bot.get_session
+    async def add_users(self, *user_ids):
         sql = 'INSERT IGNORE INTO `users` (`id`) VALUES '
         l = len(user_ids) - 1
         for idx, uid in enumerate(user_ids):
@@ -168,20 +153,17 @@ class DatabaseUtils:
                 sql += ', '
 
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add users')
             return False
 
         return True
 
-    def add_user_roles(self, role_ids, user_id, guild_id):
-        if not self.add_roles(guild_id, *role_ids):
+    async def add_user_roles(self, role_ids, user_id, guild_id):
+        if not await self.add_roles(guild_id, *role_ids):
             return
 
-        session = self.bot.get_session
         sql = 'INSERT IGNORE INTO `userRoles` (`user`, `role`) VALUES '
         l = len(role_ids) - 1
         for idx, r in enumerate(role_ids):
@@ -190,168 +172,132 @@ class DatabaseUtils:
                 sql += ', '
 
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add roles foreign keys')
             return False
 
         return True
 
-    def remove_user_roles(self, role_ids, user_id):
-        session = self.bot.get_session
-
+    async def remove_user_roles(self, role_ids, user_id):
         sql = 'DELETE FROM `userRoles` WHERE user=%s and role IN (%s)' % (user_id, ', '.join(map(lambda i: str(i), role_ids)))
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
             return True
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to delete roles')
             return False
 
-    def add_prefix(self, guild_id, prefix):
+    async def add_prefix(self, guild_id, prefix):
         sql = 'INSERT INTO `prefixes` (`guild`, `prefix`) VALUES (:guild, :prefix)'
-        session = self.bot.get_session
 
         try:
-            session.execute(sql, params={'guild': guild_id, 'prefix': prefix})
-            session.commit()
+            await self.execute(sql, params={'guild': guild_id, 'prefix': prefix}, commit=True)
             return True
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add prefix')
             return False
 
-    def remove_prefix(self, guild_id, prefix):
+    async def remove_prefix(self, guild_id, prefix):
         sql = 'DELETE FROM `prefixes` WHERE guild=:guild AND prefix=:prefix'
-        session = self.bot.get_session
 
         try:
-            session.execute(sql, params={'guild': guild_id, 'prefix': prefix})
-            session.commit()
+            await self.execute(sql, params={'guild': guild_id, 'prefix': prefix}, commit=True)
             return True
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to remove prefix')
             return False
 
-    def delete_role(self, role_id, guild_id):
-        session = self.bot.get_session
+    async def delete_role(self, role_id, guild_id):
         sql = f'DELETE FROM `roles` WHERE id={role_id} AND guild={guild_id}'
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception(f'Could not delete role {role_id}')
 
-    def delete_user_roles(self, guild_id, user_id):
-        session = self.bot.get_session
+    async def delete_user_roles(self, guild_id, user_id):
         try:
             sql = f'DELETE `userRoles` FROM `userRoles` INNER JOIN `roles` ON roles.id=userRoles.role WHERE roles.guild={guild_id} AND userRoles.user={user_id}'
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Could not delete user roles')
 
-    def add_automute_blacklist(self, guild_id, *channel_ids):
-        session = self.bot.get_session
-
+    async def add_automute_blacklist(self, guild_id, *channel_ids):
         sql = 'INSERT IGNORE INTO `automute_blacklist` (`guild`, `channel`) VALUES '
         sql += ', '.join(map(lambda cid: f'({guild_id}, {cid})', channel_ids))
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
             success = True
         except SQLAlchemyError:
-            session.rollback()
             success = False
 
         return success
 
-    def remove_automute_blacklist(self, guild_id, *channel_ids):
-        session = self.bot.get_session
+    async def remove_automute_blacklist(self, guild_id, *channel_ids):
         if not channel_ids:
             return True
 
         channel_ids = ', '.join(map(lambda cid: str(cid), channel_ids))
         sql = f'DELETE FROM `automute_blacklist` WHERE guild={guild_id} AND channel IN ({channel_ids}) '
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
             success = True
         except SQLAlchemyError:
-            session.rollback()
             success = False
 
         return success
 
-    def add_automute_whitelist(self, guild_id, *role_ids):
-        session = self.bot.get_session
+    async def add_automute_whitelist(self, guild_id, *role_ids):
         if not role_ids:
             return True
 
         sql = 'INSERT IGNORE INTO `automute_whitelist` (`guild`, `role`) VALUES '
         sql += ', '.join(map(lambda rid: f'({guild_id}, {rid})', role_ids))
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
             success = True
         except SQLAlchemyError:
-            session.rollback()
             success = False
 
         return success
 
-    def remove_automute_whitelist(self, guild_id, *role_ids):
-        session = self.bot.get_session
+    async def remove_automute_whitelist(self, guild_id, *role_ids):
         if not role_ids:
             return True
 
         role_ids = ', '.join(map(lambda r: str(r), role_ids))
         sql = f'DELETE FROM `automute_whitelist` WHERE guild={guild_id} AND role IN ({role_ids})'
         try:
-            session.execute(sql)
-            session.commit()
+            await self.execute(sql, commit=True)
             success = True
         except SQLAlchemyError:
-            session.rollback()
             success = False
 
         return success
 
-    def multiple_last_seen(self, user_ids, usernames, guild_id, timestamps):
+    async def multiple_last_seen(self, user_ids, usernames, guild_id, timestamps):
         sql = 'INSERT INTO `last_seen_users` (`user`, `username`, `guild`, `last_seen`) VALUES (:user, :username, :guild, :time) ON DUPLICATE KEY UPDATE last_seen=VALUES(`last_seen`), username=VALUES(`username`)'
         data = [{'user': uid, 'username': u, 'guild': s, 'time': t} for uid, u, s, t in zip(user_ids, usernames, guild_id, timestamps)]
-        session = self.bot.get_session
+
         try:
-            session.execute(sql, data)
-            session.commit()
+            await self.execute(sql, data, commit=True)
         except SQLAlchemyError:
             logger.exception('Failed to set last seen')
-            session.rollback()
             return False
 
         return True
 
-    def add_command(self, parent, name=""):
+    async def add_command(self, parent, name=""):
         sql = 'INSERT IGNORE INTO `command_stats` (`parent`, `cmd`) VALUES (:parent, :cmd)'
-        session = self.bot.get_session
         try:
-            session.execute(sql, {'parent': parent, 'cmd': name})
-            session.commit()
+            await self.execute(sql, params={'parent': parent, 'cmd': name}, commit=True)
         except SQLAlchemyError:
             logger.exception('Failed to add command {} {}'.format(parent, name))
-            session.rollback()
             return False
 
         return True
 
-    def add_commands(self, values):
+    async def add_commands(self, values):
         """
         Inserts multiple commands to the db
         Args:
@@ -363,33 +309,27 @@ class DatabaseUtils:
         if not values:
             return
         sql = 'INSERT IGNORE INTO `command_stats` (`parent`, `cmd`) VALUES (:parent, :cmd)'
-        session = self.bot.get_session
         try:
-            session.execute(sql, values)
-            session.commit()
+            await self.execute(sql, values, commit=True)
         except SQLAlchemyError:
             logger.exception('Failed to add commands {}'.format(values))
-            session.rollback()
             return False
 
         return True
 
-    def command_used(self, parent, name=""):
+    async def command_used(self, parent, name=""):
         if name is None:
             name = ""
         sql = 'UPDATE `command_stats` SET `uses`=(`uses`+1) WHERE parent=:parent AND cmd=:cmd'
-        session = self.bot.get_session
         try:
-            session.execute(sql, {'parent': parent, 'cmd': name})
-            session.commit()
+            await self.execute(sql, params={'parent': parent, 'cmd': name}, commit=True)
         except SQLAlchemyError:
             logger.exception('Failed to update command {} {} usage'.format(parent, name))
-            session.rollback()
             return False
 
         return True
 
-    def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
+    async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 
         Args:
@@ -404,10 +344,9 @@ class DatabaseUtils:
         Returns: int, bool, None
             See fetch_raw to see possible return values
         """
-        session = self.bot.get_session
         sql = 'SELECT * FROM `command_blacklist` WHERE type=%s AND %s ' \
               'AND (user=%s OR user IS NULL) LIMIT 1' % (BlacklistTypes.GLOBAL, command, user.id)
-        rows = session.execute(sql)
+        rows = await self.execute(sql)
 
         if rows.first():
             return False
@@ -423,7 +362,7 @@ class DatabaseUtils:
 
         sql = f'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild={user.guild.id} AND {command} ' \
               f'AND (user IS NULL OR user={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
-        rows = session.execute(sql).fetchall()
+        rows = (await self.execute(sql)).fetchall()
         if not rows:
             return None
 

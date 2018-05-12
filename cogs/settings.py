@@ -62,7 +62,7 @@ class Settings(Cog):
             return await ctx.send('Maximum length for a prefix is 30. This prefixes length is {}'.format(len(prefix)))
 
         try:
-            success = self.cache.add_prefix(guild_id, prefix)
+            success = await self.cache.add_prefix(guild_id, prefix)
         except exceptions.PrefixExists:
             return await ctx.send('Prefix already in use')
 
@@ -73,7 +73,7 @@ class Settings(Cog):
 
     async def _remove_prefix(self, ctx, guild_id, prefix):
         try:
-            success = self.cache.remove_prefix(guild_id, prefix)
+            success = await self.cache.remove_prefix(guild_id, prefix)
         except exceptions.NotEnoughPrefixes:
             return await ctx.send('Need a minimum of 1 prefix')
         except exceptions.PrefixDoesntExist:

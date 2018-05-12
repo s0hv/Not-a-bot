@@ -21,7 +21,7 @@ class LastSeen(Cog):
         self._update_task = self.bot.loop.create_task(self._status_loop())
         self._update_task_checker = self.bot.loop.create_task(self._check_loop())
 
-    def save_updates(self):
+    async def save_updates(self):
         if not self._updates:
             return
 
@@ -36,7 +36,7 @@ class LastSeen(Cog):
             usernames.append(update.username)
             guild_ids.append(update.guild_id)
             times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
-        self.bot.dbutils.multiple_last_seen(user_ids, usernames, guild_ids, times)
+        await self.bot.dbutils.multiple_last_seen(user_ids, usernames, guild_ids, times)
         del updates
 
     async def _check_loop(self):
@@ -52,7 +52,7 @@ class LastSeen(Cog):
                 continue
 
             try:
-                await asyncio.shield(self.bot.loop.run_in_executor(self.threadpool, self.save_updates))
+                await asyncio.shield(self.save_updates)
             except asyncio.CancelledError:
                 return
             except asyncio.TimeoutError:

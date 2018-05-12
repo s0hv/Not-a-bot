@@ -137,7 +137,7 @@ class BotAdmin(Cog):
         errors = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.bot._load_cogs, print_err=False))
         t = (time.time() - t) * 1000
         for error in errors:
-            await self.bot.say(error)
+            await ctx.send(error)
         await ctx.send('Reloaded all default cogs in {:.0f}ms'.format(t))
 
     @command(owner_only=True)

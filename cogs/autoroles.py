@@ -40,10 +40,10 @@ class AutoRoles(Cog):
         if self.bot.guild_cache.keeproles(guild.id):
             removed, added = self.compare_roles(before, after)
             if removed:
-                self.dbutil.remove_user_roles(removed, before.id)
+                await self.dbutil.remove_user_roles(removed, before.id)
 
             if added:
-                self.dbutil.add_user_roles(added, before.id, guild.id)
+                await self.dbutil.add_user_roles(added, before.id, guild.id)
 
     async def add_random_color(self, member):
         if self.bot.guild_cache.random_color(member.guild.id) and hasattr(self.bot, 'colors'):
@@ -120,10 +120,10 @@ class AutoRoles(Cog):
 
         roles = [r.id for r in member.roles]
         roles.remove(member.guild.default_role.id)
-        self.dbutil.delete_user_roles(member.guild.id, member.id)
+        await self.dbutil.delete_user_roles(member.guild.id, member.id)
 
         if roles:
-            self.dbutil.add_user_roles(roles, member.id, member.guild.id)
+            await self.dbutil.add_user_roles(roles, member.id, member.guild.id)
             logger.debug('{}/{} saved roles {}'.format(member.guild.id, member.id, ', '.join(map(str, roles))))
 
     @staticmethod

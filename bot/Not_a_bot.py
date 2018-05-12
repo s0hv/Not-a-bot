@@ -118,17 +118,16 @@ class NotABot(Bot):
         import time
         t = time.time()
         guilds = self.guilds
-        session = self.get_session
         sql = 'SELECT guild FROM `guilds`'
-        guild_ids = {r[0] for r in session.execute(sql).fetchall()}
+        guild_ids = {r[0] for r in await self.dbutil.execute(sql)}
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
         for guild in guilds:
-            self.dbutil.index_guild_roles(guild)
+            await self.dbutil.index_guild_roles(guild)
 
-        self.dbutils.add_guilds(*new_guilds)
+        await self.dbutils.add_guilds(*new_guilds)
         sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild'
         rows = {}
-        for row in await self.loop.run_in_executor(self.threadpool, session.execute, sql):
+        for row in await self.dbutil.execute(sql):
             guild_id = row['guild']
             if guild_id in rows:
                 prefix = row['prefix']
@@ -174,19 +173,17 @@ class NotABot(Bot):
         return self._dbutil
 
     def _load_cogs(self, print_err=True):
-        s = self.get_session
         if not print_err:
             errors = []
         for cog in initial_cogs:
             try:
                 self.load_extension(cog)
             except Exception as e:
-                if print_err:
-                    terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
-                else:
+                if not print_err:
                     errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                else:
+                    terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
-        s.close()
         if not print_err:
             return errors
 
@@ -196,7 +193,7 @@ class NotABot(Bot):
 
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))
-        self.dbutil.add_command('help')
+        await self.dbutil.add_command('help')
         await self.cache_guilds()
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         if self.config.default_activity:
@@ -251,18 +248,15 @@ class NotABot(Bot):
             return
 
     async def on_guild_join(self, guild):
-        session = self.get_session
         sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (%s)' % guild.id
         try:
-            session.execute(sql)
-            session.execute('INSERT IGNORE INTO `prefixes` (`guild`) VALUES (%s)' % guild.id)
-            session.commit()
+            await self.dbutil.execute(sql)
+            await self.dbutil.execute('INSERT IGNORE INTO `prefixes` (`guild`) VALUES (%s)' % guild.id, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add new server')
 
         sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild WHERE guilds.guild=%s' % guild.id
-        rows = session.execute(sql).fetchall()
+        rows = (await self.dbutil.execute(sql)).fetchall()
         if not rows:
             return
 
@@ -274,7 +268,7 @@ class NotABot(Bot):
         self.guild_cache.update_cached_guild(guild.id, **d)
 
     async def on_guild_role_delete(self, role):
-        self.dbutils.delete_role(role.id, role.guild.id)
+        await self.dbutils.delete_role(role.id, role.guild.id)
 
     async def _wants_to_be_noticed(self, member, guild, remove=True):
         role = self.get_role(318762162552045568, guild)
@@ -303,13 +297,12 @@ class NotABot(Bot):
         message = message.format(name=str(user), message=content, **d)
         return split_string(message)
 
-    def _check_auth(self, user_id, auth_level):
+    async def _check_auth(self, user_id, auth_level):
         if auth_level == 0:
             return True
 
-        session = self.get_session
         sql = 'SELECT `auth_level` FROM `bot_staff` WHERE user=%s' % user_id
-        rows = session.execute(sql).fetchall()
+        rows = (await self.dbutil.execute(sql)).fetchall()
         if not rows:
             return False
 
@@ -318,8 +311,8 @@ class NotABot(Bot):
         else:
             return False
 
-    def check_auth(self, ctx):
-        if not self._check_auth(ctx.author.id, ctx.command.auth):
+    async def check_auth(self, ctx):
+        if not await self._check_auth(ctx.author.id, ctx.command.auth):
             raise exceptions.PermissionError("You aren't authorized to use this command")
 
         return True

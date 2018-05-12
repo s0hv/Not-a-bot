@@ -310,7 +310,7 @@ class CommandBlacklist(Cog):
 
     @command(owner_only=True)
     async def test_perms(self, ctx, user: discord.Member, command_):
-        value = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot.dbutil.check_blacklist, f'(command="{command_}" OR command IS NULL)', user, ctx, True)
+        value = await self.bot.dbutil.check_blacklist(f'(command="{command_}" OR command IS NULL)', user, ctx, True)
         await ctx.send(value or 'No special perms')
 
     def get_rows(self, whereclause, select='*'):

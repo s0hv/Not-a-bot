@@ -70,7 +70,7 @@ class GuildCache:
 
         return prefixes
 
-    def add_prefix(self, guild_id, prefix):
+    async def add_prefix(self, guild_id, prefix):
         settings = self.get_settings(guild_id)
         if 'prefixes' not in settings:
             prefixes = {self.bot.default_prefix}
@@ -81,7 +81,7 @@ class GuildCache:
         if prefix in prefixes:
             raise PrefixExists('Prefix is already in use')
 
-        success = self.bot.dbutil.add_prefix(guild_id, prefix)
+        success = await self.bot.dbutil.add_prefix(guild_id, prefix)
         if success:
             prefixes_list = self.prefixes(guild_id)
             prefixes_list.append(prefix)
@@ -89,7 +89,7 @@ class GuildCache:
 
         return success
 
-    def remove_prefix(self, guild_id, prefix):
+    async def remove_prefix(self, guild_id, prefix):
         prefixes = self.prefixes(guild_id, use_set=True)
         if prefix not in prefixes:
             raise PrefixDoesntExist("Prefix doesn't exist")
@@ -97,7 +97,7 @@ class GuildCache:
         if len(prefixes) == 1:
             raise NotEnoughPrefixes('Must have at least one prefix')
 
-        success = self.bot.dbutil.remove_prefix(guild_id, prefix)
+        success = await self.bot.dbutil.remove_prefix(guild_id, prefix)
         if success:
             prefixes.discard(prefix)
             try:

@@ -44,12 +44,12 @@ class Colors(Cog):
         super().__init__(bot)
         self._colors = {}
         self.bot.colors = self._colors
-        self._cache_colors()
+        asyncio.run_coroutine_threadsafe(self._cache_colors(), self.bot.loop)
 
         with open(os.path.join(os.getcwd(), 'data', 'color_names.json'), 'r', encoding='utf-8') as f:
             self._color_names = json.load(f)
 
-    def _cache_colors(self):
+    async def _cache_colors(self):
         session = self.bot.get_session
         sql = 'SELECT colors.id, colors.name, colors.value, roles.guild, colors.lab_l, colors.lab_a, colors.lab_b FROM ' \
               'colors LEFT OUTER JOIN roles on roles.id=colors.id'
@@ -59,10 +59,10 @@ class Colors(Cog):
             if not self.bot.get_guild(row['guild']):
                 continue
 
-            self._add_color(**row)
+            await self._add_color(**row)
 
-    def _add_color2db(self, color, update=False):
-        self.bot.dbutils.add_roles(color.guild_id, color.role_id)
+    async def _add_color2db(self, color, update=False):
+        await self.bot.dbutils.add_roles(color.guild_id, color.role_id)
         sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
               '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
         if update:
@@ -106,15 +106,15 @@ class Colors(Cog):
         rgb = self.check_rgb(rgb, to_role=to_role)
         return convert_color(sRGBColor(*rgb), LabColor)
 
-    def _update_color(self, color, role, to_role=True):
+    async def _update_color(self, color, role, to_role=True):
         r, g, b = role.color.to_rgb()
         lab = self.rgb2lab((r/255, g/255, b/255), to_role=to_role)
         color.value = role.color.value
         color.lab = lab
-        self._add_color2db(color, update=True)
+        await self._add_color2db(color, update=True)
         return color
 
-    def _add_color(self, guild, id, name, value, lab_l, lab_a, lab_b):
+    async def _add_color(self, guild, id, name, value, lab_l, lab_a, lab_b):
         if not isinstance(guild, int):
             guild_id = guild.id
 
@@ -124,7 +124,7 @@ class Colors(Cog):
 
         role = self.bot.get_role(id, guild)
         if role is None:
-            return self._delete_color(guild_id, id)
+            return await self._delete_color(guild_id, id)
 
         color = Color(id, name, value, guild_id, (lab_l, lab_a, lab_b))
 
@@ -134,18 +134,18 @@ class Colors(Cog):
             self._colors[guild_id] = {id: color}
 
         if role.color.value != value:
-            self._update_color(color, role)
+            await self._update_color(color, role)
 
         return color
 
-    def _delete_color(self, guild_id, role_id):
+    async def _delete_color(self, guild_id, role_id):
         try:
             color = self._colors[guild_id].pop(role_id)
             logger.debug(f'Deleting color {color.name} with value {color.value} from guild {guild_id}')
         except KeyError:
             logger.debug(f'Deleting color {role_id} from guild {guild_id}')
 
-        self.bot.dbutils.delete_role(role_id, guild_id)
+        await self.bot.dbutils.delete_role(role_id, guild_id)
 
     def get_color(self, name, guild_id):
         name = name.lower()
@@ -201,7 +201,7 @@ class Colors(Cog):
         return closest_match, similarity
 
     async def on_guild_role_delete(self, role):
-        self._delete_color(role.guild.id, role.id)
+        await self._delete_color(role.guild.id, role.id)
 
     async def on_guild_role_update(self, before, after):
         if before.color.value != after.color.value:
@@ -212,7 +212,7 @@ class Colors(Cog):
             if before.name != after.name and before.name == color.name:
                 color.name = after.name
 
-            self._update_color(color, before, to_role=False)
+            await self._update_color(color, before, to_role=False)
 
     async def _add_colors_from_roles(self, roles, ctx):
         guild = ctx.guild
@@ -234,7 +234,7 @@ class Colors(Cog):
 
             lab = self.rgb2lab(color.to_rgb())
             color = Color(role.id, role.name, color.value, guild.id, lab)
-            if self._add_color2db(color):
+            if await self._add_color2db(color):
                 await ctx.send('Color {} created'.format(role))
                 colors[role.id] = color
             else:
@@ -365,7 +365,7 @@ class Colors(Cog):
             return await ctx.send('Failed to add color because of an error')
 
         color_ = Color(color_role.id, name, value, guild.id, color)
-        success = self._add_color2db(color_)
+        success = await self._add_color2db(color_)
         if not success:
             return await ctx.send('Failed to add color')
 
@@ -446,13 +446,13 @@ class Colors(Cog):
         role_id = color[0]
         role = self.bot.get_role(role_id, guild)
         if not role:
-            self._delete_color(guild.id, role_id)
+            await self._delete_color(guild.id, role_id)
             await ctx.send(f'Removed color {color[1]}')
             return
 
         try:
             await role.delete(reason=f'{ctx.author} deleted this color')
-            self._delete_color(guild.id, role_id)
+            await self._delete_color(guild.id, role_id)
         except discord.DiscordException as e:
             return await ctx.send(f'Failed to remove color because of an error\n```{e}```')
         except:

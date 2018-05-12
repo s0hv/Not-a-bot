@@ -164,7 +164,7 @@ class Moderator(Cog):
         if not role_:
             return await ctx.send('Role {} not found'.format(role))
 
-        success = self.bot.dbutils.add_automute_whitelist(guild.id, role_.id)
+        success = await self.bot.dbutils.add_automute_whitelist(guild.id, role_.id)
         if not success:
             return await ctx.send('Failed to add role because of an error')
 
@@ -184,7 +184,7 @@ class Moderator(Cog):
         if role_.id not in roles:
             return await ctx.send('Role {0.name} not found in whitelist'.format(role_))
 
-        success = self.bot.dbutils.remove_automute_whitelist(guild.id, role.id)
+        success = await self.bot.dbutils.remove_automute_whitelist(guild.id, role.id)
         if not success:
             return await ctx.send('Failed to remove role because of an error')
 
@@ -223,7 +223,7 @@ class Moderator(Cog):
         if not channel_:
             return await ctx.send('Channel {} not found'.format(channel))
 
-        success = self.bot.dbutils.add_automute_blacklist(guild.id, channel_.id)
+        success = await self.bot.dbutils.add_automute_blacklist(guild.id, channel_.id)
         if not success:
             return await ctx.send('Failed to add channel because of an error')
 
@@ -243,7 +243,7 @@ class Moderator(Cog):
         if channel_.id not in channels:
             return await ctx.send('Channel {0.name} not found in blacklist'.format(channel_))
 
-        success = self.bot.dbutils.remove_automute_blacklist(guild.id, channel.id)
+        success = await self.bot.dbutils.remove_automute_blacklist(guild.id, channel.id)
         if not success:
             return await ctx.send('Failed to remove channel because of an error')
 

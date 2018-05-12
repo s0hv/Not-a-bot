@@ -1,0 +1,19 @@
+-e git+https://github.com/Rapptz/discord.py@rewrite#egg=discord.py[voice]
+youtube_dl
+validators
+aiohttp
+colour
+sqlalchemy
+numpy
+gtts
+pillow
+geopatterns
+colorthief
+matplotlib
+beautifulsoup4
+python-magic
+ansicolors
+pymysql
+selenium
+colormath
+cv2

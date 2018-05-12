@@ -123,7 +123,7 @@ class Utilities(Cog):
                 s1.stdin.close()
                 memory = s2.communicate()[0].decode('utf-8')
                 memory = str(round(int(memory) / 1024, 1)) + 'MB'
-                memory_usage += f'{current_memory}MB/{memory}MB'
+                memory_usage = f'{current_memory}MB/{memory}MB'
 
             except:
                 logger.exception('Failed to get extended mem usage')

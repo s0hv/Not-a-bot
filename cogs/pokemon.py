@@ -10,6 +10,7 @@ from discord.ext.commands import cooldown
 from bot.exceptions import BotException
 from discord.ext.commands.errors import BadArgument
 from utils.utilities import basic_check
+from discord.embeds import Embed, EmptyEmbed
 
 
 pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\nNature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
@@ -158,7 +159,7 @@ class Pokemon(Cog):
                 if not msg.embeds:
                     continue
                 embed = msg.embeds[0]
-                if embed.title.startswith('Level '):
+                if embed.title != EmptyEmbed and embed.title.startswith('Level '):
                     if ctx.author.avatar_url.startswith(embed.thumbnail.url):
                         _embed = embed
                         break

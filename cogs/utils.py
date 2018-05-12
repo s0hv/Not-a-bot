@@ -106,8 +106,8 @@ class Utilities(Cog):
         uptime = time.time() - process.create_time()
         d = datetime.utcfromtimestamp(uptime)
         uptime = f'{d.day-1}d {d.hour}h {d.minute}m {d.second}s'
-        memory_usage = round(process.memory_info().rss / 1048576, 2)
-        memory_usage = f' Current: {memory_usage}MB'
+        current_memory = round(process.memory_info().rss / 1048576, 2)
+        memory_usage = f' Current: {current_memory}MB'
         if sys.platform == 'linux':
             try:
                 # use pmap to find the memory usage of this process and turn it to megabytes
@@ -123,7 +123,7 @@ class Utilities(Cog):
                 s1.stdin.close()
                 memory = s2.communicate()[0].decode('utf-8')
                 memory = str(round(int(memory) / 1024, 1)) + 'MB'
-                memory_usage += f'\nVirtual size: {memory}'
+                memory_usage += f'{current_memory}MB/{memory}MB'
 
             except:
                 logger.exception('Failed to get extended mem usage')

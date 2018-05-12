@@ -1,3 +1,4 @@
+aiohttp
 ansicolors
 beautifulsoup4
 colormath
@@ -15,4 +16,4 @@ selenium
 sqlalchemy
 validators
 youtube_dl
--e git+https://github.com/Rapptz/discord.py@rewrite#egg=discord.py[voice]aiohttp
+-e git+https://github.com/Rapptz/discord.py@rewrite#egg=discord.py[voice]

@@ -4,7 +4,7 @@ beautifulsoup4
 colormath
 colorthief
 colour
-cv2
+opencv-python
 geopatterns
 gtts
 matplotlib

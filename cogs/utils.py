@@ -121,9 +121,9 @@ class Utilities(Cog):
                     stdin=s1.stdout, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
                 s1.stdin.close()
-                memory = s2.communicate()[0].decode('utf-8')
-                memory = str(round(int(memory) / 1024, 1)) + 'MB'
-                memory_usage = f'{current_memory}MB/{memory}MB'
+                memory = round(int(s2.communicate()[0].decode('utf-8') / 1024), 1)
+                usable_memory = str(memory) + 'MB'
+                memory_usage = f'{current_memory}MB/{usable_memory} ({(current_memory/memory*100):.1f}%)'
 
             except:
                 logger.exception('Failed to get extended mem usage')

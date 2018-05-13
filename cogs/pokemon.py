@@ -13,7 +13,7 @@ from utils.utilities import basic_check
 from discord.embeds import Embed, EmptyEmbed
 
 
-pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\nNature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
+pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\n(Holding: .+?\n)?Nature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
 pokemon = {}
 stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
@@ -24,6 +24,11 @@ with open(os.path.join(POKESTATS, 'pokemon.csv'), 'r', encoding='utf-8') as f:
     reader = csv.DictReader(f)
     keys = ('ndex', 'hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
     for row in reader:
+        if '(Mega ' in row['forme']:
+            name = row['forme']
+            name = 'mega' + name.split('(Mega')[1].split(')')[0].lower()
+            pokemon[name] = {k: int(row[k]) for k in keys}
+
         if row['species'].lower() in pokemon:
             continue
 

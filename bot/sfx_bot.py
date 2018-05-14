@@ -33,6 +33,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot.bot import Bot, command
 from bot.dbutil import DatabaseUtils
+from concurrent.futures import ThreadPoolExecutor
+
 
 terminal = logging.getLogger('terminal')
 
@@ -48,6 +50,7 @@ class Ganypepe(Bot):
         super().__init__(prefix, conf, aiohttp, **options)
         self.test_mode = test_mode
         self._setup()
+        self.threadpool = ThreadPoolExecutor(max_workers=4)
         self._dbutil = DatabaseUtils(self)
 
     def _setup(self):

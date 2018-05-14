@@ -52,7 +52,7 @@ class LastSeen(Cog):
                 continue
 
             try:
-                await asyncio.shield(self.save_updates)
+                await asyncio.shield(self.save_updates())
             except asyncio.CancelledError:
                 return
             except asyncio.TimeoutError:

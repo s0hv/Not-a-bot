@@ -130,7 +130,7 @@ class Pokefusion:
         return n if n <= self.last_dex_number else None
 
     def get_pokemon(self, name):
-        if name == self.RANDOM:
+        if name == self.RANDOM and self.last_dex_number > 0:
             return randint(1, self._last_dex_number)
         if self.is_dex_number(name):
             return int(name)
@@ -159,7 +159,8 @@ class Pokefusion:
     async def fuse(self, poke1=RANDOM, poke2=RANDOM, poke3=None):
         # Update cache once per day
         if time.time() - self._last_updated > 86400:
-            await self.update_cache()
+            if not await self.update_cache():
+                raise BotException('Could not cache pokemon')
 
         dex_n = []
         for p in (poke1, poke2):

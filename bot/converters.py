@@ -1,6 +1,7 @@
 from discord.ext.commands import converter
 import re
 from discord.ext.commands.errors import BadArgument
+import discord
 
 
 class MentionedMember(converter.MemberConverter):
@@ -18,6 +19,41 @@ class MentionedMember(converter.MemberConverter):
 
         if result is None:
             raise BadArgument('Member "{}" not found'.format(argument))
+
+        return result
+
+
+class PossibleUser(converter.IDConverter):
+    def __init__(self):
+        super().__init__()
+
+    async def convert(self, ctx, argument):
+        match = self._get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
+        state = ctx._state
+
+        if match is not None:
+            user_id = int(match.group(1))
+            result = ctx.bot.get_user(user_id)
+            if not result:
+                result = user_id
+        else:
+            arg = argument
+            # check for discriminator if it exists
+            if len(arg) > 5 and arg[-5] == '#':
+                discrim = arg[-4:]
+                name = arg[:-5]
+                predicate = lambda u: u.name == name and u.discriminator == discrim
+                user = discord.utils.find(predicate, state._users.values())
+                if user is not None:
+                    return user
+
+            predicate = lambda u: u.name == arg
+            result = discord.utils.find(predicate, state._users.values())
+            if result is None:
+                return arg
+
+        if result is None:
+            raise BadArgument('User "{}" not found'.format(argument))
 
         return result
 

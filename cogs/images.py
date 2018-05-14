@@ -8,6 +8,7 @@ from random import randint, random
 
 from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops
 from discord.ext.commands import cooldown, BucketType
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -24,6 +25,7 @@ from utils.utilities import get_image_from_message, find_coeffs
 from selenium.common.exceptions import UnexpectedAlertPresentException
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
 
 
@@ -236,7 +238,11 @@ class Fun(Cog):
         self._driver_lock = Lock(loop=bot.loop)
         self.queue = Queue(loop=bot.loop)
         self.queue.put_nowait(1)
-        self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
+        try:
+            self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
+        except WebDriverException:
+            terminal.exception('failed to load pokefusion')
+            self._pokefusion = None
 
     @staticmethod
     def save_image(img, format='PNG'):
@@ -610,7 +616,8 @@ class Fun(Cog):
         Color poke defines the pokemon whose color palette will be used. By default it's not used
         Passing % as a parameter will randomize that value
         """
-
+        if not self._pokefusion:
+            return await ctx.send('Pokefusion not supported')
         await ctx.trigger_typing()
         img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
         file = BytesIO()

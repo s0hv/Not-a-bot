@@ -1,5 +1,4 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from cogs.cog import Cog
@@ -17,21 +16,20 @@ class LastSeen(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._updates = set()
-        self.threadpool = ThreadPoolExecutor(4)
-        self._update_task = self.bot.loop.create_task(self._status_loop())
-        self._update_task_checker = self.bot.loop.create_task(self._check_loop())
+        self._update_task = asyncio.run_coroutine_threadsafe(self._status_loop(), loop=bot.loop)
+        self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
 
     async def save_updates(self):
         if not self._updates:
             return
 
         updates = self._updates
-        self._updates = {}
+        self._updates = set()
         user_ids = []
         guild_ids = []
         times = []
         usernames = []
-        for update in updates.values():
+        for update in updates:
             user_ids.append(update.user_id)
             usernames.append(update.username)
             guild_ids.append(update.guild_id)

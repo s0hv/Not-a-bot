@@ -4,6 +4,7 @@ import discord
 from discord.ext.commands import cooldown, BucketType
 from sqlalchemy import text
 from sqlalchemy.dialects import mysql
+from bot.converters import PossibleUser
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
@@ -98,22 +99,18 @@ class Stats(Cog):
 
     @command(aliases=['seen'])
     @cooldown(1, 5, BucketType.user)
-    async def last_seen(self, ctx, *, name):
+    async def last_seen(self, ctx, user: PossibleUser):
         """Get when a user was last seen"""
-        user_id = None
-        try:
-            user = int(name)
+
+        if isinstance(user, discord.User):
+            user_id = user.id
+            username = str(user)
+        elif isinstance(user, int):
             user_id = user
-            is_id = True
-        except ValueError:
-            if check_user_mention(ctx.message, name):
-                user = ctx.message.mentions[0].id
-                user_id = user_id
-                name = str(ctx.message.mentions[0])
-                is_id = True
-            else:
-                is_id = False
-                user = name
+            username = None
+        else:
+            user_id = None
+            username = user
 
         guild = ctx.guild
         if guild is not None:
@@ -123,21 +120,21 @@ class Stats(Cog):
             guild = 0
             sql = 'SELECT * FROM `last_seen_users` WHERE guild=0 AND'
 
-        if is_id:
+        if user_id:
             sql += 'user=:user ORDER BY last_seen DESC LIMIT 2'
         else:
             sql += 'username=:user ORDER BY last_seen DESC LIMIT 2'
 
         session = self.bot.get_session
         try:
-            rows = session.execute(sql, {'guild': guild, 'user': user}).fetchall()
+            rows = session.execute(sql, {'guild': guild, 'user': user_id or username}).fetchall()
         except SQLAlchemyError:
             terminal.exception('Failed to get last seen from db')
             return await ctx.send('Failed to get user because of an error')
 
         if len(rows) == 0:
             return await ctx.send("No users found with {}. Either the bot hasn't had the chance to log activity or the name was wrong."
-                                  "Names are case sensitive and must include the discrim".format(name))
+                                  "Names are case sensitive and must include the discrim".format(username))
         local = None
         global_ = None
 
@@ -154,7 +151,10 @@ class Stats(Cog):
             else:
                 user_id = global_['user']
 
-        msg = 'User {} `{}`\n'.format(name, user_id)
+        if username is None:
+            username = local['username']
+
+        msg = 'User {} `{}`\n'.format(username, user_id)
         if local:
             msg += 'Last seen on this server {} UTC\n'.format(local['last_seen'])
         if global_:

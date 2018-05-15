@@ -550,7 +550,7 @@ class Moderator(Cog):
                 if not zawarudo:
                     await ctx.send('Unlocked channel %s' % channel.name)
                 else:
-                    await ctx.send('Toki wo tomare')
+                    await ctx.send('Soshite toki wo ugokidasu')
         except discord.HTTPException:
             pass
 
@@ -733,7 +733,7 @@ class Moderator(Cog):
         """Set send_messages permission override of everyone to false on current channel"""
         await self._set_channel_lock(ctx, True, zawarudo=ctx.invoked_with == 'zawarudo')
 
-    @command(ignore_extra=True, required_perms=lock_perms, aliases=['tokiwotomare'])
+    @command(ignore_extra=True, required_perms=lock_perms, aliases=['tokiwougokidasu'])
     @cooldown(2, 5, BucketType.guild)
     async def unlock(self, ctx):
         """Set send_messages permission override on current channel to default position"""

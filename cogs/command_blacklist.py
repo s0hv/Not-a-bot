@@ -402,25 +402,18 @@ class CommandBlacklist(Cog):
 
     @command(name='commands', no_pm=True)
     @cooldown(1, 30, type=BucketType.user)
-    async def commands_(self, ctx, *user):
+    async def commands_(self, ctx, user: discord.Member=None):
         """Get your or the specified users white- and blacklisted commands on this server"""
         guild = ctx.guild
-
-        if user:
-            user = ' '.join(user)
-            user_ = find_user(user, guild.members, ctx=ctx)
-            if user_ is None:
-                return await ctx.send('No user found with {}'.format(user))
-            user = user_
-        else:
+        if not user:
             user = ctx.author
 
         if user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: r.id, user.roles)))
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
 
-        where = 'guild=%s AND (user=%s or user IS NULL) AND channel IS NULL AND %s' % (guild.id, user.id, roles)
+        where = f'guild={guild.id} AND (user={user.id} or user IS NULL) AND channel IS NULL AND {roles}'
 
         rows = self.get_rows(where)
 
@@ -438,7 +431,7 @@ class CommandBlacklist(Cog):
         global_blacklist = []
         for name, rows in commands.items():
             row = self.get_applying_perm(rows)
-            name = '`%s`' % name
+            name = f'`{name}`'
             if row is False:
                 global_blacklist.append(name)
                 continue

@@ -737,7 +737,7 @@ class Moderator(Cog):
     @cooldown(2, 5, BucketType.guild)
     async def unlock(self, ctx):
         """Set send_messages permission override on current channel to default position"""
-        await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwotomare')
+        await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwougokidasu')
 
     @staticmethod
     async def delete_messages(channel, message_ids):

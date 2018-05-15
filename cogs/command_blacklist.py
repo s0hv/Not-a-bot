@@ -448,20 +448,19 @@ class CommandBlacklist(Cog):
 
         s = ''
         if whitelist:
-            s += '{0}s whitelisted commands\n' + '\n'.join(whitelist) + '\n\n'
+            s += f'{user}s whitelisted commands\n' + '\n'.join(whitelist) + '\n\n'
 
         if blacklist:
-            s += 'Commands blacklisted fom {0}\n' + '\n'.join(blacklist) + '\n\n'
+            s += f'Commands blacklisted fom {user}\n' + '\n'.join(blacklist) + '\n\n'
 
         if global_blacklist:
-            s += 'Commands globally blacklisted for {0}\n' + '\n'.join(global_blacklist) + '\n\n'
+            s += f'Commands globally blacklisted for {user}\n' + '\n'.join(global_blacklist) + '\n\n'
 
         if not s:
             s = '{0} has no special perms set up on the server {1}'.format(user, guild.name)
         else:
             s += '{}s perms on server {}\nChannel specific perms are not checked'.format(user, guild.name)
 
-        s.format(user)
         s = split_string(s, maxlen=2000, splitter='\n')
         for ss in s:
             await ctx.author.send(ss)

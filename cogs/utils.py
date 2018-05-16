@@ -35,9 +35,12 @@ class Utilities(Cog):
         message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms\nWebsocket ping {:.0f}ms'.format(t*1000, local_delay*1000, self.bot.latency*1000)
         if hasattr(self.bot, 'get_session'):
             sql_t = time.time()
-            self.bot.get_session.execute('SELECT 1').fetchall()
-            sql_t = time.time() - sql_t
-            message += '\nDatabase ping {:.0f}ms'.format(sql_t*1000)
+            try:
+                self.bot.get_session.execute('SELECT 1').fetchall()
+                sql_t = time.time() - sql_t
+                message += '\nDatabase ping {:.0f}ms'.format(sql_t * 1000)
+            except SQLAlchemyError:
+                message += '\nDatabase could not be reached' \
 
         await ctx.send(message)
 
@@ -121,7 +124,7 @@ class Utilities(Cog):
                     stdin=s1.stdout, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
                 s1.stdin.close()
-                memory = round(int(s2.communicate()[0].decode('utf-8') / 1024), 1)
+                memory = round(int(s2.communicate()[0].decode('utf-8')) / 1024, 1)
                 usable_memory = str(memory) + 'MB'
                 memory_usage = f'{current_memory}MB/{usable_memory} ({(current_memory/memory*100):.1f}%)'
 

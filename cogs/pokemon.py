@@ -24,15 +24,22 @@ with open(os.path.join(POKESTATS, 'pokemon.csv'), 'r', encoding='utf-8') as f:
     reader = csv.DictReader(f)
     keys = ('ndex', 'hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
     for row in reader:
+        name = None
+
         if '(Mega ' in row['forme']:
             name = row['forme']
             name = 'mega' + name.split('(Mega')[1].split(')')[0].lower()
-            pokemon[name] = {k: int(row[k]) for k in keys}
 
-        if row['species'].lower() in pokemon:
+        elif '(Primal Reversion)' in row['forme']:
+            name = 'primal ' + row['species'].lower()
+
+        else:
+            name = row['species'].lower()
+
+        if name in pokemon:
             continue
 
-        pokemon[row['species'].lower()] = {k: int(row[k]) for k in keys}
+        pokemon[name] = {k: int(row[k]) for k in keys}
 
 with open(os.path.join(POKESTATS, 'natures.json'), 'r') as f:
     natures = json.load(f)

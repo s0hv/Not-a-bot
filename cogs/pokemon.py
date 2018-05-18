@@ -316,7 +316,7 @@ class Pokemon(Cog):
         except KeyError as e:
             return await ctx.send(f"{e}\nMake sure you replace the nickname to the pokemons real name in the message or this won't work")
 
-        s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: Max value | Delta | Percentage | lv 100 stats & iv\n'
+        s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: Max value | Delta | Percentage | lvl 100 | iv\n'
 
         nature_mod = natures[nature]
         base_stats = get_base_stats(stats['name'])
@@ -344,9 +344,15 @@ class Pokemon(Cog):
             else:
                 iv = f'{ivs[0]}-{ivs[-1]}'
 
+            if maximum == minimum:
+                stat_range = str(maximum)
+            else:
+                stat_range = f'{minimum}-{maximum}'
+
             idx += 1
-            s += f'{name}:{fill}{max_val}{fill2}| {from_max}{fill3}| {diff}{fill4}| {minimum}-{maximum} {iv}'
-            s += '\n'
+
+            fill5 = ' ' * (8 - len(stat_range))
+            s += f'{name}:{fill}{max_val}{fill2}| {from_max}{fill3}| {diff}{fill4}| {stat_range}{fill5}| {iv}\n'
         s += '```'
         await ctx.send(s)
 

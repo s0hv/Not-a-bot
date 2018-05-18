@@ -73,7 +73,7 @@ def iv_range(level, natures, stats, base):
     ivs = []
 
     def get_range(get_stat, get_iv, stat, base, nature=None):
-        iv_small = 1
+        iv_small = 0
         iv_big = 31
         if nature is None:
             iv_guess = get_iv(stat, base, ev=102, level=level)

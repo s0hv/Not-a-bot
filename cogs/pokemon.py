@@ -6,6 +6,7 @@ from bot.globals import POKESTATS
 import os
 from cogs.cog import Cog
 from bot.bot import command
+from functools import partial
 from discord.ext.commands import cooldown
 from bot.exceptions import BotException
 from discord.ext.commands.errors import BadArgument
@@ -55,8 +56,61 @@ with open(os.path.join(POKESTATS, 'pokemonrefs.json'), 'r') as f:
 # Below functions ported from https://github.com/dalphyx/pokemon-stat-calculator
 # Formulas from https://bulbapedia.bulbagarden.net/wiki/Statistic
 def calc_stat(iv, base, ev=0, level=1, nature=1):
-    result = math.floor(((2 * base + iv + ev / 4) * level) / 100 + 5) * nature
-    return math.floor(result)
+    result = math.floor(((2 * base + iv + math.floor(ev / 4)) * level) / 100) + 5 * nature
+    result = math.floor(result)
+    return result
+
+
+def calc_iv(value, base, ev=0, level=1, nature=1):
+    return max(math.floor((100 * value / nature - 500) / level) - math.floor(ev / 4) - 2 * base, 0)
+
+
+def calc_hp_iv(hp, base, ev=0, level=1):
+    return max(math.floor((100 * hp - 1000) / level - 2 * base - math.floor(ev / 4) - 100), 0)
+
+
+def iv_range(level, natures, stats, base):
+    ivs = []
+
+    def get_range(get_stat, get_iv, stat, base, nature=None):
+        iv_small = 1
+        iv_big = 31
+        if nature is None:
+            iv_guess = get_iv(stat, base, ev=102, level=level)
+        else:
+            iv_guess = get_iv(stat, base, ev=102, level=level, nature=nature)
+
+        if nature is not None:
+            get_stat = partial(get_stat, nature=nature)
+        if get_stat(iv_guess, base, ev=102, level=level) != stat:
+            for iv in range(1, 32):
+                if get_stat(iv, base, ev=102, level=level) == stat:
+                    iv_guess = iv
+        if iv_guess > 0:
+            for r in range(1, 16):
+                iv = iv_guess - r
+                stat_new = get_stat(iv, base, ev=102, level=level)
+                if stat_new != stat:
+                    iv_small = iv + 1
+                    break
+
+        for r in range(1, 16):
+            iv = iv_guess + r
+            stat_new = get_stat(iv, base, ev=102, level=level)
+            if stat_new != stat:
+                iv_big = iv - 1
+                break
+            if iv == 31:
+                iv_big = iv
+                break
+
+        return list(range(iv_small, iv_big + 1))
+
+    ivs.append(get_range(calc_hp_stats, calc_hp_iv, stats[0], base[0]))
+    for stat, base_, nature in zip(stats[1:], base[1:], natures):
+        ivs.append(get_range(calc_stat, calc_iv, stat, base_, nature=nature))
+
+    return ivs
 
 
 def calc_hp_stats(iv, base, ev, level):
@@ -64,8 +118,8 @@ def calc_hp_stats(iv, base, ev, level):
     if base == 1:
         return 1
 
-    result = ((2 * base + iv + ev / 4) * level) / 100 + level + 10
-    return math.floor(result)
+    result = math.floor((2 * base + iv + math.floor(ev / 4) * level) / 100) + level + 10
+    return result
 
 
 def get_base_stats(name: str):
@@ -77,7 +131,7 @@ def get_base_stats(name: str):
     return tuple(poke[stat] for stat in stat_names)
 
 
-def calc_all_stats(name, level, nature, evs=(100, 100, 100, 100, 100, 100), ivs=MAX_IV, with_max_level=False):
+def calc_all_stats(name, level, nature, evs=(102, 102, 102, 102, 102, 102), ivs=MAX_IV, with_max_level=False):
     if isinstance(nature, str):
         nature_ = natures.get(nature.lower())
         if not nature_:
@@ -186,7 +240,7 @@ class Pokemon(Cog):
         try:
             if stats:
                 author = await (UserConverter().convert(ctx, stats))
-        except (UserInputError):
+        except UserInputError:
             pass
 
         if not author:
@@ -245,44 +299,53 @@ class Pokemon(Cog):
         except ValueError:
             raise BadArgument('Could not convert level to integer')
 
+        current_stats = []
         try:
             for name in stat_names:
-                stats[name] = int(stats[name])
+                i = int(stats[name])
+                current_stats.append(i)
+                stats[name] = i
         except ValueError:
             raise BadArgument(f'Failed to convert {name} to integer')
 
+        nature = stats['nature'].lower()
+
         try:
-            max_stats, lvl_max = calc_all_stats(stats['name'], level, stats['nature'], with_max_level=True)
-            min_stats, lvl_min = calc_all_stats(stats['name'], level, stats['nature'], ivs=MIN_IV, evs=MIN_IV, with_max_level=True)
+            max_stats = calc_all_stats(stats['name'], level, nature)
+            min_stats = calc_all_stats(stats['name'], level, nature, ivs=MIN_IV)
         except KeyError as e:
             return await ctx.send(f"{e}\nMake sure you replace the nickname to the pokemons real name in the message or this won't work")
 
-        s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: Max value | Delta | Percentage'
-        if level != 100:
-            s += ' | lv 100 stats WIP'
-        s += '\n'
-        for min_val, max_val, name, max_stat, min_stat in zip(min_stats, max_stats, stat_names, lvl_max, lvl_min):
+        s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: Max value | Delta | Percentage | lv 100 stats & iv\n'
+
+        nature_mod = natures[nature]
+        base_stats = get_base_stats(stats['name'])
+        iv_ranges = iv_range(level, nature_mod, current_stats, base_stats)
+        idx = 0
+        for min_val, max_val, name, ivs in zip(min_stats, max_stats, stat_names, iv_ranges):
             diff, from_max = from_max_stat(min_val, max_val, stats[name])
             fill = ' ' * (11 - len(name))
             fill2 = ' ' * (4 - len(str(max_val)))
             fill3 = ' ' * (6 - len(str(from_max)))
 
             if isinstance(diff, float):
-                diff_n = diff
                 diff = f'{diff*100:.0f}%'
+            fill4 = ' ' * (11 - len(diff))
 
-            s += f'{name}:{fill}{max_stat}{fill2}| {from_max}{fill3}| {diff}'
+            if idx == 0:
+                minimum = calc_hp_stats(ivs[0], base_stats[idx], 102, 100)
+                maximum = calc_hp_stats(ivs[-1], base_stats[idx], 102, 100)
+            else:
+                minimum = calc_stat(ivs[0], base_stats[idx], 102, 100, nature_mod[idx - 1])
+                maximum = calc_stat(ivs[-1], base_stats[idx], 102, 100, nature_mod[idx - 1])
 
-            if level != 100:
-                fill4 = ' ' * (11 - len(diff))
-                if diff == 'N/A':
-                    s += f'{fill4}| N/A'
-                else:
-                    delta = max_stat - min_stat
-                    diff_max, _ = from_max_stat(min_val, max_val, stats[name] + 1)
+            if len(ivs) == 1:
+                iv = str(ivs[0])
+            else:
+                iv = f'{ivs[0]}-{ivs[-1]}'
 
-                    s += f'{fill4}| {int(min_stat+delta*diff_n)}-{int(min(max_stat, min_stat+delta*diff_max))}'
-
+            idx += 1
+            s += f'{name}:{fill}{max_val}{fill2}| {from_max}{fill3}| {diff}{fill4}| {minimum}-{maximum} {iv}'
             s += '\n'
         s += '```'
         await ctx.send(s)

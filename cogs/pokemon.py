@@ -56,7 +56,7 @@ with open(os.path.join(POKESTATS, 'pokemonrefs.json'), 'r') as f:
 # Below functions ported from https://github.com/dalphyx/pokemon-stat-calculator
 # Formulas from https://bulbapedia.bulbagarden.net/wiki/Statistic
 def calc_stat(iv, base, ev=0, level=1, nature=1):
-    result = math.floor(((2 * base + iv + math.floor(ev / 4)) * level) / 100) + 5 * nature
+    result = math.floor(((2 * base + iv + math.floor(ev / 4)) * level) / 100 + 5) * nature
     result = math.floor(result)
     return result
 
@@ -118,7 +118,7 @@ def calc_hp_stats(iv, base, ev, level):
     if base == 1:
         return 1
 
-    result = math.floor((2 * base + iv + math.floor(ev / 4) * level) / 100) + level + 10
+    result = math.floor((2 * base + iv + math.floor(ev / 4)) * level / 100) + level + 10
     return result
 
 
@@ -250,7 +250,13 @@ class Pokemon(Cog):
                 author = ctx.author
                 not_found = 'Could not find p!info message'
                 accept_any = True
-                stats = None
+                if stats:
+                    match = pokestats.match(stats)
+                    if not match:
+                        await ctx.send("Failed to parse stats. Make sure it's the correct format")
+                        return
+
+                    stats = match.groupdict()
 
         else:
             stats = None
@@ -286,14 +292,7 @@ class Pokemon(Cog):
 
             embed = check_msg(msg)
             stats = await process_embed(embed)
-        else:
-            match = pokestats.match(stats)
 
-            if not match:
-                await ctx.send("Failed to parse stats. Make sure it's the correct format")
-                return
-
-            stats = match.groupdict()
         try:
             level = int(stats['level'])
         except ValueError:

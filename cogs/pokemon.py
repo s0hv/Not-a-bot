@@ -11,6 +11,9 @@ from bot.exceptions import BotException
 from discord.ext.commands.errors import BadArgument
 from utils.utilities import basic_check
 from discord.embeds import Embed, EmptyEmbed
+from discord.errors import HTTPException
+from discord.ext.commands.errors import UserInputError
+from discord.ext.commands.converter import UserConverter
 
 
 pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\n(Holding: .+?\n)?Nature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
@@ -74,12 +77,7 @@ def get_base_stats(name: str):
     return tuple(poke[stat] for stat in stat_names)
 
 
-def calc_all_stats(name, level, nature, evs=(100, 100, 100, 100, 100, 100), ivs=MAX_IV):
-    stats = []
-
-    base_stats = get_base_stats(name)
-    stats.append(calc_hp_stats(ivs[0], base_stats[0], evs[0], level))
-
+def calc_all_stats(name, level, nature, evs=(100, 100, 100, 100, 100, 100), ivs=MAX_IV, with_max_level=False):
     if isinstance(nature, str):
         nature_ = natures.get(nature.lower())
         if not nature_:
@@ -87,8 +85,24 @@ def calc_all_stats(name, level, nature, evs=(100, 100, 100, 100, 100, 100), ivs=
 
         nature = nature_
 
-    for i in range(1, 6):
-        stats.append(calc_stat(ivs[i], base_stats[i], evs[i], level, nature[i - 1]))
+    base_stats = get_base_stats(name)
+
+    def calc_stats(lvl):
+        st = [calc_hp_stats(ivs[0], base_stats[0], evs[0], lvl)]
+
+        for i in range(1, 6):
+            st.append(calc_stat(ivs[i], base_stats[i], evs[i], lvl, nature[i - 1]))
+
+        return st
+
+    stats = calc_stats(level)
+    if with_max_level and level != 100:
+        max_stats = calc_stats(100)
+    elif with_max_level:
+        max_stats = stats
+
+    if with_max_level:
+        return stats, max_stats
 
     return stats
 
@@ -143,27 +157,51 @@ class Pokemon(Cog):
         Sp. Def: 300
         Speed: 300
         """
+        async def process_embed(embed):
+            stats = embed.title + '\n' + embed.description.replace('*', '')
+
+            match = pokestats.match(stats)
+            if not match:
+                await ctx.send("Failed to parse stats. Make sure it's the correct format")
+                return
+
+            pokemon_name = pokemonrefs.get(embed.image.url.split('/')[-1].split('.')[0])
+            if not pokemon_name:
+                await ctx.send('Could not get pokemon name from message. Please give the name of the pokemon')
+                msg = await self.bot.wait_for('message', check=basic_check(author=ctx.author, channel=ctx.channel),
+                                              timeout=30)
+                pokemon_name = msg.content
+
+            stats = match.groupdict()
+            stats['name'] = pokemon_name
+
+            return stats
+
+        def check_msg(msg):
+            embed = msg.embeds[0]
+            if embed.title != EmptyEmbed and embed.title.startswith('Level '):
+                return embed
+
+        try:
+            author = await (UserConverter().convert(ctx, stats))
+        except UserInputError:
+            author = None
+
+        if not author:
+            try:
+                stats = int(stats)
+            except (ValueError, TypeError):
+                author = ctx.author
+                not_found = 'Could not find p!info message'
+                accept_any = True
+                stats = None
+
+        else:
+            stats = None
+            not_found = f'No p!info message found for user {author}'
+            accept_any = False
+
         if not stats:
-            async def process_embed(embed):
-                stats = embed.title + '\n' + embed.description.replace('*', '')
-
-                match = pokestats.match(stats)
-                if not match:
-                    await ctx.send("Failed to parse stats. Make sure it's the correct format")
-                    return
-
-                pokemon_name = pokemonrefs.get(embed.image.url.split('/')[-1].split('.')[0])
-                if not pokemon_name:
-                    await ctx.send('Could not get pokemon name from message. Please give the name of the pokemon')
-                    msg = await self.bot.wait_for('message', check=basic_check(author=ctx.author,channel=ctx.channel),
-                                                  timeout=30)
-                    pokemon_name = msg.content
-
-                stats = match.groupdict()
-                stats['name'] = pokemon_name
-
-                return stats
-
             _embed = None
             async for msg in ctx.channel.history():
                 if msg.author.id != 365975655608745985:
@@ -172,17 +210,26 @@ class Pokemon(Cog):
                     continue
                 embed = msg.embeds[0]
                 if embed.title != EmptyEmbed and embed.title.startswith('Level '):
-                    if ctx.author.avatar_url.startswith(embed.thumbnail.url):
+                    if author.avatar_url.startswith(embed.thumbnail.url):
                         _embed = embed
                         break
-                    if _embed is None:
+                    if accept_any and _embed is None:
                         _embed = embed
 
             if _embed is None:
-                await ctx.send('Could not find p!info message')
+                await ctx.send(not_found)
                 return
 
             stats = await process_embed(_embed)
+
+        elif isinstance(stats, int):
+            try:
+                msg = await ctx.channel.get_message(stats)
+            except HTTPException as e:
+                return await ctx.send(f'Could not get message with id `{stats}` because of an error\n{e}')
+
+            embed = check_msg(msg)
+            stats = await process_embed(embed)
         else:
             match = pokestats.match(stats)
 
@@ -203,22 +250,38 @@ class Pokemon(Cog):
             raise BadArgument(f'Failed to convert {name} to integer')
 
         try:
-            max_stats = calc_all_stats(stats['name'], level, stats['nature'])
-            min_stats = calc_all_stats(stats['name'], level, stats['nature'], ivs=MIN_IV, evs=MIN_IV)
+            max_stats, lvl_max = calc_all_stats(stats['name'], level, stats['nature'], with_max_level=True)
+            min_stats, lvl_min = calc_all_stats(stats['name'], level, stats['nature'], ivs=MIN_IV, evs=MIN_IV, with_max_level=True)
         except KeyError as e:
             return await ctx.send(f"{e}\nMake sure you replace the nickname to the pokemons real name in the message or this won't work")
 
-        s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: max value | delta | percentage\n'
-        for min, max, name in zip(min_stats, max_stats, stat_names):
-            diff, from_max = from_max_stat(min, max, stats[name])
+        s = f'```py\nLevel {stats["level"]} {stats["name"]}\nStat: Max value | Delta | Percentage'
+        if level != 100:
+            s += ' | lv 100 stats WIP'
+        s += '\n'
+        for min_val, max_val, name, max_stat, min_stat in zip(min_stats, max_stats, stat_names, lvl_max, lvl_min):
+            diff, from_max = from_max_stat(min_val, max_val, stats[name])
             fill = ' ' * (11 - len(name))
-            fill2 = ' ' * (4 - len(str(max)))
+            fill2 = ' ' * (4 - len(str(max_val)))
             fill3 = ' ' * (6 - len(str(from_max)))
 
             if isinstance(diff, float):
+                diff_n = diff
                 diff = f'{diff*100:.0f}%'
 
-            s += f'{name}:{fill}{max}{fill2}| {from_max}{fill3}| {diff}\n'
+            s += f'{name}:{fill}{max_stat}{fill2}| {from_max}{fill3}| {diff}'
+
+            if level != 100:
+                fill4 = ' ' * (11 - len(diff))
+                if diff == 'N/A':
+                    s += f'{fill4}| N/A'
+                else:
+                    delta = max_stat - min_stat
+                    diff_max, _ = from_max_stat(min_val, max_val, stats[name] + 1)
+
+                    s += f'{fill4}| {int(min_stat+delta*diff_n)}-{int(min(max_stat, min_stat+delta*diff_max))}'
+
+            s += '\n'
         s += '```'
         await ctx.send(s)
 

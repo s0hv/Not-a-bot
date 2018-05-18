@@ -182,10 +182,12 @@ class Pokemon(Cog):
             if embed.title != EmptyEmbed and embed.title.startswith('Level '):
                 return embed
 
+        author = None
         try:
-            author = await (UserConverter().convert(ctx, stats))
-        except UserInputError:
-            author = None
+            if stats:
+                author = await (UserConverter().convert(ctx, stats))
+        except (UserInputError):
+            pass
 
         if not author:
             try:

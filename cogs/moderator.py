@@ -334,7 +334,7 @@ class Moderator(Cog):
 
     @command(required_perms=manage_roles)
     async def mute_roll(self, ctx, user: discord.Member, hours: int):
-        if 0 < hours < 11:
+        if not 0 < hours < 11:
             return ctx.send('Mute length should be between 1 and 10 (hours)')
 
         if ctx.author == user:

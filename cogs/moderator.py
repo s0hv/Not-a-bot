@@ -1,17 +1,20 @@
+import asyncio
 import logging
 from datetime import datetime, timedelta
-from random import randint
+from random import randint, random
+import os
 
 import discord
 from discord.ext.commands import cooldown, BucketType
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group
-from bot.globals import Perms
+from bot.globals import Perms, DATA
 from cogs.cog import Cog
 from utils.utilities import (get_users_from_ids, call_later, parse_timeout,
                              datetime2sql, get_avatar, get_user_id, get_channel_id,
-                             find_user, seconds2str, get_role, get_channel, Snowflake)
+                             find_user, seconds2str, get_role, get_channel, Snowflake,
+                             basic_check)
 from bot.converters import MentionedMember, MentionedUser
 
 
@@ -26,6 +29,7 @@ class Moderator(Cog):
         self.timeouts = self.bot.timeouts
         self.automute_blacklist = {}
         self.automute_whitelist = {}
+        self._current_rolls = {}  # Users currently active in a mute roll
         self._load_timeouts()
         self._load_automute()
 
@@ -328,6 +332,82 @@ class Moderator(Cog):
         except discord.HTTPException:
             pass
 
+    @command(required_perms=manage_roles)
+    async def mute_roll(self, ctx, user: discord.Member, hours: int):
+        if 1 > hours > 10:
+            return ctx.send('Mute length should be between 1 and 10 (hours)')
+
+        mute_role = await self._mute_check(ctx)
+        if not mute_role:
+            return
+
+        if mute_role in user.roles or mute_role in ctx.author.roles:
+            return await ctx.send('One of the participants is already muted')
+
+        if ctx.guild.id not in self._current_rolls:
+            state = set()
+            self._current_rolls[ctx.guild.id] = state
+        else:
+            state = self._current_rolls[ctx.guild.id]
+
+        if user.id in state or ctx.author.id in state:
+            return await ctx.send('One of the users is already participating in a roll')
+
+        state.add(user.id)
+        state.add(ctx.author.id)
+
+        try:
+            await ctx.send(f'{user.mention} type accept to join this mute roll of {hours} hours')
+
+            def check(msg):
+                return basic_check(msg.author, msg.channel) and msg.content.lower() == 'accept'
+
+            try:
+                await self.bot.wait_for('message', check=check, timeout=120)
+            except asyncio.TimeoutError:
+                return ctx.send('Took too long.')
+
+            td = timedelta(hours=hours)
+            expires_on = datetime2sql(datetime.utcnow() + td)
+            msg = await ctx.send(f'{user} vs {ctx.author}\nLoser: <a:loading:449907001569312779>')
+            await asyncio.sleep(2)
+            counter = True
+            counter_counter = random() < 0.01
+            if not counter_counter:
+                counter = random() < 0.05
+
+            choices = [user, ctx.author]
+
+            if random() < 0.5:
+                loser = 0
+            else:
+                loser = 1
+
+            await msg.edit(content=f'{user} vs {ctx.author}\nLoser: {choices[loser]}')
+            if counter:
+                p = os.path.join(DATA, 'templates', 'reverse.png')
+                await asyncio.sleep(2)
+                await ctx.send(f'{choices[loser]} counters', file=discord.File(p))
+
+                loser = abs(loser - 1)
+                await msg.edit(content=f'{user} vs {ctx.author}\nLoser: {choices[loser]}')
+
+            if counter_counter:
+                p = os.path.join(DATA, 'templates', 'counter_counter.png')
+                await asyncio.sleep(2)
+                await ctx.send(f'{choices[loser]} counters the counter', file=discord.File(p))
+
+                loser = abs(loser - 1)
+                await msg.edit(content=f'{user} vs {ctx.author}\nLoser: {choices[loser]}')
+
+            loser = choices[loser]
+            await asyncio.sleep(3)
+            await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds())
+            await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
+        finally:
+            state.discard(user.id)
+            state.discard(ctx.author.id)
+
     def remove_timeout(self, user_id, guild_id):
         session = self.bot.get_session
         try:
@@ -337,6 +417,36 @@ class Moderator(Cog):
         except SQLAlchemyError:
             session.rollback()
             logger.exception('Could not delete untimeout')
+
+    async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds):
+        try:
+            sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`) VALUES ' \
+                  '(:guild, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
+
+            d = {'guild': guild_id, 'user': user_id, 'expires_on': expires_on}
+            await self.bot.dbutils.execute(sql, params=d, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Could not save timeout')
+            await ctx.send('Could not save timeout. Canceling action')
+            return False
+
+        task = call_later(self.untimeout, self.bot.loop,
+                          as_seconds, user_id, guild_id)
+
+        if guild_id not in self.timeouts:
+            guild_timeouts = {}
+            self.timeouts[guild_id] = guild_timeouts
+        else:
+            guild_timeouts = self.timeouts.get(guild_id)
+
+        t = guild_timeouts.get(user_id)
+        if t:
+            t.cancel()
+
+        guild_timeouts[user_id] = task
+        task.add_done_callback(lambda f: guild_timeouts.pop(user_id, None))
+
+        return True
 
     async def untimeout(self, user_id, guild_id):
         mute_role = self.bot.guild_cache.mute_role(guild_id)
@@ -402,22 +512,7 @@ class Moderator(Cog):
 
         now = datetime.utcnow()
         expires_on = datetime2sql(now + time)
-        session = self.bot.get_session
-        try:
-            sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`) VALUES ' \
-                  '(:guild, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
-
-            d = {'guild': ctx.guild.id, 'user': user.id, 'expires_on': expires_on}
-            session.execute(sql, params=d)
-            session.commit()
-        except SQLAlchemyError:
-            session.rollback()
-            logger.exception('Could not save timeout')
-            return await ctx.send('Could not save timeout. Canceling action')
-
-        t = self.timeouts.get(guild.id, {}).get(user.id)
-        if t:
-            t.cancel()
+        await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds())
 
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
 
@@ -428,10 +523,8 @@ class Moderator(Cog):
                       '(:guild, :user, :time, :reason)'
                 d = {'guild': guild.id, 'user': ctx.author.id,
                      'time': time.total_seconds(), 'reason': reason}
-                session.execute(sql, params=d)
-                session.commit()
+                await self.bot.dbutils.execute(sql, params=d, commit=True)
             except SQLAlchemyError:
-                session.rollback()
                 logger.exception('Fail to log timeout')
 
             await ctx.send('Muted user {} for {}'.format(user, time))
@@ -451,18 +544,6 @@ class Moderator(Cog):
                 await self.send_to_modlog(guild, embed=embed)
         except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(user))
-
-        task = call_later(self.untimeout, self.bot.loop,
-                          time.total_seconds(), user.id, ctx.guild.id)
-
-        if guild.id not in self.timeouts:
-            guild_timeouts = {}
-            self.timeouts[guild.id] = guild_timeouts
-        else:
-            guild_timeouts = self.timeouts.get(guild.id)
-
-        guild_timeouts[user.id] = task
-        task.add_done_callback(lambda f: guild_timeouts.pop(user.id, None))
 
     @group(required_perms=manage_roles, invoke_without_command=True, no_pm=True)
     async def unmute(self, ctx, user: MentionedMember):

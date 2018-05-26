@@ -86,6 +86,7 @@ def iv_range(level, natures, stats, base):
             for iv in range(1, 32):
                 if get_stat(iv, base, ev=102, level=level) == stat:
                     iv_guess = iv
+
         if iv_guess > 0:
             for r in range(1, 16):
                 iv = iv_guess - r

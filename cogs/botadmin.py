@@ -8,6 +8,9 @@ from importlib import reload, import_module
 import discord
 from discord.errors import HTTPException, InvalidArgument
 from discord.ext.commands.core import GroupMixin
+from bot.globals import Auth
+import subprocess
+import shlex
 
 from bot.bot import command
 from cogs.cog import Cog
@@ -22,12 +25,14 @@ class BotAdmin(Cog):
 
     @command(name='eval', owner_only=True)
     async def eval_(self, ctx, *, code: str):
-        context = {'ctx': ctx,
-                   'author': ctx.author,
-                   'guild': ctx.guild,
-                   'message': ctx.message,
-                   'channel': ctx.channel,
-                   'bot': ctx.bot}
+        context = globals().copy()
+        context.update({'ctx': ctx,
+                        'author': ctx.author,
+                        'guild': ctx.guild,
+                        'message': ctx.message,
+                        'channel': ctx.channel,
+                        'bot': ctx.bot,
+                        'loop': ctx.bot.loop})
 
         if '\n' in code:
             lines = list(filter(bool, code.split('\n')))
@@ -37,18 +42,18 @@ class BotAdmin(Cog):
                 lines[-1] = ' ' * whitespace + 'return ' + last  # if code doesn't have a return make one
 
             lines = '\n'.join('    ' + i for i in lines)
-            code = f'def f():\n{lines}\nx = f()'  # Transform the code to a function
+            code = f'async def f():\n{lines}\nx = asyncio.run_coroutine_threadsafe(f(), loop).result()'  # Transform the code to a function
             local = {}  # The variables outside of the function f() get stored here
 
             try:
-                exec(compile(code, '<eval>', 'exec'), context, local)
+                await self.bot.loop.run_in_executor(self.bot.threadpool, exec, compile(code, '<eval>', 'exec'), context, local)
                 retval = pprint.pformat(local['x'])
             except Exception as e:
                 retval = f'{type(e).__name__}: {e}'
 
         else:
             try:
-                retval = eval(code, context)
+                retval = await self.bot.loop.run_in_executor(self.bot.threadpool, eval, code, context)
                 if asyncio.iscoroutine(retval):
                     retval = await retval
 
@@ -66,8 +71,15 @@ class BotAdmin(Cog):
 
     @command(name='exec', owner_only=True)
     async def exec_(self, ctx, *, message):
+        context = globals().copy()
+        context.update({'ctx': ctx,
+                        'author': ctx.author,
+                        'guild': ctx.guild,
+                        'message': ctx.message,
+                        'channel': ctx.channel,
+                        'bot': ctx.bot})
         try:
-            retval = exec(message)
+            retval = await self.bot.loop.run_in_executor(self.bot.threadpool, exec, message, context)
             if asyncio.iscoroutine(retval):
                 retval = await retval
 
@@ -210,6 +222,21 @@ class BotAdmin(Cog):
         except Exception as e:
             return await ctx.send('Failed to reload module %s because of an error\n```%s```' % (module_name, e))
         await ctx.send('Reloaded module %s' % module_name)
+
+    @command(auth=Auth.ADMIN, ignore_extra=True)
+    async def update_bot(self, ctx, *, options=None):
+        """Does a git pull"""
+        cmd = 'git pull'.split(' ')
+        if options:
+            cmd.extend(shlex.split(options))
+
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        out, err = await self.bot.loop.run_in_executor(self.bot.threadpool, p.communicate)
+        out = out.decode('utf-8')
+        if len(out) > 2000:
+            out = out[:1996] + '...'
+
+        await ctx.send(out)
 
 
 def setup(bot):

@@ -230,9 +230,12 @@ class BotAdmin(Cog):
         if options:
             cmd.extend(shlex.split(options))
 
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out, err = await self.bot.loop.run_in_executor(self.bot.threadpool, p.communicate)
         out = out.decode('utf-8')
+        if err:
+            out = err.decode('utf-8') + out
+
         if len(out) > 2000:
             out = out[:1996] + '...'
 

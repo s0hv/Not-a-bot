@@ -56,6 +56,7 @@ terminal = logging.getLogger('terminal')
 time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
 timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
                            re.DOTALL)
+timedelta_regex = re.compile(r'(?P<days>\d+?) (?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
 seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
 
 
@@ -445,6 +446,14 @@ def parse_timeout(time_str):
 
 def datetime2sql(datetime):
     return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(datetime)
+
+
+def timedelta2sql(timedelta):
+    return f'{timedelta.days} {timedelta.seconds//3600}:{(timedelta.seconds//60)%60}:{timedelta.seconds%60}'
+
+
+def sql2timedelta(value):
+    return timedelta(**timedelta_regex.match(value).groupdict())
 
 
 def call_later(func, loop, timeout, *args, **kwargs):

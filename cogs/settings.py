@@ -5,12 +5,13 @@ from collections import OrderedDict
 import discord
 from discord.ext.commands import cooldown, BucketType
 
-from bot.bot import group, command
+from bot import exceptions
+from bot.bot import group
+from bot.converters import TimeDelta
 from bot.globals import Perms
 from cogs.cog import Cog
-from utils.utilities import (split_string, format_on_edit, format_on_delete, get_channel,
-                             format_join_leave, get_role)
-from bot import exceptions
+from utils.utilities import (split_string, format_on_edit, format_on_delete,
+                             format_join_leave, get_role, timedelta2sql)
 
 
 class Settings(Cog):
@@ -28,16 +29,14 @@ class Settings(Cog):
     async def settings(self, ctx):
         """Gets the current settings on the server"""
         guild = ctx.guild
-        prefix = self.cache.prefixes(guild.id)[0]
         embed = discord.Embed(title='Current settings for %s' % guild.name, description=
                               'To change these settings use {}settings <name> <value>\n'
                               'The name for each setting is specified in brackets\n'
-                              'Value depends on the setting.'.format(prefix))
+                              'Value depends on the setting.'.format(ctx.invoked_with))
         fields = OrderedDict([('modlog', 'Moderation log'), ('keeproles', 'Re-add roles to user if they rejoin'),
                               ('prefixes', 'Command prefixes'), ('mute_role', 'Role that is used with timeout and mute'),
                               ('random_color', 'Add a random color to a user when they join'),
-                              ('automute', 'Mute on too many mentions in a message'),
-                              ('automute_limit', 'How many mentions needed for mute')])
+                              ('automute', 'Mute on too many mentions in a message')])
         type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
         value_conversions = {'modlog': lambda c: '<#%s>' % c, 'mute_role': lambda r: '<@&%s>' % r,
                              'prefixes': lambda p: '`' + '` `'.join(p) + '`'}
@@ -198,14 +197,34 @@ class Settings(Cog):
         value = 'on' if value else 'off'
         await ctx.send('Changed the value to ' + value)
 
-    @settings.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @settings.command(name='automute', required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    async def automute_(self, ctx):
+        await self.automute.invoke(ctx)
+
+    @group(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True, invoke_without_command=True)
     @cooldown(2, 10, BucketType.guild)
     async def automute(self, ctx, value: bool=None):
         """Check or set the status of automatic muting"""
         guild = ctx.guild
         if value is None:
-            value = 'on' if self.cache.automute(guild.id) else 'off'
-            return await ctx.send('Automute is currently set {}'.format(value))
+            guild = ctx.guild
+            embed = discord.Embed(title='Current automute settings for %s' % guild.name,
+                                  description=
+                                  'To change these values use {}settings automute <name> <value>\n'
+                                  'The name for each setting is specified in brackets\n'
+                                  'Value depends on the setting.'.format( ctx.invoked_with))
+            fields = OrderedDict([('limit', 'How many mentions needed for an automute to happen'),
+                                  ('time', 'How long the mute will last. Infinite if not set')])
+            type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
+
+            embed.add_field(name='Automute state', value=type_conversions.get(self.cache.automute(guild.id)))
+            for k, v in fields.items():
+                value = getattr(self.cache, 'automute_' + k, None)(guild.id)
+                embed.add_field(name='%s (%s)' % (v, k),
+                                value=type_conversions.get(value, str(value)),
+                                inline=True)
+
+            return await ctx.send(embed=embed)
 
         success = self.cache.set_automute(guild.id, value)
         if not success:
@@ -214,9 +233,9 @@ class Settings(Cog):
         value = 'on' if value else 'off'
         await ctx.send('Set automute value to ' + value)
 
-    @settings.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @automute.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
     @cooldown(2, 10, BucketType.guild)
-    async def automute_limit(self, ctx, limit: int=None):
+    async def limit(self, ctx, limit: int=None):
         """Check or set the limit of mentions in a message for the bot to mute a user"""
         guild = ctx.guild
         if limit is None:
@@ -233,6 +252,21 @@ class Settings(Cog):
             return ctx.send('Failed to set automute limit')
 
         await ctx.send('Set automute limit to ' + str(limit))
+
+    @automute.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @cooldown(2, 10, BucketType.guild)
+    async def time(self, ctx, *, mute_time: TimeDelta=None):
+        if mute_time is None:
+            return await ctx.send(f'Automute time is currently set to {self.cache.automute_time(ctx.guild.id)}')
+        if mute_time.days > 29:
+            return await ctx.send('Time must be under 30 days')
+
+        format = timedelta2sql(mute_time)
+        success = self.cache.set_automute_time(ctx.guild.id, format)
+        if not success:
+            return await ctx.send('Failed to set time')
+
+        await ctx.send(f'Set mute time to {mute_time}')
 
     @group(invoke_without_command=True)
     @cooldown(2, 10, BucketType.guild)

@@ -1,22 +1,21 @@
 import asyncio
 import logging
+import os
 from datetime import datetime, timedelta
 from random import randint, random
-import os
 
 import discord
 from discord.ext.commands import cooldown, BucketType
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group
+from bot.converters import MentionedMember, MentionedUser
 from bot.globals import Perms, DATA
 from cogs.cog import Cog
-from utils.utilities import (get_users_from_ids, call_later, parse_timeout,
-                             datetime2sql, get_avatar, get_user_id, get_channel_id,
-                             find_user, seconds2str, get_role, get_channel, Snowflake,
-                             basic_check)
-from bot.converters import MentionedMember, MentionedUser
-
+from utils.utilities import (call_later, parse_timeout,
+                             datetime2sql, get_avatar, get_user_id, find_user,
+                             seconds2str, get_role, get_channel, Snowflake,
+                             basic_check, sql2timedelta)
 
 logger = logging.getLogger('debug')
 manage_roles = discord.Permissions(268435456)
@@ -114,19 +113,32 @@ class Moderator(Cog):
         guild = message.guild
         if guild and self.bot.guild_cache.automute(guild.id):
             mute_role = self.bot.guild_cache.mute_role(guild.id)
-            mute_role = discord.utils.find(lambda r: r.id == mute_role,
-                                           message.guild.roles)
+            mute_role = discord.utils.find(lambda r: r.id == mute_role, message.guild.roles)
+            user = message.author
+
+            if mute_role in user.roles:
+                return
             limit = self.bot.guild_cache.automute_limit(guild.id)
             if mute_role and len(message.mentions) + len(message.role_mentions) > limit:
                 blacklist = self.automute_blacklist.get(guild.id, ())
+
                 if message.channel.id not in blacklist:
                     whitelist = self.automute_whitelist.get(guild.id, ())
                     invulnerable = discord.utils.find(lambda r: r.id in whitelist,
                                                       message.guild.roles)
-                    user = message.author
-                    if (invulnerable is None or invulnerable not in user.roles) and mute_role not in user.roles:
+
+                    if invulnerable is None or invulnerable not in user.roles:
+                        time = self.bot.guild_cache.automute_time(guild.id)
+
+                        if time is not None:
+                            if isinstance(time, str):
+                                time = sql2timedelta(time)
+                            await self.add_timeout(message.channel, guild.id, user.id, datetime.utcnow() + time, time.total_seconds())
+                            d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, time)
+                        else:
+                            d = 'Automuted user {0} `{0.id}`'.format(message.author)
+
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
-                        d = 'Automuted user {0} `{0.id}`'.format(message.author)
                         embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
                         embed.add_field(name='Reason', value='Too many mentions in a message')
                         embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)

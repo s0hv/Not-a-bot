@@ -142,6 +142,12 @@ class GuildCache:
     def set_automute_limit(self, guild_id, limit: int):
         return self.set_value(guild_id, 'automute_limit', limit)
 
+    def automute_time(self, guild_id):
+        return self.get_settings(guild_id).get('automute_time')
+
+    def set_automute_time(self, guild_id, time):
+        return self.set_value(guild_id, 'automute_time', time)
+
     # join config
     def join_message(self, guild_id, default_message=False):
         message = self.get_settings(guild_id).get('on_join_message')

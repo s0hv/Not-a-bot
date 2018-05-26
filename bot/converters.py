@@ -2,6 +2,7 @@ from discord.ext.commands import converter
 import re
 from discord.ext.commands.errors import BadArgument
 import discord
+from utils.utilities import parse_time
 
 
 class MentionedMember(converter.MemberConverter):
@@ -73,3 +74,15 @@ class MentionedUser(converter.UserConverter):
             raise BadArgument('Member "{}" not found'.format(argument))
 
         return result
+
+
+class TimeDelta(converter.Converter):
+    def __init__(self):
+        super().__init__()
+
+    async def convert(self, ctx, argument):
+        time = parse_time(argument)
+        if not time:
+            raise BadArgument(f'Failed to parse time from {argument}')
+
+        return time

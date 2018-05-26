@@ -23,6 +23,7 @@ CREATE TABLE `guilds` (
 
     `automute` BOOL DEFAULT false,
     `automute_limit` TINYINT DEFAULT 10,
+    `automute_time` TIME DEFAULT NULL,
 
     PRIMARY KEY (`guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

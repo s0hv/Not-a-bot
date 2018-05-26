@@ -650,7 +650,7 @@ class Audio:
                 options = options.replace(''.join(matches), ', ')
 
             elif matches[0] == '"':
-                options = options.replace(''.join(matches[1:3]), '')
+                options = options.replace(''.join(matches[1]), '')
             elif matches[2] == '"':
                 options = options.replace(''.join(matches[:2]), '')
             else:
@@ -1009,7 +1009,7 @@ class Audio:
     async def stereo(self, ctx, mode='sine'):
         """Works almost the same way {prefix}play does
         Default stereo type is sine.
-        All available modes are `sine`, `triangle`, `square`, `sawup`, `sawdown`, left and right
+        All available modes are `sine`, `triangle`, `square`, `sawup`, `sawdown`, `left`, `right`, `off`
         To set a different mode start your command parameters with -mode song_name
         e.g. `{prefix}{name} -square stereo cancer music` would use the square mode
         """

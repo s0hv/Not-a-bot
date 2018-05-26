@@ -360,7 +360,7 @@ class Moderator(Cog):
             await ctx.send(f'{user.mention} type accept to join this mute roll of {hours} hours')
 
             def check(msg):
-                return basic_check(ctx.author, ctx.channel) and msg.content.lower() == 'accept'
+                return basic_check(user, ctx.channel) and msg.content.lower() == 'accept'
 
             try:
                 await self.bot.wait_for('message', check=check, timeout=120)

@@ -374,13 +374,15 @@ class Moderator(Cog):
         try:
             await ctx.send(f'{user.mention} type accept to join this mute roll of {hours} hours')
 
+            _check = basic_check(user, ctx.channel)
+
             def check(msg):
-                return basic_check(user, ctx.channel) and msg.content.lower() == 'accept'
+                return _check(msg) and msg.content.lower() == 'accept'
 
             try:
                 await self.bot.wait_for('message', check=check, timeout=120)
             except asyncio.TimeoutError:
-                return ctx.send('Took too long.')
+                return await ctx.send('Took too long.')
 
             td = timedelta(hours=hours)
             expires_on = datetime2sql(datetime.utcnow() + td)

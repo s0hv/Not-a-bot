@@ -364,10 +364,13 @@ class Bot(commands.Bot, Client):
         if self.runas is not None:
             if ctx.guild:
                 member = ctx.guild.get_member(self.runas.id)
-                if member:
-                    ctx.author = member
+                if not member:
+                    return ctx
             else:
-                ctx.author = self.runas
+                member = self.runas
+
+            ctx.author = member
+            ctx.message.author = member
 
         return ctx
 

@@ -447,8 +447,9 @@ class Audio:
 
         del self.music_players[guild.id]
 
-    async def on_voice_state_update(self, before, after):
-        if before == self.bot.user:
+    async def on_voice_state_update(self, member, before, after):
+        return # Temporary
+        if member == self.bot.user:
             return
 
         state = self.music_players[before.guild.id]
@@ -456,16 +457,16 @@ class Audio:
             return
 
         try:
-            if not before.voice and after.voice:
-                if after.voice.channel == state.voice.channel:
+            if not before and after:
+                if after.channel == state.channel:
                     await self.on_join(after)
-            elif before.voice and not after.voice:
-                if before.voice.channel == state.voice.channel:
+            elif before and not after:
+                if before.channel == state.channel:
                     await self.on_leave(after)
-            elif before.voice and after.voice and before.voice.channel != after.voice.channel:
-                if before.voice.channel == state.voice.channel:
+            elif before and after and before.channel != after.channel:
+                if before.channel == state.channel:
                     await self.on_leave(after)
-                elif after.voice.channel == state.voice.channel:
+                elif after.channel == state.channel:
                     await self.on_join(after)
         except:
             terminal.exception('Failed to say join leave voice')

@@ -360,7 +360,7 @@ class Bot(commands.Bot, Client):
             self.dispatch('command_error', ctx, exc)
 
     async def get_context(self, message, *, cls=Context):
-        ctx = super().get_context(message, cls=cls)
+        ctx = await super().get_context(message, cls=cls)
         if self.runas is not None:
             if ctx.guild:
                 member = ctx.guild.get_member(self.runas.id)

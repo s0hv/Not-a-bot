@@ -33,6 +33,8 @@ from discord.ext import commands
 from numpy import random
 
 from bot.formatter import Paginator
+from bot.player import FFmpegPCMAudio, play
+from discord.player import PCMVolumeTransformer
 
 try:
     from gtts import gTTS
@@ -54,16 +56,22 @@ class SFX:
 
 
 class Playlist:
-    def __init__(self, bot):
+    def __init__(self, bot, disconnect):
         self.voice = None
         self.bot = bot
+        self._disconnect = disconnect
         self.queue = deque(maxlen=6)
         self.not_empty = asyncio.Event()
         self.next = asyncio.Event()
         self.random_loop = None
         self.sfx_loop = None
-        self.player = None
+        self.source = None
         self.random_sfx_on = self.bot.config.random_sfx
+
+    @property
+    def player(self):
+        if self.voice:
+            return self.voice._player
 
     def on_stop(self):
         self.bot.loop.call_soon_threadsafe(self.next.set)
@@ -79,12 +87,11 @@ class Playlist:
 
     async def random_sfx(self):
         while True:
-            users = self.voice.channel.voice_members
+            users = self.voice.channel.members
             users = list(filter(lambda x: not x.bot, users))
             if not users:
-                await self.voice.disconnect()
-                self.sfx_loop.cancel()
-                break
+                await self._disconnect(self)
+                return
 
             if self.random_sfx_on and random.random() < 0.1 and self.voice is not None:
 
@@ -111,22 +118,19 @@ class Playlist:
                 await self.not_empty.wait()
                 sfx = self._get_next()
 
-            self.player = self.voice.create_ffmpeg_player(sfx.name,
-                                                          before_options=sfx.before_options,
-                                                          after=self.on_stop,
-                                                          after_input=sfx.after_input,
-                                                          options=sfx.options,
-                                                          reconnect=False)
+            self.source = FFmpegPCMAudio(sfx.name, before_options=sfx.before_options,
+                                         after_input=sfx.after_input, options=sfx.options,
+                                         reconnect=False)
 
-            self.player.start()
+            play(self.voice, self.source, after=self.on_stop)
 
             await self.next.wait()
 
     def is_playing(self):
-        if self.voice is None or self.player is None:
+        if self.voice is None or not self.voice.is_connected():
             return False
 
-        return not self.player.is_done()
+        return True
 
     def add_to_queue(self, entry, after_input=''):
         self.queue.append(SFX(entry, after_input=after_input))
@@ -140,37 +144,41 @@ class Playlist:
         if self.queue:
             return self.queue.popleft()
 
+    def skip(self, author):
+        if self.is_playing():
+            self.voice.stop()
+
 
 class Audio:
     def __init__(self, bot, queue):
         self.bot = bot
-        self.voice_states = {}
+        self.music_players = self.bot.music_players
         self.queue = queue
 
-    def get_voice_state(self, server):
-        playlist = self.voice_states.get(server.id)
+    def get_voice_state(self, guild):
+        playlist = self.music_players.get(guild.id)
         if playlist is None:
-            playlist = Playlist(self.bot)
-            self.voice_states[server.id] = playlist
+            playlist = Playlist(self.bot, self.disconnect_voice)
+            self.music_players[guild.id] = playlist
 
         return playlist
 
     @command(no_pm=True, ignore_extra=True, aliases=['summon2'])
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
-        summoned_channel = ctx.message.author.voice_channel
+        summoned_channel = ctx.message.author.voice.channel
         if summoned_channel is None:
-            await self.bot.send_message(ctx.message.channel, 'You are not in a voice channel')
+            await ctx.send('You are not in a voice channel')
             return False
 
-        state = self.get_voice_state(ctx.message.server)
+        state = self.get_voice_state(ctx.guild)
         if state.voice is None:
             try:
-                state.voice = await self.bot.join_voice_channel(summoned_channel)
+                state.voice = await summoned_channel.connect()
             except discord.ClientException:
                 terminal.exception('Failed to join vc')
-                if ctx.message.server.id in self.bot.connection._voice_clients:
-                    state.voice = self.bot.connection._voice_clients.get(ctx.message.server.id)
+                if ctx.guild.id in self.bot.connection._voice_clients:
+                    state.voice = self.bot.connection._voice_clients.get(ctx.guild.id)
             except:
                 return False
             state.create_tasks()
@@ -183,48 +191,55 @@ class Audio:
 
         return True
 
-    @command(pass_context=True, no_pm=True, ignore_extra=True, aliases=['s'])
+    @command(no_pm=True, ignore_extra=True, aliases=['s'])
     async def stop_sfx(self, ctx):
         """Stop the current sfx"""
-        state = self.get_voice_state(ctx.message.server)
-        if state.is_playing():
-            state.player.stop()
+        state = self.get_voice_state(ctx.guild)
+        if state:
+            state.skip(ctx.author)
 
     async def shutdown(self):
-        for key in list(self.voice_states.keys()):
-            state = self.voice_states[key]
-            await self.stop_state(state)
-            del self.voice_states[key]
+        for key in list(self.music_players.keys()):
+            state = self.music_players[key]
+            await self.close_player(state)
+            del self.music_players[key]
 
     @staticmethod
-    async def stop_state(state):
-        if state is None:
+    async def close_player(musicplayer):
+        if musicplayer is None:
             return
 
-        if state.player is not None:
-            state.player.stop()
+        musicplayer.skip(None)
 
         try:
-            if state.sfx_loop is not None:
-                state.sfx_loop.cancel()
+            if musicplayer.audio_player is not None:
+                musicplayer.audio_player.cancel()
 
-            if state.voice is not None:
-                await state.voice.disconnect()
+            if musicplayer.voice is not None:
+                await musicplayer.voice.disconnect()
+                musicplayer.voice = None
 
         except Exception:
-            terminal.exception('Error while stopping sfx_bot')
+            terminal.exception('Error while stopping voice')
 
-    @command(pass_context=True, no_pm=True)
+    async def disconnect_voice(self, musicplayer):
+        await self.close_player(musicplayer)
+        try:
+            del self.music_players[musicplayer.channel.guild.id]
+        except:
+            pass
+
+    @command(no_pm=True)
     @commands.cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx, *, name):
         """Play a sound effect"""
         file = self._search_sfx(name)
         if not file:
-            return await self.bot.say('Invalid sound effect name')
+            return await ctx.send('Invalid sound effect name')
 
         file = file[0]
 
-        state = self.get_voice_state(ctx.message.server)
+        state = self.get_voice_state(ctx.guild)
         if state.voice is None:
             success = await ctx.invoke(self.summon)
             if not success:
@@ -234,19 +249,15 @@ class Audio:
 
     @command(name='max_combo', no_pm=True)
     @commands.check(lambda ctx, cmd: ctx.message.author.id in ['117256618617339905', '123050803752730624'])
-    async def change_combo(self, max_combo=None):
+    async def change_combo(self, ctx, max_combo: int=None):
         """Change how many sound effects you can combine with {prefix}combo"""
         if max_combo is None:
-            return await self.bot.say(self.bot.config.max_combo)
-        try:
-            max_combo = int(max_combo)
-        except ValueError:
-            return await self.bot.say('Integer needed')
+            return await ctx.send(self.bot.config.max_combo)
 
         self.bot.config.max_combo = max_combo
-        await self.bot.say('Max combo set to %s' % str(max_combo))
+        await ctx.send(f'Max combo set to {max_combo}')
 
-    async def _combine_sfx(self, *effects, search=True):
+    async def _combine_sfx(self, ctx, *effects, search=True):
         max_combo = self.bot.config.max_combo
         silences = []
         silenceidx = 0
@@ -257,7 +268,7 @@ class Audio:
                 try:
                     silence = float(silence)
                 except ValueError as e:
-                    await self.bot.say('Silence duration needs to be a number\n%s' % e, delete_after=20)
+                    await ctx.send('Silence duration needs to be a number\n%s' % e, delete_after=20)
                     continue
 
                 silences.append(('aevalsrc=0:d={}[s{}]'.format(silence, str(silenceidx)), idx))
@@ -268,7 +279,7 @@ class Audio:
                 try:
                     bpm = int(''.join(name.split('-')[:-1]))
                     if bpm <= 0:
-                        await self.bot.say('BPM needs to be bigger than 0', delete_after=20)
+                        await ctx.send('BPM needs to be bigger than 0', delete_after=20)
                         continue
 
                     silence = 60 / bpm
@@ -281,7 +292,7 @@ class Audio:
             if search:
                 sfx = self._search_sfx(name)
                 if not sfx:
-                    await self.bot.say("Couldn't find %s. Skipping it" % name, delete_after=30)
+                    await ctx.send("Couldn't find %s. Skipping it" % name, delete_after=30)
                     continue
 
                 sfx_list.append(sfx[0])
@@ -289,10 +300,10 @@ class Audio:
                 sfx_list.append(name)
 
         if not sfx_list:
-            return await self.bot.say('No sfx found', delete_after=30)
+            return await ctx.send('No sfx found', delete_after=30)
 
         if len(sfx_list) > max_combo:
-            return await self.bot.say('Cannot combine more effects than the current combo limit of %s' % max_combo)
+            return await ctx.send('Cannot combine more effects than the current combo limit of %s' % max_combo)
 
         entry = sfx_list.pop(0)
         if not sfx_list:
@@ -317,16 +328,16 @@ class Audio:
         options += 'concat=n={}:v=0:a=1 [a]" -map "[a]"'.format(len(audio_order))
         return entry, options
 
-    @command(pass_context=True, aliases=['r'], no_pm=True)
+    @command(aliases=['r'], no_pm=True)
     async def random_sfx(self, ctx, combo=1):
         """Set how many sfx random sfx will combine if it's on"""
         if combo > self.bot.config.max_combo:
-            return await self.bot.say('Cannot go over max combo  {}>{}'.format(combo, self.bot.config.max_combo))
+            return await ctx.send('Cannot go over max combo  {}>{}'.format(combo, self.bot.config.max_combo))
 
         if combo <= 0:
-            return await self.bot.say('Number cannot be smaller than one')
+            return await ctx.send('Number cannot be smaller than one')
 
-        state = self.get_voice_state(ctx.message.server)
+        state = self.get_voice_state(ctx.guild)
         if state.voice is None:
             success = await ctx.invoke(self.summon)
             if not success:
@@ -339,27 +350,27 @@ class Audio:
             pass
 
         effects = [os.path.join(SFX_FOLDER, f) for f in random.choice(sfx, combo)]
-        entry = await self._combine_sfx(*effects, search=False)
+        entry = await self._combine_sfx(ctx, *effects, search=False)
         if isinstance(entry, tuple):
             state.add_to_queue(entry[0], entry[1])
         elif isinstance(entry, str):
             state.add_to_queue(entry)
 
-    @command(name='combo', pass_context=True, no_pm=True, aliases=['concat', 'c'])
+    @command(name='combo', no_pm=True, aliases=['concat', 'c'])
     async def combine(self, ctx, *, names):
         """Play multiple sfx in a row"""
         max_combo = self.bot.config.max_combo
         names = shlex.split(names)
         if len(names) > max_combo:
-            return await self.bot.say('Max %s sfx can be combined' % str(max_combo))
+            return await ctx.send('Max %s sfx can be combined' % str(max_combo))
 
-        state = self.get_voice_state(ctx.message.server)
+        state = self.get_voice_state(ctx.guild)
         if state.voice is None:
             success = await ctx.invoke(self.summon)
             if not success:
                 return
 
-        entry = await self._combine_sfx(*names)
+        entry = await self._combine_sfx(ctx, *names)
         if isinstance(entry, tuple):
             state.add_to_queue(entry[0], entry[1])
         elif isinstance(entry, str):
@@ -381,7 +392,7 @@ class Audio:
 
         return [os.path.join(SFX_FOLDER, f) for f in file]
 
-    @command(pass_context=True, no_pm=True, aliases=['srs'])
+    @command(no_pm=True, aliases=['srs'])
     async def set_random_sfx(self, ctx, value):
         """Set random sfx on or off"""
         value = value.lower().strip()
@@ -389,17 +400,17 @@ class Audio:
         values_rev = {v: k for k, v in values.items()}
 
         value = values.get(value, False)
-        state = self.get_voice_state(ctx.message.server)
+        state = self.get_voice_state(ctx.guild)
         state.random_sfx_on = value
 
-        await self.bot.say('Random sfx set to %s' % values_rev.get(value))
+        await ctx.send('Random sfx set to %s' % values_rev.get(value))
 
     @command(pass_context=True)
     async def sfxlist(self, ctx):
         """List of all the sound effects"""
         sfx = os.listdir(SFX_FOLDER)
         if not sfx:
-            return await self.bot.say('No sfx found')
+            return await ctx.send('No sfx found')
 
         sfx.sort(key=str.lower)
         sorted_sfx = OrderedDict()
@@ -421,55 +432,61 @@ class Audio:
 
         p.finalize()
         for embed in p.pages:
-            await self.bot.send_message(ctx.message.channel, embed=embed)
+            await ctx.send(embed=embed)
 
-    @command(pass_context=True, no_pm=True, aliases=['stop2'])
+    @command(no_pm=True, aliases=['stop2'])
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
         """
-        server = ctx.message.server
-        state = self.get_voice_state(server)
+        guild = ctx.guild
+        state = self.get_voice_state(guild)
+        if not state:
+            return
+        await self.close_player(state)
 
-        await self.stop_state(state)
-
-        del self.voice_states[ctx.message.server.id]
+        del self.music_players[guild.id]
 
     async def on_voice_state_update(self, before, after):
         if before == self.bot.user:
             return
 
+        state = self.music_players[before.guild.id]
+        if not state:
+            return
+
         try:
-            if before.voice.voice_channel == after.voice.voice_channel:
-                return
-
-            if after.voice.voice_channel == self.bot.voice_client_in(
-                    after.server).channel:
-                await self.on_join(after)
-
-            elif before.voice.voice_channel != after.voice.voice_channel and before.voice.voice_channel == self.bot.voice_client_in(
-                    after.server).channel:
-                await self.on_leave(after)
+            if not before.voice and after.voice:
+                if after.voice.channel == state.voice.channel:
+                    await self.on_join(after)
+            elif before.voice and not after.voice:
+                if before.voice.channel == state.voice.channel:
+                    await self.on_leave(after)
+            elif before.voice and after.voice and before.voice.channel != after.voice.channel:
+                if before.voice.channel == state.voice.channel:
+                    await self.on_leave(after)
+                elif after.voice.channel == state.voice.channel:
+                    await self.on_join(after)
         except:
-            pass
+            terminal.exception('Failed to say join leave voice')
 
     async def on_join(self, member):
         string = '%s joined the channel' % member.name
         path = os.path.join(TTS, 'join.mp3')
-        self._add_tts(path, string, member.server)
+        self._add_tts(path, string, member.guild)
 
     async def on_leave(self, member):
         string = '%s left the channel' % member.name
         path = os.path.join(TTS, 'leave.mp3')
-        self._add_tts(path, string, member.server)
+        self._add_tts(path, string, member.guild)
 
-    def _add_tts(self, path, string, server):
+    def _add_tts(self, path, string, guild):
         if gTTS is None:
             return
 
         gtts = gTTS(string, lang='en-us')
         gtts.save(path)
-        state = self.get_voice_state(server)
+        state = self.get_voice_state(guild)
 
         state.add_next(path)
 

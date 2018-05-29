@@ -52,6 +52,7 @@ class Ganypepe(Bot):
         self._setup()
         self.threadpool = ThreadPoolExecutor(max_workers=4)
         self._dbutil = DatabaseUtils(self)
+        self.music_players = {}
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'

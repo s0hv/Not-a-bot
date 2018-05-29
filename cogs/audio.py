@@ -286,7 +286,8 @@ class MusicPlayer:
             self.voice.stop()
 
     def stop(self):
-        self.voice.stop()
+        if self.voice:
+            self.voice.stop()
 
 
 class MusicPlayder:
@@ -898,7 +899,7 @@ class Audio:
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
-            musicplayer = MusicPlayer(self.bot, self.close_player, channel=ctx.channel)
+            musicplayer = MusicPlayer(self.bot, self.disconnect_voice, channel=ctx.channel)
             self.musicplayers[ctx.guild.id] = musicplayer
         else:
             musicplayer.change_channel(ctx.channel)
@@ -1270,10 +1271,10 @@ class Audio:
         except Exception:
             terminal.exception('Error while stopping voice')
 
-    async def disconnect_voice(self, playlist):
-        await self.close_player(playlist)
+    async def disconnect_voice(self, musicplayer):
+        await self.close_player(musicplayer)
         try:
-            del self.musicplayers[playlist.channel.guild.id]
+            del self.musicplayers[musicplayer.channel.guild.id]
         except:
             pass
         if not self.musicplayers:

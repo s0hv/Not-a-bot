@@ -114,12 +114,21 @@ class Moderator(Cog):
         if guild and self.bot.guild_cache.automute(guild.id):
             mute_role = self.bot.guild_cache.mute_role(guild.id)
             mute_role = discord.utils.find(lambda r: r.id == mute_role, message.guild.roles)
+            if not mute_role:
+                return
+
             user = message.author
+            if not isinstance(user, discord.Member):
+                logger.debug(f'User found when expected member guild {guild.name} user {user} in channel {message.channel.name}')
+                user = guild.get_member(user.id)
+                if not user:
+                    return
 
             if mute_role in user.roles:
                 return
+
             limit = self.bot.guild_cache.automute_limit(guild.id)
-            if mute_role and len(message.mentions) + len(message.role_mentions) > limit:
+            if len(message.mentions) + len(message.role_mentions) > limit:
                 blacklist = self.automute_blacklist.get(guild.id, ())
 
                 if message.channel.id not in blacklist:
@@ -146,9 +155,9 @@ class Moderator(Cog):
                         await self.send_to_modlog(guild, embed=embed)
                         return
 
-    @group(invoke_without_command=True)
+    @group(invoke_without_command=True, name='automute_whitelist', aliases=['mute_whitelist'])
     @cooldown(2, 5, BucketType.guild)
-    async def automute_whitelist(self, ctx):
+    async def automute_whitelist_(self, ctx):
         """Show roles whitelisted from automutes"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
@@ -163,7 +172,7 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @automute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES)
+    @automute_whitelist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES)
     @cooldown(2, 5, BucketType.guild)
     async def add(self, ctx, *, role):
         """Add a role to the automute whitelist"""
@@ -187,7 +196,7 @@ class Moderator(Cog):
         roles.add(role_.id)
         await ctx.send('Added role {0.name} `{0.id}`'.format(role_))
 
-    @automute_whitelist.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
+    @automute_whitelist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
     @cooldown(2, 5, BucketType.guild)
     async def remove(self, ctx, *, role):
         """Remove a role from the automute whitelist"""
@@ -207,7 +216,7 @@ class Moderator(Cog):
         roles.discard(role_.id)
         await ctx.send('Role {0.name} `{0.id}` removed from automute whitelist'.format(role_))
 
-    @group(invoke_without_command=True, name='automute_blacklist')
+    @group(invoke_without_command=True, name='automute_blacklist', aliases=['mute_blacklist'])
     @cooldown(2, 5, BucketType.guild)
     async def automute_blacklist_(self, ctx):
         """Show channels that are blacklisted from automutes.

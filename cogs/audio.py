@@ -47,6 +47,7 @@ from bot.playlist import Playlist
 from bot.song import Song
 from utils.utilities import mean_volume, search, parse_seek
 import time
+from math import ceil
 
 try:
     import aubio
@@ -90,6 +91,7 @@ class MusicPlayer:
         self.audio_player = None
         self.activity_check = None
         self._speed_mod = 1
+        self._skip_votes = set()
 
     def change_channel(self, channel):
         self.channel = channel
@@ -236,7 +238,7 @@ class MusicPlayer:
                 s += f' enqueued by {self.current.requested_by}'
             await self.send(s, delete_after=self.current.duration)
 
-            self.skip(None)
+            await self.skip(None)
             player.play(self.voice, source, after=self.on_stop, speed=speed)
             logger.debug('Started player')
             await self.change_status(self.current.title)
@@ -249,6 +251,8 @@ class MusicPlayer:
                 if volume_task is not None:
                     volume_task.cancel()
 
+            self._skip_votes = set()
+
     def on_stop(self, e):
         if e:
             logger.debug(f'Player caught an error {e}')
@@ -259,11 +263,12 @@ class MusicPlayer:
         activity = Activity(type=ActivityType.listening, name=s)
         await self.bot.change_presence(activity=activity)
 
-    async def send(self, msg, **kwargs):
-        if self.channel is None:
+    async def send(self, msg, channel=None, **kwargs):
+        channel = self.channel if not channel else channel
+        if channel is None:
             return
         try:
-            await self.channel.send(msg, **kwargs)
+            await channel.send(msg, **kwargs)
         except HTTPException:
             pass
 
@@ -281,9 +286,28 @@ class MusicPlayer:
         if self.is_playing():
             self.voice.resume()
 
-    def skip(self, author):
+    async def skip(self, author, messageable=None):
         if self.is_playing():
-            self.voice.stop()
+            if author is None:
+                self.voice.stop()
+                return
+
+            if self.current:
+                if self.current.author and self.current.author.id == author.id:
+                    self.voice.stop()
+                else:
+                    self._skip_votes.add(author.id)
+                    users = self.voice.channel.members
+                    users = len(list(filter(lambda x: not x.bot, users)))
+                    required_votes = ceil(users/2)
+                    if len(self._skip_votes) > required_votes:
+                        await self.send(f'{required_votes} votes reached, skipping', channel=messageable)
+                        return self.voice.stop()
+
+                    await self.send(f'{len(self._skip_votes)}/{required_votes} until skip')
+
+            else:
+                self.voice.stop()
 
     def stop(self):
         if self.voice:
@@ -1306,7 +1330,7 @@ class Audio:
             await ctx.send('Not playing any music right now...')
             return
 
-        musicplayer.skip(ctx.author)
+        await musicplayer.skip(ctx.author, ctx.channel)
 
     @commands.cooldown(1, 5, type=BucketType.guild)
     @command(name='queue', no_pm=True, aliases=['playlist'])

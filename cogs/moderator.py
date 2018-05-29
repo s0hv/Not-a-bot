@@ -134,9 +134,9 @@ class Moderator(Cog):
                 if message.channel.id not in blacklist:
                     whitelist = self.automute_whitelist.get(guild.id, ())
                     invulnerable = discord.utils.find(lambda r: r.id in whitelist,
-                                                      message.guild.roles)
+                                                      user.roles)
 
-                    if invulnerable is None or invulnerable not in user.roles:
+                    if invulnerable is None:
                         time = self.bot.guild_cache.automute_time(guild.id)
 
                         if time is not None:

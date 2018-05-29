@@ -56,9 +56,10 @@ class SFX:
 
 
 class Playlist:
-    def __init__(self, bot, disconnect):
+    def __init__(self, bot, disconnect, guild):
         self.voice = None
         self.bot = bot
+        self.guild = guild
         self._disconnect = disconnect
         self.queue = deque(maxlen=6)
         self.not_empty = asyncio.Event()
@@ -73,7 +74,7 @@ class Playlist:
         if self.voice:
             return self.voice._player
 
-    def on_stop(self):
+    def on_stop(self, e):
         self.bot.loop.call_soon_threadsafe(self.next.set)
         return
 
@@ -158,7 +159,7 @@ class Audio:
     def get_voice_state(self, guild):
         playlist = self.music_players.get(guild.id)
         if playlist is None:
-            playlist = Playlist(self.bot, self.disconnect_voice)
+            playlist = Playlist(self.bot, self.disconnect_voice, guild)
             self.music_players[guild.id] = playlist
 
         return playlist
@@ -177,8 +178,8 @@ class Audio:
                 state.voice = await summoned_channel.connect()
             except discord.ClientException:
                 terminal.exception('Failed to join vc')
-                if ctx.guild.id in self.bot.connection._voice_clients:
-                    state.voice = self.bot.connection._voice_clients.get(ctx.guild.id)
+                if ctx.guild.id in self.bot._connection._voice_clients:
+                    state.voice = self.bot._connection._voice_clients.get(ctx.guild.id)
             except:
                 return False
             state.create_tasks()
@@ -212,8 +213,8 @@ class Audio:
         musicplayer.skip(None)
 
         try:
-            if musicplayer.audio_player is not None:
-                musicplayer.audio_player.cancel()
+            if musicplayer.sfx_loop is not None:
+                musicplayer.sfx_loop.cancel()
 
             if musicplayer.voice is not None:
                 await musicplayer.voice.disconnect()
@@ -225,7 +226,7 @@ class Audio:
     async def disconnect_voice(self, musicplayer):
         await self.close_player(musicplayer)
         try:
-            del self.music_players[musicplayer.channel.guild.id]
+            del self.music_players[musicplayer.guild.id]
         except:
             pass
 
@@ -443,9 +444,7 @@ class Audio:
         state = self.get_voice_state(guild)
         if not state:
             return
-        await self.close_player(state)
-
-        del self.music_players[guild.id]
+        await self.disconnect_voice(state)
 
     async def on_voice_state_update(self, member, before, after):
         return # Temporary

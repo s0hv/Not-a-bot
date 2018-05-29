@@ -248,7 +248,7 @@ class Audio:
         state.add_to_queue(file)
 
     @command(name='max_combo', no_pm=True)
-    @commands.check(lambda ctx, cmd: ctx.message.author.id in ['117256618617339905', '123050803752730624'])
+    @commands.check(lambda ctx: ctx.message.author.id in ['117256618617339905', '123050803752730624'])
     async def change_combo(self, ctx, max_combo: int=None):
         """Change how many sound effects you can combine with {prefix}combo"""
         if max_combo is None:

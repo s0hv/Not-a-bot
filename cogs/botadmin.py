@@ -223,6 +223,11 @@ class BotAdmin(Cog):
             return await ctx.send('Failed to reload module %s because of an error\n```%s```' % (module_name, e))
         await ctx.send('Reloaded module %s' % module_name)
 
+    @command(owner_only=True)
+    async def runas(self, ctx, user: discord.User=None):
+        self.bot._runas = user
+        await ctx.send(f'Now running as {user}')
+
     @command(auth=Auth.ADMIN, ignore_extra=True)
     async def update_bot(self, ctx, *, options=None):
         """Does a git pull"""

@@ -23,7 +23,6 @@ SOFTWARE.
 """
 
 import asyncio
-import copy
 import enum
 import inspect
 import itertools
@@ -33,7 +32,6 @@ import traceback
 
 import discord
 from aiohttp import ClientSession
-from discord import (Reaction)
 from discord import state
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
@@ -62,6 +60,17 @@ terminal = logging.getLogger('terminal')
 class WaitForType(enum.Enum):
     reaction_remove  = 0
     reaction_changed = 1
+
+
+class Context(commands.context.Context):
+    __slots__ = ['override_perms', 'skip_check', 'original_user']
+
+    def __init__(self, **attrs):
+        super().__init__(**attrs)
+        self.override_perms = attrs.pop('override_perms', None)
+        self.original_user = self.author  # Used to determine original user with runas
+        # Used when wanting to skip database check like in help command
+        self.skip_check = attrs.pop('skip_check', False)
 
 
 class Command(commands.Command):
@@ -193,6 +202,7 @@ class Bot(commands.Bot, Client):
             options['formatter'] = Formatter(width=150)
 
         super().__init__(prefix, owner_id=config.owner, **options)
+        self._runas = None
         self.remove_command('help')
         cmd = self.group(**{'name': 'help', 'pass_context': True, 'invoke_without_command': True,
                             'help': """Shows all commands you can use on this server.
@@ -211,6 +221,10 @@ class Bot(commands.Bot, Client):
         self.aiohttp_client = aiohttp
         self.config = config
         self.voice_clients_ = {}
+
+    @property
+    def runas(self):
+        return self._runas
 
     async def on_command_error(self, context, exception):
         """|coro|
@@ -345,6 +359,18 @@ class Bot(commands.Bot, Client):
             exc = CommandNotFound('Command "{}" is not found'.format(ctx.invoked_with))
             self.dispatch('command_error', ctx, exc)
 
+    async def get_context(self, message, *, cls=Context):
+        ctx = super().get_context(message, cls=cls)
+        if self.runas is not None:
+            if ctx.guild:
+                member = ctx.guild.get_member(self.runas.id)
+                if member:
+                    ctx.author = member
+            else:
+                ctx.author = self.runas
+
+        return ctx
+
     async def process_commands(self, message):
         ctx = await self.get_context(message, cls=Context)
         await self.invoke(ctx)
@@ -419,17 +445,6 @@ def group(name=None, **attrs):
     if 'cls' not in attrs:
         attrs['cls'] = Group
     return commands.command(name=name, **attrs)
-
-
-class Context(commands.context.Context):
-    __slots__ = ['override_perms', 'skip_check']
-
-    def __init__(self, **attrs):
-        super().__init__(**attrs)
-        self.override_perms = attrs.pop('override_perms', None)
-
-        # Used when wanting to skip database check like in help command
-        self.skip_check = attrs.pop('skip_check', False)
 
 
 class FormatterDeprecated(HelpFormatter):

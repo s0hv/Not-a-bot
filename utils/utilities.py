@@ -835,7 +835,7 @@ async def create_custom_emoji(guild, name, image, already_b64=False, reason=None
 
 
 def is_owner(ctx):
-    if ctx.command.owner_only and ctx.bot.owner_id != ctx.author.id:
+    if ctx.command.owner_only and ctx.bot.owner_id != ctx.original_user.id:
         raise PermissionError('Only the owner can use this command')
 
     return True

@@ -252,7 +252,7 @@ class Fun(Cog):
         return data
 
     async def _get_image(self, ctx, image):
-        img = get_image_from_message(ctx, image)
+        img = await get_image_from_message(ctx, image)
         if img is None:
             if image is not None:
                 await ctx.send(f'No image found from {image}')

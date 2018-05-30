@@ -91,7 +91,35 @@ class Logger(Cog):
 
             return attachment if attachment != EmptyEmbed else None
 
+    def check_mentions(self, message):
+        if message.guild is None:
+            return
+
+        if not message.raw_role_mentions:
+            return
+
+        roles = []
+        guild = message.guild
+        for role_id in set(message.raw_role_mentions):
+            role = self.bot.get_role(role_id, guild)
+            if role:
+                roles.append(role)
+
+        if not roles:
+            return
+
+        sql = 'INSERT INTO `mention_stats` (`guild`, `role`, `role_name`) ' \
+              'VALUES (:guild, :role, :role_name)'
+
+        data = []
+        for idx, role in enumerate(roles):
+            data.append({'guild': guild.id, 'role': role.id, 'role_name': role.name})
+
+        sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=VALUES(role_name)'
+        self._q.put_nowait((sql, data))
+
     async def on_message(self, message):
+        self.check_mentions(message)
         sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
               "VALUES (:shard, :guild, :channel, :user, :user_id, :message, :message_id, :attachment, :time)"
 
@@ -106,8 +134,8 @@ class Logger(Cog):
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1"
 
         self._q.put_nowait((sql, {'user_id': member.id,
-                                   'guild': guild.id,
-                                   'value': 1}))
+                                  'guild': guild.id,
+                                  'value': 1}))
 
         channel = self.bot.guild_cache.join_channel(guild.id)
         channel = guild.get_channel(channel)
@@ -135,8 +163,8 @@ class Logger(Cog):
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1"
 
         self._q.put_nowait((sql, {'user_id': member.id,
-                                   'guild': guild.id,
-                                   'value': -1}))
+                                  'guild': guild.id,
+                                  'value': -1}))
 
         channel = self.bot.guild_cache.leave_channel(guild.id)
         channel = guild.get_channel(channel)

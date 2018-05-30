@@ -14,7 +14,7 @@ import shlex
 
 from bot.bot import command
 from cogs.cog import Cog
-
+from sqlalchemy.exc import SQLAlchemyError
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
@@ -194,18 +194,15 @@ class BotAdmin(Cog):
 
     @command(owner_only=True)
     async def cache_guilds(self):
-        session = self.bot.get_session
         for guild in self.bot.guilds:
             sql = 'SELECT * FROM `guilds` WHERE guild=%s' % guild.id
-            row = session.execute(sql).first()
+            row = await self.bot.dbutil.execute(sql).first()
             if not row:
                 sql = 'INSERT INTO `guilds` (`guild`, `prefix`) ' \
                       'VALUES (%s, "%s")' % (guild.id, self.bot.command_prefix)
                 try:
-                    session.execute(sql)
-                    session.commit()
-                except:
-                    session.rollback()
+                    await self.bot.dbutil.execute(sql, commit=True)
+                except SQLAlchemyError:
                     logger.exception('Failed to cache guild')
 
                 d = {'prefix': self.bot.command_prefix}

@@ -71,8 +71,7 @@ class AutoRoles(Cog):
             sql = 'SELECT roles.id FROM `users` LEFT OUTER JOIN `userRoles` ON users.id=userRoles.user LEFT OUTER JOIN `roles` ON roles.id=userRoles.role ' \
                   'WHERE roles.guild=%s AND users.id=%s' % (guild.id, member.id)
 
-            session = self.bot.get_session
-            roles = {r['id'] for r in session.execute(sql).fetchall()}
+            roles = {r['id'] for r in (await self.bot.dbutil.execute(sql)).fetchall()}
             if not roles:
                 return await self.add_random_color(member)
 

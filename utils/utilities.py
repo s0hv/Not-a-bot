@@ -360,7 +360,7 @@ def get_emote_name_id(s):
     return None, None, None
 
 
-def get_image_from_message(ctx, *messages):
+async def get_image_from_message(ctx, *messages):
     image = None
     if len(ctx.message.attachments) > 0 and isinstance(ctx.message.attachments[0].width, int):
         image = ctx.message.attachments[0].url
@@ -381,13 +381,13 @@ def get_image_from_message(ctx, *messages):
                     if user:
                         image = get_avatar(user)
 
+    dbutil = ctx.bot.dbutil
     if image is None:
         channel = ctx.channel
         guild = channel.guild
-        session = ctx.bot.get_session
         sql = 'SELECT attachment FROM `messages` WHERE guild={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(guild.id, channel.id)
         try:
-            rows = session.execute(sql).fetchall()
+            rows = (await dbutil.execute(sql)).fetchall()
             for row in rows:
                 attachment = row['attachment']
                 if not attachment:

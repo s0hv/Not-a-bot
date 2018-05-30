@@ -1,21 +1,21 @@
-import re
-import math
 import csv
 import json
-from bot.globals import POKESTATS
+import math
 import os
-from cogs.cog import Cog
-from bot.bot import command
+import re
 from functools import partial
-from discord.ext.commands import cooldown
-from bot.exceptions import BotException
-from discord.ext.commands.errors import BadArgument
-from utils.utilities import basic_check
-from discord.embeds import Embed, EmptyEmbed
-from discord.errors import HTTPException
-from discord.ext.commands.errors import UserInputError
-from discord.ext.commands.converter import UserConverter
 
+from discord.embeds import EmptyEmbed
+from discord.errors import HTTPException
+from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands.converter import UserConverter
+from discord.ext.commands.errors import BadArgument, UserInputError
+
+from bot.bot import command
+from bot.exceptions import BotException
+from bot.globals import POKESTATS
+from cogs.cog import Cog
+from utils.utilities import basic_check
 
 pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\n(Holding: .+?\n)?Nature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
 pokemon = {}
@@ -189,7 +189,7 @@ class Pokemon(Cog):
         super().__init__(bot)
 
     @command(aliases=['pstats', 'pstat'])
-    @cooldown(1, 3)
+    @cooldown(1, 3, BucketType.user)
     async def poke_stats(self, ctx, *, stats=None):
         """
         Calculate how good your pokemons stats are.

@@ -50,11 +50,15 @@ class Colors(Cog):
             self._color_names = json.load(f)
 
     async def _cache_colors(self):
-        session = self.bot.get_session
         sql = 'SELECT colors.id, colors.name, colors.value, roles.guild, colors.lab_l, colors.lab_a, colors.lab_b FROM ' \
               'colors LEFT OUTER JOIN roles on roles.id=colors.id'
 
-        rows = session.execute(sql).fetchall()
+        try:
+            rows = (await self.bot.dbutil.execute(sql)).fetchall()
+        except SQLAlchemyError:
+            logger.exception('Failed to cache colors')
+            return
+
         for row in rows:
             if not self.bot.get_guild(row['guild']):
                 continue
@@ -68,17 +72,15 @@ class Colors(Cog):
         if update:
             sql += ' ON DUPLICATE KEY UPDATE name=:name, value=:value, lab_l=:lab_l, lab_a=:lab_a, lab_b=:lab_b'
 
-        session = self.bot.get_session
         try:
-            session.execute(sql, params={'id': color.role_id,
-                                         'name': color.name,
-                                         'value': color.value,
-                                         'lab_l': color.lab.lab_l,
-                                         'lab_a': color.lab.lab_a,
-                                         'lab_b': color.lab.lab_b})
-            session.commit()
+            await self.bot.dbutil.execute(sql, params={'id': color.role_id,
+                                                       'name': color.name,
+                                                       'value': color.value,
+                                                       'lab_l': color.lab.lab_l,
+                                                       'lab_a': color.lab.lab_a,
+                                                       'lab_b': color.lab.lab_b},
+                                          commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add color to db')
             return False
         else:

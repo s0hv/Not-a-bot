@@ -68,9 +68,8 @@ class ServerSpecific(Cog):
             user_role = 'user_role IN (%s)' % ', '.join((str(r.id) for r in user.roles))
 
         sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND %s LIMIT 1' % (guild_id, role_id, user_role)
-        session = self.bot.get_session
         try:
-            row = session.execute(sql).first()
+            row = (await self.bot.dbutil.execute(sql)).first()
             if not row:
                 return False
         except SQLAlchemyError:
@@ -205,10 +204,9 @@ class ServerSpecific(Cog):
             author = user_
         else:
             author = ctx.author
-        session = self.bot.get_session
         sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND user_role IN (%s)' % (guild.id, ', '.join((str(r.id) for r in author.roles)))
         try:
-            rows = session.execute(sql).fetchall()
+            rows = (await self.dbutil.execute(sql)).fetchall()
         except SQLAlchemyError:
             logger.exception('Failed to get role grants')
             return await ctx.send('Failed execute sql')

@@ -119,7 +119,7 @@ class Settings(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
+        await self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
         await channel.send('Modlog set to this channel')
 
     @cooldown(1, 5, type=BucketType.guild)
@@ -136,7 +136,7 @@ class Settings(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        self.bot.guild_cache.set_mute_role(guild.id, role.id)
+        await self.bot.guild_cache.set_mute_role(guild.id, role.id)
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.guild)
@@ -176,7 +176,7 @@ class Settings(Cog):
             finally:
                 lock.release()
 
-        self.cache.set_keeproles(guild.id, boolean)
+        await self.cache.set_keeproles(guild.id, boolean)
         await ctx.send('Keeproles set to %s' % str(boolean))
 
     @settings.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
@@ -191,7 +191,7 @@ class Settings(Cog):
             value = 'on' if value else 'off'
             return await ctx.send('Random color on join is currently ' + value)
 
-        success = self.cache.set_random_color(guild.id, value)
+        success = await self.cache.set_random_color(guild.id, value)
         if not success:
             return await ctx.send('Failed to change value because of an error')
         value = 'on' if value else 'off'
@@ -226,7 +226,7 @@ class Settings(Cog):
 
             return await ctx.send(embed=embed)
 
-        success = self.cache.set_automute(guild.id, value)
+        success = await self.cache.set_automute(guild.id, value)
         if not success:
             return ctx.send('Failed to set automute value')
 
@@ -246,7 +246,7 @@ class Settings(Cog):
         if limit > 30:
             return await ctx.send('Value must be equal to or lower than 30')
 
-        success = self.cache.set_automute_limit(guild.id, limit)
+        success = await self.cache.set_automute_limit(guild.id, limit)
 
         if not success:
             return ctx.send('Failed to set automute limit')
@@ -262,7 +262,7 @@ class Settings(Cog):
             return await ctx.send('Time must be under 30 days')
 
         format = timedelta2sql(mute_time)
-        success = self.cache.set_automute_time(ctx.guild.id, format)
+        success = await self.cache.set_automute_time(ctx.guild.id, format)
         if not success:
             return await ctx.send('Failed to set time')
 
@@ -305,7 +305,7 @@ class Settings(Cog):
         if len(splitted) > 2:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_on_delete_message(message.guild.id, message_format)
+        success = await self.cache.set_on_delete_message(message.guild.id, message_format)
         if not success:
             await ctx.send('Failed to set message format because of an error')
         else:
@@ -324,7 +324,7 @@ class Settings(Cog):
                 await ctx.send('Currently logging deleted messages to <#{}>'.format(channel))
             return
 
-        success = self.cache.set_on_delete_channel(guild.id, channel.id)
+        success = await self.cache.set_on_delete_channel(guild.id, channel.id)
         if not success:
             await ctx.send('Failed to set channel because of an error')
         else:
@@ -367,7 +367,7 @@ class Settings(Cog):
         if len(splitted) > 2:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_on_edit_message(message.guild.id, message_format)
+        success = await self.cache.set_on_edit_message(message.guild.id, message_format)
         if not success:
             await ctx.send('Failed to set message format because of an error')
         else:
@@ -386,7 +386,7 @@ class Settings(Cog):
                 await ctx.send('Currently logging edited messages to <#{}>'.format(channel))
             return
 
-        success = self.cache.set_on_edit_channel(guild.id, channel.id)
+        success = await self.cache.set_on_edit_channel(guild.id, channel.id)
         if not success:
             await ctx.send('Failed to set channel because of an error')
         else:
@@ -422,7 +422,7 @@ class Settings(Cog):
         if len(splitted) > 1:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_join_message(guild.id, message)
+        success = await self.cache.set_join_message(guild.id, message)
         if not success:
             await ctx.send('Failed to set message format because of an error')
         else:
@@ -441,7 +441,7 @@ class Settings(Cog):
                 await ctx.send('Currently logging members who join in <#{}>'.format(channel))
             return
 
-        success = self.cache.set_join_channel(guild.id, channel.id)
+        success = await self.cache.set_join_channel(guild.id, channel.id)
         if not success:
             await ctx.send('Failed to set channel because of an error')
         else:
@@ -477,7 +477,7 @@ class Settings(Cog):
         if len(splitted) > 1:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_leave_message(guild.id, message)
+        success = await self.cache.set_leave_message(guild.id, message)
         if not success:
             await ctx.send('Failed to set message format because of an error')
         else:
@@ -496,7 +496,7 @@ class Settings(Cog):
                 await ctx.send('Currently logging members who leave in <#{}>'.format(channel))
             return
 
-        success = self.cache.set_leave_channel(guild.id, channel.id)
+        success = await self.cache.set_leave_channel(guild.id, channel.id)
         if not success:
             await ctx.send('Failed to set channel because of an error')
         else:

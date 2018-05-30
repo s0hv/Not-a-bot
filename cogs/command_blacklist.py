@@ -1,15 +1,16 @@
-from cogs.cog import Cog
-from bot.bot import command, group
-from discord.ext.commands import cooldown, BucketType
-from sqlalchemy import text
-from bot.globals import BlacklistTypes, PermValues
-from utils.utilities import (check_channel_mention, check_role_mention, check_user_mention,
-                             split_string, find_user, get_role, get_channel, send_paged_message)
 import logging
-import discord
-from bot.formatter import Paginator
 from functools import partial
+
+import discord
+from discord.ext.commands import cooldown, BucketType
 from sqlalchemy.exc import SQLAlchemyError
+
+from bot.bot import command, group
+from bot.formatter import Paginator
+from bot.globals import BlacklistTypes, PermValues
+from cogs.cog import Cog
+from utils.utilities import (check_channel_mention, check_role_mention, check_user_mention,
+                             split_string, get_role, send_paged_message)
 
 logger = logging.getLogger('debug')
 perms = discord.Permissions(8)
@@ -181,18 +182,20 @@ class CommandBlacklist(Cog):
                  None when permission is toggled
                  False when operation failed
         """
-        session = self.bot.get_session
         type_string = 'blacklist' if type_ == BlacklistTypes.BLACKLIST else 'whitelist'
         sql = 'SELECT `id`, `type` FROM `command_blacklist` WHERE %s' % whereclause
-        row = session.execute(sql, values).first()
+        try:
+            row = (await self.bot.dbutil.execute(sql, values)).first()
+        except SQLAlchemyError:
+            logger.exception('Failed to remove blacklist')
+            await ctx.send('Failed to remove %s' % type_string)
+
         if row:
             if row['type'] == type_:
                 sql = 'DELETE FROM `command_blacklist` WHERE id=:id'
                 try:
-                    session.execute(sql, {'id': row['id']})
-                    session.commit()
+                    await self.bot.dbutil.execute(sql, {'id': row['id']}, commit=True)
                 except SQLAlchemyError:
-                    session.rollback()
                     logger.exception('Could not update %s with whereclause %s' % (type_string, whereclause))
                     await ctx.send('Failed to remove %s' % type_string)
                     return False
@@ -201,10 +204,8 @@ class CommandBlacklist(Cog):
             else:
                 sql = 'UPDATE `command_blacklist` SET type=:type WHERE id=:id'
                 try:
-                    session.execute(sql, {'type': type_, 'id': row['id']})
-                    session.commit()
+                    await self.bot.dbutil.execute(sql, {'type': type_, 'id': row['id']}, commit=True)
                 except SQLAlchemyError:
-                    session.rollback()
                     logger.exception('Could not update %s with whereclause %s' % (type_string, whereclause))
                     await ctx.send('Failed to remove %s' % type_string)
                     return False
@@ -225,10 +226,8 @@ class CommandBlacklist(Cog):
 
             sql += ') VALUES ' + val + ')'
             try:
-                session.execute(sql, values)
-                session.commit()
+                await self.bot.dbutil.execute(sql, values, commit=True)
             except SQLAlchemyError:
-                session.rollback()
                 logger.exception('Could not set values %s' % values)
                 await ctx.send('Failed to set %s' % type_string)
                 return False

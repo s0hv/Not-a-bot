@@ -1,8 +1,8 @@
+from discord.ext.commands import cooldown, BucketType
+
 from bot.bot import command
 from cogs.cog import Cog
 from utils import wolfram, memes
-from utils.utilities import bool_check
-from discord.ext.commands import cooldown, BucketType
 
 
 class Misc(Cog):
@@ -23,9 +23,9 @@ class Misc(Cog):
 
     @command(ignore_extra=True, aliases=['twitchquotes'])
     @cooldown(1, 2, type=BucketType.guild)
-    async def twitchquote(self, ctx, tts=None):
+    async def twitchquote(self, ctx, tts: bool=None):
         """Random twitch quote from twitchquotes.com"""
-        await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=bool_check(str(tts)))
+        await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=tts)
 
 
 def setup(bot):

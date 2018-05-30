@@ -19,39 +19,6 @@ class Stats(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    async def on_message(self, message):
-        if message.guild is None:
-            return
-
-        if not message.raw_role_mentions:
-            return
-
-        roles = []
-        guild = message.guild
-        for role_id in set(message.raw_role_mentions):
-            role = self.bot.get_role(role_id, guild)
-            if role:
-                roles.append(role)
-
-        if not roles:
-            return
-
-        sql = 'INSERT INTO `mention_stats` (`guild`, `role`, `role_name`) ' \
-              'VALUES (:guild, :role, :role_name)'
-
-        data = []
-        for idx, role in enumerate(roles):
-            data.append({'guild': guild.id, 'role': role.id, 'role_name': role.name})
-
-        sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=VALUES(role_name)'
-        session = self.bot.get_session
-        try:
-            session.execute(sql, data)
-            session.commit()
-        except SQLAlchemyError:
-            session.rollback()
-            logger.exception('Failed to save mention stats')
-
     @command(no_pm=True)
     @cooldown(2, 5, type=BucketType.guild)
     async def mention_stats(self, ctx, page=None):
@@ -73,8 +40,7 @@ class Stats(Cog):
             page = 1
 
         sql = 'SELECT * FROM `mention_stats` WHERE guild={} ORDER BY amount DESC LIMIT {}'.format(guild.id, 10*page)
-        session = self.bot.get_session
-        rows = session.execute(sql).fetchall()
+        rows = (await self.bot.dbutil.execute(sql)).fetchall()
         if not rows:
             return await ctx.send('No role mentions logged on this server')
 

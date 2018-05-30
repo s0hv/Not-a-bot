@@ -335,7 +335,7 @@ class Moderator(Cog):
         task = guild_timeouts.get(user.id)
         if task:
             task.cancel()
-            self.remove_timeout(user.id, guild.id)
+            await self.remove_timeout(user.id, guild.id)
 
         try:
             await ctx.send('Muted user {} `{}`'.format(user.name, user.id))
@@ -431,20 +431,20 @@ class Moderator(Cog):
 
             loser = choices[loser]
             await asyncio.sleep(3)
+            if mute_role in user.roles or mute_role in ctx.author.roles:
+                return await ctx.send('One of the participants is already muted')
+
             await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds())
             await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
         finally:
             state.discard(user.id)
             state.discard(ctx.author.id)
 
-    def remove_timeout(self, user_id, guild_id):
-        session = self.bot.get_session
+    async def remove_timeout(self, user_id, guild_id):
         try:
             sql = 'DELETE FROM `timeouts` WHERE `guild`=:guild AND `user`=:user'
-            session.execute(sql, params={'guild': guild_id, 'user': user_id})
-            session.commit()
+            await self.bot.dbutil.execute(sql, params={'guild': guild_id, 'user': user_id}, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Could not delete untimeout')
 
     async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds):
@@ -484,12 +484,12 @@ class Moderator(Cog):
 
         guild = self.bot.get_guild(guild_id)
         if guild is None:
-            self.remove_timeout(user_id, guild_id)
+            await self.remove_timeout(user_id, guild_id)
             return
 
         user = guild.get_member(user_id)
         if not user:
-            self.remove_timeout(user_id, guild_id)
+            await self.remove_timeout(user_id, guild_id)
             return
 
         if self.bot.get_role(mute_role, guild):
@@ -497,7 +497,7 @@ class Moderator(Cog):
                 await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
             except discord.HTTPException:
                 logger.exception('Could not autounmute user %s' % user.id)
-        self.remove_timeout(user.id, guild.id)
+        await self.remove_timeout(user.id, guild.id)
 
     @command(aliases=['temp_mute'], required_perms=manage_roles)
     async def timeout(self, ctx, user: MentionedMember, *, timeout):
@@ -616,9 +616,12 @@ class Moderator(Cog):
             return await ctx.send('%s is not muted' % member)
 
         sql = 'SELECT expires_on FROM `timeouts` WHERE guild=%s AND user=%s' % (guild.id, member.id)
-        session = self.bot.get_session
 
-        row = session.execute(sql).first()
+        try:
+            row = (await self.bot.dbutil.execute(sql)).first()
+        except SQLAlchemyError:
+            return await ctx.send('Failed to check mute status')
+
         if not row:
             return await ctx.send('User %s is permamuted' % str(member))
 
@@ -767,9 +770,8 @@ class Moderator(Cog):
             sql += 'AND channel=%s ' % channel.id
 
         sql += 'ORDER BY `message_id` DESC LIMIT %s' % max_messages
-        session = self.bot.get_session
 
-        rows = session.execute(sql).fetchall()
+        rows = (await self.bot.dbutil.execute(sql)).fetchall()
 
         channel_messages = {}
         for r in rows:
@@ -794,10 +796,8 @@ class Moderator(Cog):
         if ids:
             sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join([i.id for i in ids])
             try:
-                session.execute(sql)
-                session.commit()
+                await self.bot.dbutil.execute(sql, commit=True)
             except SQLAlchemyError:
-                session.rollback()
                 logger.exception('Could not delete messages from database')
 
             if modlog:

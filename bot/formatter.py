@@ -70,13 +70,12 @@ class Formatter(HelpFormatter):
                 if self.type == self.ExtendedFilter:
                     sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=:guild AND (command=:command OR command IS NULL) ' \
                           'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
-                    session = ctx.bot.get_session
+
                     try:
-                        rows = session.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id}).fetchall()
+                        rows = await ctx.bot.dbutil.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id}).fetchall()
                         if rows:
                             can_run = check_perms(rows)
                     except SQLAlchemyError:
-                        session.rollback()
                         logger.exception('Failed to use extended filter in help')
                         can_run = True
 
@@ -104,12 +103,11 @@ class Formatter(HelpFormatter):
             if self.type == self.ExtendedFilter:
                 sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
                       'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
-                session = ctx.bot.get_session
                 command_blacklist = {}
                 try:
-                    rows = session.execute(sql, {'guild': user.guild.id,
-                                                 'user': user.id,
-                                                 'channel': channel.id})
+                    rows = await ctx.bot.dbutil.execute(sql, {'guild': user.guild.id,
+                                                              'user': user.id,
+                                                              'channel': channel.id})
 
                     for row in rows:
                         name = row['command']
@@ -119,7 +117,6 @@ class Formatter(HelpFormatter):
                             command_blacklist[name] = [row]
 
                 except SQLAlchemyError:
-                    session.rollback()
                     logger.exception('Failed to get role blacklist for help command')
 
             data = sorted(await self.filter_command_list(), key=category)

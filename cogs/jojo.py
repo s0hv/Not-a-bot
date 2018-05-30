@@ -276,7 +276,7 @@ class JoJo:
         if advanced:
             await ctx.send('`{}` Advanced mode activated'.format(name), delete_after=20)
 
-        image_ = get_image_from_message(ctx, image)
+        image_ = await get_image_from_message(ctx, image)
 
         img = await image_from_url(image_, self.bot.aiohttp_client)
         if img is None:

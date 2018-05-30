@@ -29,7 +29,7 @@ class Poll:
         """
         self._bot = bot
         self.message = message
-        self.channel = str(channel)
+        self.channel = channel
         self.title = title
         self.expires_at = expires_at
         self.strict = strict
@@ -51,7 +51,7 @@ class Poll:
 
     def start(self):
         self._stopper.clear()
-        self._task = self.bot.loop.create_task(self._wait())
+        self._task = asyncio.run_coroutine_threadsafe(self._wait(), loop=self.bot.loop)
         if callable(self._after):
             self._task.add_done_callback(self._after)
 
@@ -82,7 +82,6 @@ class Poll:
         if isinstance(self.message, discord.Message):
             self.message = self.message.id
 
-        session = self.bot.get_session
         try:
             chn = self.bot.get_channel(self.channel)
             msg = await chn.get_message(self.message)
@@ -91,23 +90,19 @@ class Poll:
             channel = self.bot.get_channel(self.channel)
             sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
             try:
-                session.execute(sql)
-                session.commit()
+                await self.bot.dbutil.execute(sql, commit=True)
             except SQLAlchemyError:
-                session.rollback()
                 logger.exception('Could not delete poll')
             return await channel.send('Failed to end poll.\nReason: Could not get the poll message')
 
         votes = {}
         for reaction in msg.reactions:
             if self.strict:
-                id = reaction.emoji if isinstance(reaction.emoji, str) else str(reaction.emoji.id)
+                id = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.id
                 if id not in self._emotes:
                     continue
 
-            users = await reaction.users(limit=reaction.count)
-
-            for user in users:
+            async for user in reaction.users(limit=reaction.count):
                 if user.bot:
                     continue
 
@@ -163,10 +158,8 @@ class Poll:
 
         sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
         try:
-            session.execute(sql)
-            session.commit()
+            await self.bot.dbutil.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Could not delete poll')
             await chn.send('Could not delete poll from database. The poll result might be recalculated')
 
@@ -210,8 +203,6 @@ class VoteManager:
         for poll in polls.values():
             self.polls[poll.message] = poll
             poll.start()
-
-        session.close()
 
     @command(owner_only=True)
     async def recalculate(self, ctx, msg_id, channel_id, *, message):

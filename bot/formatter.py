@@ -202,7 +202,7 @@ class Limits:
 
 
 class Paginator:
-    def __init__(self, title=None, description=None):
+    def __init__(self, title=None, description=None, page_count=True):
         self._fields = 0
         self._pages = []
         self.title = title
@@ -218,6 +218,9 @@ class Paginator:
 
     def finalize(self):
         self._add_field()
+        total = len(self.pages)
+        for idx, embed in enumerate(self.pages):
+            embed.set_footer(f'{idx+1}/{total}')
 
     def add_page(self, title=None, description=None):
         title = title or self.title

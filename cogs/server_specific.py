@@ -218,7 +218,9 @@ class ServerSpecific(Cog):
 
         paginator = Paginator('Role grants')
         for role_id, roles in role_grants.items():
-            paginator.add_field(f'<@&{role_id}> `{role_id}`')
+            role = self.bot.get_role(role_id, ctx.guild)
+            role_name = role.name if role else '*Deleted role*'
+            paginator.add_field(f'{role_name} `{role_id}`')
             for role in roles:
                 paginator.add_to_field(f'<@&{role}> `{role}`\n')
 

@@ -57,13 +57,8 @@ logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
 
-class WaitForType(enum.Enum):
-    reaction_remove  = 0
-    reaction_changed = 1
-
-
 class Context(commands.context.Context):
-    __slots__ = ['override_perms', 'skip_check', 'original_user']
+    __slots__ = ('override_perms', 'skip_check', 'original_user')
 
     def __init__(self, **attrs):
         super().__init__(**attrs)
@@ -361,7 +356,7 @@ class Bot(commands.Bot, Client):
 
     async def get_context(self, message, *, cls=Context):
         ctx = await super().get_context(message, cls=cls)
-        if self.runas is not None:
+        if self.runas is not None and message.author.id == self.owner_id:
             if ctx.guild:
                 member = ctx.guild.get_member(self.runas.id)
                 if not member:

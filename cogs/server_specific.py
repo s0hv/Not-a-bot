@@ -179,6 +179,9 @@ class ServerSpecific(Cog):
         if not target_role_:
             return await ctx.send('Could not find role %s' % target_role, delete_after=30)
 
+        if target_role.id == 451830668595298304:
+            return # server specific thingy
+
         sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role=%s AND guild=%s' % (role_.id, target_role_.id, guild.id)
         session = self.bot.get_session
         try:

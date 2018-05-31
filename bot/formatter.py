@@ -72,7 +72,7 @@ class Formatter(HelpFormatter):
                           'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
 
                     try:
-                        rows = await ctx.bot.dbutil.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id}).fetchall()
+                        rows = (await ctx.bot.dbutil.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id})).fetchall()
                         if rows:
                             can_run = check_perms(rows)
                     except SQLAlchemyError:

@@ -207,6 +207,7 @@ class Paginator:
         self._pages = []
         self.title = title
         self.description = description
+        self.set_page_count = page_count
         self._current_page = -1
         self._char_count = 0
         self._current_field = None
@@ -218,9 +219,12 @@ class Paginator:
 
     def finalize(self):
         self._add_field()
+        if not self.set_page_count:
+            return
+
         total = len(self.pages)
         for idx, embed in enumerate(self.pages):
-            embed.set_footer(f'{idx+1}/{total}')
+            embed.set_footer(text=f'{idx+1}/{total}')
 
     def add_page(self, title=None, description=None):
         title = title or self.title

@@ -196,7 +196,7 @@ class ServerSpecific(Cog):
     async def all_grants(self, ctx, role: discord.Role=None):
         sql = f'SELECT `role`, `user_role` FROM `role_granting` WHERE guild={ctx.guild.id}'
         if role:
-            sql += f' AND role={role.id}'
+            sql += f' AND user_role={role.id}'
 
         try:
             rows = await self.bot.dbutil.execute(sql)

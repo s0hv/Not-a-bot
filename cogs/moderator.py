@@ -189,6 +189,9 @@ class Moderator(Cog):
         if not role_:
             return await ctx.send('Role {} not found'.format(role))
 
+        if ctx.author.top_role <= role:
+            return await ctx.send('The role you are trying to add is higher than your top role in the hierarchy')
+
         success = await self.bot.dbutils.add_automute_whitelist(guild.id, role_.id)
         if not success:
             return await ctx.send('Failed to add role because of an error')
@@ -208,6 +211,9 @@ class Moderator(Cog):
 
         if role_.id not in roles:
             return await ctx.send('Role {0.name} not found in whitelist'.format(role_))
+
+        if ctx.author.top_role <= role:
+            return await ctx.send('The role you are trying to remove is higher than your top role in the hierarchy')
 
         success = await self.bot.dbutils.remove_automute_whitelist(guild.id, role.id)
         if not success:
@@ -323,6 +329,9 @@ class Moderator(Cog):
         guild = ctx.guild
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
+
+        if ctx.author.top_role < user.top_role:
+            return await ctx.send('The one you are trying to mute is higher in the role hierarchy')
 
         reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         try:
@@ -531,6 +540,9 @@ class Moderator(Cog):
         r = self.bot.get_role(339841138393612288, guild)
         if self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
+
+        if ctx.author.top_role < user.top_role:
+            return await ctx.send('The one you are trying to timeout is higher in the role hierarchy')
 
         if time.days > 30:
             return await ctx.send("Timeout can't be longer than 30 days")

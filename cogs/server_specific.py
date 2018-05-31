@@ -7,7 +7,8 @@ from bot.globals import Perms
 from cogs.cog import Cog
 from utils.utilities import (get_role, get_user_id, split_string, find_user,
                              parse_time, datetime2sql, call_later, get_avatar,
-                             retry)
+                             retry, send_paged_message)
+from bot.formatter import Paginator
 import subprocess
 import shlex
 import asyncio
@@ -190,6 +191,40 @@ class ServerSpecific(Cog):
 
         await ctx.send('👌')
 
+    @command(no_pm=True)
+    @cooldown(2, 5)
+    async def all_grants(self, ctx, role: discord.Role=None):
+        sql = f'SELECT `role`, `user_role` FROM `role_granting` WHERE guild={ctx.guild.id}'
+        if role:
+            sql += f' AND role={role.id}'
+
+        try:
+            rows = await self.bot.dbutil.execute(sql)
+        except SQLAlchemyError:
+            logger.exception(f'Failed to get grants for role {role}')
+            return await ctx.send('Failed to get grants')
+
+        role_grants = {}
+        for row in rows:
+            role_id = row['user_role']
+            target_role = row['role']
+            if role_id not in role_grants:
+                role_grants[role_id] = [target_role]
+            else:
+                role_grants[role_id].append(target_role)
+
+        if not role_grants:
+            return await ctx.send('No role grants found')
+
+        paginator = Paginator('Role grants')
+        for role_id, roles in role_grants.items():
+            paginator.add_page(f'<@&{role_id}> `{role_id}`')
+            for role in roles:
+                paginator.add_to_field(f'<@&{role}> `{role}`\n')
+
+        paginator.finalize()
+        await send_paged_message(self.bot, ctx, paginator.pages, embed=True)
+
     @command(no_pm=True, aliases=['get_grants', 'grants'])
     @cooldown(1, 4)
     @check(main_check)
@@ -215,17 +250,19 @@ class ServerSpecific(Cog):
             return await ctx.send("{} can't grant any roles".format(author))
 
         msg = 'Roles {} can grant:\n'.format(author)
-        found = False
+        roles = set()
         for row in rows:
             role = self.bot.get_role(row['role'], guild)
             if not role:
                 continue
 
-            if not found:
-                found = True
+            if role.id in roles:
+                continue
+
+            roles.add(role.id)
             msg += '{0.name} `{0.id}`\n'.format(role)
 
-        if not found:
+        if not roles:
             return await ctx.send("{} can't grant any roles".format(author))
 
         for s in split_string(msg, maxlen=2000, splitter='\n'):

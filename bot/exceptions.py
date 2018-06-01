@@ -83,6 +83,15 @@ class InvalidPermissionError(BotException):
         return "Required permissions are " + self._message
 
 
+class ImageSizeException(BotException):
+    def __init__(self, message, max_pixel, *args, **kwargs):
+        super().__init__(message, *args, **kwargs)
+        self.max_pixel = max_pixel
+    @property
+    def message(self):
+        return f"Image has too many pixels {self._message} > {self.max_pixel}"
+
+
 class InvalidArgumentException(BotException):
     @property
     def message(self):

@@ -41,6 +41,8 @@ from colour import Color
 from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
+from bot.exceptions import ImageSizeException
+
 
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
@@ -463,7 +465,7 @@ def create_shadow(img, percent, opacity, x, y):
 
 def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
                              center_cropped=False, background_color=None,
-                             resample=Image.NEAREST):
+                             resample=Image.NEAREST, max_pixels=2073600):
     """
     Args:
         img: Image to be cropped
@@ -475,11 +477,14 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
                         bottom right corner
         background_color: Color of the background
         resample: The type of resampling to use
+        max_pixels: Maximum amount of pixels the image can have
 
     Returns:
         Image.Image
     """
     x, y = img.size
+    if x * y > max_pixels:  # More pixels than in a 1080p pic is a no no
+        raise ImageSizeException(x * y, max_pixels)
     x_m = x / new_size[0]
     y_m = y / new_size[1]
     check = y_m <= x_m if can_be_bigger else y_m >= x_m

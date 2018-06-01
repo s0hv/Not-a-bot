@@ -98,6 +98,7 @@ class NotABot(Bot):
         self.threadpool = ThreadPoolExecutor(4)
         self.loop.set_default_executor(self.threadpool)
         self.playlists = {}
+        self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
 
     def _setup(self):

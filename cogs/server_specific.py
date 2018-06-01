@@ -42,7 +42,7 @@ class ServerSpecific(Cog):
     async def load_giveaways(self):
         sql = 'SELECT * FROM `giveaways`'
         try:
-            rows = await self.bot.dbutil.execute(sql).fetchall()
+            rows = (await self.bot.dbutil.execute(sql)).fetchall()
         except SQLAlchemyError:
             logger.exception('Failed to load giveaways')
             return
@@ -164,12 +164,9 @@ class ServerSpecific(Cog):
         guild = ctx.guild
 
         sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role=%s AND guild=%s' % (role.id, target_role.id, guild.id)
-        session = self.bot.get_session
         try:
-            session.execute(sql)
-            session.commit()
+            await self.dbutil.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to remove grant role')
             return await ctx.send('Failed to remove perms. Exception logged')
 

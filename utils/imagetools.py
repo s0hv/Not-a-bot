@@ -550,19 +550,37 @@ def func_to_gif(img, f, get_raw=True):
     return data
 
 
-def gradient_flash(im, get_raw=True):
+def gradient_flash(im, get_raw=True, transparency=None):
     """
     When get_raw is True gif is optimized with magick fixing some problems that PIL
     creates. It is the suggested method of using this funcion
     """
-    if max(im.size) > 600:
-        frames = [resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
-                  for frame in ImageSequence.Iterator(im)]
-    else:
-        frames = [frame.convert('RGBA') for frame in ImageSequence.Iterator(im)]
 
-    while len(frames) <= 25:
+    frames = []
+    if max(im.size) > 600:
+        def f(frame):
+            return resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
+    else:
+        def f(frame):
+            return frame.convert('RGBA')
+
+    while True:
+        frames.append(f(im))
+        if len(frames) > 120:
+            raise Exception('fuck this')
+        try:
+            im.seek(im.tell() + 1)
+        except EOFError:
+            frames[-1] = f(im)
+            break
+
+    if transparency is None and im.mode == 'RGBA' or im.info.get('background', None) == im.info.get('transparency', 0):
+        transparency = 0
+
+    extended = 1
+    while len(frames) <= 20:
         frames.extend([frame.copy() for frame in frames])
+        extended += 1
 
     gradient = Color('red').range_to('#ff0004', len(frames))
     frames_ = zip(frames, gradient)
@@ -573,7 +591,9 @@ def gradient_flash(im, get_raw=True):
             frame, g = frame
             img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
             img = ImageChops.multiply(frame, img)
-            img = Image.composite(img, frame, frame)
+            if transparency is not None and transparency is not False:
+                img = Image.composite(img, frame, frame)
+                img.info['transparency'] = transparency
             images.append(img)
     except Exception as e:
         logger.exception('{} Failed to create gif'.format(e))
@@ -581,11 +601,12 @@ def gradient_flash(im, get_raw=True):
     data = BytesIO()
     if isinstance(frames[0].info.get('duration', None), list):
         duration = frames[0].info['duration']
+        for i in range(1, extended):
+            duration.extend(duration)
     else:
         duration = [frame.info.get('duration', 20) for frame in frames]
 
-    images[0].info['duration'] = duration
-    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535)
+    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535, disposal=2)
 
     data.seek(0)
     if get_raw:
@@ -597,7 +618,7 @@ def gradient_flash(im, get_raw=True):
 
 
 def optimize_gif(gif_bytes):
-    cmd = '{}convert - -dither none -deconstruct -layers optimize -matte -depth 8 gif:-'.format(MAGICK)
+    cmd = '{}convert - -dither none -deconstruct -layers optimize-transparency -dispose background -matte -depth 8 gif:-'.format(MAGICK)
     p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(gif_bytes)
     out, err = p.communicate()

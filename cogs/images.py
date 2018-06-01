@@ -582,8 +582,20 @@ class Fun(Cog):
         if img is None:
             return
 
-        await ctx.trigger_typing()
-        img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
+        async with ctx.typing():
+            img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
+        await ctx.send(content=f"Use {ctx.prefix}party2 if transparency guess went wrong",
+                       file=File(img, filename='party.gif'))
+
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def party2(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        async with ctx.typing():
+            img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True, transparency=False))
         await ctx.send(file=File(img, filename='party.gif'))
 
     @command(ignore_extra=True)

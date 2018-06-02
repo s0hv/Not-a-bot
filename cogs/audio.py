@@ -293,7 +293,7 @@ class MusicPlayer:
                 return
 
             if self.current:
-                if self.current.author and self.current.author.id == author.id:
+                if self.current.requested_by and self.current.requested_by.id == author.id:
                     self.voice.stop()
                 else:
                     self._skip_votes.add(author.id)

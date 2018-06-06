@@ -23,7 +23,6 @@ SOFTWARE.
 """
 
 import asyncio
-import enum
 import inspect
 import itertools
 import logging
@@ -52,13 +51,14 @@ except ImportError:
 
 from bot import exceptions
 
+
 log = logging.getLogger('discord')
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
 
 class Context(commands.context.Context):
-    __slots__ = ('override_perms', 'skip_check', 'original_user')
+    __slots__ = ('override_perms', 'skip_check', 'original_user', 'domain')
 
     def __init__(self, **attrs):
         super().__init__(**attrs)
@@ -66,6 +66,7 @@ class Context(commands.context.Context):
         self.original_user = self.author  # Used to determine original user with runas
         # Used when wanting to skip database check like in help command
         self.skip_check = attrs.pop('skip_check', False)
+        self.domain = attrs.get('domain', None)
 
 
 class Command(commands.Command):
@@ -246,6 +247,7 @@ class Bot(commands.Bot, Client):
             return
 
         channel = context.channel
+        exception._domain = context.domain
         if isinstance(exception, commands.errors.CommandOnCooldown):
             await channel.send('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return

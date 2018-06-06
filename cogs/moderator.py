@@ -362,10 +362,18 @@ class Moderator(Cog):
         except discord.HTTPException:
             pass
 
-    @command(required_perms=manage_roles)
+    @command(ignore_extra=True, no_dm=True)
+    @cooldown(2, 3, BucketType.guild)
     async def mute_roll(self, ctx, user: discord.Member, hours: int):
+        """Challenge another user to a game where the loser gets muted for the specified amount of time.
+        Users with manage_roles permission play using hours as the time and those who don't have it use minutes"""
+        if ctx.channel.permissions_for(ctx.author).manage_roles:
+            use_hours = True
+        else:
+            use_hours = False
+
         if not 0 < hours < 11:
-            return await ctx.send('Mute length should be between 1 and 10 (hours)')
+            return await ctx.send(f'Mute length should be between 1 and 10 ({"hours" if use_hours else "minutes"})')
 
         if ctx.author == user:
             return await ctx.send("Can't play yourself")
@@ -405,7 +413,11 @@ class Moderator(Cog):
             except asyncio.TimeoutError:
                 return await ctx.send('Took too long.')
 
-            td = timedelta(hours=hours)
+            if use_hours:
+                td = timedelta(hours=hours)
+            else:
+                td = timedelta(minutes=hours)
+
             expires_on = datetime2sql(datetime.utcnow() + td)
             msg = await ctx.send(f'{user} vs {ctx.author}\nLoser: <a:loading:449907001569312779>')
             await asyncio.sleep(2)

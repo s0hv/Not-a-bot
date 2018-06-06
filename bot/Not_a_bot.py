@@ -314,7 +314,7 @@ class NotABot(Bot):
 
     async def check_auth(self, ctx):
         if not await self._check_auth(ctx.author.id, ctx.command.auth):
-            raise exceptions.PermissionError("You aren't authorized to use this command")
+            raise exceptions.PermException()
 
         return True
 

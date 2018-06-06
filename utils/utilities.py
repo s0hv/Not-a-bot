@@ -41,7 +41,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
 from bot.paged_message import PagedMessage
 
-from bot.exceptions import NoCachedFileException, PermissionError
+from bot.exceptions import NoCachedFileException, PermException
 from bot.globals import BlacklistTypes, PermValues
 
 # Support for recognizing webp images used in many discord avatars
@@ -748,7 +748,7 @@ def is_superset(ctx):
 
         if not perms.is_superset(ctx.command.required_perms):
             req = [r[0] for r in ctx.command.required_perms if r[1]]
-            raise PermissionError('%s' % ', '.join(req))
+            raise PermException('%s' % ', '.join(req))
 
     return True
 
@@ -839,7 +839,7 @@ async def create_custom_emoji(guild, name, image, already_b64=False, reason=None
 
 def is_owner(ctx):
     if ctx.command.owner_only and ctx.bot.owner_id != ctx.original_user.id:
-        raise PermissionError('Only the owner can use this command')
+        raise PermException('Only the owner can use this command')
 
     return True
 
@@ -867,7 +867,7 @@ async def check_blacklist(ctx):
 
     if overwrite_perms is False:
         if msg is not None:
-            raise PermissionError(msg)
+            raise PermException(msg)
         return False
 
     return True

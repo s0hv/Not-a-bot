@@ -73,7 +73,7 @@ def iv_range(level, natures, stats, base):
     ivs = []
 
     def get_range(get_stat, get_iv, stat, base, nature=None):
-        iv_small = 0
+        iv_small = None
         iv_big = 31
         if nature is None:
             iv_guess = get_iv(stat, base, ev=102, level=level)
@@ -86,6 +86,24 @@ def iv_range(level, natures, stats, base):
             for iv in range(1, 32):
                 if get_stat(iv, base, ev=102, level=level) == stat:
                     iv_guess = iv
+
+
+        for iv in range(32):
+            stat_new = get_stat(iv, base, ev=102, level=level)
+            if stat_new == stat and iv_small is None:
+                iv_small = iv
+                continue
+
+            if stat_new != stat:
+                if iv_small is None:
+                    continue
+                iv_big = iv - 1
+                break
+
+        if iv_small is None:
+            return 'N/A'
+
+        return list(range(iv_small, iv_big+1))
 
         if iv_guess > 0:
             for r in range(1, 16):
@@ -332,17 +350,20 @@ class Pokemon(Cog):
                 diff = f'{diff*100:.0f}%'
             fill4 = ' ' * (11 - len(diff))
 
+            if ivs == 'N/A':
+                ivs = (0, 31)
+                iv = 'N/A'
+            elif len(ivs) == 1:
+                iv = str(ivs[0])
+            else:
+                iv = f'{ivs[0]}-{ivs[-1]}'
+
             if idx == 0:
                 minimum = calc_hp_stats(ivs[0], base_stats[idx], 102, 100)
                 maximum = calc_hp_stats(ivs[-1], base_stats[idx], 102, 100)
             else:
                 minimum = calc_stat(ivs[0], base_stats[idx], 102, 100, nature_mod[idx - 1])
                 maximum = calc_stat(ivs[-1], base_stats[idx], 102, 100, nature_mod[idx - 1])
-
-            if len(ivs) == 1:
-                iv = str(ivs[0])
-            else:
-                iv = f'{ivs[0]}-{ivs[-1]}'
 
             if maximum == minimum:
                 stat_range = str(maximum)

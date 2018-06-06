@@ -75,14 +75,5 @@ if not discord.opus.is_loaded():
 
 terminal.info('Main bot starting up')
 logger.info('Starting bots')
-
-from lang import lang
-from bot import sfx_bot
-t = lang.Translations()
-t.install()
-print(_)
-bot = sfx_bot.Ganypepe(prefix='-', conf=config, test_mode=True)
-bot.run(config.test_token)
-exit()
 bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
 bot.run(config.test_token)

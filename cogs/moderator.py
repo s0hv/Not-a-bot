@@ -367,7 +367,7 @@ class Moderator(Cog):
     async def mute_roll(self, ctx, user: discord.Member, hours: int):
         """Challenge another user to a game where the loser gets muted for the specified amount of time.
         Users with manage_roles permission play using hours as the time and those who don't have it use minutes"""
-        if ctx.channel.permissions_for(ctx.author).manage_roles:
+        if ctx.override_perms or ctx.channel.permissions_for(ctx.author).manage_roles:
             use_hours = True
         else:
             use_hours = False

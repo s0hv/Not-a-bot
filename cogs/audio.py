@@ -300,7 +300,7 @@ class MusicPlayer:
                     users = self.voice.channel.members
                     users = len(list(filter(lambda x: not x.bot, users)))
                     required_votes = ceil(users/2)
-                    if len(self._skip_votes) > required_votes:
+                    if len(self._skip_votes) >= required_votes:
                         await self.send(f'{required_votes} votes reached, skipping', channel=messageable)
                         return self.voice.stop()
 

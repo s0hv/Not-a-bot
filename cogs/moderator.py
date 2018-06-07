@@ -401,7 +401,7 @@ class Moderator(Cog):
         state.add(ctx.author.id)
 
         try:
-            await ctx.send(f'{user.mention} type accept to join this mute roll of {hours} hours')
+            await ctx.send(f'{user.mention} type accept to join this mute roll of {"hours" if use_hours else "minutes"} hours')
 
             _check = basic_check(user, ctx.channel)
 

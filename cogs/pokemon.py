@@ -17,7 +17,16 @@ from bot.globals import POKESTATS
 from cogs.cog import Cog
 from utils.utilities import basic_check
 
-pokestats = re.compile(r'Level (?P<level>\d+) "?(?P<name>.+?)"?\n.+?\n(Holding: .+?\n)?Nature: (?P<nature>\w+)\nHP: (?P<hp>\d+)\nAttack: (?P<attack>\d+)\nDefense: (?P<defense>\d+)\nSp. Atk: (?P<spattack>\d+)\nSp. Def: (?P<spdefense>\d+)\nSpeed: (?P<speed>\d+)')
+pokestats = re.compile(r'''Level (?P<level>\d+) "?(?P<name>.+?)"?
+.+?
+(Holding: .+?\n)?Nature: (?P<nature>\w+)
+HP: (?P<hp>\d+)( - IV: (?P<hp_iv>\d+))?
+Attack: (?P<attack>\d+)( - IV: (?P<attack_iv>\d+))?
+Defense: (?P<defense>\d+)( - IV: (?P<defense_iv>\d+))?
+Sp. Atk: (?P<spattack>\d+)( - IV: (?P<spattack_iv>\d+))?
+Sp. Def: (?P<spdefense>\d+)( - IV: (?P<spdefense_iv>\d+))?
+Speed: (?P<speed>\d+)( - IV: (?P<speed_iv>\d+))?''')
+
 pokemon = {}
 stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
@@ -320,7 +329,10 @@ class Pokemon(Cog):
         current_stats = []
         try:
             for name in stat_names:
-                i = int(stats[name])
+                val = stats[name]
+                if val is None:
+                    continue
+                i = int(val)
                 current_stats.append(i)
                 stats[name] = i
         except ValueError:
@@ -338,7 +350,12 @@ class Pokemon(Cog):
 
         nature_mod = natures[nature]
         base_stats = get_base_stats(stats['name'])
-        iv_ranges = iv_range(level, nature_mod, current_stats, base_stats)
+        if stats['hp_iv'] is not None:
+            iv_ranges = []
+            for name in stat_names:
+                iv_ranges.append(stats[name + '_iv'])
+        else:
+            iv_ranges = iv_range(level, nature_mod, current_stats, base_stats)
         idx = 0
         for min_val, max_val, name, ivs in zip(min_stats, max_stats, stat_names, iv_ranges):
             diff, from_max = from_max_stat(min_val, max_val, stats[name])

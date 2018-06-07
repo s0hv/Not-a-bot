@@ -329,10 +329,10 @@ class Pokemon(Cog):
         current_stats = []
         try:
             for name in stat_names:
-                val = stats[name]
-                if val is None:
-                    continue
-                i = int(val)
+                iv = stats[name + '_iv']
+                if iv is not None:
+                    stats[name + '_iv'] = int(iv)
+                i = int(stats[name])
                 current_stats.append(i)
                 stats[name] = i
         except ValueError:
@@ -353,7 +353,7 @@ class Pokemon(Cog):
         if stats['hp_iv'] is not None:
             iv_ranges = []
             for name in stat_names:
-                iv_ranges.append(stats[name + '_iv'])
+                iv_ranges.append((stats[name + '_iv'], ))
         else:
             iv_ranges = iv_range(level, nature_mod, current_stats, base_stats)
         idx = 0

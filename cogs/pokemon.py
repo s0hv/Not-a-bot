@@ -20,12 +20,12 @@ from utils.utilities import basic_check
 pokestats = re.compile(r'''Level (?P<level>\d+) "?(?P<name>.+?)"?
 .+?
 (Holding: .+?\n)?Nature: (?P<nature>\w+)
-HP: (?P<hp>\d+)( - IV: (?P<hp_iv>\d+))?
-Attack: (?P<attack>\d+)( - IV: (?P<attack_iv>\d+))?
-Defense: (?P<defense>\d+)( - IV: (?P<defense_iv>\d+))?
-Sp. Atk: (?P<spattack>\d+)( - IV: (?P<spattack_iv>\d+))?
-Sp. Def: (?P<spdefense>\d+)( - IV: (?P<spdefense_iv>\d+))?
-Speed: (?P<speed>\d+)( - IV: (?P<speed_iv>\d+))?''')
+HP: (?P<hp>\d+)( - IV: (?P<hp_iv>\d+)/\d+)?
+Attack: (?P<attack>\d+)( - IV: (?P<attack_iv>\d+)/\d+)?
+Defense: (?P<defense>\d+)( - IV: (?P<defense_iv>\d+)/\d+)?
+Sp. Atk: (?P<spattack>\d+)( - IV: (?P<spattack_iv>\d+)/\d+)?
+Sp. Def: (?P<spdefense>\d+)( - IV: (?P<spdefense_iv>\d+)/\d+)?
+Speed: (?P<speed>\d+)( - IV: (?P<speed_iv>\d+)/\d+)?''')
 
 pokemon = {}
 stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')

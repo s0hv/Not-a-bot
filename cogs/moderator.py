@@ -406,12 +406,15 @@ class Moderator(Cog):
             _check = basic_check(user, ctx.channel)
 
             def check(msg):
-                return _check(msg) and msg.content.lower() == 'accept'
+                return _check(msg) and msg.content.lower() in ('accept', 'reject', 'no', 'deny', 'decline')
 
             try:
-                await self.bot.wait_for('message', check=check, timeout=120)
+                msg = await self.bot.wait_for('message', check=check, timeout=120)
             except asyncio.TimeoutError:
                 return await ctx.send('Took too long.')
+
+            if msg.content != 'accept':
+                return await ctx.send(f'{user} declined')
 
             if use_hours:
                 td = timedelta(hours=hours)

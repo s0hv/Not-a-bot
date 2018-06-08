@@ -413,7 +413,7 @@ class Moderator(Cog):
             except asyncio.TimeoutError:
                 return await ctx.send('Took too long.')
 
-            if msg.content != 'accept':
+            if msg.content.lower() != 'accept':
                 return await ctx.send(f'{user} declined')
 
             if use_hours:

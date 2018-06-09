@@ -1,6 +1,6 @@
 import logging
 import os
-import re
+from utils.unzalgo import unzalgo, is_zalgo
 import shlex
 import subprocess
 import sys
@@ -194,7 +194,7 @@ class Utilities(Cog):
         roles = split_string(roles, splitter='\n', maxlen=1990)
         await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
 
-    @command(aliases=['created_at'], ignore_extra=True)
+    @command(aliases=['created_at', 'snowflake'], ignore_extra=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def snowflake_time(self, ctx, id: int):
         """Gets creation date from the specified discord id"""
@@ -204,6 +204,30 @@ class Utilities(Cog):
             return await ctx.send("{} isn't a valid integer".format(id))
 
         await ctx.send(str(discord.utils.snowflake_time(id)))
+
+    @command(name='unzalgo')
+    @cooldown(2, 5, BucketType.guild)
+    async def unzalgo_(self, ctx, *, text=None):
+        if text is None:
+            messages = self.bot._connection._messages
+            for i in range(-1, -100, -1):
+                try:
+                    msg = messages[i]
+                except IndexError:
+                    break
+
+                if msg.channel.id != ctx.channel.id:
+                    continue
+
+                if is_zalgo(msg.content):
+                    text = msg.content
+                    break
+
+        if text is None:
+            await ctx.send("Didn't find a zalgo message")
+            return
+
+        await ctx.send(unzalgo(text))
 
 
 def setup(bot):

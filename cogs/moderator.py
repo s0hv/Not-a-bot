@@ -112,6 +112,9 @@ class Moderator(Cog):
     async def on_message(self, message):
         guild = message.guild
         if guild and self.bot.guild_cache.automute(guild.id):
+            if message.webhook_id:
+                return
+
             mute_role = self.bot.guild_cache.mute_role(guild.id)
             mute_role = discord.utils.find(lambda r: r.id == mute_role, message.guild.roles)
             if not mute_role:

@@ -22,6 +22,9 @@ class AutoRoles(Cog):
 
         # Autogrant @every
         if message.guild and message.guild.id == 217677285442977792 and message.author.id != 123050803752730624:
+            if message.webhook_id:
+                return
+
             if discord.utils.find(lambda r: r.id == 323098643030736919, message.role_mentions):
                 if not discord.utils.get(message.author.roles, id=323098643030736919):
                     await message.author.add_roles(Snowflake(323098643030736919), reason='Pinged every')

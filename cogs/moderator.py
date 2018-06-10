@@ -828,7 +828,7 @@ class Moderator(Cog):
                 ids.extend(channel_messages[k])
 
         if ids:
-            sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join([i.id for i in ids])
+            sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join([str(i.id) for i in ids])
             try:
                 await self.bot.dbutil.execute(sql, commit=True)
             except SQLAlchemyError:

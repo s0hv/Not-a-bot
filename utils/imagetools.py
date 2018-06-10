@@ -83,56 +83,24 @@ class ColorThief(CF):
 
 
 class GeoPattern(geopatterns.GeoPattern):
-    # 'triangles' removed cuz it doesn't work
-    available_generators = [
-        'bricks',
-        'hexagons',
-        'overlapping_circles',
-        'overlapping_rings',
-        'plaid',
-        'plus_signs',
-        'rings',
-        'sinewaves',
-        'squares',
-        'xes'
-    ]
+    def generate_background(self, base_color, randomize_hue):
+        hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 359)
+        sat_offset = int(self.hash[17:][:1], 16)
 
-    def __init__(self, string, generator, color=None):
-        self.hash = hashlib.sha1(string.encode('utf8')).hexdigest()
-        self.svg = svg.SVG()
-        self.base_color = color
-
-        if generator not in self.available_generators:
-            raise ValueError('{} is not a valid generator. Valid choices are {}.'.format(
-                generator, ', '.join(['"{}"'.format(g) for g in self.available_generators])
-            ))
-        self.generate_background(color=color)
-        getattr(self, 'geo_%s' % generator)()
-
-    def generate_background(self, color=None):
-        if isinstance(color, Color):
-            base_color = color
-        elif isinstance(color, str):
-            base_color = Color(color)
-        else:
-            base_color = Color(hsl=(0, .42, .41))
-            hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 365)
+        if randomize_hue:
             base_color.hue = base_color.hue - hue_offset
 
-        base_color = make_shiftable(base_color)
-        sat_offset = promap(int(self.hash[17:][:1], 16), 0, 15, 0, 0.5)
-
         if sat_offset % 2:
-            base_color.saturation = min(base_color.saturation + sat_offset, 1.0)
+            base_color.saturation = min(base_color.saturation + sat_offset / 100, 1.0)
         else:
-            base_color.saturation = max(abs(base_color.saturation - sat_offset), 0.0)
+            base_color.saturation = abs(base_color.saturation - sat_offset / 100)
+
         rgb = base_color.rgb
         r = int(round(rgb[0] * 255))
         g = int(round(rgb[1] * 255))
         b = int(round(rgb[2] * 255))
-        self.base_color = base_color
         return self.svg.rect(0, 0, '100%', '100%', **{
-            'fill': 'rgb({}, {}, {})'.format(r, g, b)
+            'fill': 'rgba({}, {}, {}, {})'.format(r, g, b, self.opacity)
         })
 
 
@@ -277,7 +245,7 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     buff = BytesIO(out)
     img = Image.open(buff)
     img = bg_from_texture(img, size)
-    return img, Color(pattern.base_color)
+    return img, pattern.base_color
 
 
 # http://stackoverflow.com/a/29314286/6046713

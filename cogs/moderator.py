@@ -9,7 +9,7 @@ from discord.ext.commands import cooldown, BucketType
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group
-from bot.converters import MentionedMember, MentionedUser
+from bot.converters import MentionedMember, MentionedUserID
 from bot.globals import Perms, DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
@@ -765,7 +765,7 @@ class Moderator(Cog):
 
     @purge.command(name='from', required_perms=Perms.MANAGE_MESSAGES, no_pm=True, ignore_extra=True)
     @cooldown(2, 4, BucketType.guild)
-    async def from_(self, ctx, user: MentionedUser, max_messages: int=10, channel: discord.TextChannel=None):
+    async def from_(self, ctx, user: MentionedUserID, max_messages: int=10, channel: discord.TextChannel=None):
         """
         Delete messages from a user
         `user` The user mention or id of the user we want to purge messages from
@@ -784,17 +784,17 @@ class Moderator(Cog):
         modlog = self.get_modlog(guild)
 
         if channel is not None:
-            messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user.id)
+            messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user)
 
             if modlog and messages:
-                embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user.id})
+                embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user})
                 await self.send_to_modlog(guild, embed=embed)
 
             return
 
         t = datetime.utcnow() - timedelta(days=14)
         t = datetime2sql(t)
-        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (guild.id, user.id, t)
+        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (guild.id, user, t)
 
         if channel is not None:
             sql += 'AND channel=%s ' % channel.id

@@ -76,6 +76,22 @@ class MentionedUser(converter.UserConverter):
         return result
 
 
+class MentionedUserID(converter.UserConverter):
+    def __init__(self):
+        super().__init__()
+
+    async def convert(self, ctx, argument):
+        match = self._get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
+        result = None
+        if match:
+            result = int(match.group(1))
+
+        if result is None:
+            raise BadArgument('"{}" is not a valid mention/id'.format(argument))
+
+        return result
+
+
 class TimeDelta(converter.Converter):
     def __init__(self):
         super().__init__()

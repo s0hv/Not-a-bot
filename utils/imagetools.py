@@ -579,8 +579,8 @@ def gradient_flash(im, get_raw=True, transparency=None):
             frames[-1] = f(im)
             break
 
-    if transparency is None and im.mode == 'RGBA' or im.info.get('background', None) == im.info.get('transparency', 0):
-        transparency = 0
+    if transparency is None and im.mode == 'RGBA' or im.info.get('background', None) is not None or im.info.get('transparency', None) is not None:
+        transparency = True
 
     extended = 1
     while len(frames) <= 20:
@@ -589,16 +589,23 @@ def gradient_flash(im, get_raw=True, transparency=None):
 
     gradient = Color('red').range_to('#ff0004', len(frames))
     frames_ = zip(frames, gradient)
-
     images = []
     try:
         for frame in frames_:
             frame, g = frame
             img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
             img = ImageChops.multiply(frame, img)
-            if transparency is not None and transparency is not False:
-                img = Image.composite(img, frame, frame)
-                img.info['transparency'] = transparency
+            if transparency:
+                # Use a mask to map the transparent area in the gif frame
+                # optimize MUST be set to False when saving or transparency
+                # will most likely be broken
+                # source http://www.pythonclub.org/modules/pil/convert-png-gif
+                alpha = img.split()[3]
+                img = img.convert('P', palette=Image.ADAPTIVE, colors=255)
+                mask = Image.eval(alpha, lambda a: 255 if a <= 128 else 0)
+                img.paste(255, mask=mask)
+                img.info['transparency'] = 255
+                img.info['background'] = 255
             images.append(img)
     except Exception as e:
         logger.exception('{} Failed to create gif'.format(e))
@@ -611,7 +618,7 @@ def gradient_flash(im, get_raw=True, transparency=None):
     else:
         duration = [frame.info.get('duration', 20) for frame in frames]
 
-    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535, disposal=2)
+    images[0].save(data, format='gif', duration=duration, save_all=True, append_images=images[1:], loop=65535, disposal=2, optimize=False)
 
     data.seek(0)
     if get_raw:
@@ -623,7 +630,7 @@ def gradient_flash(im, get_raw=True, transparency=None):
 
 
 def optimize_gif(gif_bytes):
-    cmd = '{}convert - -dither none -deconstruct -layers optimize-transparency -dispose background -matte -depth 8 gif:-'.format(MAGICK)
+    cmd = '{}convert - -dither none -deconstruct -layers optimize -dispose background -matte -depth 8 gif:-'.format(MAGICK)
     p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(gif_bytes)
     out, err = p.communicate()

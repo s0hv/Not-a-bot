@@ -794,7 +794,7 @@ class Moderator(Cog):
 
         t = datetime.utcnow() - timedelta(days=14)
         t = datetime2sql(t)
-        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (guild.id, user, t)
+        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (guild.id, user.id, t)
 
         if channel is not None:
             sql += 'AND channel=%s ' % channel.id
@@ -816,6 +816,9 @@ class Moderator(Cog):
         ids = []
         for k in channel_messages:
             channel = self.bot.get_channel(k)
+            if not (channel and channel.permissions_for(self.bot.user).manage_messages):
+                continue
+
             try:
                 await self.delete_messages(channel, channel_messages[k])
             except discord.HTTPException:

@@ -814,9 +814,10 @@ class Moderator(Cog):
             message_ids.append(Snowflake(r['message_id']))
 
         ids = []
+        bot_member = guild.get_member(self.bot.user.id)
         for k in channel_messages:
             channel = self.bot.get_channel(k)
-            if not (channel and channel.permissions_for(self.bot.user).manage_messages):
+            if not (channel and channel.permissions_for(bot_member).manage_messages):
                 continue
 
             try:

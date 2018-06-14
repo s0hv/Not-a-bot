@@ -442,7 +442,7 @@ class Pokemon(Cog):
         if not user:
             user = f'<@{id_}>'
         url = 'http://play.pokemonshowdown.com/sprites/xyani/%s.gif' % re.sub(r' |:|-', '', poke).lower()
-        embed = Embed(title=f'{user} caught a **{poke}**')
+        embed = Embed(description=f'{user} caught a **{poke}**')
         embed.set_image(url=url)
         icon = 'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/regular/%s.png' % re.sub(' |: ', '-', poke).lower()
         embed.set_thumbnail(url=icon)

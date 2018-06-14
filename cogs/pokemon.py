@@ -5,6 +5,7 @@ import os
 import re
 from functools import partial
 
+from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
 from discord.ext.commands import cooldown, BucketType
@@ -31,6 +32,25 @@ pokemon = {}
 stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
+
+legendary_detector = re.compile(r'Congratulations <@!?(\d+)>! You caught a level \d+ (.+?)!')
+legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
+               'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
+               'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',
+               'entei', 'genesect', 'giratina', 'groudon', 'guzzlord',
+               'heatran', 'ho-oh', 'hoopa', 'jirachi', 'kartana', 'keldeo',
+               'kyogre', 'kyurem', 'landorus', 'latias', 'latios', 'lugia',
+               'lunala', 'magearna', 'manaphy', 'marshadow', 'meloetta',
+               'mesprit', 'mew', 'mewtwo', 'moltres', 'naganadel', 'necrozma',
+               'nihilego', 'palkia', 'pheromosa', 'phione', 'poipole', 'raikou',
+               'rayquaza', 'regice', 'regigigas', 'regirock', 'registeel',
+               'reshiram', 'shaymin', 'silvally', 'solgaleo', 'stakataka',
+               'suicune', 'tapu bulu', 'tapu fini', 'tapu koko', 'tapu lele',
+               'terrakion', 'thundurus', 'tornadus', 'type: null', 'uxie',
+               'victini', 'virizion', 'volcanion', 'xerneas', 'xurkitree',
+               'yveltal', 'zapdos', 'zekrom', 'zeraora', 'zygarde']
+
+
 
 # Stats taken from https://www.kaggle.com/mylesoneill/pokemon-sun-and-moon-gen-7-stats
 with open(os.path.join(POKESTATS, 'pokemon.csv'), 'r', encoding='utf-8') as f:
@@ -393,6 +413,41 @@ class Pokemon(Cog):
             s += f'{name}:{fill}{max_val}{fill2}| {from_max}{fill3}| {diff}{fill4}| {stat_range}{fill5}| {iv}\n'
         s += '```'
         await ctx.send(s)
+
+    async def on_message(self, message):
+        # Ignore others than pokecord
+        if not message.author.id != 365975655608745985:
+            return
+
+        if not message.content:
+            return
+
+        channel = utils.get(message.guild.channels, name='pokelog')
+        if not channel:
+            return
+
+        perms = channel.permissions_for(message.guild.get_member(self.bot.user.id))
+        if not (perms.send_messages and perms.read_messages and perms.embed_links):
+            return
+
+        match = legendary_detector.match(message.content)
+        if not match:
+            return
+
+        id_, poke = match.groups()
+        if poke.lower() not in legendaries:
+            return
+
+        user = self.bot.get_user(int(id_))
+        if not user:
+            user = f'<@{id_}>'
+        url = 'http://play.pokemonshowdown.com/sprites/xyani/%s.gif' % re.sub(r' |:|-', '', poke).lower()
+        embed = Embed(title=f'{user} caught a **{poke}**')
+        embed.set_image(url=url)
+        icon = 'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/regular/%s.png' % re.sub(' |: ', '-', poke).lower()
+        embed.set_thumbnail(url=icon)
+
+        await channel.send(embed=embed)
 
     @command(aliases=['pstats_format'], ignore_extra=True)
     async def pstat_format(self, ctx):

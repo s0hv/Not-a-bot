@@ -33,7 +33,7 @@ stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
 
-legendary_detector = re.compile(r'Congratulations <@!?(\d+)>! You caught a level \d+ (.+?)!')
+legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (.+?)!')
 legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
                'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',
@@ -434,15 +434,12 @@ class Pokemon(Cog):
         if not match:
             return
 
-        id_, poke = match.groups()
+        mention, poke = match.groups()
         if poke.lower() not in legendaries:
             return
 
-        user = self.bot.get_user(int(id_))
-        if not user:
-            user = f'<@{id_}>'
         url = 'http://play.pokemonshowdown.com/sprites/xyani/%s.gif' % re.sub(r' |:|-', '', poke).lower()
-        embed = Embed(description=f'{user} caught a **{poke}**')
+        embed = Embed(description=f'{mention} caught a **{poke}**')
         embed.set_image(url=url)
         icon = 'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/regular/%s.png' % re.sub(' |: ', '-', poke).lower()
         embed.set_thumbnail(url=icon)

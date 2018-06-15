@@ -245,7 +245,20 @@ CREATE TABLE `command_stats` (
     `uses` BIGINT DEFAULT 0,
     UNIQUE KEY (`parent`, `cmd`),
     KEY (`uses`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE `mute_roll_stats` (
+    `guild` BIGINT NOT NULL,
+    `user` BIGINT NOT NULL,
+    `wins` TINYINT UNSIGNED DEFAULT 0,
+    `games` TINYINT UNSIGNED DEFAULT 1,
+    `current_streak` TINYINT UNSIGNED DEFAULT 0,
+    `biggest_streak` TINYINT UNSIGNED DEFAULT 0,
+    PRIMARY KEY (`guild`, `user`),
+    KEY (`wins`),
+    KEY (`games`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ------------------------
 -- UNDER CONSTRUCTION --

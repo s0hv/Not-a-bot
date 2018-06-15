@@ -193,6 +193,13 @@ class BotAdmin(Cog):
                 await self.bot._wants_to_be_noticed(member, guild)
 
     @command(owner_only=True)
+    async def reload_dbutil(self, ctx):
+        reload(import_module('bot.dbutil'))
+        from bot import dbutil
+        self.bot._dbutil = dbutil.DatabaseUtils(self.bot)
+        await ctx.send(':ok_hand:')
+
+    @command(owner_only=True)
     async def cache_guilds(self):
         for guild in self.bot.guilds:
             sql = 'SELECT * FROM `guilds` WHERE guild=%s' % guild.id

@@ -462,7 +462,13 @@ class Moderator(Cog):
                 return await ctx.send('One of the participants is already muted')
 
             await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds())
-            await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
+            try:
+                await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
+            except discord.DiscordException:
+                return await ctx.send('Failed to mute loser')
+
+            await self.bot.dbutil.increment_mute_roll(ctx.guild.id, ctx.author.id, loser != ctx.author)
+            await self.bot.dbutil.increment_mute_roll(ctx.guild.id, user.id, loser != user)
         finally:
             state.discard(user.id)
             state.discard(ctx.author.id)

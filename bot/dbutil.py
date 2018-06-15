@@ -329,6 +329,22 @@ class DatabaseUtils:
 
         return True
 
+    async def increment_mute_roll(self, guild: int, user: int, win: bool):
+        if win:
+            sql = 'INSERT INTO `mute_roll_stats`  (`guild`, `user`, `wins`, `current_streak`, `biggest_streak`) VALUES (:guild, :user, 1, 1, 1)'
+            sql += ' ON DUPLICATE KEY UPDATE wins=wins + 1, games=games + 1, current_streak=current_streak + 1, biggest_streak=GREATEST(current_streak, biggest_streak)'
+        else:
+            sql = 'INSERT INTO `mute_roll_stats`  (`guild`, `user`) VALUES (:guild, :user)'
+            sql += ' ON DUPLICATE KEY UPDATE games=games+1, current_streak=0'
+
+        try:
+            await self.execute(sql, {'guild': guild, 'user': user}, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Failed to update mute roll stats')
+            return False
+
+        return True
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

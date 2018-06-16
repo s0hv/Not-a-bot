@@ -16,7 +16,7 @@ from bot.bot import command
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
-from utils.utilities import basic_check
+from utils.utilities import basic_check, random_color
 
 pokestats = re.compile(r'''Level (?P<level>\d+) "?(?P<name>.+?)"?
 .+?
@@ -439,7 +439,7 @@ class Pokemon(Cog):
             return
 
         url = 'http://play.pokemonshowdown.com/sprites/xyani/%s.gif' % re.sub(r' |:|-', '', poke).lower()
-        embed = Embed(description=f'{mention} caught a **{poke}**')
+        embed = Embed(description=f'{mention} caught a **{poke}**', colour=random_color())
         embed.set_image(url=url)
         icon = 'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/regular/%s.png' % re.sub(' |: ', '-', poke).lower()
         embed.set_thumbnail(url=icon)

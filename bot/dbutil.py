@@ -2,7 +2,7 @@ import logging
 
 import discord
 from discord.errors import InvalidArgument
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, DBAPIError
 
 from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
@@ -25,6 +25,14 @@ class DatabaseUtils:
                 row = session.execute(sql, *args, **params)
                 if commit:
                     session.commit()
+
+            except DBAPIError as e:
+                if e.connection_invalidated:
+                    logger.exception('CONNECTION INVALIDATED')
+                    self.bot.engine.connect()
+
+                raise e
+
             except SQLAlchemyError as e:
                 session.rollback()
                 raise e

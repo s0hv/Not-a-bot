@@ -841,6 +841,8 @@ def is_owner(ctx):
     if ctx.command.owner_only and ctx.bot.owner_id != ctx.original_user.id:
         raise PermException('Only the owner can use this command')
 
+    ctx.skip_check = True
+
     return True
 
 

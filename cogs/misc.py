@@ -17,6 +17,7 @@ class Misc(Cog):
                                           self.bot.config.wolfram_key))
 
     @command(name='say')
+    @cooldown(1, 2, BucketType.channel)
     async def say_command(self, ctx, *, words):
         """Says the text that was put as a parameter"""
         await ctx.send('{0} {1}'.format(ctx.author.mention, words))

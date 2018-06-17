@@ -88,11 +88,12 @@ class Playlist:
 
     async def random_sfx(self):
         while True:
-            users = self.voice.channel.members
-            users = list(filter(lambda x: not x.bot, users))
-            if not users:
-                await self._disconnect(self)
-                return
+            if self.voice is not None:
+                users = self.voice.channel.members
+                users = list(filter(lambda x: not x.bot, users))
+                if not users:
+                    await self._disconnect(self)
+                    return
 
             if self.random_sfx_on and random.random() < 0.1 and self.voice is not None:
 

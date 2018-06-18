@@ -13,6 +13,8 @@ from utils.imagetools import raw_image_from_url
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message, basic_check,
                              create_custom_emoji)
 from math import ceil
+from bot.converters import PossibleUser
+
 
 logger = logging.getLogger('debug')
 
@@ -57,6 +59,64 @@ class Server(Cog):
             return s
 
         await send_paged_message(self.bot, ctx, pages, starting_idx=page-1, page_method=get_msg)
+
+    @command(no_dm=True, aliases=['mr_top'])
+    @cooldown(2, 5, BucketType.channel)
+    async def mute_roll_top(self, ctx, user: PossibleUser=None):
+        stats = await self.bot.dbutil.get_mute_roll(ctx.guild.id)
+        if not stats:
+            return await ctx.send('No mute roll stats on this server')
+
+        page_length = ceil(len(stats)/10)
+        pages = [False for _ in range(page_length)]
+
+        title = f'Mute roll stats for guild {ctx.guild}'
+
+
+        def cache_page(idx, custom_description=None):
+            rows = stats[idx:idx+10]
+            if custom_description:
+                embed = discord.Embed(title=title, description=custom_description)
+            else:
+                embed = discord.Embed(title=title)
+
+            embed.set_footer(text=f'Page {idx+1}/{len(pages)}')
+            for row in rows:
+                winrate = round(row['wins'] * 100 / row['games'], 1)
+                v = f'<@{row["user"]}>\n' \
+                    f'Winrate: {winrate}% with {row["wins"]} wins \n'\
+                    f'Current streak: {row["current_streak"]}\n' \
+                    f'Biggest streak: {row["biggest_streak"]}'
+                embed.add_field(name=f'{row["games"]} games', value=v)
+
+            pages[idx] = embed
+            return embed
+
+        def get_page(page, idx):
+            if not page:
+                return cache_page(idx)
+
+            return page
+
+        i = 0
+        if isinstance(user, discord.User):
+            user = user.id
+
+        if user:
+            for idx, r in enumerate(stats):
+                if r['user'] == user:
+                    i = idx // 10
+
+                    winrate = round(r['wins'] * 100 / r['games'], 1)
+                    d = f'Stats for <@{user}> at page {i+1}\n' \
+                        f'Winrate: {winrate}% with {r["wins"]} wins \n' \
+                        f'Current streak: {r["current_streak"]}\n' \
+                        f'Biggest streak: {r["biggest_streak"]}'
+
+                    cache_page(i, d)
+                    break
+
+        await send_paged_message(self.bot, ctx, pages, embed=True, page_method=get_page)
 
     async def _dl(self, ctx, url):
         try:

@@ -766,7 +766,7 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         message = await ctx.channel.send(embed=page)
     else:
         message = await ctx.channel.send(page)
-    if len(pages) == 1 and page_method is None:
+    if len(pages) == 1:
         return
 
     await message.add_reaction('◀')

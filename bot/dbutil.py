@@ -353,6 +353,12 @@ class DatabaseUtils:
 
         return True
 
+    async def get_mute_roll(self, guild: int):
+        sql = 'SELECT * FROM `mute_roll_stats` WHERE guild=%s ORDER BY wins DESC' % guild
+
+        rows = (await self.execute(sql)).fetchall()
+        return rows
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

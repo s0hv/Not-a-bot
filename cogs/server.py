@@ -73,8 +73,8 @@ class Server(Cog):
         title = f'Mute roll stats for guild {ctx.guild}'
 
         def cache_page(idx, custom_description=None):
-            idx = idx*10
-            rows = stats[idx:idx+10]
+            i = idx*10
+            rows = stats[i:i+10]
             if custom_description:
                 embed = discord.Embed(title=title, description=custom_description)
             else:

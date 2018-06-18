@@ -294,6 +294,7 @@ class BotAdmin(Cog):
                 return await ctx.send(f'File {name} already exists')
 
             await self.bot.loop.run_in_executor(self.bot.threadpool, write)
+            await ctx.send(f'Added sfx {name}')
 
 
 def setup(bot):

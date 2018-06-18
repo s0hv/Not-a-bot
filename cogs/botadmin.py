@@ -1,20 +1,25 @@
 import asyncio
 import logging
 import pprint
+import shlex
+import subprocess
 import time
+import os
 from functools import partial
 from importlib import reload, import_module
+from io import BytesIO
+from bot.globals import SFX_FOLDER
 
+import aiohttp
 import discord
 from discord.errors import HTTPException, InvalidArgument
 from discord.ext.commands.core import GroupMixin
-from bot.globals import Auth
-import subprocess
-import shlex
+from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
+from bot.globals import Auth
 from cogs.cog import Cog
-from sqlalchemy.exc import SQLAlchemyError
+
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
@@ -249,6 +254,46 @@ class BotAdmin(Cog):
             out = out[:1996] + '...'
 
         await ctx.send(out)
+
+    @command(owner_only=True)
+    async def add_sfx(self, ctx, file=None, name=None):
+        client = self.bot.aiohttp_client
+        if file and name:
+            url = file
+        else:
+            if not ctx.message.attachments:
+                return await ctx.send('No files found')
+
+            if not file:
+                return await ctx.send('No filename specified')
+
+            url = ctx.message.attachments[0].url
+            name = file
+
+        p = os.path.join(SFX_FOLDER, name)
+        if os.path.exists(p):
+            return await ctx.send(f'File {name} already exists')
+
+        try:
+            async with client.get(url) as r:
+                data = BytesIO()
+                chunk = 4096
+                async for d in r.content.iter_chunked(chunk):
+                    data.write(d)
+            data.seek(0)
+
+        except aiohttp.ClientError:
+            logger.exception('Could not download image %s' % url)
+            await ctx.send('Failed to download %s' % url)
+        else:
+            def write():
+                with open(p, 'wb') as f:
+                    f.write(data.getvalue())
+
+            if os.path.exists(p):
+                return await ctx.send(f'File {name} already exists')
+
+            await self.bot.loop.run_in_executor(self.bot.threadpool, write)
 
 
 def setup(bot):

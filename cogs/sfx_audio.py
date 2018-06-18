@@ -364,7 +364,7 @@ class Audio:
         max_combo = self.bot.config.max_combo
         names = shlex.split(names)
         if len(names) > max_combo:
-            return await ctx.send('Max %s sfx can be combined' % str(max_combo))
+            return await ctx.send('Max %s sfx can be combined' % max_combo)
 
         state = self.get_voice_state(ctx.guild)
         if state.voice is None:

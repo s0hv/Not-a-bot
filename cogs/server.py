@@ -100,21 +100,28 @@ class Server(Cog):
             return page
 
         if isinstance(user, BaseUser):
-            user = user.id
+            user_id = user.id
+        else:
+            user_id = user
 
-        if user:
+        if user_id:
             for idx, r in enumerate(stats):
-                if r['user'] == user:
+                if r['user'] == user_id:
                     i = idx // 10
 
                     winrate = round(r['wins'] * 100 / r['games'], 1)
-                    d = f'Stats for <@{user}> at page {i+1}\n' \
+                    d = f'Stats for <@{user_id}> at page {i+1}\n' \
                         f'Winrate: {winrate}% with {r["wins"]} wins \n' \
                         f'Current streak: {r["current_streak"]}\n' \
                         f'Biggest streak: {r["biggest_streak"]}'
 
-                    cache_page(i, d)
-                    break
+                    e = discord.Embed(description=d)
+                    e.set_footer(text=f'Ranking {idx+1}/{len(stats)}')
+                    await ctx.send(embed=e)
+                    return
+
+            return await ctx.send(f"Didn't find user {user} on the leaderboards.\n"
+                                  "Are you sure they have played mute roll")
 
         await send_paged_message(self.bot, ctx, pages, embed=True, page_method=get_page)
 

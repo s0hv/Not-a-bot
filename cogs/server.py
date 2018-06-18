@@ -3,6 +3,7 @@ import base64
 import logging
 
 import discord
+from discord.user import BaseUser
 from discord.ext.commands import cooldown, BucketType
 from validators import url as is_url
 
@@ -98,8 +99,7 @@ class Server(Cog):
 
             return page
 
-        i = 0
-        if isinstance(user, discord.User):
+        if isinstance(user, BaseUser):
             user = user.id
 
         if user:

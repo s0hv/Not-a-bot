@@ -333,6 +333,9 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
+        if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
+            return await ctx.send('No <:peepoWeird:423445885180051467>')
+
         if ctx.author.top_role < user.top_role:
             return await ctx.send('The one you are trying to mute is higher in the role hierarchy')
 
@@ -564,6 +567,9 @@ class Moderator(Cog):
         r = self.bot.get_role(339841138393612288, guild)
         if self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
+
+        if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
+            return await ctx.send('No <:peepoWeird:423445885180051467>')
 
         if ctx.author.top_role < user.top_role:
             return await ctx.send('The one you are trying to timeout is higher in the role hierarchy')

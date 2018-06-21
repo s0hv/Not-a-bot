@@ -370,16 +370,11 @@ class Moderator(Cog):
 
     @command(ignore_extra=True, no_dm=True)
     @cooldown(2, 3, BucketType.guild)
-    async def mute_roll(self, ctx, user: discord.Member, hours: int):
-        """Challenge another user to a game where the loser gets muted for the specified amount of time.
-        Users with manage_roles permission play using hours as the time and those who don't have it use minutes"""
-        if ctx.override_perms or ctx.channel.permissions_for(ctx.author).manage_roles:
-            use_hours = True
-        else:
-            use_hours = False
-
-        if not 0 < hours < 11:
-            return await ctx.send(f'Mute length should be between 1 and 10 ({"hours" if use_hours else "minutes"})')
+    async def mute_roll(self, ctx, user: discord.Member, minutes: int):
+        """Challenge another user to a game where the loser gets muted for the specified amount of time
+        ranging from 10 to 60 minutes"""
+        if not 9 < minutes < 61:
+            return await ctx.send('Mute length should be between 10 and 60 minutes')
 
         if ctx.author == user:
             return await ctx.send("Can't play yourself")
@@ -407,12 +402,12 @@ class Moderator(Cog):
         state.add(ctx.author.id)
 
         try:
-            await ctx.send(f'{user.mention} type accept to join this mute roll of {hours} {"hours" if use_hours else "minutes"}')
+            await ctx.send(f'{user.mention} type accept to join this mute roll of {minutes} minutes')
 
             _check = basic_check(user, ctx.channel)
 
             def check(msg):
-                return _check(msg) and msg.content.lower() in ('accept', 'reject', 'no', 'deny', 'decline')
+                return _check(msg) and msg.content.lower() in ('accept', 'reject', 'no', 'deny', 'decline', 'i refuse')
 
             try:
                 msg = await self.bot.wait_for('message', check=check, timeout=120)
@@ -422,10 +417,7 @@ class Moderator(Cog):
             if msg.content.lower() != 'accept':
                 return await ctx.send(f'{user} declined')
 
-            if use_hours:
-                td = timedelta(hours=hours)
-            else:
-                td = timedelta(minutes=hours)
+            td = timedelta(minutes=minutes)
 
             expires_on = datetime2sql(datetime.utcnow() + td)
             msg = await ctx.send(f'{user} vs {ctx.author}\nLoser: <a:loading:449907001569312779>')

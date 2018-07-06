@@ -92,7 +92,7 @@ class Utilities(Cog):
     @command(aliases=['src', 'source_code'])
     async def source(self, ctx):
         """Source code for this bot"""
-        await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot/tree/rewrite')
+        await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
 
     @staticmethod
     def _unpad_zero(value):

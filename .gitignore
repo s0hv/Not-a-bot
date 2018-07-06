@@ -33,5 +33,6 @@ data/images/
 data/temp/
 __pycache__/
 data/pokefusion/sprPKMType_*
+.idea/
 
 !database.sql

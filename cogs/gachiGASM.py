@@ -6,7 +6,7 @@ class gachiGASM(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(pass_context=True)
+    @command()
     async def gachify(self, ctx, *, words):
         """Gachify a string"""
         if ' ' not in words:
@@ -14,12 +14,12 @@ class gachiGASM(Cog):
             ctx.view.undo()
             await self.gachify2.invoke(ctx)
         else:
-            return await self.bot.say(words.replace(' ', ' ♂ ').upper())
+            return await ctx.send(words.replace(' ', ' ♂ ').upper())
 
-    @command(pass_context=True)
+    @command()
     async def gachify2(self, ctx, *, words):
         """An alternative way of gachifying"""
-        return await self.bot.say('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
+        return await ctx.send('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
 
 
 def setup(bot):

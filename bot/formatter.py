@@ -22,7 +22,7 @@ class Formatter(HelpFormatter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def format_help_for(self, context, command_or_bot, is_owner=False, type=Generic):
+    async def format_help_for(self, context, command_or_bot, is_owner=False, type=Generic):
         self.context = context
         self.command = command_or_bot
         self.type = type
@@ -31,9 +31,9 @@ class Formatter(HelpFormatter):
         else:
             self.show_check_failure = False
 
-        return self.format(is_owner=is_owner)
+        return await self.format(is_owner=is_owner)
 
-    def format(self, is_owner=False):
+    async def format(self, is_owner=False):
         """Handles the actual behaviour involved with formatting.
 
         To change the behaviour, this method should be overridden.
@@ -50,8 +50,9 @@ class Formatter(HelpFormatter):
         ctx = self.context
         user = ctx.message.author
         channel = ctx.message.channel
+        ctx.skip_check = True
         if user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: r.id, user.roles)))
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
 
@@ -62,20 +63,19 @@ class Formatter(HelpFormatter):
                 signature = 'This command is owner only\n' + signature
             elif self.type == self.Filtered or self.type == self.ExtendedFilter:
                 try:
-                    can_run = self.command.can_run(ctx) and ctx.bot.can_run(ctx)
+                    can_run = await self.command.can_run(ctx) and await ctx.bot.can_run(ctx)
                 except CommandError:
                     can_run = False
 
                 if self.type == self.ExtendedFilter:
-                    sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE server=:server AND (command=:command OR command IS NULL) ' \
+                    sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=:guild AND (command=:command OR command IS NULL) ' \
                           'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
-                    session = ctx.bot.get_session
+
                     try:
-                        rows = session.execute(sql, params={'server': int(user.server.id), 'command': self.command.name, 'user': user.id, 'channel': channel.id}).fetchall()
+                        rows = (await ctx.bot.dbutil.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id})).fetchall()
                         if rows:
                             can_run = check_perms(rows)
                     except SQLAlchemyError:
-                        session.rollback()
                         logger.exception('Failed to use extended filter in help')
                         can_run = True
 
@@ -101,16 +101,14 @@ class Formatter(HelpFormatter):
 
         if self.is_bot():
             if self.type == self.ExtendedFilter:
-                sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE server=:server ' \
+                sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
                       'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
-                session = ctx.bot.get_session
                 command_blacklist = {}
                 try:
-                    rows = session.execute(sql,
-                                           params={'server': int(user.server.id),
-                                                   'user': user.id,
-                                                   'channel': channel.id}).fetchall()
-                    command_blacklist = {}
+                    rows = await ctx.bot.dbutil.execute(sql, {'guild': user.guild.id,
+                                                              'user': user.id,
+                                                              'channel': channel.id})
+
                     for row in rows:
                         name = row['command']
                         if name in command_blacklist:
@@ -119,10 +117,9 @@ class Formatter(HelpFormatter):
                             command_blacklist[name] = [row]
 
                 except SQLAlchemyError:
-                    session.rollback()
                     logger.exception('Failed to get role blacklist for help command')
 
-            data = sorted(self.filter_command_list(), key=category)
+            data = sorted(await self.filter_command_list(), key=category)
 
             if self.type == self.ExtendedFilter:
                 def check(command):
@@ -145,7 +142,7 @@ class Formatter(HelpFormatter):
 
                 self._add_subcommands_and_page(category_, commands, is_owner=is_owner, inline=inline, predicate=check)
         else:
-            self._add_subcommands_and_page('Commands:', self.filter_command_list(), is_owner=is_owner)
+            self._add_subcommands_and_page('Commands:', await self.filter_command_list(), is_owner=is_owner)
 
         # add the ending note
         ending_note = self.get_ending_note()
@@ -205,11 +202,12 @@ class Limits:
 
 
 class Paginator:
-    def __init__(self, title=None, description=None):
+    def __init__(self, title=None, description=None, page_count=True):
         self._fields = 0
         self._pages = []
         self.title = title
         self.description = description
+        self.set_page_count = page_count
         self._current_page = -1
         self._char_count = 0
         self._current_field = None
@@ -221,6 +219,12 @@ class Paginator:
 
     def finalize(self):
         self._add_field()
+        if not self.set_page_count:
+            return
+
+        total = len(self.pages)
+        for idx, embed in enumerate(self.pages):
+            embed.set_footer(text=f'{idx+1}/{total}')
 
     def add_page(self, title=None, description=None):
         title = title or self.title

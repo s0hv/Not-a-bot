@@ -35,12 +35,13 @@ from datetime import timedelta
 from random import randint
 
 import discord
+from discord import abc
 import numpy
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
 from bot.paged_message import PagedMessage
 
-from bot.exceptions import NoCachedFileException, PermissionError
+from bot.exceptions import NoCachedFileException, PermException
 from bot.globals import BlacklistTypes, PermValues
 
 # Support for recognizing webp images used in many discord avatars
@@ -55,12 +56,24 @@ terminal = logging.getLogger('terminal')
 time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
 timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
                            re.DOTALL)
+timedelta_regex = re.compile(r'(?P<days>\d+?) (?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
+seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
 
 
 class Object:
     # Empty class to store variables
     def __init__(self):
         pass
+
+
+# Made so only ids can be used
+class Snowflake(abc.Snowflake):
+    def __init__(self, id):
+        self.id = id
+
+    @property
+    def created_at(self):
+        return discord.utils.snowflake_time(self.id)
 
 
 def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
@@ -123,7 +136,7 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
         start = int(duration * 0.2)
         stop = start + 180
     cmd = '{0} -i {1} -ss {2} -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file, start, stop)
-
+    audio.debug(cmd)
     args = shlex.split(cmd)
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -262,7 +275,7 @@ def get_picture_from_msg(msg):
         return
 
     if len(msg.attachments) > 0:
-        return msg.attachments[0]['url']
+        return msg.attachments[0].url
 
     words = msg.content.split(' ')
     for word in words:
@@ -297,7 +310,7 @@ def slots2dict(obj, d: dict=None, replace=True):
         if k.startswith('_'):  # We don't want any private variables
             continue
 
-        v = getattr(obj, k)
+        v = getattr(obj, k, None)
         if not callable(v):    # Don't need methods here
             if not replace and k in d:
                 continue
@@ -307,11 +320,14 @@ def slots2dict(obj, d: dict=None, replace=True):
     return d
 
 
-async def retry(f, *args, retries_=3, **kwargs):
+async def retry(f, *args, retries_=3, break_on=(), **kwargs):
     e = None
     for i in range(0, retries_):
         try:
             retval = await f(*args, **kwargs)
+        except break_on as e:
+            break
+
         except Exception as e_:
             e = e_
         else:
@@ -344,10 +360,10 @@ def get_emote_name_id(s):
     return None, None, None
 
 
-def get_image_from_message(ctx, *messages):
+async def get_image_from_message(ctx, *messages):
     image = None
-    if len(ctx.message.attachments) > 0:
-        image = ctx.message.attachments[0]['url']
+    if len(ctx.message.attachments) > 0 and isinstance(ctx.message.attachments[0].width, int):
+        image = ctx.message.attachments[0].url
     elif messages and messages[0] is not None:
         image = str(messages[0])
         if not test_url(image):
@@ -357,7 +373,7 @@ def get_image_from_message(ctx, *messages):
                 image = get_emote_url(image)
             else:
                 try:
-                    int(image)
+                    image = int(image)
                 except ValueError:
                     pass
                 else:
@@ -365,13 +381,13 @@ def get_image_from_message(ctx, *messages):
                     if user:
                         image = get_avatar(user)
 
+    dbutil = ctx.bot.dbutil
     if image is None:
-        channel = ctx.message.channel
-        server = channel.server
-        session = ctx.bot.get_session
-        sql = 'SELECT attachment FROM `messages` WHERE server={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(server.id, channel.id)
+        channel = ctx.channel
+        guild = channel.guild
+        sql = 'SELECT attachment FROM `messages` WHERE guild={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(guild.id, channel.id)
         try:
-            rows = session.execute(sql).fetchall()
+            rows = (await dbutil.execute(sql)).fetchall()
             for row in rows:
                 attachment = row['attachment']
                 if not attachment:
@@ -398,7 +414,7 @@ def random_color():
     """
     Create a random color to be used in discord
     Returns:
-        Random discord.Color
+        discord.Color
     """
 
     return discord.Color(randint(0, 16777215))
@@ -432,6 +448,14 @@ def datetime2sql(datetime):
     return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(datetime)
 
 
+def timedelta2sql(timedelta):
+    return f'{timedelta.days} {timedelta.seconds//3600}:{(timedelta.seconds//60)%60}:{timedelta.seconds%60}'
+
+
+def sql2timedelta(value):
+    return timedelta(**timedelta_regex.match(value).groupdict())
+
+
 def call_later(func, loop, timeout, *args, **kwargs):
     """
     Call later for async functions
@@ -446,24 +470,19 @@ def call_later(func, loop, timeout, *args, **kwargs):
     async def wait():
         if timeout > 0:
             try:
-                await asyncio.sleep(timeout)
+                await asyncio.sleep(timeout, loop=loop)
             except asyncio.CancelledError:
                 return
 
         await func(*args, **kwargs)
 
-    return loop.create_task(wait())
+    return asyncio.run_coroutine_threadsafe(wait(), loop)
 
 
-def get_users_from_ids(server, *ids):
+def get_users_from_ids(guild, *ids):
     users = []
     for i in ids:
-        try:
-            int(i)
-        except ValueError:
-            continue
-
-        user = server.get_member(i)
+        user = guild.get_member(i)
         if user:
             users.append(user)
 
@@ -480,32 +499,38 @@ def check_channel_mention(msg, word):
 
 def get_channel(channels, s, name_matching=False, only_text=True):
     channel = get_channel_id(s)
+    if channel:
+        channel = discord.utils.find(lambda c: c.id == s, channels)
+        if channel:
+            return channel
+
     try:
-        int(s)
+        s = int(s)
     except ValueError:
         pass
     else:
         channel = discord.utils.find(lambda c: c.id == s, channels)
 
     if not channel and name_matching:
+        s = str(s)
         channel = discord.utils.find(lambda c: c.name == s, channels)
         if not channel:
             return
     else:
         return
 
-    if only_text and channel.type != discord.ChannelType.text:
+    if only_text and not isinstance(channel, discord.TextChannel):
         return
 
     return channel
 
 
-def check_role_mention(msg, word, server):
+def check_role_mention(msg, word, guild):
     if msg.raw_role_mentions:
         id = msg.raw_role_mentions[0]
-        if id not in word:
+        if str(id) not in word:
             return False
-        role = list(filter(lambda r: r.id == id, server.roles))
+        role = list(filter(lambda r: r.id == id, guild.roles))
         if not role:
             return False
         return role[0]
@@ -514,8 +539,7 @@ def check_role_mention(msg, word, server):
 
 def get_role(role, roles, name_matching=False):
     try:
-        int(role)
-        role_id = role
+        role_id = int(role)
     except ValueError:
         role_id = get_role_id(role)
 
@@ -545,21 +569,21 @@ def get_role_id(s):
     regex = re.compile(r'(?:<@&)?(\d+)(?:>)?(?: |$)')
     match = regex.match(s)
     if match:
-        return match.groups()[0]
+        return int(match.groups()[0])
 
 
 def get_user_id(s):
     regex = re.compile(r'(?:<@!?)?(\d+)(?:>)?(?: |$)')
     match = regex.match(s)
     if match:
-        return match.groups()[0]
+        return int(match.groups()[0])
 
 
 def get_channel_id(s):
     regex = re.compile(r'(?:<#)?(\d+)(?:>)?')
     match = regex.match(s)
     if match:
-        return match.groups()[0]
+        return int(match.groups()[0])
 
 
 def seconds2str(seconds):
@@ -591,12 +615,12 @@ def find_user(s, members, case_sensitive=False, ctx=None):
 
         try:
             uid = int(s)
-        except:
+        except ValueError:
             pass
         else:
-            found = list(filter(lambda u: int(u.id) == uid, members))
-            if found:
-                return found[0]
+            for user in members:
+                if user.id == uid:
+                    return user
 
     def filter_users(predicate):
         for member in members:
@@ -631,7 +655,7 @@ def is_image_url(url):
 
 def msg2dict(msg):
     d = {}
-    attachments = [attachment['url'] for attachment in msg.attachments if 'url' in attachment]
+    attachments = [attachment.url for attachment in msg.attachments]
     d['attachments'] = ', '.join(attachments)
     return d
 
@@ -709,7 +733,7 @@ def check_perms(values, return_raw=False):
         elif value['channel'] is not None:
             v2 = PermValues.VALUES['channel']
         else:
-            v2 = PermValues.VALUES['server']
+            v2 = PermValues.VALUES['guild']
 
         v = v1 | v2
         if v < smallest:
@@ -718,13 +742,13 @@ def check_perms(values, return_raw=False):
     return PermValues.RETURNS.get(smallest, False) if not return_raw else smallest
 
 
-def is_superset(ctx, command_):
-    if ctx.override_perms is None and command_.required_perms is not None:
+def is_superset(ctx):
+    if ctx.override_perms is None and ctx.command.required_perms is not None:
         perms = ctx.message.channel.permissions_for(ctx.message.author)
 
-        if not perms.is_superset(command_.required_perms):
-            req = [r[0] for r in command_.required_perms if r[1]]
-            raise PermissionError('%s' % ', '.join(req))
+        if not perms.is_superset(ctx.command.required_perms):
+            req = [r[0] for r in ctx.command.required_perms if r[1]]
+            raise PermException('%s' % ', '.join(req))
 
     return True
 
@@ -736,33 +760,40 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         else:
             page = pages[starting_idx]
     except IndexError:
-        return await bot.send_message(ctx.message.channel, 'Page index %s is out of bounds' % starting_idx)
+        return await ctx.channel.send(f'Page index {starting_idx} is out of bounds')
 
     if embed:
-        message = await bot.send_message(ctx.message.channel, embed=page)
+        message = await ctx.channel.send(embed=page)
     else:
-        message = await bot.send_message(ctx.message.channel, page)
-    await bot.add_reaction(message, '◀')
-    await bot.add_reaction(message, '▶')
+        message = await ctx.channel.send(page)
+    if len(pages) == 1:
+        return
+
+    await message.add_reaction('◀')
+    await message.add_reaction('▶')
 
     paged = PagedMessage(pages, starting_idx=starting_idx)
 
     if callable(page_method):
         async def send():
             if embed:
-                await bot.edit_message(message, embed=page_method(page, paged.index))
+                await message.edit(embed=page_method(page, paged.index))
             else:
-                await bot.edit_message(message, page_method(page, paged.index))
+                await message.edit(content=page_method(page, paged.index))
     else:
         async def send():
             if embed:
-                await bot.edit_message(message, embed=page)
+                await message.edit(embed=page)
             else:
-                await bot.edit_message(message, page)
+                await message.edit(content=page)
+
+    def check(reaction, user):
+        return paged.check(reaction, user) and ctx.author.id == user.id and reaction.message.id == message.id
 
     while True:
-        result = await bot.wait_for_reaction_change(user=ctx.message.author, message=message, timeout=60)
-        if result is None:
+        try:
+            result = await bot.wait_for('reaction_changed', check=check, timeout=60)
+        except asyncio.TimeoutError:
             return
 
         page = paged.reaction_changed(*result)
@@ -772,6 +803,123 @@ async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_
         try:
             await send()
             # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
         except discord.HTTPException:
             return
+
+
+async def get_all_reaction_users(reaction, limit=100):
+    users = []
+    limits = [100 for i in range(limit // 100)]
+    remainder = limit % 100
+    if remainder > 0:
+        limits.append(remainder)
+
+    for limit in limits:
+        if users:
+            user = users[-1]
+        else:
+            user = None
+        _users = await reaction.users(limit=limit, after=user)
+        users.extend(_users)
+
+    return users
+
+
+async def create_custom_emoji(guild, name, image, already_b64=False, reason=None):
+    """Same as the base method but supports giving your own b64 encoded data"""
+    if not already_b64:
+        img = discord.utils._bytes_to_base64_data(image)
+    else:
+        img = image
+
+    data = await guild._state.http.create_custom_emoji(guild.id, name, img, reason=reason)
+    return guild._state.store_emoji(guild, data)
+
+
+def is_owner(ctx):
+    if ctx.command.owner_only and ctx.bot.owner_id != ctx.original_user.id:
+        raise PermException('Only the owner can use this command')
+
+    ctx.skip_check = True
+
+    return True
+
+
+async def check_blacklist(ctx):
+    if getattr(ctx, 'skip_check', False):
+        return True
+
+    bot = ctx.bot
+    if not hasattr(bot, 'check_auth'):
+        # No database blacklisting detected
+        return True
+
+    if not await bot.check_auth(ctx):
+        return False
+
+    overwrite_perms = await bot.dbutil.check_blacklist('(command="%s" OR command IS NULL)' % ctx.command, ctx.author, ctx, True)
+    msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, None)
+    if isinstance(overwrite_perms, int):
+        if ctx.guild and ctx.guild.owner.id == ctx.author.id:
+            overwrite_perms = True
+        else:
+            overwrite_perms = PermValues.RETURNS.get(overwrite_perms, False)
+    ctx.override_perms = overwrite_perms
+
+    if overwrite_perms is False:
+        if msg is not None:
+            raise PermException(msg)
+        return False
+
+    return True
+
+
+async def search(s, ctx, site, downloader, on_error=None):
+    search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
+    urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
+    max_results = 20
+    search_key = search_keys.get(site, 'ytsearch')
+    channel = ctx.channel
+    query = '{0}{1}:{2}'.format(search_key, max_results, s)
+
+    info = await downloader.extract_info(ctx.bot.loop, url=query,
+                                         on_error=on_error,
+                                         download=False)
+    if info is None or 'entries' not in info:
+        return await channel.send('Search gave no results', delete_after=60)
+
+    url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
+
+    def get_page(page, index):
+        id = page.get('id')
+        if id is None:
+            return page.get('url')
+        return url % id
+
+    await send_paged_message(ctx.bot, ctx, info['entries'], page_method=get_page)
+
+
+def basic_check(author=None, channel=None):
+    def check(msg):
+        if author and author.id != msg.author.id:
+            return False
+
+        if channel and channel.id != msg.channel.id:
+            return False
+
+        return True
+
+    return check
+
+
+def parse_seek(s):
+    match = seek_regex.match(s)
+    if not match:
+        return
+
+    return {k: v or '0' for k, v in match.groupdict().items()}
+
+
+def seek_to_sec(seek_dict):
+    return int(seek_dict['h'])*3600 + int(seek_dict['m'])*60 + int(seek_dict['s'])

@@ -51,20 +51,18 @@ class Search:
         self.key = bot.config.google_api_key
         self.cx = self.bot.config.custom_search
 
-    @command(pass_context=True)
+    @command()
     @cooldown(2, 5)
     async def image(self, ctx, *, query):
         """Google search an image"""
         #logger.debug('Image search query: {}'.format(query))
-        # TODO When you can check if channel is nsfw change search safe level based on that
-        return await self._search(ctx, query, True, safe='high')
+        return await self._search(ctx, query, True, safe='off' if ctx.channel.nsfw else 'high')
 
-    @command(pass_context=True)
+    @command()
     @cooldown(2, 5)
     async def google(self, ctx, *, query):
         #logger.debug('Web search query: {}'.format(query))
-        # TODO When you can check if channel is nsfw change search safe level based on that
-        return await self._search(ctx, query, safe='medium')
+        return await self._search(ctx, query, safe='off' if ctx.channel.nsfw else 'medium')
 
     async def _search(self, ctx, query, image=False, safe='off'):
         params = {'key': self.key,
@@ -77,17 +75,16 @@ class Search:
 
         async with self.client.get('https://www.googleapis.com/customsearch/v1', params=params) as r:
             if r.status == 200:
-                channel = ctx.message.channel
                 json = await r.json()
                 if 'error' in json:
                     reason = json['error'].get('message', 'Unknown reason')
-                    return await self.bot.say('Failed to search because of an error\n```{}```'.format(reason))
+                    return await ctx.send('Failed to search because of an error\n```{}```'.format(reason))
 
                 logger.debug('Search result: {}'.format(json))
 
                 total_results = json['searchInformation']['totalResults']
                 if int(total_results) == 0:
-                    return await self.bot.say('No results with the keywords "{}"'.format(query))
+                    return await ctx.send('No results with the keywords "{}"'.format(query))
 
                 if 'items' in json:
                     items = []
@@ -96,7 +93,7 @@ class Search:
 
                     return await send_paged_message(self.bot, ctx, items, page_method=lambda p, i: str(p))
             else:
-                return await self.bot.say('Http error {}'.format(r.status))
+                return await ctx.send('Http error {}'.format(r.status))
 
 
 def setup(bot):

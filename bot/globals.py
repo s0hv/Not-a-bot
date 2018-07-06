@@ -36,6 +36,7 @@ try:
 except:
     _wd = os.getcwd()
 
+DATA = join(_wd, 'data')
 PLAYLISTS = join(_wd, 'data', 'playlists')
 AUTOPLAYLIST = join(PLAYLISTS, 'autoplaylist.txt')
 ADD_AUTOPLAYLIST = join(PLAYLISTS, 'add_autoplaylist.txt')
@@ -43,8 +44,10 @@ DELETE_AUTOPLAYLIST = join(PLAYLISTS, 'delete_autoplaylist.txt')
 SFX_FOLDER = join(_wd, 'data', 'audio', 'sfx')
 TTS = join(_wd, 'data', 'audio', 'tts')
 CACHE = join(_wd, 'data', 'audio', 'cache')
+POKESTATS = join(DATA, 'pokestats')
 PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
 PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
+
 PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': False,
                       'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,
                       'edit_permissions': False, 'level': 0, 'whitelist': None, 'blacklist': None}
@@ -52,7 +55,7 @@ PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': Fa
 
 def _create_folder(path):
     if not os.path.exists(path):
-        os.mkdir(path)
+        os.makedirs(path)
 
 
 def create_folders():
@@ -90,7 +93,7 @@ class BlacklistTypes:
 
 class PermValues:
     VALUES = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4,
-              'channel': 0x8, 'server': 0x10}
+              'channel': 0x8, 'guild': 0x10}
     RETURNS = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False,
                16: True, 18: False}
     BLACKLIST_MESSAGES = {3: 'Command has been blacklisted for you',
@@ -119,4 +122,4 @@ class Perms:
     MANAGE_MESSAGES = Permissions(8192)
     ADMIN = Permissions(8)
     MANAGE_EMOJIS = Permissions(1073741824)
-    MANAGE_SERVER = Permissions(32)
+    MANAGE_GUILD = Permissions(32)

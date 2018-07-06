@@ -30,8 +30,9 @@ terminal = logging.getLogger('terminal')
 
 
 class BotException(CommandError):
-    def __init__(self, message=None, *args, cmd_message: str=None):
+    def __init__(self, message=None, *args, cmd_message: str=None, domain=None):
         super().__init__(message, *args)
+        self._domain = domain
         if cmd_message is not None:
             terminal.info(cmd_message)
 
@@ -55,26 +56,38 @@ class InvalidOwnerIDException(BotException):
     pass
 
 
-class PermissionError(BotException):
+class AuthenticationException(BotException):
+    @property
+    def message(self):
+        return "You aren't authorized to use this command"
+
+
+class PermException(BotException):
     @property
     def message(self):
         return "You don't have the permission to use this command. \nRequired permissions are: " + self._message
 
 
-class InvalidLevelException(BotException):
-    def __init__(self, required, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._required = required
-
+class CommandBlacklisted(PermException):
     @property
     def message(self):
-        return ("Required level is %s.\n" % self._required) + self._message
+        return self._message
 
 
 class InvalidPermissionError(BotException):
     @property
     def message(self):
         return "Required permissions are " + self._message
+
+
+class ImageSizeException(BotException):
+    def __init__(self, message, max_pixel, *args, **kwargs):
+        super().__init__(message, *args, **kwargs)
+        self.max_pixel = max_pixel
+
+    @property
+    def message(self):
+        return f"Image has too many pixels {self._message} > {self.max_pixel}"
 
 
 class InvalidArgumentException(BotException):

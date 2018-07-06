@@ -33,6 +33,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot.bot import Bot, command
 from bot.dbutil import DatabaseUtils
+from concurrent.futures import ThreadPoolExecutor
+
 
 terminal = logging.getLogger('terminal')
 
@@ -48,7 +50,9 @@ class Ganypepe(Bot):
         super().__init__(prefix, conf, aiohttp, **options)
         self.test_mode = test_mode
         self._setup()
+        self.threadpool = ThreadPoolExecutor(max_workers=4)
         self._dbutil = DatabaseUtils(self)
+        self.music_players = {}
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'
@@ -78,18 +82,17 @@ class Ganypepe(Bot):
                 if print_err:
                     terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
-                    self.say('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    pass
 
     async def on_ready(self):
         terminal.info('Logged in as {0.user.name}'.format(self))
-        await self.change_presence(game=discord.Game(name=self.config.sfx_game))
+        await self.change_presence(activity=discord.Game(name=self.config.sfx_game))
         await self._load_cogs()
         try:
             cmd = command('test')(self.test)
             self.add_command(cmd)
         except (TypeError, discord.ClientException) as e:
-
             pass
 
-    async def test(self):
-        await self.say('test')
+    async def test(self, ctx):
+        await ctx.send('test')

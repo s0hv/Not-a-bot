@@ -49,8 +49,14 @@ logger.addHandler(handler)
 terminal = logging.getLogger('terminal')
 terminal.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
+handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
 terminal.addHandler(handler)
+
+logger = logging.getLogger('audio')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='audio.log', encoding='utf-8', mode='a')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
 
 terminal.info('testing colors')
 terminal.debug('test')
@@ -69,5 +75,7 @@ if not discord.opus.is_loaded():
 
 terminal.info('Main bot starting up')
 logger.info('Starting bots')
+from bot.sfx_bot import Ganypepe
+#bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
 bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
 bot.run(config.test_token)

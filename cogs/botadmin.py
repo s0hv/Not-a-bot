@@ -5,6 +5,7 @@ import shlex
 import subprocess
 import time
 import os
+import re
 from functools import partial
 from importlib import reload, import_module
 from io import BytesIO
@@ -15,6 +16,7 @@ import discord
 from discord.errors import HTTPException, InvalidArgument
 from discord.ext.commands.core import GroupMixin
 from sqlalchemy.exc import SQLAlchemyError
+from utils.utilities import y_n_check, basic_check, y_check
 
 from bot.bot import command
 from bot.globals import Auth
@@ -250,10 +252,44 @@ class BotAdmin(Cog):
         if err:
             out = err.decode('utf-8') + out
 
+        files = re.findall(r'(cogs/\w+)(?:.py *|)', out)
+
         if len(out) > 2000:
             out = out[:1996] + '...'
 
         await ctx.send(out)
+
+        if files:
+            files = [f.replace('/', '.') for f in files]
+            await ctx.send(f'Do you want to reload files `{"` `".join(files)}`')
+
+            try:
+                msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=30)
+            except asyncio.TimeoutError:
+                return await ctx.send('Timed out')
+
+            if not y_n_check(msg):
+                return await ctx.send('Invalid answer. Not auto reloading')
+
+            if not y_check(msg.content):
+                return await ctx.send('Not auto updating')
+
+            def do_reload():
+                messages = []
+                for file in files:
+                    try:
+                        self.bot.unload_extension(file)
+                        self.bot.load_extension(file)
+                    except Exception as e:
+                        messages.append('Failed to load extension {}\n{}: {}'.format(file, type(e).__name__, e))
+                    else:
+                        messages.append(f'Reloaded {file}')
+
+                return messages
+
+            messages = await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
+            if messages:
+                await ctx.send('\n'.join(messages))
 
     @command(owner_only=True)
     async def add_sfx(self, ctx, file=None, name=None):

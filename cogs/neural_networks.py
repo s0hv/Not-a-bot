@@ -2,7 +2,7 @@ from cogs.cog import Cog
 import re
 import logging
 from utils import unzalgo
-
+from sqlalchemy.exc import SQLAlchemyError
 logger = logging.getLogger('debug')
 
 
@@ -21,7 +21,7 @@ class NNLogger(Cog):
             return
 
         # Only one channel for now
-        if msg.channel.id != '297061271205838848':
+        if msg.channel.id != 297061271205838848:
             return
 
         # Don't wanna log bot messages
@@ -34,7 +34,7 @@ class NNLogger(Cog):
         # No need to log bot commands
         if list(filter(lambda prefix: content.startswith(prefix), self._prefixes)):
             return
-        prefixes = self.bot.get_prefix(self.bot, msg)
+        prefixes = self.bot.get_command_prefix(self.bot, msg)
         if isinstance(prefixes, str):
             prefixes = (prefixes, )
         if list(filter(lambda prefix: content.startswith(prefix), prefixes)):
@@ -58,7 +58,7 @@ class NNLogger(Cog):
         try:
             session.execute(sql, params={'message': content})
             session.commit()
-        except:
+        except SQLAlchemyError:
             session.rollback()
             logger.exception('Failed to log message to nn table')
 

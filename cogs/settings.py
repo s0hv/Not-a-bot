@@ -5,39 +5,38 @@ from collections import OrderedDict
 import discord
 from discord.ext.commands import cooldown, BucketType
 
-from bot.bot import group, command
+from bot import exceptions
+from bot.bot import group
+from bot.converters import TimeDelta
 from bot.globals import Perms
 from cogs.cog import Cog
-from utils.utilities import (split_string, format_on_edit, format_on_delete, get_channel,
-                             format_join_leave, get_role)
-from bot import exceptions
+from utils.utilities import (split_string, format_on_edit, format_on_delete,
+                             format_join_leave, get_role, timedelta2sql)
 
 
 class Settings(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._server_locks = {'keeproles': {}}
+        self._guild_locks = {'keeproles': {}}
 
     @property
     def cache(self):
-        return self.bot.server_cache
+        return self.bot.guild_cache
 
     # Required perms for all settings commands: Manage server
     @cooldown(1, 5)
-    @group(pass_context=True, invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True, no_pm=True)
     async def settings(self, ctx):
         """Gets the current settings on the server"""
-        server = ctx.message.server
-        prefix = self.cache.prefixes(server.id)[0]
-        embed = discord.Embed(title='Current settings for %s' % server.name, description=
+        guild = ctx.guild
+        embed = discord.Embed(title='Current settings for %s' % guild.name, description=
                               'To change these settings use {}settings <name> <value>\n'
                               'The name for each setting is specified in brackets\n'
-                              'Value depends on the setting.'.format(prefix))
+                              'Value depends on the setting.'.format(ctx.invoked_with))
         fields = OrderedDict([('modlog', 'Moderation log'), ('keeproles', 'Re-add roles to user if they rejoin'),
                               ('prefixes', 'Command prefixes'), ('mute_role', 'Role that is used with timeout and mute'),
                               ('random_color', 'Add a random color to a user when they join'),
-                              ('automute', 'Mute on too many mentions in a message'),
-                              ('automute_limit', 'How many mentions needed for mute')])
+                              ('automute', 'Mute on too many mentions in a message')])
         type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
         value_conversions = {'modlog': lambda c: '<#%s>' % c, 'mute_role': lambda r: '<@&%s>' % r,
                              'prefixes': lambda p: '`' + '` `'.join(p) + '`'}
@@ -45,232 +44,251 @@ class Settings(Cog):
         for k, v in fields.items():
             value = getattr(self.cache, k, None)
             if callable(value):
-                value = value(server.id)
+                value = value(guild.id)
             if value is not None and k in value_conversions:
                 value = value_conversions[k](value)
             embed.add_field(name='%s (%s)' % (v, k), value=type_conversions.get(value, str(value)), inline=True)
 
-        await self.bot.send_message(ctx.message.channel, embed=embed)
+        await ctx.send(embed=embed)
 
-    async def _add_prefix(self, server_id, prefix):
-        prefixes = self.cache.prefixes(server_id, use_set=True)
+    async def _add_prefix(self, ctx, guild_id, prefix):
+        prefixes = self.cache.prefixes(guild_id, use_set=True)
 
         if len(prefixes) >= 10:
-            return await self.bot.say('You can only have a maximum of 10 prefixes at one time. Remove some prefixes before proceeding')
+            return await ctx.send('You can only have a maximum of 10 prefixes at one time. Remove some prefixes before proceeding')
 
         if len(prefix) > 30:
-            return await self.bot.say('Maximum length for a prefix is 30. This prefixes length is {}'.format(len(prefix)))
+            return await ctx.send('Maximum length for a prefix is 30. This prefixes length is {}'.format(len(prefix)))
 
         try:
-            success = self.cache.add_prefix(server_id, prefix)
+            success = await self.cache.add_prefix(guild_id, prefix)
         except exceptions.PrefixExists:
-            return await self.bot.say('Prefix already in use')
+            return await ctx.send('Prefix already in use')
 
         if not success:
-            return await self.bot.say('Failed to add prefix {}'.format(prefix))
+            return await ctx.send('Failed to add prefix {}'.format(prefix))
 
-        await self.bot.say('Added prefix {}'.format(prefix))
+        await ctx.send('Added prefix {}'.format(prefix))
 
-    async def _remove_prefix(self, server_id, prefix):
+    async def _remove_prefix(self, ctx, guild_id, prefix):
         try:
-            success = self.cache.remove_prefix(server_id, prefix)
+            success = await self.cache.remove_prefix(guild_id, prefix)
         except exceptions.NotEnoughPrefixes:
-            return await self.bot.say('Need a minimum of 1 prefix')
+            return await ctx.send('Need a minimum of 1 prefix')
         except exceptions.PrefixDoesntExist:
-            return await self.bot.say("Prefix doesn't exist")
+            return await ctx.send("Prefix doesn't exist")
 
         if not success:
-            return await self.bot.say('Failed to remove prefix {}'.format(prefix))
+            return await ctx.send('Failed to remove prefix {}'.format(prefix))
 
-        await self.bot.say('Removed prefix {}'.format(prefix))
+        await ctx.send('Removed prefix {}'.format(prefix))
 
     @cooldown(1, 5)
-    @group(pass_context=True, no_pm=True, invoke_without_command=True, aliases=['prefixes'])
+    @group(no_pm=True, invoke_without_command=True, aliases=['prefixes'])
     async def prefix(self, ctx):
         """Shows all the active prefixes on this server"""
-        prefixes = self.cache.prefixes(ctx.message.server.id)
-        await self.bot.say('Current prefixes on server\n`{}`'.format('` `'.join(prefixes)))
+        prefixes = self.cache.prefixes(ctx.guild.id)
+        await ctx.send('Current prefixes on server\n`{}`'.format('` `'.join(prefixes)))
 
     @cooldown(2, 10)
-    @prefix.command(pass_context=True, required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
-    async def add(self, ctx, prefix):
+    @prefix.command(required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    async def add(self, ctx, prefix: str):
         """Add a prefix to this server"""
-        await self._add_prefix(ctx.message.server.id, prefix)
+        await self._add_prefix(ctx, ctx.guild.id, prefix)
 
     @cooldown(2, 10)
-    @prefix.command(pass_context=True, aliases=['delete', 'del'],
-                    required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
-    async def remove(self, ctx, prefix):
+    @prefix.command(aliases=['delete', 'del'], required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    async def remove(self, ctx, prefix: str):
         """Remove and active prefix from use"""
-        await self._remove_prefix(ctx.message.server.id, prefix)
+        await self._remove_prefix(ctx, ctx.guild.id, prefix)
 
-    @cooldown(1, 5, type=BucketType.server)
-    @settings.command(pass_context=True, ignore_extra=True, required_perms=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
-    async def modlog(self, ctx, channel: str=None):
+    @cooldown(1, 5, type=BucketType.guild)
+    @settings.command(ignore_extra=True, required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    async def modlog(self, ctx, channel: discord.TextChannel=None):
         """If no parameters are passed gets the current modlog
         If channel is provided modlog will be set to that channel.
         channel can be a channel mention, channel id or channel name (case sensitive)"""
         if channel is None:
-            modlog = self.bot.server_cache.modlog(ctx.message.server.id)
-            modlog = self.bot.get_channel(str(modlog))
+            modlog = self.bot.guild_cache.modlog(ctx.guild.id)
+            modlog = self.bot.get_channel(modlog)
             if modlog:
-                await self.bot.say('Current modlog channel is %s' % modlog.mention)
+                await ctx.send('Current modlog channel is %s' % modlog.mention)
             else:
-                await self.bot.say('No modlog channel set')
+                await ctx.send('No modlog channel set')
 
             ctx.command.reset_cooldown(ctx)
             return
 
-        channel_ = get_channel(ctx.message.server.channels, channel, name_matching=True)
-        if not channel_:
-            ctx.command.reset_cooldown(ctx)
-            return await self.bot.say('No channel found with {}'.format(channel))
+        await self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
+        await channel.send('Modlog set to this channel')
 
-        self.bot.server_cache.set_modlog(channel_.server.id, channel_.id)
-        await self.bot.send_message(channel_, 'Modlog set to this channel')
-
-    @cooldown(1, 5, type=BucketType.server)
-    @settings.command(pass_context=True, ignore_extra=True, required_perms=Perms.MANAGE_ROLES)
-    async def mute_role(self, ctx, role=None):
+    @cooldown(1, 5, type=BucketType.guild)
+    @settings.command(ignore_extra=True, required_perms=Perms.MANAGE_ROLES)
+    async def mute_role(self, ctx, role: discord.Role=None):
         """Get the current role for muted people on this server or set it"""
-        server = ctx.message.server
+        guild = ctx.guild
         if role is None:
-            role = get_role(server, self.bot.server_cache.mute_role(server.id), name_matching=True)
+            role = get_role(guild, self.bot.guild_cache.mute_role(guild.id), name_matching=True)
             if role:
-                await self.bot.say('Current role for muted people is {0} `{0.id}`'.format(role))
+                await ctx.send('Current role for muted people is {0} `{0.id}`'.format(role))
             else:
-                await self.bot.say('No role set for muted people')
+                await ctx.send('No role set for muted people')
             ctx.command.reset_cooldown(ctx)
             return
 
-        try:
-            int(role)
-            role = self.bot.get_role(server, role)
-        except:
-            if not ctx.message.raw_role_mentions or ctx.message.raw_role_mentions[0] not in role:
-                ctx.command.reset_cooldown(ctx)
-                return await self.bot.say('No valid role or role id mentions')
+        await self.bot.guild_cache.set_mute_role(guild.id, role.id)
+        await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
-            role = self.bot.get_role(server, ctx.message.raw_role_mentions[0])
-
-        self.bot.server_cache.set_mute_role(server.id, role.id)
-        await self.bot.say('Muted role set to {0} `{0.id}`'.format(role))
-
-    @cooldown(2, 20, type=BucketType.server)
-    @settings.command(pass_context=True, ignore_extra=True, required_perms=Perms.ADMIN)
+    @cooldown(2, 20, type=BucketType.guild)
+    @settings.command(ignore_extra=True, required_perms=Perms.ADMIN)
     async def keeproles(self, ctx, boolean: bool=None):
         """Get the current keeproles value on this server or change it.
         Keeproles makes the bot save every users roles so it can give them even if that user rejoins"""
-        server = ctx.message.server
-        current = self.cache.keeproles(server.id)
+        guild = ctx.guild
+        current = self.cache.keeproles(guild.id)
 
         if current == boolean:
-            return await self.bot.say('Keeproles is already set to %s' % boolean)
+            return await ctx.send('Keeproles is already set to %s' % boolean)
 
-        lock = self._server_locks['keeproles'].get(server.id, None)
+        lock = self._guild_locks['keeproles'].get(guild.id, None)
         if lock is None:
             lock = Lock(loop=self.bot.loop)
-            self._server_locks['keeproles'][server.id] = lock
+            self._guild_locks['keeproles'][guild.id] = lock
 
         if lock.locked():
-            return await self.bot.say('Hol up b')
+            return await ctx.send('Hol up b')
 
         if boolean:
             t = time.time()
             await lock.acquire()
             try:
-                bot_member = server.get_member(self.bot.user.id)
-                perms = bot_member.server_permissions
+                bot_member = guild.get_member(self.bot.user.id)
+                perms = bot_member.guild_permissions
                 if not perms.administrator and not perms.manage_roles:
-                    return await self.bot.say('This bot needs manage roles permissions to enable this feature')
-                msg = await self.bot.say('indexing roles')
-                if not await self.bot.dbutils.index_server_member_roles(server):
-                    return await self.bot.say('Failed to index user roles')
+                    return await ctx.send('This bot needs manage roles permissions to enable this feature')
+                msg = await ctx.send('indexing roles')
+                if not await self.bot.dbutils.index_guild_member_roles(guild):
+                    return await ctx.send('Failed to index user roles')
 
-                await self.bot.edit_message(msg, new_content='Indexed roles in {0:.2f}s'.format(time.time()-t))
-            except:
+                await msg.edit(content='Indexed roles in {0:.2f}s'.format(time.time()-t))
+            except discord.DiscordException:
                 pass
             finally:
                 lock.release()
 
-        self.cache.set_keeproles(server.id, boolean)
-        await self.bot.say('Keeproles set to %s' % str(boolean))
+        await self.cache.set_keeproles(guild.id, boolean)
+        await ctx.send('Keeproles set to %s' % str(boolean))
 
-    @settings.command(pass_context=True, required_perms=Perms.MANAGE_ROLES|Perms.MANAGE_SERVER)
-    @cooldown(2, 10, BucketType.server)
+    @settings.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
+    @cooldown(2, 10, BucketType.guild)
     async def random_color(self, ctx, value: bool=None):
         """Check if random color is on or change the current value of it.
         Random color will make the bot give a random color role to all new users who join
         if color roles exist on the server"""
-        server = ctx.message.server
+        guild = ctx.guild
         if value is None:
-            value = self.cache.random_color(server.id)
+            value = self.cache.random_color(guild.id)
             value = 'on' if value else 'off'
-            return await self.bot.say('Random color on join is currently ' + value)
+            return await ctx.send('Random color on join is currently ' + value)
 
-        success = self.cache.set_random_color(server.id, value)
+        success = await self.cache.set_random_color(guild.id, value)
         if not success:
-            return await self.bot.say('Failed to change value because of an error')
+            return await ctx.send('Failed to change value because of an error')
         value = 'on' if value else 'off'
-        await self.bot.say('Changed the value to ' + value)
+        await ctx.send('Changed the value to ' + value)
 
-    @settings.command(pass_context=True, required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_SERVER, ignore_extra=True)
-    @cooldown(2, 10, BucketType.server)
+    @settings.command(name='automute', required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    async def automute_(self, ctx):
+        await self.automute.invoke(ctx)
+
+    @group(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True, invoke_without_command=True)
+    @cooldown(2, 10, BucketType.guild)
     async def automute(self, ctx, value: bool=None):
         """Check or set the status of automatic muting"""
-        server = ctx.message.server
+        guild = ctx.guild
         if value is None:
-            value = 'on' if self.cache.automute(server.id) else 'off'
-            return await self.bot.say('Automute is currently set {}'.format(value))
+            guild = ctx.guild
+            embed = discord.Embed(title='Current automute settings for %s' % guild.name,
+                                  description=
+                                  'To change these values use {}settings automute <name> <value>\n'
+                                  'The name for each setting is specified in brackets\n'
+                                  'Value depends on the setting.'.format( ctx.invoked_with))
+            fields = OrderedDict([('limit', 'How many mentions needed for an automute to happen'),
+                                  ('time', 'How long the mute will last. Infinite if not set')])
+            type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
 
-        success = self.cache.set_automute(server.id, value)
+            embed.add_field(name='Automute state', value=type_conversions.get(self.cache.automute(guild.id)))
+            for k, v in fields.items():
+                value = getattr(self.cache, 'automute_' + k, None)(guild.id)
+                embed.add_field(name='%s (%s)' % (v, k),
+                                value=type_conversions.get(value, str(value)),
+                                inline=True)
+
+            return await ctx.send(embed=embed)
+
+        success = await self.cache.set_automute(guild.id, value)
         if not success:
-            return self.bot.say('Failed to set automute value')
+            return ctx.send('Failed to set automute value')
 
         value = 'on' if value else 'off'
-        await self.bot.say('Set automute value to ' + value)
+        await ctx.send('Set automute value to ' + value)
 
-    @settings.command(pass_context=True, required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_SERVER, ignore_extra=True)
-    @cooldown(2, 10, BucketType.server)
-    async def automute_limit(self, ctx, limit: int=None):
+    @automute.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @cooldown(2, 10, BucketType.guild)
+    async def limit(self, ctx, limit: int=None):
         """Check or set the limit of mentions in a message for the bot to mute a user"""
-        server = ctx.message.server
+        guild = ctx.guild
         if limit is None:
-            return await self.bot.say('Current limit is {}'.format(self.cache.automute_limit(server.id)))
+            return await ctx.send('Current limit is {}'.format(self.cache.automute_limit(guild.id)))
 
         if limit <= 4:
-            return await self.bot.say('Value must be higher than 4')
+            return await ctx.send('Value must be higher than 4')
         if limit > 30:
-            return await self.bot.say('Value must be equal to or lower than 30')
+            return await ctx.send('Value must be equal to or lower than 30')
 
-        success = self.cache.set_automute_limit(server.id, limit)
+        success = await self.cache.set_automute_limit(guild.id, limit)
 
         if not success:
-            return self.bot.say('Failed to set automute limit')
+            return ctx.send('Failed to set automute limit')
 
-        await self.bot.say('Set automute limit to ' + str(limit))
+        await ctx.send('Set automute limit to ' + str(limit))
 
-    @group(pass_context=True, invoke_without_command=True)
-    @cooldown(2, 10, BucketType.server)
+    @automute.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @cooldown(2, 10, BucketType.guild)
+    async def time(self, ctx, *, mute_time: TimeDelta=None):
+        if mute_time is None:
+            return await ctx.send(f'Automute time is currently set to {self.cache.automute_time(ctx.guild.id)}')
+        if mute_time.days > 29:
+            return await ctx.send('Time must be under 30 days')
+
+        format = timedelta2sql(mute_time)
+        success = await self.cache.set_automute_time(ctx.guild.id, format)
+        if not success:
+            return await ctx.send('Failed to set time')
+
+        await ctx.send(f'Set mute time to {mute_time}')
+
+    @group(invoke_without_command=True)
+    @cooldown(2, 10, BucketType.guild)
     async def on_delete(self, ctx):
         """
         Gives the current message format that is used when a message is deleted if logging is enabled for deleted messages
         If a format isn't set the default format is used.
         To see formatting help use {prefix}formatting
         """
-        server = ctx.message.server
-        message = self.cache.on_delete_message(server.id)
-        channel = self.cache.on_delete_channel(server.id)
+        guild = ctx.guild
+        message = self.cache.on_delete_message(guild.id)
+        channel = self.cache.on_delete_channel(guild.id)
         if message is None and channel is None:
-            return await self.bot.say("On message delete message format hasn't been set")
+            return await ctx.send("On message delete message format hasn't been set")
         elif message is None:
-            message = self.cache.on_delete_message(server.id, default_message=True)
+            message = self.cache.on_delete_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await self.bot.say(msg)
+        await ctx.send(msg)
 
-    @on_delete.command(pass_context=True, required_permissions=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
-    @cooldown(2, 10, BucketType.server)
+    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
+    @cooldown(2, 10, BucketType.guild)
     async def set(self, ctx, *, message_format):
         """
         Set the message format for deleted message logging.
@@ -281,62 +299,58 @@ class Settings(Cog):
         try:
             formatted = format_on_delete(message, message_format)
         except Exception as e:
-            return await self.bot.say('Failed to use format because it returned an error.```py\n{}```'.format(e))
+            return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         splitted = split_string(formatted, splitter='\n')
         if len(splitted) > 2:
-            return await self.bot.say('The message generated using this format is too long. Please reduce the amount of text/variables')
+            return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_on_delete_message(message.server.id, message_format)
+        success = await self.cache.set_on_delete_message(message.guild.id, message_format)
         if not success:
-            await self.bot.say('Failed to set message format because of an error')
+            await ctx.send('Failed to set message format because of an error')
         else:
-            await self.bot.say('Successfully set the message format')
+            await ctx.send('Successfully set the message format')
 
-    @on_delete.command(pass_context=True, required_permissions=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
-    @cooldown(2, 10, BucketType.server)
-    async def channel(self, ctx, *, channel=None):
+    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @cooldown(2, 10, BucketType.guild)
+    async def channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel deleted messages are logged in to"""
-        server = ctx.message.server
+        guild = ctx.guild
         if channel is None:
-            channel = self.cache.on_delete_channel(server.id)
+            channel = self.cache.on_delete_channel(guild.id)
             if channel is None:
-                await self.bot.say('Currently not logging deleted messages')
+                await ctx.send('Currently not logging deleted messages')
             else:
-                await self.bot.say('Currently logging deleted messages to <#{}>'.format(channel))
+                await ctx.send('Currently logging deleted messages to <#{}>'.format(channel))
             return
 
-        channel = get_channel(server.channels, channel, name_matching=True)
-        if channel is None:
-            return await self.bot.say('No channel id or mention provided')
-
-        success = self.cache.set_on_delete_channel(server.id, channel.id)
+        success = await self.cache.set_on_delete_channel(guild.id, channel.id)
         if not success:
-            await self.bot.say('Failed to set channel because of an error')
+            await ctx.send('Failed to set channel because of an error')
         else:
-            await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
+            await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(pass_context=True, invoke_without_command=True)
-    @cooldown(2, 10, BucketType.server)
+    @group(invoke_without_command=True)
+    @cooldown(2, 10, BucketType.guild)
     async def on_edit(self, ctx):
         """
         Gives the current message format that is used when a message is edited if logging is enabled for edited messages
         If a format isn't set the default format is used.
         To see formatting help use {prefix}formatting
         """
-        server = ctx.message.server
-        message = self.cache.on_edit_message(server.id)
-        channel = self.cache.on_edit_channel(server.id)
+        guild = ctx.guild
+        message = self.cache.on_edit_message(guild.id)
+        channel = self.cache.on_edit_channel(guild.id)
         if message is None and channel is None:
-            return await self.bot.say("On message edit message format hasn't been set")
+            return await ctx.send("On message edit message format hasn't been set")
         elif message is None:
-            message = self.cache.on_edit_message(server.id, default_message=True)
+            message = self.cache.on_edit_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await self.bot.say(msg)
+        await ctx.send(msg)
 
-    @on_edit.command(pass_context=True, name='set', required_permissions=Perms.MANAGE_SERVER | Perms.MANAGE_CHANNEL)
-    @cooldown(2, 10, BucketType.server)
+    @on_edit.command(name='set', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
+    @cooldown(2, 10, BucketType.guild)
     async def set_(self, ctx, *, message_format):
         """
         Set the message format for edited message logging.
@@ -347,165 +361,146 @@ class Settings(Cog):
         try:
             formatted = format_on_edit(message, message, message_format, check_equal=False)
         except Exception as e:
-            return await self.bot.say('Failed to use format because it returned an error.```py\n{}```'.format(e))
+            return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         splitted = split_string(formatted, splitter='\n')
         if len(splitted) > 2:
-            return await self.bot.say('The message generated using this format is too long. Please reduce the amount of text/variables')
+            return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_on_edit_message(message.server.id, message_format)
+        success = await self.cache.set_on_edit_message(message.guild.id, message_format)
         if not success:
-            await self.bot.say('Failed to set message format because of an error')
+            await ctx.send('Failed to set message format because of an error')
         else:
-            await self.bot.say('Successfully set the message format')
+            await ctx.send('Successfully set the message format')
 
-    @on_edit.command(pass_context=True, name='channel', required_permissions=Perms.MANAGE_SERVER|Perms.MANAGE_CHANNEL)
-    @cooldown(2, 10, BucketType.server)
-    async def channel_(self, ctx, *, channel=None):
+    @on_edit.command(name='channel', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @cooldown(2, 10, BucketType.guild)
+    async def channel_(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel message edits are logged to"""
-        server = ctx.message.server
+        guild = ctx.guild
         if channel is None:
-            channel = self.cache.on_edit_channel(server.id)
+            channel = self.cache.on_edit_channel(guild.id)
             if channel is None:
-                await self.bot.say('Currently not logging edited messages')
+                await ctx.send('Currently not logging edited messages')
             else:
-                await self.bot.say('Currently logging edited messages to <#{}>'.format(channel))
+                await ctx.send('Currently logging edited messages to <#{}>'.format(channel))
             return
 
-        channel = get_channel(server.channels, channel, name_matching=True)
-        if channel is None:
-            return await self.bot.say('No channel id or mention provided')
-
-        success = self.cache.set_on_edit_channel(server.id, channel.id)
+        success = await self.cache.set_on_edit_channel(guild.id, channel.id)
         if not success:
-            await self.bot.say('Failed to set channel because of an error')
+            await ctx.send('Failed to set channel because of an error')
         else:
-            await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
+            await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(pass_context=True, invoke_without_command=True, aliases=['on_join', 'welcome_message'])
-    @cooldown(2, 10, BucketType.server)
+    @group(invoke_without_command=True, aliases=['on_join', 'welcome_message'])
+    @cooldown(2, 10, BucketType.guild)
     async def join_message(self, ctx):
         """Get the welcome/join message on this server"""
-        server = ctx.message.server
-        message = self.cache.join_message(server.id)
-        channel = self.cache.join_channel(server.id)
+        guild = ctx.guild
+        message = self.cache.join_message(guild.id)
+        channel = self.cache.join_channel(guild.id)
         if message is None and channel is None:
-            return await self.bot.say("Member join message format hasn't been set")
+            return await ctx.send("Member join message format hasn't been set")
         elif message is None:
-            message = self.cache.join_message(server.id, default_message=True)
+            message = self.cache.join_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await self.bot.say(msg)
+        await ctx.send(msg)
 
-    @join_message.command(pass_context=True, name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
-    @cooldown(2, 10, BucketType.server)
+    @join_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
+    @cooldown(2, 10, BucketType.guild)
     async def join_set(self, ctx, *, message):
         """Set the welcome message on this server
         See {prefix}formatting for help on formatting the message"""
-        server = ctx.message.server
+        guild = ctx.guild
         try:
-            formatted = format_join_leave(ctx.message.author, message)
+            formatted = format_join_leave(ctx.author, message)
         except Exception as e:
-            return await self.bot.say('Failed to use format because it returned an error.```py\n{}```'.format(e))
+            return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         splitted = split_string(formatted, splitter='\n')
         if len(splitted) > 1:
-            return await self.bot.say('The message generated using this format is too long. Please reduce the amount of text/variables')
+            return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_join_message(server.id, message)
+        success = await self.cache.set_join_message(guild.id, message)
         if not success:
-            await self.bot.say('Failed to set message format because of an error')
+            await ctx.send('Failed to set message format because of an error')
         else:
-            await self.bot.say('Successfully set the message format')
+            await ctx.send('Successfully set the message format')
 
-    @join_message.command(pass_context=True, name='channel',
-                          required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
-    @cooldown(2, 10, BucketType.server)
-    async def join_channel(self, ctx, *, channel=None):
+    @join_message.command(name='channel', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @cooldown(2, 10, BucketType.guild)
+    async def join_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the join/welcome message channel"""
-        server = ctx.message.server
+        guild = ctx.guild
         if channel is None:
-            channel = self.cache.join_channel(server.id)
+            channel = self.cache.join_channel(guild.id)
             if channel is None:
-                await self.bot.say('Currently not logging members who join')
+                await ctx.send('Currently not logging members who join')
             else:
-                await self.bot.say('Currently logging members who join in <#{}>'.format(channel))
+                await ctx.send('Currently logging members who join in <#{}>'.format(channel))
             return
 
-        channel = get_channel(server.channels, channel, name_matching=True)
-        if channel is None:
-            return await self.bot.say('No channel id or mention provided')
-
-        success = self.cache.set_join_channel(server.id, channel.id)
+        success = await self.cache.set_join_channel(guild.id, channel.id)
         if not success:
-            await self.bot.say('Failed to set channel because of an error')
+            await ctx.send('Failed to set channel because of an error')
         else:
-            await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
+            await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(pass_context=True, invoke_without_command=True, aliases=['on_leave'])
-    @cooldown(2, 10, BucketType.server)
+    @group(invoke_without_command=True, aliases=['on_leave'])
+    @cooldown(2, 10, BucketType.guild)
     async def leave_message(self, ctx):
         """Get the current message that is sent when a user leaves the server"""
-        server = ctx.message.server
-        message = self.cache.leave_message(server.id)
-        channel = self.cache.leave_channel(server.id)
+        guild = ctx.guild
+        message = self.cache.leave_message(guild.id)
+        channel = self.cache.leave_channel(guild.id)
         if message is None and channel is None:
-            return await self.bot.say("Member leave message format hasn't been set")
+            return await ctx.send("Member leave message format hasn't been set")
         elif message is None:
-            message = self.cache.leave_message(server.id, default_message=True)
+            message = self.cache.leave_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await self.bot.say(msg)
+        await ctx.send(msg)
 
-    @leave_message.command(pass_context=True, name='set',
-                           required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
-    @cooldown(2, 10, BucketType.server)
+    @leave_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
+    @cooldown(2, 10, BucketType.guild)
     async def leave_set(self, ctx, *, message):
         """Set the leave message on this server
         See {prefix}formatting for help on formatting the message"""
-        server = ctx.message.server
+        guild = ctx.guild
         try:
-            formatted = format_join_leave(ctx.message.author, message)
+            formatted = format_join_leave(ctx.author, message)
         except Exception as e:
-            return await self.bot.say(
-                'Failed to use format because it returned an error.```py\n{}```'.format(
-                    e))
+            return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         splitted = split_string(formatted, splitter='\n')
         if len(splitted) > 1:
-            return await self.bot.say(
-                'The message generated using this format is too long. Please reduce the amount of text/variables')
+            return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        success = self.cache.set_leave_message(server.id, message)
+        success = await self.cache.set_leave_message(guild.id, message)
         if not success:
-            await self.bot.say(
-                'Failed to set message format because of an error')
+            await ctx.send('Failed to set message format because of an error')
         else:
-            await self.bot.say('Successfully set the message format')
+            await ctx.send('Successfully set the message format')
 
-    @leave_message.command(pass_context=True, name='channel',
-                           required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_SERVER)
-    @cooldown(2, 10, BucketType.server)
-    async def leave_channel(self, ctx, *, channel=None):
+    @leave_message.command(name='channel', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @cooldown(2, 10, BucketType.guild)
+    async def leave_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Set the channel that user leave messages are sent to"""
-        server = ctx.message.server
+        guild = ctx.guild
         if channel is None:
-            channel = self.cache.leave_channel(server.id)
+            channel = self.cache.leave_channel(guild.id)
             if channel is None:
-                await self.bot.say('Currently not logging members who leave')
+                await ctx.send('Currently not logging members who leave')
             else:
-                await self.bot.say('Currently logging members who leave in <#{}>'.format(channel))
+                await ctx.send('Currently logging members who leave in <#{}>'.format(channel))
             return
 
-        channel = get_channel(server.channels, channel, name_matching=True)
-        if channel is None:
-            return await self.bot.say('No channel id or mention provided')
-
-        success = self.cache.set_leave_channel(server.id, channel.id)
+        success = await self.cache.set_leave_channel(guild.id, channel.id)
         if not success:
-            await self.bot.say('Failed to set channel because of an error')
+            await ctx.send('Failed to set channel because of an error')
         else:
-            await self.bot.say('channel set to {0.name} {0.mention}'.format(channel))
+            await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
 
 def setup(bot):

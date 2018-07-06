@@ -1,50 +1,41 @@
-from cogs.cog import Cog
-from datetime import datetime
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from bot.bot import command
-from sqlalchemy.exc import SQLAlchemyError
-from utils.utilities import check_user_mention
+from datetime import datetime
+
+from cogs.cog import Cog
 
 
 class UserSeen:
-    def __init__(self, user, server_id=None):
+    def __init__(self, user, guild_id=None):
         self.user_id = user.id
         self.username = str(user)
-        self.server_id = 0 if server_id is None else server_id
+        self.guild_id = 0 if guild_id is None else guild_id
         self.timestamp = datetime.utcnow()
-
-    def __hash__(self):
-        return hash((self.user_id + ' ' + str(self.server_id)))
-
-    def __eq__(self, other):
-        return self.user_id == other.user_id and self.server_id == other.server_id
 
 
 class LastSeen(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self._updates = {}
-        self.threadpool = ThreadPoolExecutor(4)
-        self._update_task = self.bot.loop.create_task(self._status_loop())
-        self._update_task_checker = self.bot.loop.create_task(self._check_loop())
+        self._updates = set()
+        self._update_task = asyncio.run_coroutine_threadsafe(self._status_loop(), loop=bot.loop)
+        self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
 
-    def save_updates(self):
+    async def save_updates(self):
         if not self._updates:
             return
 
         updates = self._updates
-        self._updates = {}
+        self._updates = set()
         user_ids = []
-        server_ids = []
+        guild_ids = []
         times = []
         usernames = []
-        for update in updates.values():
-            user_ids.append(int(update.user_id))
+        for update in updates:
+            user_ids.append(update.user_id)
             usernames.append(update.username)
-            server_ids.append(int(update.server_id))
+            guild_ids.append(update.guild_id)
             times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
-        self.bot.dbutils.multiple_last_seen(user_ids, usernames, server_ids, times)
+        await self.bot.dbutils.multiple_last_seen(user_ids, usernames, guild_ids, times)
+        del updates
 
     async def _check_loop(self):
         await asyncio.sleep(120)
@@ -59,7 +50,7 @@ class LastSeen(Cog):
                 continue
 
             try:
-                await asyncio.shield(self.bot.loop.run_in_executor(self.threadpool, self.save_updates))
+                await asyncio.shield(self.save_updates())
             except asyncio.CancelledError:
                 return
             except asyncio.TimeoutError:
@@ -70,24 +61,24 @@ class LastSeen(Cog):
         if before.status != after.status:
             return True
 
-        if getattr(before.game, 'name', None) != getattr(after.game, 'name', None):
+        if before.activity != after.activity:
             return True
 
     async def on_message(self, message):
-        server = None if not message.server else message.server.id
-        o = UserSeen(message.author, server)
-        self._updates[o] = o
+        guild = None if not message.guild else message.guild.id
+        o = UserSeen(message.author, guild)
+        self._updates.add(o)
 
     async def on_member_update(self, before, after):
         if self.status_changed(before, after):
             o = UserSeen(after, None)
-            self._updates[o] = o
+            self._updates.add(o)
             return
 
     async def on_reaction_add(self, reaction, user):
-        server = None if not user.server else user.server.id
-        o = UserSeen(user, server)
-        self._updates[o] = o
+        guild = None if not user.guild else user.guild.id
+        o = UserSeen(user, guild)
+        self._updates.add(o)
 
 
 def setup(bot):

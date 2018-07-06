@@ -1,6 +1,6 @@
 from discord.ext.commands import GroupMixin, Command
 import inspect
-
+import asyncio
 
 # By subclassing GroupMixin we can iterate over all commands in a cog
 class Cog(GroupMixin):
@@ -27,9 +27,9 @@ class Cog(GroupMixin):
                 entries.append(command.name)
             entries = list(reversed(entries))
             entries.append(cmd.name)
-            data.append({'parent': entries[0], 'cmd': ' '.join(entries[1:]) or 0})
+            data.append({'parent': entries[0], 'cmd': ' '.join(entries[1:]) or ""})
 
-        self.bot.dbutil.add_commands(data)
+        asyncio.run_coroutine_threadsafe(self.bot.dbutil.add_commands(data), loop=self.bot.loop)
 
     @property
     def bot(self):

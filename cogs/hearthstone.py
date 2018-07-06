@@ -34,7 +34,7 @@ class Hearthstone:
 
     @command()
     @cooldown(1, 5, type=BucketType.user)
-    async def hs(self, *, name):
+    async def hs(self, ctx, *, name):
         """Search for a hearthstone card"""
         headers = {'content-type': 'application/json', 'X-Mashape-Key': self.key}
         async with self.client.get('https://omgvamp-hearthstone-v1.p.mashape.com/cards/search/%s' % name,
@@ -51,9 +51,9 @@ class Hearthstone:
                     imgs += j['img'] + ' '
 
                 if imgs:
-                    return await self.bot.say(imgs)
+                    return await ctx.send(imgs)
 
-            await self.bot.say('No matches')
+            await ctx.send('No matches')
 
 
 def setup(bot):

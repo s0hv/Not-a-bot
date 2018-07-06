@@ -40,13 +40,13 @@ async def math(calculation, client, key):
     async with client.get(api) as r:
         if r.status == 200:
             content = await r.text()
-            soup = BeautifulSoup(content, 'xml')
+            soup = BeautifulSoup(content, 'lxml')
             result = soup.find('queryresult').get('success')
             if result != 'true':
                 return "I don't even math"
 
             pods = soup.find_all('pod', primary='true')
-            answers = None
+            answers = ''
             for pod in pods:
                 try:
                     txt = pod.find('plaintext').text

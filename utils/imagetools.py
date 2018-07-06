@@ -32,8 +32,6 @@ from sys import platform
 from threading import Lock
 
 import aiohttp
-#import cv2
-cv2 = None  # Remove cv2 import cuz it takes forever to import
 import geopatterns
 import magic
 import numpy as np
@@ -43,6 +41,11 @@ from colour import Color
 from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
+from bot.exceptions import ImageSizeException
+
+
+# import cv2
+cv2 = None  # Remove cv2 import cuz it takes forever to import
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -50,15 +53,14 @@ IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
 MAGICK = 'magick '
 try:
     subprocess.call(['magick'], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except:
+except FileNotFoundError:
     MAGICK = ''
 
 MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
 GLOW_LOCK = Lock()
 TRIMMING_LOCK = Lock()
 if not os.path.exists(IMAGES_PATH):
-    pass
-    #os.mkdir(IMAGES_PATH)
+    os.mkdir(IMAGES_PATH)
 
 
 def make_shiftable(color):
@@ -81,56 +83,24 @@ class ColorThief(CF):
 
 
 class GeoPattern(geopatterns.GeoPattern):
-    # 'triangles' removed cuz it doesn't work
-    available_generators = [
-        'bricks',
-        'hexagons',
-        'overlapping_circles',
-        'overlapping_rings',
-        'plaid',
-        'plus_signs',
-        'rings',
-        'sinewaves',
-        'squares',
-        'xes'
-    ]
+    def generate_background(self, base_color, randomize_hue):
+        hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 359)
+        sat_offset = int(self.hash[17:][:1], 16)
 
-    def __init__(self, string, generator, color=None):
-        self.hash = hashlib.sha1(string.encode('utf8')).hexdigest()
-        self.svg = svg.SVG()
-        self.base_color = color
-
-        if generator not in self.available_generators:
-            raise ValueError('{} is not a valid generator. Valid choices are {}.'.format(
-                generator, ', '.join(['"{}"'.format(g) for g in self.available_generators])
-            ))
-        self.generate_background(color=color)
-        getattr(self, 'geo_%s' % generator)()
-
-    def generate_background(self, color=None):
-        if isinstance(color, Color):
-            base_color = color
-        elif isinstance(color, str):
-            base_color = Color(color)
-        else:
-            base_color = Color(hsl=(0, .42, .41))
-            hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 365)
+        if randomize_hue:
             base_color.hue = base_color.hue - hue_offset
 
-        base_color = make_shiftable(base_color)
-        sat_offset = promap(int(self.hash[17:][:1], 16), 0, 15, 0, 0.5)
-
         if sat_offset % 2:
-            base_color.saturation = min(base_color.saturation + sat_offset, 1.0)
+            base_color.saturation = min(base_color.saturation + sat_offset / 100, 1.0)
         else:
-            base_color.saturation = max(abs(base_color.saturation - sat_offset), 0.0)
+            base_color.saturation = abs(base_color.saturation - sat_offset / 100)
+
         rgb = base_color.rgb
         r = int(round(rgb[0] * 255))
         g = int(round(rgb[1] * 255))
         b = int(round(rgb[2] * 255))
-        self.base_color = base_color
         return self.svg.rect(0, 0, '100%', '100%', **{
-            'fill': 'rgb({}, {}, {})'.format(r, g, b)
+            'fill': 'rgba({}, {}, {}, {})'.format(r, g, b, self.opacity)
         })
 
 
@@ -152,7 +122,7 @@ def replace_color(im, color1, color2):
     data = np.array(im)  # "data" is a height x width x 4 numpy array
     red, green, blue, alpha = data.T  # Temporarily unpack the bands for readability
 
-    r,g,b = color1
+    r, g, b = color1
     # Replace white with red... (leaves alpha values alone...)
     white_areas = (red == r) & (blue == b) & (green == g)
     data[..., :-1][white_areas.T] = color2  # Transpose back needed
@@ -268,8 +238,6 @@ def get_palette(img, colors=6, quality=5):
 
 def create_geopattern_background(size, s, color=None, generator='overlapping_circles'):
     pattern = GeoPattern(s, generator=generator, color=color)
-    svg = os.path.join(IMAGES_PATH, 'bg.svg')
-
     args = '{}convert -size 100x100 svg:- png:-'.format(MAGICK)
     p = subprocess.Popen(args.split(' '), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(pattern.svg_string.encode('utf-8'))
@@ -277,7 +245,7 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     buff = BytesIO(out)
     img = Image.open(buff)
     img = bg_from_texture(img, size)
-    return img, Color(pattern.base_color)
+    return img, pattern.base_color
 
 
 # http://stackoverflow.com/a/29314286/6046713
@@ -311,7 +279,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
                 p = p.replace('\\', '/')  # Windows paths don't work in cv2
 
             img = cv2.imread(p)
-        except:
+        except OSError:
             return image
 
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -336,7 +304,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
     # Create empty mask, draw filled polygon on it corresponding to largest contour
     # Mask is black, polygon is white
     mask = np.zeros(edges.shape)
-    cv2.fillConvexPoly(mask, max_contour[0], (255))
+    cv2.fillConvexPoly(mask, max_contour[0], 255)
 
     # Smooth mask, then blur it
     mask = cv2.dilate(mask, None, iterations=MASK_DILATE_ITER)
@@ -465,7 +433,7 @@ def create_shadow(img, percent, opacity, x, y):
 
 def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
                              center_cropped=False, background_color=None,
-                             resample=Image.NEAREST):
+                             resample=Image.NEAREST, max_pixels=2073600):
     """
     Args:
         img: Image to be cropped
@@ -477,11 +445,14 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
                         bottom right corner
         background_color: Color of the background
         resample: The type of resampling to use
+        max_pixels: Maximum amount of pixels the image can have
 
     Returns:
         Image.Image
     """
     x, y = img.size
+    if x * y > max_pixels:  # More pixels than in a 1080p pic is a no no
+        raise ImageSizeException(x * y, max_pixels)
     x_m = x / new_size[0]
     y_m = y / new_size[1]
     check = y_m <= x_m if can_be_bigger else y_m >= x_m
@@ -517,30 +488,92 @@ def create_text(s, font, fill, canvas_size, point=(10, 10)):
     return text
 
 
-def gradient_flash(im, get_raw=True):
+def get_duration(frames):
+    if isinstance(frames[0].info.get('duration', None), list):
+        duration = frames[0].info['duration']
+    else:
+        duration = [frame.info.get('duration', 20) for frame in frames]
+    return duration
+
+
+def func_to_gif(img, f, get_raw=True):
+    if max(img.size) > 600:
+        frames = [resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
+                  for frame in ImageSequence.Iterator(img)]
+    else:
+        frames = [frame.convert('RGBA') for frame in ImageSequence.Iterator(img)]
+
+    if len(frames) > 100:
+        raise ValueError('Maximum amount of frames is 100')
+
+    images = []
+    for frame in frames:
+        images.append(f(frame))
+
+    data = BytesIO()
+    duration = get_duration(frames)
+    images[0].info['duration'] = duration
+    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535)
+    data.seek(0)
+    if get_raw:
+        data = optimize_gif(data.getvalue())
+    else:
+        data = Image.open(data)
+
+    return data
+
+
+def gradient_flash(im, get_raw=True, transparency=None):
     """
     When get_raw is True gif is optimized with magick fixing some problems that PIL
     creates. It is the suggested method of using this funcion
     """
-    if max(im.size) > 600:
-        frames = [resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
-                  for frame in ImageSequence.Iterator(im)]
-    else:
-        frames = [frame.convert('RGBA') for frame in ImageSequence.Iterator(im)]
 
-    while len(frames) <= 25:
+    frames = []
+    if max(im.size) > 600:
+        def f(frame):
+            return resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
+    else:
+        def f(frame):
+            return frame.convert('RGBA')
+
+    while True:
+        frames.append(f(im))
+        if len(frames) > 120:
+            raise Exception('fuck this')
+        try:
+            im.seek(im.tell() + 1)
+        except EOFError:
+            frames[-1] = f(im)
+            break
+
+    if transparency is None and im.mode == 'RGBA' or im.info.get('background', None) is not None or im.info.get('transparency', None) is not None:
+        transparency = True
+
+    extended = 1
+    while len(frames) <= 20:
         frames.extend([frame.copy() for frame in frames])
+        extended += 1
 
     gradient = Color('red').range_to('#ff0004', len(frames))
     frames_ = zip(frames, gradient)
-
     images = []
     try:
         for frame in frames_:
             frame, g = frame
             img = Image.new('RGBA', im.size, tuple(map(lambda v: int(v*255), g.get_rgb())))
             img = ImageChops.multiply(frame, img)
-            img = Image.composite(img, frame, frame)
+            if transparency:
+                # Use a mask to map the transparent area in the gif frame
+                # optimize MUST be set to False when saving or transparency
+                # will most likely be broken
+                # source http://www.pythonclub.org/modules/pil/convert-png-gif
+                alpha = img.split()[3]
+                img = img.convert('P', palette=Image.ADAPTIVE, colors=255)
+                mask = Image.eval(alpha, lambda a: 255 if a <= 128 else 0)
+                img.paste(255, mask=mask)
+                img.info['transparency'] = 255
+                img.info['background'] = 255
             images.append(img)
     except Exception as e:
         logger.exception('{} Failed to create gif'.format(e))
@@ -548,11 +581,12 @@ def gradient_flash(im, get_raw=True):
     data = BytesIO()
     if isinstance(frames[0].info.get('duration', None), list):
         duration = frames[0].info['duration']
+        for i in range(1, extended):
+            duration.extend(duration)
     else:
         duration = [frame.info.get('duration', 20) for frame in frames]
 
-    images[0].info['duration'] = duration
-    images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535)
+    images[0].save(data, format='gif', duration=duration, save_all=True, append_images=images[1:], loop=65535, disposal=2, optimize=False)
 
     data.seek(0)
     if get_raw:
@@ -564,7 +598,7 @@ def gradient_flash(im, get_raw=True):
 
 
 def optimize_gif(gif_bytes):
-    cmd = '{}convert - -dither none -deconstruct -layers optimize -matte -depth 8 gif:-'.format(MAGICK)
+    cmd = '{}convert - -dither none -deconstruct -layers optimize -dispose background -matte -depth 8 gif:-'.format(MAGICK)
     p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(gif_bytes)
     out, err = p.communicate()

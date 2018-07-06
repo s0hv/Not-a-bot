@@ -34,7 +34,7 @@ terminal = logging.getLogger('terminal')
 class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
-                 'options', 'dl_folder', '_downloading', 'on_ready', 'player',
+                 'options', 'dl_folder', '_downloading', 'on_ready', 'volume',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
@@ -58,14 +58,14 @@ class Song:
 
         self.options = kwargs.pop('options', '')
         if '-vn -b:a' not in self.options:
-            self.options = ' '.join((self.options, '-vn -b:a 128k')).strip()
+            self.options = ' '.join((self.options, '-vn -b:a 128k -bufsize 256K')).strip()
 
         self.dl_folder = self.playlist.downloader.dl_folder
         self._downloading = False
         self.on_ready = asyncio.Event()
-        self.player = None
         self.bpm = None
         self.last_update = 0
+        self.volume = None
 
     @classmethod
     def from_song(cls, song, **kwargs):
@@ -115,7 +115,7 @@ class Song:
             return
 
         self._downloading = True
-        logger.debug('Started downloading %s' % self.long_str)
+        logger.debug(f'Started downloading {self.long_str}')
         try:
             dl = self.config.download
 
@@ -126,9 +126,9 @@ class Song:
             loop = self.playlist.bot.loop
             if dl:
                 if not os.path.exists(self.dl_folder):
-                    terminal.info('Making directory %s' % self.dl_folder)
+                    terminal.info(f'Making directory {self.dl_folder}')
                     os.makedirs(self.dl_folder)
-                    logger.debug('Created dir {}'.format(self.dl_folder))
+                    logger.debug(f'Created dir {self.dl_folder}')
 
                 if self.filename is not None and os.path.exists(self.filename):
                     self.success = True
@@ -168,7 +168,7 @@ class Song:
 
         except Exception as e:
             logger.debug('Download error: {}'.format(e))
-            await self.playlist.bot.send_message(self.playlist.channel, 'Failed to download {0}\n{1}'.format(self.title, e))
+            await self.playlist.channel.send('Failed to download {0}\n{1}'.format(self.title, e))
 
         finally:
             self._downloading = False

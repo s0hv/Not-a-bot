@@ -6,21 +6,26 @@ from functools import partial
 from io import BytesIO
 from random import randint, random
 
-from PIL import Image, ImageSequence, ImageFont, ImageDraw
+from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops
 from discord.ext.commands import cooldown, BucketType
-from selenium.webdriver import PhantomJS
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver import Chrome
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 import time
 import base64
+from discord import File
 
 from bot.bot import command
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
-                              gradient_flash, sepia, optimize_gif)
+                              gradient_flash, sepia, optimize_gif, func_to_gif)
 from utils.utilities import get_image_from_message, find_coeffs
+from selenium.common.exceptions import UnexpectedAlertPresentException
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
 
 
@@ -35,9 +40,18 @@ class Pokefusion:
         self._client = client
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
         self._driver_lock = Lock(loop=bot.loop)
-        self.driver = PhantomJS(bot.config.phantomjs)
         self._bot = bot
         self._update_lock = Lock(loop=bot.loop)
+
+        p = self.bot.config.chromedriver
+        options = Options()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu')
+        binary = self.bot.config.chrome
+        if binary:
+            options.binary_location = binary
+
+        self.driver = Chrome(p, chrome_options=options)
 
     @property
     def bot(self):
@@ -97,7 +111,7 @@ class Pokefusion:
                 self._pokemon[name.lower()] = idx + 1
                 self._poke_reverse[idx + 1] = name.lower()
 
-            self._last_dex_number = len(pokemon)
+            self._last_dex_number = len(pokemon) - 1
             types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
             await self.cache_types(start=max(len(list(types)), 1))
             self._last_updated = time.time()
@@ -118,7 +132,7 @@ class Pokefusion:
         return n if n <= self.last_dex_number else None
 
     def get_pokemon(self, name):
-        if name == self.RANDOM:
+        if name == self.RANDOM and self.last_dex_number > 0:
             return randint(1, self._last_dex_number)
         if self.is_dex_number(name):
             return int(name)
@@ -147,7 +161,8 @@ class Pokefusion:
     async def fuse(self, poke1=RANDOM, poke2=RANDOM, poke3=None):
         # Update cache once per day
         if time.time() - self._last_updated > 86400:
-            await self.update_cache()
+            if not await self.update_cache():
+                raise BotException('Could not cache pokemon')
 
         dex_n = []
         for p in (poke1, poke2):
@@ -165,7 +180,12 @@ class Pokefusion:
 
         url = 'http://pokefusion.japeal.com/PKMColourV5.php?ver=3.2&p1={}&p2={}&c={}&e=noone'.format(*dex_n, color)
         async with self._driver_lock:
-            await self.get_url(url)
+            try:
+                await self.get_url(url)
+            except UnexpectedAlertPresentException:
+                self.driver.switch_to.alert.accept()
+                raise BotException('Invalid pokemon given')
+
             data = self.driver.execute_script("return document.getElementById('image1').src")
             types = self.driver.execute_script("return document.querySelectorAll('*[width=\"30\"]')")
             name = self.driver.execute_script("return document.getElementsByTagName('b')[0].textContent")
@@ -203,7 +223,7 @@ class Pokefusion:
         font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 36)
         draw = ImageDraw.Draw(bg)
         w, h = draw.textsize(name, font)
-        draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - 5), name, font=font, fill='black')
+        draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - h), name, font=font, fill='black')
 
         s = 'Fusion of {} and {}'.format(self._poke_reverse[dex_n[0]], self._poke_reverse[dex_n[1]])
         if color:
@@ -214,38 +234,48 @@ class Pokefusion:
 class Fun(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.driver = PhantomJS(self.bot.config.phantomjs)
         self.threadpool = ThreadPoolExecutor(3)
         self._driver_lock = Lock(loop=bot.loop)
         self.queue = Queue(loop=bot.loop)
         self.queue.put_nowait(1)
-        self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
+        try:
+            self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
+        except WebDriverException:
+            terminal.exception('failed to load pokefusion')
+            self._pokefusion = None
+
+    @staticmethod
+    def save_image(img, format='PNG'):
+        data = BytesIO()
+        img.save(data, format)
+        data.seek(0)
+        return data
 
     async def _get_image(self, ctx, image):
-        img = get_image_from_message(ctx, image)
+        img = await get_image_from_message(ctx, image)
         if img is None:
             if image is not None:
-                await self.bot.say('No image found from %s' % image)
+                await ctx.send(f'No image found from {image}')
             else:
-                await self.bot.say('Please input a mention, emote or an image when using the command')
+                await ctx.send('Please input a mention, emote or an image when using the command')
 
             return
 
-        img = await self._dl_image(img)
+        img = await self._dl_image(ctx, img)
         return img
 
-    async def _dl_image(self, url):
+    async def _dl_image(self, ctx, url):
         try:
             img = await image_from_url(url, self.bot.aiohttp_client)
         except OverflowError:
-            await self.bot.say('Failed to download. File is too big')
+            await ctx.send('Failed to download. File is too big')
         except TypeError:
-            await self.bot.say('Link is not a direct link to an image')
+            await ctx.send('Link is not a direct link to an image')
         else:
             return img
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(3, 5, type=BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths(self, ctx, image=None):
         """Generate a top 10 anime deaths image based on provided image"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths.png')
@@ -253,7 +283,7 @@ class Fun(Cog):
         if img is None:
             return
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         x, y = 9, 10
         w, h = 854, 480
         template = Image.open(path)
@@ -270,10 +300,10 @@ class Fun(Cog):
         file = BytesIO()
         template.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
+        await ctx.send(file=File(file, filename='top10-anime-deaths.png'))
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(3, 5, type=BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths2(self, ctx, image=None):
         """same as anime_deaths but with a transparent bg"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths2.png')
@@ -281,7 +311,7 @@ class Fun(Cog):
         if img is None:
             return
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         x, y = 9, 10
         w, h = 854, 480
         template = Image.open(path)
@@ -298,10 +328,10 @@ class Fun(Cog):
         file = BytesIO()
         template.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='top10-anime-deaths.png')
+        await ctx.send(file=File(file, filename='top10-anime-deaths.png'))
 
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(3, 5, type=BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(3, 5, type=BucketType.guild)
     async def trap(self, ctx, image=None):
         """Is it a trap?
         """
@@ -312,7 +342,7 @@ class Fun(Cog):
         path = os.path.join(TEMPLATES, 'is_it_a_trap.png')
         path2 = os.path.join(TEMPLATES, 'is_it_a_trap_layer.png')
         img = img.convert("RGBA")
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         x, y = 820, 396
         w, h = 355, 505
         rotation = -22.5
@@ -331,16 +361,16 @@ class Fun(Cog):
         file = BytesIO()
         template.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='is_it_a_trap.png')
+        await ctx.send(file=File(file, filename='is_it_a_trap.png'))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['jotaro_no'])
-    @cooldown(3, 5, BucketType.server)
+    @command(ignore_extra=True, aliases=['jotaro_no'])
+    @cooldown(3, 5, BucketType.guild)
     async def jotaro(self, ctx, image=None):
         """Jotaro wasn't pleased"""
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         # The size we want from the transformation
         width = 524
         height = 326
@@ -366,10 +396,10 @@ class Fun(Cog):
         file = BytesIO()
         white.save(file, format='PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='jotaro_no.png')
+        await ctx.send(file=File(file, filename='jotaro_no.png'))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['jotaro_photo'])
-    @cooldown(2, 5, BucketType.server)
+    @command(ignore_extra=True, aliases=['jotaro_photo'])
+    @cooldown(2, 5, BucketType.guild)
     async def jotaro2(self, ctx, image=None):
         """Jotaro takes an image and looks at it"""
         # Set to false because discord doesn't embed it correctly
@@ -379,7 +409,7 @@ class Fun(Cog):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         r = 34.7
         x = 6
@@ -427,18 +457,18 @@ class Fun(Cog):
         file = BytesIO()
         frames[0].save(file, format=extension, save_all=True, append_images=frames[1:], duration=duration, **kwargs)
         if file.tell() > 8000000:
-            return await self.bot.say('Generated image was too big in filesize')
+            return await ctx.send('Generated image was too big in filesize')
         file.seek(0)
         file = await self.bot.loop.run_in_executor(self.threadpool, partial(optimize_gif, file.getvalue()))
-        await self.bot.send_file(ctx.message.channel, file, filename='jotaro_photo.{}'.format(extension))
+        await ctx.send(file=File(file, filename='jotaro_photo.{}'.format(extension)))
 
-    @command(pass_context=True, ignore_extra=True, aliases=['jotaro3'])
-    @cooldown(2, 5, BucketType.server)
+    @command(ignore_extra=True, aliases=['jotaro3'])
+    @cooldown(2, 5, BucketType.guild)
     async def jotaro_smile(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         im = Image.open(os.path.join(TEMPLATES, 'jotaro_smile.png'))
         img = img.convert('RGBA')
@@ -457,10 +487,10 @@ class Fun(Cog):
         file = BytesIO()
         i.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='jotaro.png')
+        await ctx.send(file=File(file, filename='jotaro.png'))
 
-    @command(pass_context=True, aliases=['tbc'], ignore_extra=True)
-    @cooldown(2, 5, BucketType.server)
+    @command(aliases=['tbc'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
     async def tobecontinued(self, ctx, image=None, no_sepia=False):
         """Make a to be continued picture
         Usage: {prefix}{name} `image/emote/mention` `[optional sepia filter off] on/off`
@@ -470,7 +500,7 @@ class Fun(Cog):
         if not img:
             return
 
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
         if not no_sepia:
             img = sepia(img)
 
@@ -497,15 +527,15 @@ class Fun(Cog):
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, filename='To_be_continued.png')
+        await ctx.send(file=File(file, filename='To_be_continued.png'))
 
-    @command(pass_context=True, aliases=['heaven', 'heavens_door'], ignore_extra=True)
-    @cooldown(2, 5, BucketType.server)
+    @command(aliases=['heaven', 'heavens_door'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
     async def overheaven(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if not img:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         overlay = Image.open(os.path.join(TEMPLATES, 'heaven.png'))
         base = Image.open(os.path.join(TEMPLATES, 'heaven_base.png'))
@@ -520,15 +550,15 @@ class Fun(Cog):
         data = BytesIO()
         base.save(data, 'PNG')
         data.seek(0)
-        await self.bot.send_file(ctx.message.channel, data, filename='overheaven.png')
+        await ctx.send(file=File(data, filename='overheaven.png'))
 
-    @command(pass_context=True, aliases=['puccireset'], ignore_extra=True)
-    @cooldown(2, 5, BucketType.server)
+    @command(aliases=['puccireset'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
     async def pucci(self, ctx, image=None):
         img = await self._get_image(ctx, image)
         if not img:
             return
-        await self.bot.send_typing(ctx.message.channel)
+        await ctx.trigger_typing()
 
         img = img.convert('RGBA')
         im = Image.open(os.path.join(TEMPLATES, 'pucci_bg.png'))
@@ -542,41 +572,55 @@ class Fun(Cog):
         data = BytesIO()
         im.save(data, 'PNG')
         data.seek(0)
-        await self.bot.send_file(ctx.message.channel, data, filename='pucci_reset.png')
+        await ctx.send(file=File(data, filename='pucci_reset.png'))
 
-    async def get_url(self, url):
-        # Attempt at making phantomjs async friendly
-        # After visiting the url remember to put 1 item in self.queue
-        # Otherwise the browser will be locked
-
-        # If lock is not locked lock it until this operation finishes
-        unlock = False
-        if not self._driver_lock.locked():
-            await self._driver_lock.acquire()
-            unlock = True
-
-        f = partial(self.driver.get, url)
-        await self.bot.loop.run_in_executor(self.threadpool, f)
-        if unlock:
-            try:
-                self._driver_lock.release()
-            except RuntimeError:
-                pass
-
-    @command(pass_context=True, ignore_extra=True)
-    @cooldown(1, 10, BucketType.server)
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
     async def party(self, ctx, image=None):
         """Takes a long ass time to make the gif"""
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        channel = ctx.message.channel
-        await self.bot.send_typing(channel)
-        img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
-        await self.bot.send_file(channel, img, filename='party.gif')
 
-    @command(pass_context=True, ignore_extra=True, aliases=['poke'])
-    @cooldown(2, 2, type=BucketType.server)
+        async with ctx.typing():
+            img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True))
+        await ctx.send(content=f"Use {ctx.prefix}party2 if transparency guess went wrong",
+                       file=File(img, filename='party.gif'))
+
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def party2(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        async with ctx.typing():
+            img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True, transparency=False))
+        await ctx.send(file=File(img, filename='party.gif'))
+
+    @command(ignore_extra=True)
+    @cooldown(2, 2, type=BucketType.guild)
+    async def blurple(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+        im = Image.new('RGBA', img.size, color='#7289DA')
+        img = img.convert('RGBA')
+        if img.format == 'GIF':
+            def multiply(frame):
+                return ImageChops.multiply(frame, im)
+
+            data = await self.bot.loop.run_in_executor(self.threadpool, partial(func_to_gif, img, multiply,  get_raw=True))
+            name = 'blurple.gif'
+        else:
+            img = ImageChops.multiply(img, im)
+            data = self.save_image(img)
+            name = 'blurple.png'
+
+        await ctx.send(file=File(data, filename=name))
+
+    @command(ignore_extra=True, aliases=['poke'])
+    @cooldown(2, 2, type=BucketType.guild)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):
         """
         Gets a random pokemon fusion from http://pokefusion.japeal.com
@@ -584,20 +628,21 @@ class Fun(Cog):
         Color poke defines the pokemon whose color palette will be used. By default it's not used
         Passing % as a parameter will randomize that value
         """
-
-        await self.bot.send_typing(ctx.message.channel)
+        if not self._pokefusion:
+            return await ctx.send('Pokefusion not supported')
+        await ctx.trigger_typing()
         img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)
-        await self.bot.send_file(ctx.message.channel, file, content=s, filename='pokefusion.png')
+        await ctx.send(s, file=File(file, filename='pokefusion.png'))
 
     @command(owner_only=True)
-    async def update_poke_cache(self):
+    async def update_poke_cache(self, ctx):
         if await self._pokefusion.update_cache() is False:
-            await self.bot.say('Failed to update cache')
+            await ctx.send('Failed to update cache')
         else:
-            await self.bot.say('Successfully updated cache')
+            await ctx.send('Successfully updated cache')
 
 
 def setup(bot):

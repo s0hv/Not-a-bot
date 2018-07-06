@@ -24,6 +24,7 @@ SOFTWARE.
 
 import configparser
 import os
+import json
 
 from bot.exceptions import InvalidOwnerIDException
 from utils.utilities import get_config_value
@@ -65,10 +66,9 @@ class Config:
 
 
         try:
-            self.owner = str(self.config.get('Owner', 'OwnerID', fallback=None))
-            int(self.owner)
+            self.owner = self.config.getint('Owner', 'OwnerID', fallback=None)
         except ValueError:
-            raise InvalidOwnerIDException('%s\nThe given OwnerID is not valid' % e)
+            raise InvalidOwnerIDException('%s\nThe given OwnerID is not valid')
 
         try:
             self.default_volume = self.config.getfloat('MusicSettings', 'DefaultVolume', fallback=0.15)
@@ -118,9 +118,20 @@ class Config:
             terminal.exception("Gachi value is not boolean. Gachi set to off")
             self.gachi = False
 
+        p = os.path.join(os.getcwd(), 'config', 'activity.json')
+        if not os.path.exists(p):
+            terminal.warning('Activity config not found')
+            self.default_activity = {}
+        else:
+            with open(p) as f:
+                # Activity config put in json because it's easier to handle in code
+                self.default_activity = json.load(f)
+
         self.game = self.config.get('BotOptions', 'Game', fallback=None)
         self.sfx_game = self.config.get('BotOptions', 'SfxGame', fallback=None)
         self.phantomjs = self.config.get('BotOptions', 'PhantomJS', fallback='phantomjs')
+        self.chromedriver = self.config.get('BotOptions', 'Chromedriver', fallback='chromedriver')
+        self.chrome = self.config.get('BotOptions', 'Chrome', fallback=None)
 
         try:
             self.delete_messages = self.config.getboolean('BotOptions', 'DeleteMessages', fallback=False)

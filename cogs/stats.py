@@ -34,7 +34,7 @@ class Stats(Cog):
                 page = int(page)
                 if page <= 0:
                     page = 1
-            except:
+            except ValueError:
                 page = 1
         else:
             page = 1

@@ -1,21 +1,21 @@
 import asyncio
 import base64
 import logging
+from math import ceil
 
 import discord
-from discord.user import BaseUser
 from discord.ext.commands import cooldown, BucketType
+from discord.user import BaseUser
 from validators import url as is_url
 
 from bot.bot import command
+from bot.converters import PossibleUser
 from bot.globals import Perms
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
-from utils.utilities import (get_emote_url, get_emote_name, send_paged_message, basic_check,
+from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
+                             basic_check,
                              create_custom_emoji)
-from math import ceil
-from bot.converters import PossibleUser
-
 
 logger = logging.getLogger('debug')
 

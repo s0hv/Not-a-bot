@@ -1,7 +1,9 @@
-from discord.ext.commands import converter
 import re
-from discord.ext.commands.errors import BadArgument
+
 import discord
+from discord.ext.commands import converter
+from discord.ext.commands.errors import BadArgument
+
 from utils.utilities import parse_time
 
 

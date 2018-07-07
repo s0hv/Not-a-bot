@@ -26,6 +26,7 @@ SOFTWARE.
 """
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import discord
 from sqlalchemy import create_engine
@@ -33,8 +34,6 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot.bot import Bot, command
 from bot.dbutil import DatabaseUtils
-from concurrent.futures import ThreadPoolExecutor
-
 
 terminal = logging.getLogger('terminal')
 

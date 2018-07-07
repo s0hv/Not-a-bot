@@ -1,24 +1,23 @@
-import logging
-
-from discord.ext.commands import cooldown, BucketType, check
-
-from bot.bot import command
-from bot.globals import Perms
-from cogs.cog import Cog
-from utils.utilities import (get_role, get_user_id, split_string, find_user,
-                             parse_time, datetime2sql, call_later, get_avatar,
-                             retry, send_paged_message)
-from bot.formatter import Paginator
-import subprocess
-import shlex
 import asyncio
+import logging
+import shlex
+import subprocess
 from datetime import datetime
 from random import randint, random
-from sqlalchemy.exc import SQLAlchemyError
-from discord.errors import HTTPException
+
 import discord
+from discord.errors import HTTPException
+from discord.ext.commands import cooldown, BucketType, check
 from numpy.random import choice
-import asyncio
+from sqlalchemy.exc import SQLAlchemyError
+
+from bot.bot import command
+from bot.formatter import Paginator
+from bot.globals import Perms
+from cogs.cog import Cog
+from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
+                             get_avatar,
+                             retry, send_paged_message)
 
 logger = logging.getLogger('debug')
 

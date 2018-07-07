@@ -22,12 +22,13 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
+import logging
 import os
+import shutil
 from os.path import join
 from pathlib import Path
-import shutil
+
 from discord import Permissions as Permissions_
-import logging
 
 terminal = logging.getLogger('terminal')
 

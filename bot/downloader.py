@@ -24,12 +24,12 @@ SOFTWARE.
 
 import asyncio
 import functools
+import logging
 import os
-
 from concurrent.futures import ThreadPoolExecutor
 
 import youtube_dl
-import logging
+
 terminal = logging.getLogger('terminal')
 
 

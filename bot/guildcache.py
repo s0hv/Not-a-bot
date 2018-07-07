@@ -1,7 +1,8 @@
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
 from bot.exceptions import (NotEnoughPrefixes, PrefixExists,
                             PrefixDoesntExist)
-from sqlalchemy.exc import SQLAlchemyError
 
 
 class GuildCache:

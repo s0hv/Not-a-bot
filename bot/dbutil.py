@@ -1,4 +1,5 @@
 import logging
+import time
 
 import discord
 from discord.errors import InvalidArgument
@@ -6,7 +7,6 @@ from sqlalchemy.exc import SQLAlchemyError, DBAPIError
 
 from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
-import time
 
 logger = logging.getLogger('debug')
 

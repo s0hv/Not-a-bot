@@ -1,13 +1,15 @@
 import inspect
 import itertools
-from discord.ext.commands import Command
-from discord.ext.commands.formatter import HelpFormatter
-from discord import Embed
-from discord.ext.commands.errors import CommandError
-from utils.utilities import check_perms, is_superset
-from sqlalchemy.exc import SQLAlchemyError
 import logging
+
 import colors
+from discord import Embed
+from discord.ext.commands import Command
+from discord.ext.commands.errors import CommandError
+from discord.ext.commands.formatter import HelpFormatter
+from sqlalchemy.exc import SQLAlchemyError
+
+from utils.utilities import check_perms
 
 logger = logging.getLogger('debug')
 

@@ -26,9 +26,9 @@ import logging
 from collections import deque
 
 from aiohttp import ClientSession
+from discord.ext.commands import cooldown
 
 from bot.bot import command
-from discord.ext.commands import cooldown
 from utils.utilities import send_paged_message
 
 logger = logging.getLogger('debug')

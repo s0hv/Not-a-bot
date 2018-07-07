@@ -27,9 +27,9 @@ import logging
 import os
 import random
 import re
-import time
 from collections import deque
 from functools import partial
+from math import ceil
 from math import floor
 
 from discord.activity import Activity, ActivityType
@@ -46,8 +46,6 @@ from bot.globals import Auth
 from bot.playlist import Playlist
 from bot.song import Song
 from utils.utilities import mean_volume, search, parse_seek
-import time
-from math import ceil
 
 try:
     import aubio

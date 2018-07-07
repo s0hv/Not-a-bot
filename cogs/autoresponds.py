@@ -1,7 +1,6 @@
-from cogs.cog import Cog
 import re
-from discord import Client
 
+from cogs.cog import Cog
 
 r = re.compile('(?:^| )billy(?: |$)')
 

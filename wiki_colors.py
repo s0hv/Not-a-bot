@@ -1,7 +1,7 @@
-from bs4 import BeautifulSoup
-import requests
 import json
 
+import requests
+from bs4 import BeautifulSoup
 
 url = 'https://en.wikipedia.org/wiki/List_of_colors_(compact)'
 r = requests.get(url)

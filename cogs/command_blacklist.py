@@ -9,7 +9,8 @@ from bot.bot import command, group
 from bot.formatter import Paginator
 from bot.globals import BlacklistTypes, PermValues
 from cogs.cog import Cog
-from utils.utilities import (check_channel_mention, check_role_mention, check_user_mention,
+from utils.utilities import (check_channel_mention, check_role_mention,
+                             check_user_mention,
                              split_string, get_role, send_paged_message)
 
 logger = logging.getLogger('debug')

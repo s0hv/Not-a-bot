@@ -1,5 +1,5 @@
-from cogs.cog import Cog
 from bot.bot import command
+from cogs.cog import Cog
 
 
 class gachiGASM(Cog):

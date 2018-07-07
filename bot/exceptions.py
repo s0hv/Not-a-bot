@@ -23,8 +23,9 @@ SOFTWARE.
 """
 
 
-from discord.ext.commands.errors import CommandError
 import logging
+
+from discord.ext.commands.errors import CommandError
 
 terminal = logging.getLogger('terminal')
 

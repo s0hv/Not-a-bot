@@ -35,14 +35,14 @@ from datetime import timedelta
 from random import randint
 
 import discord
-from discord import abc
 import numpy
+from discord import abc
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
-from bot.paged_message import PagedMessage
 
 from bot.exceptions import NoCachedFileException, PermException
 from bot.globals import BlacklistTypes, PermValues
+from bot.paged_message import PagedMessage
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')

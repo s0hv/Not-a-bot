@@ -34,7 +34,6 @@ from numpy import random
 
 from bot.formatter import Paginator
 from bot.player import FFmpegPCMAudio, play
-from discord.player import PCMVolumeTransformer
 
 try:
     from gtts import gTTS

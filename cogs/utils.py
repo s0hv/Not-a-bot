@@ -1,20 +1,22 @@
 import logging
 import os
-from utils.unzalgo import unzalgo, is_zalgo
 import shlex
 import subprocess
 import sys
 import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
-import psutil
 
 import discord
+import psutil
 from discord.ext.commands import cooldown, BucketType
 from sqlalchemy.exc import SQLAlchemyError
+
 from bot.bot import command
 from cogs.cog import Cog
-from utils.utilities import (random_color, get_avatar, split_string, get_emote_url,
+from utils.unzalgo import unzalgo, is_zalgo
+from utils.utilities import (random_color, get_avatar, split_string,
+                             get_emote_url,
                              send_paged_message)
 
 logger = logging.getLogger('debug')

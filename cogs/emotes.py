@@ -2,8 +2,8 @@ from discord.ext import commands
 from discord.ext.commands import cooldown
 
 from bot.bot import group
-from utils.utilities import split_string
 from cogs.cog import Cog
+from utils.utilities import split_string
 
 
 class Emotes(Cog):

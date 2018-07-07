@@ -2,8 +2,9 @@ import logging
 from random import choice
 
 import discord
-from utils.utilities import Snowflake
+
 from cogs.cog import Cog
+from utils.utilities import Snowflake
 
 logger = logging.getLogger('debug')
 

@@ -2,14 +2,11 @@ import logging
 
 import discord
 from discord.ext.commands import cooldown, BucketType
-from sqlalchemy import text
-from sqlalchemy.dialects import mysql
-from bot.converters import PossibleUser
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
+from bot.converters import PossibleUser
 from cogs.cog import Cog
-from utils.utilities import check_user_mention
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')

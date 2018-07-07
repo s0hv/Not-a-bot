@@ -1,9 +1,10 @@
-from cogs.cog import Cog
-from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST, AUTOPLAYLIST
-from utils.utilities import read_lines, empty_file, write_playlist, test_url
-from bot.bot import command
-from bot.globals import Auth
 import logging
+
+from bot.bot import command
+from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST, AUTOPLAYLIST
+from bot.globals import Auth
+from cogs.cog import Cog
+from utils.utilities import read_lines, empty_file, write_playlist, test_url
 
 terminal = logging.getLogger('terminal')
 

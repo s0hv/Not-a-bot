@@ -22,7 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import hashlib
 import logging
 import os
 import subprocess
@@ -38,11 +37,10 @@ import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageSequence
 from colorthief import ColorThief as CF
 from colour import Color
-from geopatterns import svg
 from geopatterns.utils import promap
 from numpy import sqrt
-from bot.exceptions import ImageSizeException
 
+from bot.exceptions import ImageSizeException
 
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import

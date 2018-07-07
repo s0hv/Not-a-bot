@@ -1,12 +1,12 @@
+import asyncio
 import logging
+from queue import Queue
 
 from discord import errors
 from discord.abc import PrivateChannel
 from discord.embeds import EmptyEmbed
 from sqlalchemy import exc
 from sqlalchemy.exc import SQLAlchemyError
-from queue import Queue
-import asyncio
 
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_delete, format_on_edit,

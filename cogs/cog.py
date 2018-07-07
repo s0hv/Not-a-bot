@@ -1,6 +1,8 @@
-from discord.ext.commands import GroupMixin, Command
-import inspect
 import asyncio
+import inspect
+
+from discord.ext.commands import GroupMixin, Command
+
 
 # By subclassing GroupMixin we can iterate over all commands in a cog
 class Cog(GroupMixin):

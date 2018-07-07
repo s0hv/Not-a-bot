@@ -1,20 +1,21 @@
+import base64
 import logging
 import os
+import time
 from asyncio import Queue, Lock
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from io import BytesIO
-from random import randint, random
+from random import randint
 
 from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops
+from bs4 import BeautifulSoup
+from discord import File
 from discord.ext.commands import cooldown, BucketType
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
-from bs4 import BeautifulSoup
-import time
-import base64
-from discord import File
 
 from bot.bot import command
 from bot.exceptions import NoPokeFoundException, BotException
@@ -22,7 +23,6 @@ from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
                               gradient_flash, sepia, optimize_gif, func_to_gif)
 from utils.utilities import get_image_from_message, find_coeffs
-from selenium.common.exceptions import UnexpectedAlertPresentException
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')

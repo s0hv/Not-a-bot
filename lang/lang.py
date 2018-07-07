@@ -1,9 +1,6 @@
-import gettext
 import builtins
-import logging
-import os
 import inspect
-
+import logging
 
 terminal = logging.getLogger('terminal')
 

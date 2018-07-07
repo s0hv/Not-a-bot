@@ -1,5 +1,4 @@
 from cogs.cog import Cog
-from bot.bot import command
 
 
 class Admin(Cog):

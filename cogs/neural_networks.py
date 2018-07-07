@@ -1,8 +1,11 @@
-from cogs.cog import Cog
-import re
 import logging
-from utils import unzalgo
+import re
+
 from sqlalchemy.exc import SQLAlchemyError
+
+from cogs.cog import Cog
+from utils import unzalgo
+
 logger = logging.getLogger('debug')
 
 

@@ -36,10 +36,8 @@ from bot import exceptions
 from bot.bot import Bot
 from bot.cooldown import CooldownManager
 from bot.dbutil import DatabaseUtils
-from bot.globals import BlacklistTypes
 from bot.guildcache import GuildCache
-from utils.utilities import (split_string, slots2dict, retry, random_color,
-                             check_perms)
+from utils.utilities import (split_string, slots2dict, retry, random_color)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')

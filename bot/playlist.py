@@ -35,9 +35,9 @@ from validators import url as valid_url
 
 from bot.downloader import Downloader
 from bot.globals import CACHE, PLAYLISTS
+from bot.paged_message import PagedMessage
 from bot.song import Song
 from utils.utilities import (read_lines, write_playlist, timestamp, seconds2str)
-from bot.paged_message import PagedMessage
 
 terminal = logging.getLogger('terminal')
 

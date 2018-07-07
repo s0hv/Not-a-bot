@@ -1,4 +1,3 @@
-import audioop
 import logging
 import shlex
 import subprocess
@@ -7,6 +6,7 @@ import time
 from discord import player
 from discord.errors import ClientException
 from discord.opus import Encoder as OpusEncoder
+
 from utils.utilities import seek_to_sec
 
 log = logging.getLogger('discord')

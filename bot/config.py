@@ -23,12 +23,12 @@ SOFTWARE.
 """
 
 import configparser
-import os
 import json
+import logging
+import os
 
 from bot.exceptions import InvalidOwnerIDException
 from utils.utilities import get_config_value
-import logging
 
 terminal = logging.getLogger('terminal')
 

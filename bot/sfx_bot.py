@@ -90,7 +90,7 @@ class Ganypepe(Bot):
         try:
             cmd = command('test')(self.test)
             self.add_command(cmd)
-        except (TypeError, discord.ClientException) as e:
+        except (TypeError, discord.ClientException):
             pass
 
     async def test(self, ctx):

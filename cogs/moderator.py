@@ -232,7 +232,7 @@ class Moderator(Cog):
         That means automutes won't triggered from messages sent in those channels"""
         guild = ctx.guild
         channels = self.automute_blacklist.get(guild.id, ())
-        channels = map(lambda c: guild.get_channel(c), channels)
+        channels = map(guild.get_channel, channels)
         channels = [c for c in channels if c]
         if not channels:
             return await ctx.send('No channels blacklisted from automutes')
@@ -891,7 +891,7 @@ class Moderator(Cog):
     async def delete_messages(channel, message_ids):
         """Delete messages in bulk and take the message limit into account"""
         step = 100
-        for idx in range(0, len(message_ids), step):
+        for _ in range(0, len(message_ids), step):
             await channel.delete_messages(message_ids)
 
     def get_modlog(self, guild):

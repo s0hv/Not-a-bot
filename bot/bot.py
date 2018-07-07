@@ -321,7 +321,7 @@ class Bot(commands.Bot, Client):
             pages = await self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
 
         if self.pm_help is None:
-            characters = sum(map(lambda l: len(l), pages))
+            characters = sum(map(len, pages))
             # modify destination based on length of pages.
             if characters > 1000:
                 destination = ctx.message.author

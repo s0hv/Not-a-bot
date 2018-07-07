@@ -134,26 +134,6 @@ def iv_range(level, natures, stats, base):
 
         return list(range(iv_small, iv_big+1))
 
-        if iv_guess > 0:
-            for r in range(1, 16):
-                iv = iv_guess - r
-                stat_new = get_stat(iv, base, ev=102, level=level)
-                if stat_new != stat:
-                    iv_small = iv + 1
-                    break
-
-        for r in range(1, 16):
-            iv = iv_guess + r
-            stat_new = get_stat(iv, base, ev=102, level=level)
-            if stat_new != stat:
-                iv_big = iv - 1
-                break
-            if iv == 31:
-                iv_big = iv
-                break
-
-        return list(range(iv_small, iv_big + 1))
-
     ivs.append(get_range(calc_hp_stats, calc_hp_iv, stats[0], base[0]))
     for stat, base_, nature in zip(stats[1:], base[1:], natures):
         ivs.append(get_range(calc_stat, calc_iv, stat, base_, nature=nature))

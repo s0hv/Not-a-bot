@@ -175,7 +175,7 @@ class Song:
             self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
 
     async def delete_file(self):
-        for i in range(0, 2):
+        for _ in range(0, 2):
             try:
                 if not os.path.exists(self.filename):
                     return
@@ -185,4 +185,3 @@ class Song:
                 break
             except PermissionError:
                 await asyncio.sleep(1)
-                pass

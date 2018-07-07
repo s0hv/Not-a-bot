@@ -373,7 +373,7 @@ class JoJo:
         bg_color = Color(color)
         shift_color(color, shift)  # Shift color hue and saturation so it's not the same as the bg
 
-        fig, ax = self.create_stats_circle(color=color.get_hex_l(), bg_color=bg_color, **stats)
+        fig, _ = self.create_stats_circle(color=color.get_hex_l(), bg_color=bg_color, **stats)
         path = os.path.join(IMAGES_PATH, 'stats.png')
         with self.stat_lock:
             try:

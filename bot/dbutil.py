@@ -262,7 +262,7 @@ class DatabaseUtils:
         if not channel_ids:
             return True
 
-        channel_ids = ', '.join(map(lambda cid: str(cid), channel_ids))
+        channel_ids = ', '.join(map(str, channel_ids))
         sql = f'DELETE FROM `automute_blacklist` WHERE guild={guild_id} AND channel IN ({channel_ids}) '
         try:
             await self.execute(sql, commit=True)
@@ -290,7 +290,7 @@ class DatabaseUtils:
         if not role_ids:
             return True
 
-        role_ids = ', '.join(map(lambda r: str(r), role_ids))
+        role_ids = ', '.join(map(str, role_ids))
         sql = f'DELETE FROM `automute_whitelist` WHERE guild={guild_id} AND role IN ({role_ids})'
         try:
             await self.execute(sql, commit=True)

@@ -64,7 +64,7 @@ class Emotes(Cog):
         """Show global emotes on this server"""
         guild = ctx.guild
 
-        global_, local_ = self.get_emotes(guild)
+        global_, _ = self.get_emotes(guild)
         s = self._format_emotes(global_, include_name, delim)
         s = s if s else 'No global emotes'
         for s in split_string(s, maxlen=2000, splitter=delim):
@@ -76,7 +76,7 @@ class Emotes(Cog):
         """Show all non global emotes on this server"""
         guild = ctx.guild
 
-        global_, local_ = self.get_emotes(guild)
+        _, local_ = self.get_emotes(guild)
         s = self._format_emotes(local_, include_name, delim)
         s = s if s else 'No local emotes'
         for s in split_string(s, maxlen=2000, splitter=delim):

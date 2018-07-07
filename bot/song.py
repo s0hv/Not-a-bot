@@ -181,7 +181,7 @@ class Song:
                     return
 
                 os.remove(self.filename)
-                terminal.info('Deleted', self.filename)
+                terminal.info('Deleted ' + self.filename)
                 break
             except PermissionError:
                 await asyncio.sleep(1)

@@ -78,7 +78,7 @@ class Command(commands.Command):
         self.auth = kwargs.pop('auth', Auth.NONE)
 
         if [k for k in kwargs.keys() if 'perm' in k]:
-            raise PermissionError('Bad permission kwarg in command {}. Should be required_perms'.format(self, self.cog_name))
+            raise PermissionError('Bad permission kwarg in command {} in cog {}. Should be required_perms'.format(self, self.cog_name))
 
         if self.owner_only:
             terminal.info('registered owner_only command %s' % name)

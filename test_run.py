@@ -73,9 +73,36 @@ config = Config()
 if not discord.opus.is_loaded():
     discord.opus.load_opus('opus')
 
+initial_cogs = [
+    'admin',
+    'audio',
+    'autoresponds',
+    'autoroles',
+    'botadmin',
+    'botmod',
+    'colors',
+    'command_blacklist',
+    'emotes',
+    'gachiGASM',
+    'hearthstone',
+    'images',
+    'jojo',
+    'logging',
+    'misc',
+    'moderator',
+    'neural_networks',
+    'pokemon',
+    'search',
+    'server',
+    'server_specific',
+    'settings',
+    'stats',
+    'utils',
+    'voting']
+
 terminal.info('Main bot starting up')
 logger.info('Starting bots')
 from bot.sfx_bot import Ganypepe
 #bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
-bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
+bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs)
 bot.run(config.test_token)

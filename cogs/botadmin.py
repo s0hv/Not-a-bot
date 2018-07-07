@@ -360,7 +360,7 @@ class BotAdmin(Cog):
             await ctx.send(f'Added sfx {name}')
 
     @command(owner_only=True)
-    async def botban(self, ctx, user: PossibleUser, reason):
+    async def botban(self, ctx, user: PossibleUser, *, reason):
         """
         Ban someone from using this bot. Owner only
         """
@@ -378,7 +378,7 @@ class BotAdmin(Cog):
             logger.exception(f'Failed to botban user {name}{user_id}')
             return await ctx.send(f'Failed to ban user {name}`{user_id}`')
 
-        await ctx.send('Banned {name}`{user_id}` from using this bot')
+        await ctx.send(f'Banned {name}`{user_id}` from using this bot')
 
     @command(owner_only=True)
     async def botunban(self, ctx, user: PossibleUser):
@@ -399,7 +399,7 @@ class BotAdmin(Cog):
             logger.exception(f'Failed to remove botban of user {name}{user_id}')
             return await ctx.send(f'Failed to remove botban of user {name}`{user_id}`')
 
-        await ctx.send('Removed the botban of {name}`{user_id}`')
+        await ctx.send(f'Removed the botban of {name}`{user_id}`')
 
 
 def setup(bot):

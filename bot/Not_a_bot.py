@@ -44,41 +44,9 @@ from utils.utilities import (split_string, slots2dict, retry, random_color,
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
-initial_cogs = [
-    'cogs.admin',
-    'cogs.audio',
-    'cogs.autoresponds',
-    'cogs.autoroles',
-    'cogs.botadmin',
-    'cogs.botmod',
-    'cogs.colors',
-    'cogs.command_blacklist',
-    'cogs.emotes',
-    'cogs.gachiGASM',
-    'cogs.hearthstone',
-    'cogs.images',
-    'cogs.jojo',
-    'cogs.logging',
-    'cogs.misc',
-    'cogs.moderator',
-    'cogs.neural_networks',
-    'cogs.pokemon',
-    'cogs.search',
-    'cogs.server',
-    'cogs.server_specific',
-    'cogs.settings',
-    'cogs.stats',
-    'cogs.utils',
-    'cogs.voting']
-
-
-class Object:
-    def __init__(self):
-        pass
-
 
 class NotABot(Bot):
-    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
+    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, **options):
         super().__init__(self.get_command_prefix, conf, aiohttp, **options)
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
@@ -100,6 +68,11 @@ class NotABot(Bot):
         self.playlists = {}
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
+
+        if cogs:
+            self.default_cogs = ['cogs.' + c for c in cogs]
+        else:
+            self.default_cogs = []
 
     def _setup(self):
         db = 'discord' if not self.test_mode else 'test'
@@ -176,7 +149,7 @@ class NotABot(Bot):
     def _load_cogs(self, print_err=True):
         if not print_err:
             errors = []
-        for cog in initial_cogs:
+        for cog in self.default_cogs:
             try:
                 self.load_extension(cog)
             except Exception as e:
@@ -189,7 +162,7 @@ class NotABot(Bot):
             return errors
 
     def _unload_cogs(self):
-        for c in initial_cogs:
+        for c in self.default_cogs:
             self.unload_extension(c)
 
     async def on_ready(self):
@@ -233,7 +206,7 @@ class NotABot(Bot):
             return
 
         # Ignore if user is botbanned
-        if (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
+        if message.author.id != self.owner_id and (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
             return
 
         await self.process_commands(message)

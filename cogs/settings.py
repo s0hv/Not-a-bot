@@ -268,7 +268,7 @@ class Settings(Cog):
 
         await ctx.send(f'Set mute time to {mute_time}')
 
-    @group(invoke_without_command=True)
+    @group(invoke_without_command=True, no_dm=True)
     @cooldown(2, 10, BucketType.guild)
     async def on_delete(self, ctx):
         """
@@ -286,6 +286,19 @@ class Settings(Cog):
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
+
+    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
+    @cooldown(2, 10, BucketType.guild)
+    async def remove_on_delete(self, ctx):
+        """
+        Remove message logging from this server.
+        The message format will be saved if you decide to use this feature again
+        """
+        success = await self.cache.set_on_delete_channel(ctx.guild.id, None)
+        if not success:
+            return await ctx.send('Failed to remove message deletion logging')
+
+        await ctx.send('Remove deleted message logging')
 
     @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
@@ -330,7 +343,7 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(invoke_without_command=True)
+    @group(invoke_without_command=True, no_dm=True)
     @cooldown(2, 10, BucketType.guild)
     async def on_edit(self, ctx):
         """
@@ -348,6 +361,19 @@ class Settings(Cog):
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
+
+    @on_edit.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
+    @cooldown(2, 10, BucketType.guild)
+    async def remove_on_edit(self, ctx):
+        """
+        Remove edited message logging from this server.
+        The message format will be saved if you decide to use this feature again
+        """
+        success = await self.cache.set_on_edit_channel(ctx.guild.id, None)
+        if not success:
+            return await ctx.send('Failed to remove message edit logging')
+
+        await ctx.send('Remove edited message logging')
 
     @on_edit.command(name='set', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)

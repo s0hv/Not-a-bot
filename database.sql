@@ -86,7 +86,7 @@ CREATE TABLE `banned_users` (
     `user` BIGINT NOT NULL,
     `reason` TEXT NOT NULL,
     PRIMARY KEY `user_id` (`user`)
-)
+) ENGINE=InnoDB;
 
 -- https://stackoverflow.com/a/8048494/6046713 restrict row count
 CREATE TABLE `messages` (

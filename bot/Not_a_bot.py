@@ -232,6 +232,10 @@ class NotABot(Bot):
         if message.author.bot or message.author == self.user:
             return
 
+        # Ignore if user is botbanned
+        if (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
+            return
+
         await self.process_commands(message)
 
         oshit = self.cdm.get_cooldown('oshit')

@@ -29,9 +29,9 @@ class Utilities(Cog):
     async def ping(self, ctx):
         """Ping pong"""
         local_delay = datetime.utcnow().timestamp() - ctx.message.created_at.timestamp()
-        t = time.time()
+        t = time.perf_counter()
         await ctx.trigger_typing()
-        t = time.time() - t
+        t = time.perf_counter() - t
         message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms\nWebsocket ping {:.0f}ms'.format(t*1000, local_delay*1000, self.bot.latency*1000)
         if hasattr(self.bot, 'get_session'):
             sql_t = time.time()

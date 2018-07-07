@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError, DBAPIError
 
 from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
+import time
 
 logger = logging.getLogger('debug')
 
@@ -18,13 +19,29 @@ class DatabaseUtils:
     def bot(self):
         return self._bot
 
-    async def execute(self, sql, *args, commit=False, **params):
+    async def execute(self, sql, *args, commit=False, measure_time=False, **params):
+        """
+        Asynchronously run an sql query using loop.run_in_executor
+        Args:
+            sql: sql query
+            *args: args passed to execute
+            commit: Should we commit after query
+            measure_time: Return time it took to run query as well as ResultProxy
+            **params: params passed to execute
+
+        Returns:
+            ResultProxy or ResultProxy, int depending of the value of measure time
+        """
         def _execute():
             session = self.bot.get_session
             try:
+                t = time.perf_counter()
                 row = session.execute(sql, *args, **params)
                 if commit:
                     session.commit()
+
+                if measure_time:
+                    return row, time.perf_counter() - t
 
             except DBAPIError as e:
                 if e.connection_invalidated:
@@ -362,6 +379,14 @@ class DatabaseUtils:
 
         rows = (await self.execute(sql)).fetchall()
         return rows
+
+    async def botban(self, user_id, reason):
+        sql = 'INSERT INTO `banned_users` (`user`, `reason`) VALUES (:user, :reason)'
+        await self.execute(sql, {'user': user_id, 'reason': reason}, commit=True)
+
+    async def botunban(self, user_id):
+        sql = 'DELETE FROM `banned_users` WHERE user=%s' % user_id
+        await self.execute(sql, commit=True)
 
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """

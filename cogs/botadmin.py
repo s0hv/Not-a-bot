@@ -10,17 +10,20 @@ from functools import partial
 from importlib import reload, import_module
 from io import BytesIO
 from bot.globals import SFX_FOLDER
+import pprint
 
 import aiohttp
 import discord
 from discord.errors import HTTPException, InvalidArgument
 from discord.ext.commands.core import GroupMixin
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, InvalidRequestError
 from utils.utilities import y_n_check, basic_check, y_check
+from bot.converters import PossibleUser
 
 from bot.bot import command
 from bot.globals import Auth
 from cogs.cog import Cog
+from discord.user import BaseUser
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -98,6 +101,30 @@ class BotAdmin(Cog):
             retval = str(retval)
 
         await ctx.send(retval)
+
+    @command(owner_only=True, aliases=['db_eval'])
+    async def dbeval(self, ctx, *, query):
+        try:
+            r, t = await self.bot.dbutil.execute(query, commit=True, measure_time=True)
+        except SQLAlchemyError:
+            logger.exception('Failed to execute eval query')
+            return await ctx.send('Failed to execute query. Exception logged')
+
+        embed = discord.Embed(title='sql', description=f'Query ran succesfully in {t*1000:.0f} ms')
+        embed.add_field(name='input', value=f'```sql\n{query}\n```', inline=False)
+
+        if r.returns_rows:
+            rows = r.fetchall()
+            if len(rows) > 30:
+                value = f'Too many results {len(rows)} > 30'
+            else:
+                value = '```py\n' + pprint.pformat(rows, compact=True)[:1000] + '```'
+
+        else:
+            value = f'{r.rowcount} rows were inserted/modified/deleted'
+
+        embed.add_field(name='output', value=value, inline=False)
+        await ctx.send(embed=embed)
 
     def _recursively_remove_all_commands(self, command, bot=None):
         commands = []
@@ -331,6 +358,48 @@ class BotAdmin(Cog):
 
             await self.bot.loop.run_in_executor(self.bot.threadpool, write)
             await ctx.send(f'Added sfx {name}')
+
+    @command(owner_only=True)
+    async def botban(self, ctx, user: PossibleUser, reason):
+        """
+        Ban someone from using this bot. Owner only
+        """
+        if isinstance(user, BaseUser):
+            name = user.name + ' '
+            user_id = user.id
+
+        else:
+            name = ''
+            user_id = user
+
+        try:
+            await self.bot.dbutil.botban(user_id, reason)
+        except SQLAlchemyError:
+            logger.exception(f'Failed to botban user {name}{user_id}')
+            return await ctx.send(f'Failed to ban user {name}`{user_id}`')
+
+        await ctx.send('Banned {name}`{user_id}` from using this bot')
+
+    @command(owner_only=True)
+    async def botunban(self, ctx, user: PossibleUser):
+        """
+        Remove someones botban
+        """
+        if isinstance(user, BaseUser):
+            name = user.name + ' '
+            user_id = user.id
+
+        else:
+            name = ''
+            user_id = user
+
+        try:
+            await self.bot.dbutil.botunban(user_id)
+        except SQLAlchemyError:
+            logger.exception(f'Failed to remove botban of user {name}{user_id}')
+            return await ctx.send(f'Failed to remove botban of user {name}`{user_id}`')
+
+        await ctx.send('Removed the botban of {name}`{user_id}`')
 
 
 def setup(bot):

@@ -187,7 +187,7 @@ class BotAdmin(Cog):
         await ctx.send('Loaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
     @command(owner_only=True)
-    async def load(self, ctx, cog):
+    async def unload(self, ctx, cog):
         cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
         t = time.perf_counter()
         try:

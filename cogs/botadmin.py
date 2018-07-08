@@ -400,6 +400,16 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Removed the botban of {name}`{user_id}`')
 
+    @command(owner_only=True)
+    async def leave_server(self, ctx, guild_id):
+        g = self.bot.get_guild(guild_id)
+        if not g:
+            return await ctx.send(f'Guild {guild_id} not found')
+
+        await g.leave()
+        await ctx.send(f'Left guild {g.name} `{g.id}`')
+
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

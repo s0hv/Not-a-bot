@@ -48,6 +48,7 @@ class Config:
 
         self.token = self.config.get('Credentials', 'Token', fallback=None)
         self.sfx_token = self.config.get('Credentials', 'SfxToken', fallback=None)
+        self.audio_token = self.config.get('Credentials', 'AudioToken', fallback=None)
         self.test_token = self.config.get('Credentials', 'TestToken', fallback=None)
 
         self.mashape_key = get_config_value(self.config, 'Credentials', 'MashapeKey', str, None)
@@ -168,7 +169,3 @@ class Config:
 
         if self.owner == 'id':
             raise ValueError('Please put your discord user id to the config')
-
-        if self.sfx_token is not None and self.sfx_token.lower() == 'bot_token':
-            terminal.info('No valid token given for sfx bot. Only main bot will be used')
-            self.sfx_token = None

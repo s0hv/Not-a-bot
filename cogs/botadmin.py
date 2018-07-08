@@ -150,7 +150,7 @@ class BotAdmin(Cog):
 
     @command(owner_only=True)
     async def reload(self, ctx, *, name):
-        t = time.time()
+        t = time.perf_counter()
         try:
             cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
 
@@ -160,20 +160,9 @@ class BotAdmin(Cog):
 
             await self.bot.loop.run_in_executor(self.bot.threadpool, unload_load)
         except Exception as e:
-            command_ = self.bot.get_command(name)
-            if not command_:
-                return await ctx.send('Could not reload %s because of an error\n%s' % (name, e))
-            try:
-                if isinstance(command_, GroupMixin):
-                    commands = self._recursively_remove_all_commands(command_, self.bot)
-                    self._recursively_add_all_commands([commands], self.bot)
-                else:
-                    self.bot.remove_command(command_.name)
-                    self.bot.add_command(command_)
-            except Exception as e:
-                return await ctx.send('Could not reload command(s) %s because of an error\n%s' % (name, e))
+            return await ctx.send('Could not reload %s because of an error\n%s' % (name, e))
 
-        await ctx.send('Reloaded {} in {:.0f}ms'.format(name, (time.time()-t)*1000))
+        await ctx.send('Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter()-t)*1000))
 
     @command(owner_only=True)
     async def reload_all(self, ctx):
@@ -184,6 +173,30 @@ class BotAdmin(Cog):
         for error in errors:
             await ctx.send(error)
         await ctx.send('Reloaded all default cogs in {:.0f}ms'.format(t))
+
+    @command(owner_only=True)
+    async def load(self, ctx, cog):
+        cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
+        t = time.perf_counter()
+        try:
+            await self.bot.loop.run_in_executor(self.bot.threadpool,
+                                                self.bot.load_extension, cog_name)
+        except Exception as e:
+            return await ctx.send('Could not reload %s because of an error\n%s' % (cog_name, e))
+
+        await ctx.send('Loaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
+
+    @command(owner_only=True)
+    async def load(self, ctx, cog):
+        cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
+        t = time.perf_counter()
+        try:
+            await self.bot.loop.run_in_executor(self.bot.threadpool,
+                                                self.bot.unload_extension, cog_name)
+        except Exception as e:
+            return await ctx.send('Could not reload %s because of an error\n%s' % (cog_name, e))
+
+        await ctx.send('Unloaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
     @command(owner_only=True)
     async def shutdown(self, ctx):
@@ -408,7 +421,6 @@ class BotAdmin(Cog):
 
         await g.leave()
         await ctx.send(f'Left guild {g.name} `{g.id}`')
-
 
 
 def setup(bot):

@@ -64,8 +64,7 @@ if not discord.opus.is_loaded():
 initial_cogs = [
     'audio',
     'botadmin',
-    'command_blacklist',
-    'utils']
+    'command_blacklist']
 
 terminal.info('Main bot starting up')
 logger.info('Starting bot')

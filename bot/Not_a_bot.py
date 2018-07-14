@@ -58,6 +58,8 @@ class NotABot(BotBase):
         guild_ids = {r[0] for r in await self.dbutil.execute(sql)}
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
         for guild in guilds:
+            if guild.unavailable:
+                continue
             await self.dbutil.index_guild_roles(guild)
 
         await self.dbutils.add_guilds(*new_guilds)
@@ -82,6 +84,9 @@ class NotABot(BotBase):
 
         for guild in guilds:
             if self.guild_cache.keeproles(guild.id):
+                if guild.unavailable:
+                    continue
+
                 success = await self.dbutil.index_guild_member_roles(guild)
                 if not success:
                     raise EnvironmentError('Failed to cache keeprole servers')

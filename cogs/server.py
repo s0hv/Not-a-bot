@@ -4,7 +4,7 @@ import logging
 from math import ceil
 
 import discord
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 from discord.user import BaseUser
 from validators import url as is_url
 
@@ -138,6 +138,7 @@ class Server(Cog):
 
     @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'], required_perms=Perms.MANAGE_EMOJIS)
     @cooldown(2, 6, BucketType.guild)
+    @bot_has_permissions(manage_emojis=True)
     async def add_emote(self, ctx, link, *name):
         """Add an emote to the server"""
         guild = ctx.guild
@@ -188,6 +189,7 @@ class Server(Cog):
 
     @command(no_pm=True, aliases=['trihard'], required_perms=Perms.MANAGE_EMOJIS)
     @cooldown(2, 6, BucketType.guild)
+    @bot_has_permissions(manage_emojis=True)
     async def steal(self, ctx, *emoji):
         """Add emotes to this server from other servers.
         Usage:

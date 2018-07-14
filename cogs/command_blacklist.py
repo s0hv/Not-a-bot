@@ -67,6 +67,10 @@ class CommandBlacklist(Cog):
                     await ctx.send('Could not find command %s' % command_)
                 continue
 
+            if command.name == 'privacy':
+                await ctx.send("Cannot blacklist privacy command as it's required that anyone can see it")
+                continue
+
             await _blacklist(command.name)
 
     @blacklist.command(ignore_extra=True, no_pm=True)

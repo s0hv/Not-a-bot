@@ -37,6 +37,7 @@ class ServerSpecific(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
+        self.main_whitelist = whitelist
 
     async def load_giveaways(self):
         sql = 'SELECT * FROM `giveaways`'

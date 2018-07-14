@@ -85,6 +85,7 @@ initial_cogs = [
     'moderator',
     'neural_networks',
     'pokemon',
+    'privacy',
     'search',
     'server',
     'server_specific',

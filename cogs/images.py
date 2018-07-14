@@ -11,7 +11,7 @@ from random import randint
 from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops
 from bs4 import BeautifulSoup
 from discord import File
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, BotMissingPermissions
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
@@ -22,7 +22,7 @@ from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
                               gradient_flash, sepia, optimize_gif, func_to_gif)
-from utils.utilities import get_image_from_message, find_coeffs
+from utils.utilities import get_image_from_message, find_coeffs, check_botperm
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -231,7 +231,7 @@ class Pokefusion:
         return bg, s
 
 
-class Fun(Cog):
+class Images(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.threadpool = ThreadPoolExecutor(3)
@@ -243,6 +243,13 @@ class Fun(Cog):
         except WebDriverException:
             terminal.exception('failed to load pokefusion')
             self._pokefusion = None
+
+    @staticmethod
+    def __local_check(ctx):
+        if not check_botperm('attach_files', ctx=ctx):
+            raise BotMissingPermissions(('attach_files', ))
+
+        return True
 
     @staticmethod
     def save_image(img, format='PNG'):
@@ -646,4 +653,4 @@ class Fun(Cog):
 
 
 def setup(bot):
-    bot.add_cog(Fun(bot))
+    bot.add_cog(Images(bot))

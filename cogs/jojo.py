@@ -54,6 +54,8 @@ from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text,
                              get_image_from_message, basic_check)
 
+from discord.ext.commands import bot_has_permissions
+
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
     '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~ ',
@@ -251,6 +253,7 @@ class JoJo:
 
     @command(aliases=['stand_generator'], ignore_extra=True)
     @cooldown(1, 10, BucketType.user)
+    @bot_has_permissions(attach_files=True)
     async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
         """Generate a stand card. Arguments are stand name, user name and an image
 

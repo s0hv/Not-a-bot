@@ -88,6 +88,13 @@ CREATE TABLE `banned_users` (
     PRIMARY KEY `user_id` (`user`)
 ) ENGINE=InnoDB;
 
+
+CREATE TABLE `guild_blacklist` (
+    `guild` BIGINT NOT NULL,
+    `reason` TEXT NOT NULL,
+    PRIMARY KEY (`guild`)
+) ENGINE=InnoDB;
+
 -- https://stackoverflow.com/a/8048494/6046713 restrict row count
 CREATE TABLE `messages` (
     `shard` SMALLINT DEFAULT NULL,

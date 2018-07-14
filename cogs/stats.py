@@ -1,7 +1,7 @@
 import logging
 
 import discord
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
@@ -18,6 +18,7 @@ class Stats(Cog):
 
     @command(no_pm=True)
     @cooldown(2, 5, type=BucketType.guild)
+    @bot_has_permissions(embed_links=True)
     async def mention_stats(self, ctx, page=None):
         """Get stats on how many times which roles are mentioned on this server"""
         guild = ctx.guild

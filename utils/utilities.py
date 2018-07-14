@@ -23,6 +23,7 @@ SOFTWARE.
 """
 
 import asyncio
+import sys
 import logging
 import mimetypes
 import os
@@ -30,7 +31,7 @@ import re
 import shlex
 import subprocess
 import time
-from collections import OrderedDict
+from collections import OrderedDict, Iterable
 from datetime import timedelta
 from random import randint
 
@@ -40,9 +41,10 @@ from discord import abc
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
 
-from bot.exceptions import NoCachedFileException, PermException
+from bot.exceptions import NoCachedFileException, PermException, CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
 from bot.paged_message import PagedMessage
+from discord.ext.commands.errors import MissingPermissions
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -100,7 +102,7 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
 
         return splits
 
-    if isinstance(to_split, dict):
+    elif isinstance(to_split, dict):
         splits_dict = OrderedDict()
         splits = []
         length = 0
@@ -117,6 +119,29 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
 
         if length > 0:
             splits += [splits_dict]
+
+
+
+        return splits
+
+    elif isinstance(to_split, Iterable):
+        splits = []
+        chunk = ''
+        for s in to_split:
+            if len(chunk) + len(s) <= maxlen:
+                chunk += list_join + s
+            elif chunk:
+                splits.append(chunk)
+                if len(s) > maxlen:
+                    s = s[:maxlen-3] + '...'
+
+                splits.append(s)
+                chunk = ''
+            elif not chunk:
+                splits.append(s[:maxlen-3] + '...')
+
+        if chunk:
+            splits.append(s)
 
         return splits
 
@@ -748,7 +773,7 @@ def is_superset(ctx):
 
         if not perms.is_superset(ctx.command.required_perms):
             req = [r[0] for r in ctx.command.required_perms if r[1]]
-            raise PermException('%s' % ', '.join(req))
+            raise MissingPermissions(req)
 
     return True
 
@@ -839,7 +864,7 @@ async def create_custom_emoji(guild, name, image, already_b64=False, reason=None
 
 def is_owner(ctx):
     if ctx.command.owner_only and ctx.bot.owner_id != ctx.original_user.id:
-        raise PermException('Only the owner can use this command')
+        raise NotOwner
 
     ctx.skip_check = True
 
@@ -869,7 +894,7 @@ async def check_blacklist(ctx):
 
     if overwrite_perms is False:
         if msg is not None:
-            raise PermException(msg)
+            raise CommandBlacklisted(msg)
         return False
 
     return True
@@ -923,3 +948,46 @@ def parse_seek(s):
 
 def seek_to_sec(seek_dict):
     return int(seek_dict['h'])*3600 + int(seek_dict['m'])*60 + int(seek_dict['s'])
+
+
+def check_import(module_name):
+    """
+    This function is responsible for checking for errors in python code
+    It does not check imports
+
+    Returns:
+        Empty string if nothing was found. Otherwise the error
+    """
+    module_name = module_name.split('.')
+    module_name[-1] = module_name[-1] + '.py'
+    module_name = os.path.join(os.getcwd(), *module_name)
+    cmd = f'"{sys.executable}" -m compileall "{module_name}"'
+    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
+    out, _ = p.communicate()
+    out = out.decode('utf-8')
+    if out.lower().startswith('compiling'):
+        out = '\n'.join(out.split('\n')[1:]).strip('* ')
+    return out
+
+
+def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None):
+    if not perms:
+        return True
+
+    if not me:
+        if not guild and ctx:
+            guild = ctx.guild
+
+        me = guild.me if guild is not None else ctx.bot.user
+
+    channel = channel if channel else ctx.channel
+    permissions = channel.permissions_for(me)
+
+    missing = [perm for perm in perms if
+               getattr(permissions, perm) is False]
+
+    if not missing:
+        return True
+
+    return False
+

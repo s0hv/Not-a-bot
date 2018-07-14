@@ -55,6 +55,7 @@ class Config:
         self.google_api_key = get_config_value(self.config, 'Credentials', 'GoogleAPI', str, None)
         self.custom_search = get_config_value(self.config, 'Credentials', 'CustomSearch', str, None)
         self.wolfram_key = get_config_value(self.config, 'Credentials', 'WolframKey', str, None)
+        self.feedback_webhook = get_config_value(self.config, 'Credentials', 'FeedbackWebhook', str, None)
 
         self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, False)
 

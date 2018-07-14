@@ -2,6 +2,7 @@ import csv
 import json
 import math
 import os
+import textwrap
 import re
 from functools import partial
 
@@ -428,7 +429,8 @@ class Pokemon(Cog):
 
     @command(aliases=['pstats_format'], ignore_extra=True)
     async def pstat_format(self, ctx):
-        await ctx.send("""Level 100 Pikachu
+        await ctx.send(textwrap.dedent("""
+        Level 100 Pikachu
         2305/2610XP
         Nature: Hasty
         HP: 300
@@ -436,7 +438,7 @@ class Pokemon(Cog):
         Defense: 300
         Sp. Atk: 300
         Sp. Def: 300
-        Speed: 300""")
+        Speed: 300"""))
 
 
 def setup(bot):

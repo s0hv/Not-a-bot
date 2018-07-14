@@ -75,7 +75,6 @@ if not discord.opus.is_loaded():
 
 initial_cogs = [
     'admin',
-    'audio',
     'autoresponds',
     'autoroles',
     'botadmin',
@@ -92,6 +91,7 @@ initial_cogs = [
     'moderator',
     'neural_networks',
     'pokemon',
+    'privacy',
     'search',
     'server',
     'server_specific',

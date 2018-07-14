@@ -5,6 +5,7 @@ import operator
 from datetime import datetime, timedelta
 
 import discord
+from discord.ext.commands import bot_has_permissions
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -256,6 +257,7 @@ class VoteManager:
         await poll.count_votes()
 
     @command(aliases=['vote'], required_perms=Perms.MANAGE_MESSAGES | Perms.MANAGE_ROLE_CHANNEL | Perms.MANAGE_GUILD)
+    @bot_has_permissions(embed_links=True)
     async def poll(self, ctx, *, message):
         """
         Creates a poll that expires by default in 60 seconds

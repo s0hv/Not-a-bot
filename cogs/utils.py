@@ -9,7 +9,7 @@ from email.utils import formatdate as format_rfc2822
 
 import discord
 import psutil
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
@@ -104,6 +104,7 @@ class Utilities(Cog):
 
     @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'])
     @cooldown(2, 5, BucketType.user)
+    @bot_has_permissions(embed_links=True)
     async def stats(self, ctx):
         """Get stats about this bot"""
         pid = os.getpid()
@@ -175,7 +176,7 @@ class Utilities(Cog):
 
         await ctx.send(embed=embed)
 
-    @command(name='roles', ignore_extra=True)
+    @command(name='roles', ignore_extra=True, no_pm=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def get_roles(self, ctx, page=''):
         """Get roles on this server"""
@@ -230,6 +231,30 @@ class Utilities(Cog):
             return
 
         await ctx.send(unzalgo(text))
+
+    @command()
+    @cooldown(1, 120, BucketType.user)
+    async def feedback(self, ctx, *, feedback):
+        """
+        Send feedback of the bot.
+        Bug reports should go to https://github.com/s0hvaperuna/Not-a-bot/issues
+        """
+
+        webhook = self.bot.config.feedback_webhook
+        if not webhook:
+            return await ctx.send('This command is unavailable atm')
+
+        json = {'content': feedback,
+                'avatar_url': ctx.author.avatar_url,
+                'username': ctx.author.name}
+        headers = {'Content-type': 'application/json'}
+
+        await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
+
+    @command(aliases=['bug'], ignore_extra=True)
+    @cooldown(1, 10, BucketType.user)
+    async def bugreport(self, ctx):
+        await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hvaperuna/Not-a-bot/issues')
 
 
 def setup(bot):

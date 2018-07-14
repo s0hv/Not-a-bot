@@ -1403,7 +1403,7 @@ class Audio:
 
         return await ctx.send('The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
-    @command(no_pm=True, ignore_extra=True, auth=Auth.MOD)
+    @command(no_pm=True, ignore_extra=True, auth=Auth.BOT_MOD)
     async def ds(self, ctx):
         """Delete song from autoplaylist and skip it"""
         await ctx.invoke(self.delete_from_ap)
@@ -1466,7 +1466,7 @@ class Audio:
         await ctx.send('Link to **{0.title}** {0.webpage_url}'.format(current))
 
     @commands.cooldown(1, 4)
-    @command(name='delete', no_pm=True, aliases=['del', 'd'], auth=Auth.MOD)
+    @command(name='delete', no_pm=True, aliases=['del', 'd'], auth=Auth.BOT_MOD)
     async def delete_from_ap(self, ctx, *name):
         """Puts a song to the queue to be deleted from autoplaylist"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
@@ -1484,7 +1484,7 @@ class Audio:
         terminal.info('Added entry %s to the deletion list' % name)
         await ctx.send('Added entry %s to the deletion list' % ' '.join(name), delete_after=60)
 
-    @command(name='add', no_pm=True, auth=Auth.MOD)
+    @command(name='add', no_pm=True, auth=Auth.BOT_MOD)
     async def add_to_ap(self, ctx, *name):
         """Puts a song to the queue to be added to autoplaylist"""
         musicplayer = self.get_musicplayer(ctx.guild.id)

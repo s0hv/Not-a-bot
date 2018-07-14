@@ -2,11 +2,14 @@ import asyncio
 import logging
 import os
 import pprint
+import sys
 import re
 import shlex
 import subprocess
 import time
-from functools import partial
+import textwrap
+import traceback
+from utils.utilities import split_string
 from importlib import reload, import_module
 from io import BytesIO
 
@@ -22,7 +25,9 @@ from bot.converters import PossibleUser
 from bot.globals import Auth
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
-from utils.utilities import y_n_check, basic_check, y_check
+from utils.utilities import y_n_check, basic_check, y_check, check_import
+from types import ModuleType
+
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -31,6 +36,116 @@ terminal = logging.getLogger('terminal')
 class BotAdmin(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self._last_result = None
+
+    def load_extension(self, name, lib=None):
+        """
+        Reworked implementation of the default bot extension loader
+        It works exactly the same unless you provide the lib argument manually
+        That way you can import the lib before this method to check for
+        errors in the file and pass the returned lib to this function if no errors were thrown.
+
+        Args:
+            name: str
+                name of the extension
+            lib: Module
+                lib returned from `import_module`
+        Raises:
+            ClientException
+                Raised when no setup function is found or when lib isn't a valid module
+        """
+        if lib is None:
+            # Fall back to default implementation when lib isn't provided
+            return self.bot.load_extension(name)
+
+        if name in self.bot.extensions:
+            return
+
+        if not isinstance(lib, ModuleType):
+            raise discord.ClientException("lib isn't a valid module")
+
+        lib = import_module(name)
+        if not hasattr(lib, 'setup'):
+            del lib
+            del sys.modules[name]
+            raise discord.ClientException('extension does not have a setup function')
+
+        lib.setup(self.bot)
+        self.bot.extensions[name] = lib
+
+    async def reload_extension(self, name):
+        """
+        Reload an cog with the given import path
+        """
+        def do_reload():
+            t = time.perf_counter()
+            # Check that the module is importable
+            try:
+                # Check if code compiles. If not returns the error
+                # Only check this cog as the operation takes a while and
+                # Other cogs can be reloaded if they fail unlike this
+                if name == 'cogs.botadmin':
+                    e = check_import(name)
+                    if e:
+                        return f'```py\n{e}\n```'
+
+                lib = import_module(name)
+            except:
+                logger.exception(f'Failed to reload extension {name}')
+                return f'Failed to import module {name}.\nError has been logged'
+
+            try:
+                self.bot.unload_extension(name)
+                self.load_extension(name, lib=lib)
+            except Exception as e:
+                return 'Could not reload %s because of an error\n%s' % (name, e)
+
+            return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter()-t)*1000)
+
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
+
+    async def reload_multiple(self, names):
+        """
+        Same as reload_extension but for multiple files
+        """
+        if not names:
+            return "No module names given",
+
+        messages = []
+
+        def do_reload():
+
+            for name in names:
+                t = time.perf_counter()
+                # Check that the module is importable
+                try:
+                    # Check if code compiles. If not returns the error
+                    # Only check this cog as the operation takes a while and
+                    # Other cogs can be reloaded if they fail unlike this
+                    if name == 'cogs.botadmin':
+                        e = check_import(name)
+                        if e:
+                            return f'```py\n{e}\n```'
+
+                    lib = import_module(name)
+                except:
+                    logger.exception(f'Failed to reload extension {name}')
+                    messages.append(f'Failed to import module {name}.\nError has been logged')
+                    continue
+
+                try:
+                    self.bot.unload_extension(name)
+                    self.load_extension(name, lib=lib)
+                except Exception as e:
+                    messages.append('Could not reload %s because of an error\n%s' % (name, e))
+                    continue
+
+                t = time.perf_counter() - t
+                messages.append('Reloaded {} in {:.0f}ms'.format(name, t * 1000))
+
+            return messages
+
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
 
     @command(name='eval', owner_only=True)
     async def eval_(self, ctx, *, code: str):
@@ -41,34 +156,27 @@ class BotAdmin(Cog):
                         'message': ctx.message,
                         'channel': ctx.channel,
                         'bot': ctx.bot,
-                        'loop': ctx.bot.loop})
+                        'loop': ctx.bot.loop,
+                        '_': self._last_result})
 
-        if '\n' in code:
-            lines = list(filter(bool, code.split('\n')))
-            last = lines[-1]
-            if not last.strip().startswith('return'):
-                whitespace = len(last) - len(last.strip())
-                lines[-1] = ' ' * whitespace + 'return ' + last  # if code doesn't have a return make one
+        code = textwrap.indent(code, '  ')
+        lines = list(filter(bool, code.split('\n')))
+        last = lines[-1]
+        if not last.strip().startswith('return'):
+            whitespace = len(last) - len(last.strip())
+            lines[-1] = ' ' * whitespace + 'return ' + last.strip()  # if code doesn't have a return make one
 
-            lines = '\n'.join('    ' + i for i in lines)
-            code = f'async def f():\n{lines}\nx = asyncio.run_coroutine_threadsafe(f(), loop).result()'  # Transform the code to a function
-            local = {}  # The variables outside of the function f() get stored here
+        lines = '\n'.join(lines)
+        code = f'async def f():\n{lines}\nx = asyncio.run_coroutine_threadsafe(f(), loop).result()'  # Transform the code to a function
+        local = {}  # The variables outside of the function f() get stored here
 
-            try:
-                await self.bot.loop.run_in_executor(self.bot.threadpool, exec, compile(code, '<eval>', 'exec'), context, local)
-                retval = pprint.pformat(local['x'])
-            except Exception as e:
-                retval = f'{type(e).__name__}: {e}'
-
-        else:
-            try:
-                retval = await self.bot.loop.run_in_executor(self.bot.threadpool, eval, code, context)
-                if asyncio.iscoroutine(retval):
-                    retval = await retval
-
-            except Exception as e:
-                logger.exception('Failed to eval')
-                retval = f'{type(e).__name__}: {e}'
+        try:
+            await self.bot.loop.run_in_executor(self.bot.threadpool, exec, compile(code, '<eval>', 'exec'), context, local)
+            retval = pprint.pformat(local['x'])
+            self._last_result = local['x']
+        except Exception as e:
+            self._last_result = e
+            retval = f'```py\n{e}{traceback.format_exc()}\n```'
 
         if not isinstance(retval, str):
             retval = str(retval)
@@ -87,6 +195,7 @@ class BotAdmin(Cog):
                         'message': ctx.message,
                         'channel': ctx.channel,
                         'bot': ctx.bot})
+
         try:
             retval = await self.bot.loop.run_in_executor(self.bot.threadpool, exec, message, context)
             if asyncio.iscoroutine(retval):
@@ -150,29 +259,15 @@ class BotAdmin(Cog):
 
     @command(owner_only=True)
     async def reload(self, ctx, *, name):
-        t = time.perf_counter()
-        try:
-            cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
-
-            def unload_load():
-                self.bot.unload_extension(cog_name)
-                self.bot.load_extension(cog_name)
-
-            await self.bot.loop.run_in_executor(self.bot.threadpool, unload_load)
-        except Exception as e:
-            return await ctx.send('Could not reload %s because of an error\n%s' % (name, e))
-
-        await ctx.send('Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter()-t)*1000))
+        cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
+        await ctx.send(await self.reload_extension(cog_name))
 
     @command(owner_only=True)
     async def reload_all(self, ctx):
-        t = time.time()
-        self.bot._unload_cogs()
-        errors = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.bot._load_cogs, print_err=False))
-        t = (time.time() - t) * 1000
-        for error in errors:
-            await ctx.send(error)
-        await ctx.send('Reloaded all default cogs in {:.0f}ms'.format(t))
+        messages = await self.reload_multiple(self.bot.default_cogs)
+        messages = split_string(messages, list_join='\n', splitter='\n')
+        for msg in messages:
+            await ctx.send(msg)
 
     @command(owner_only=True)
     async def load(self, ctx, cog):
@@ -278,7 +373,7 @@ class BotAdmin(Cog):
         self.bot._runas = user
         await ctx.send(f'Now running as {user}')
 
-    @command(auth=Auth.ADMIN, ignore_extra=True)
+    @command(auth=Auth.BOT_ADMIN, ignore_extra=True)
     async def update_bot(self, ctx, *, options=None):
         """Does a git pull"""
         cmd = 'git pull'.split(' ')
@@ -291,6 +386,7 @@ class BotAdmin(Cog):
         if err:
             out = err.decode('utf-8') + out
 
+        # Only tries to update files in the cogs folder
         files = re.findall(r'(cogs/\w+)(?:.py *|)', out)
 
         if len(out) > 2000:
@@ -313,22 +409,9 @@ class BotAdmin(Cog):
             if not y_check(msg.content):
                 return await ctx.send('Not auto updating')
 
-            def do_reload():
-                messages = []
-                for file in files:
-                    try:
-                        self.bot.unload_extension(file)
-                        self.bot.load_extension(file)
-                    except Exception as e:
-                        messages.append('Failed to load extension {}\n{}: {}'.format(file, type(e).__name__, e))
-                    else:
-                        messages.append(f'Reloaded {file}')
-
-                return messages
-
-            messages = await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
-            if messages:
-                await ctx.send('\n'.join(messages))
+            messages = split_string(await self.reload_multiple(files), list_join='\n', splitter='\n')
+            for msg in messages:
+                await ctx.send(msg)
 
     @command(owner_only=True)
     async def add_sfx(self, ctx, file=None, name=None):
@@ -421,6 +504,33 @@ class BotAdmin(Cog):
 
         await g.leave()
         await ctx.send(f'Left guild {g.name} `{g.id}`')
+
+    @command(owner_only=True)
+    async def blacklist_guild(self, ctx, guild_id, *, reason):
+        try:
+            await self.bot.dbutil.blacklist_guild(guild_id, reason)
+        except SQLAlchemyError:
+            logger.exception('Failed to blacklist guild')
+            return await ctx.send('Failed to blacklist guild\nException has been logged')
+
+        guild = self.bot.get_guild(guild_id)
+        if guild:
+            await guild.leave()
+
+        s = f'{guild} `{guild_id}`' if guild else guild_id
+        await ctx.send(f'Blacklisted guild {s}')
+
+    @command(owner_only=True)
+    async def unblacklist_guild(self, ctx, guild_id):
+        try:
+            await self.bot.dbutil.unblacklist_guild(guild_id)
+        except SQLAlchemyError:
+            logger.exception('Failed to unblacklist guild')
+            return await ctx.send('Failed to unblacklist guild\nException has been logged')
+
+        guild = self.bot.get_guild(guild_id)
+        s = f'{guild} `{guild_id}`' if guild else guild_id
+        await ctx.send(f'Unblacklisted guild {s}')
 
 
 def setup(bot):

@@ -104,13 +104,19 @@ class PermValues:
 
 class Auth:
     NONE = 0
-    MOD = 1
-    ADMIN = 2
+    BOT_MOD = 1
+    BOT_ADMIN = 2
+
+    TO_STRING = {2: "Bot admin", 1: "Bot moderator", 0: "None"}
+
+    @classmethod
+    def to_string(cls, i):
+        return cls.TO_STRING.get(i)
 
 
 class Permissions(Permissions_):
-    def __init__(self, permissions=0, **kwargs):
-        super().__init__(permissions=permissions, **kwargs)
+    def __init__(self, permissions=0):
+        super().__init__(permissions=permissions)
 
     def __or__(self, other):
         return Permissions(self.value | other.value)

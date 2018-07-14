@@ -57,10 +57,10 @@ class InvalidOwnerIDException(BotException):
     pass
 
 
-class AuthenticationException(BotException):
+class NotOwner(BotException):
     @property
     def message(self):
-        return "You aren't authorized to use this command"
+        return 'Only the owner can use this command'
 
 
 class PermException(BotException):
@@ -69,16 +69,10 @@ class PermException(BotException):
         return "You don't have the permission to use this command. \nRequired permissions are: " + self._message
 
 
-class CommandBlacklisted(PermException):
+class CommandBlacklisted(BotException):
     @property
     def message(self):
         return self._message
-
-
-class InvalidPermissionError(BotException):
-    @property
-    def message(self):
-        return "Required permissions are " + self._message
 
 
 class ImageSizeException(BotException):
@@ -91,32 +85,6 @@ class ImageSizeException(BotException):
         return f"Image has too many pixels {self._message} > {self.max_pixel}"
 
 
-class InvalidArgumentException(BotException):
-    @property
-    def message(self):
-        return "Invalid argument.\n" + self._message
-
-
-class MissingRequiredArgument(BotException):
-    def __init__(self, e, message='', cmd_message=None):
-        super().__init__(message, cmd_message=cmd_message)
-        self._e = e
-
-    @property
-    def message(self):
-        return 'Missing argument(s)\n{}'.format(self._e)
-
-
-class InvalidValueException(BotException):
-    def __init__(self, val, message, cmd_message=None):
-        super().__init__(message, cmd_message=cmd_message)
-        self._val = val
-
-    @property
-    def message(self):
-        return ('The given value "%s" is invalid.\n' % self._val) + self._message
-
-
 class NotEnoughPrefixes(BotException):
     pass
 
@@ -126,10 +94,6 @@ class PrefixExists(BotException):
 
 
 class PrefixDoesntExist(BotException):
-    pass
-
-
-class BotValueError(BotException):
     pass
 
 

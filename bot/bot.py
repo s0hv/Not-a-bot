@@ -243,11 +243,15 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, exceptions.SilentException):
             return
 
+        channel = context.channel
+        exception._domain = context.domain
+
+        if isinstance(exception, commands.errors.BotMissingPermissions) or isinstance(exception, commands.errors.MissingPermissions):
+            return await channel.send(str(exception))
+
         if isinstance(exception, commands.errors.CheckFailure):
             return
 
-        channel = context.channel
-        exception._domain = context.domain
         if isinstance(exception, commands.errors.CommandOnCooldown):
             await channel.send('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
             return

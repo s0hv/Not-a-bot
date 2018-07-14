@@ -388,6 +388,14 @@ class DatabaseUtils:
         sql = 'DELETE FROM `banned_users` WHERE user=%s' % user_id
         await self.execute(sql, commit=True)
 
+    async def blacklist_guild(self, guild_id, reason):
+        sql = 'INSERT INTO `guild_blacklist` (`guild`, `reason`) VALUES (:guild, :reason)'
+        await self.execute(sql, {'guild': guild_id, 'reason': reason}, commit=True)
+
+    async def unblacklist_guild(self, guild_id):
+        sql = 'DELETE FROM `guild_blacklist` WHERE guild=%s' % guild_id
+        await self.execute(sql, commit=True)
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

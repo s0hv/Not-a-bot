@@ -13,7 +13,7 @@ class BotMod(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(ignore_extra=True, auth=Auth.MOD)
+    @command(ignore_extra=True, auth=Auth.BOT_MOD)
     async def add_all(self, ctx):
         """Add the pending songs to autoplaylist"""
         songs = set(read_lines(ADD_AUTOPLAYLIST))
@@ -33,7 +33,7 @@ class BotMod(Cog):
         amount = len(songs)
         await ctx.send('Added %s song(s) to autoplaylist' % amount)
 
-    @command(ignore_extra=True, auth=Auth.MOD)
+    @command(ignore_extra=True, auth=Auth.BOT_MOD)
     async def delete_all(self, ctx):
         """Delete pending songs from autoplaylist"""
         delete_songs = set(read_lines(DELETE_AUTOPLAYLIST))

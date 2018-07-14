@@ -15,7 +15,9 @@ from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              datetime2sql, get_avatar, get_user_id, find_user,
                              seconds2str, get_role, get_channel, Snowflake,
-                             basic_check, sql2timedelta)
+                             basic_check, sql2timedelta, check_botperm)
+
+from discord.ext.commands import bot_has_permissions
 
 logger = logging.getLogger('debug')
 manage_roles = discord.Permissions(268435456)
@@ -128,6 +130,9 @@ class Moderator(Cog):
                     return
 
             if mute_role in user.roles:
+                return
+
+            if not check_botperm('manage_roles', guild=message.guild, channel=message.channel):
                 return
 
             limit = self.bot.guild_cache.automute_limit(guild.id)
@@ -287,6 +292,7 @@ class Moderator(Cog):
     # Required perms: manage roles
     @command(required_perms=manage_roles)
     @cooldown(2, 5, BucketType.guild)
+    @bot_has_permissions(manage_roles=True)
     async def add_role(self, ctx, name, random_color=True, mentionable=True, hoist=False):
         """Add a role to the server.
         random_color makes the bot choose a random color for the role and
@@ -323,6 +329,7 @@ class Moderator(Cog):
         return mute_role
 
     @command(required_perms=manage_roles)
+    @bot_has_permissions(manage_roles=True)
     async def mute(self, ctx, user: MentionedMember, *reason):
         """Mute a user. Only works if the server has set the mute role"""
         mute_role = await self._mute_check(ctx)
@@ -370,6 +377,7 @@ class Moderator(Cog):
 
     @command(ignore_extra=True, no_dm=True)
     @cooldown(2, 3, BucketType.guild)
+    @bot_has_permissions(manage_roles=True)
     async def mute_roll(self, ctx, user: discord.Member, minutes: int):
         """Challenge another user to a game where the loser gets muted for the specified amount of time
         ranging from 10 to 60 minutes"""
@@ -435,10 +443,17 @@ class Moderator(Cog):
                 loser = 1
 
             await msg.edit(content=f'{user} vs {ctx.author}\nLoser: {choices[loser]}')
+
+            perms = ctx.channel.permissions_for(ctx.guild.me)
+
             if counter:
                 p = os.path.join(DATA, 'templates', 'reverse.png')
                 await asyncio.sleep(2)
-                await ctx.send(f'{choices[loser]} counters', file=discord.File(p))
+
+                if perms.attach_files:
+                    await ctx.send(f'{choices[loser]} counters', file=discord.File(p))
+                else:
+                    await ctx.send(f'{choices[loser]} counters. (No image perms so text only counter)')
 
                 loser = abs(loser - 1)
                 await msg.edit(content=f'{user} vs {ctx.author}\nLoser: {choices[loser]}')
@@ -446,7 +461,11 @@ class Moderator(Cog):
             if counter_counter:
                 p = os.path.join(DATA, 'templates', 'counter_counter.png')
                 await asyncio.sleep(2)
-                await ctx.send(f'{choices[loser]} counters the counter', file=discord.File(p))
+
+                if perms.attach_files:
+                    await ctx.send(f'{choices[loser]} counters the counter', file=discord.File(p))
+                else:
+                    await ctx.send(f'{choices[loser]} counters the counter. (No image perms so text only counter)')
 
                 loser = abs(loser - 1)
                 await msg.edit(content=f'{user} vs {ctx.author}\nLoser: {choices[loser]}')
@@ -528,6 +547,7 @@ class Moderator(Cog):
         await self.remove_timeout(user.id, guild.id)
 
     @command(aliases=['temp_mute'], required_perms=manage_roles)
+    @bot_has_permissions(manage_roles=True)
     async def timeout(self, ctx, user: MentionedMember, *, timeout):
         """Mute user for a specified amount of time
          `timeout` is the duration of the mute.
@@ -609,6 +629,7 @@ class Moderator(Cog):
             await ctx.send('Could not mute user {}'.format(user))
 
     @group(required_perms=manage_roles, invoke_without_command=True, no_pm=True)
+    @bot_has_permissions(manage_roles=True)
     async def unmute(self, ctx, user: MentionedMember):
         """Unmute a user"""
         guild = ctx.guild
@@ -747,6 +768,7 @@ class Moderator(Cog):
 
     @group(required_perms=Perms.MANAGE_MESSAGES, invoke_without_command=True, no_pm=True)
     @cooldown(2, 4, BucketType.guild)
+    @bot_has_permissions(manage_messages=True)
     async def purge(self, ctx, max_messages: int=10):
         """Purges n amount of messages from a channel.
         maximum value of max_messages is 500 and the default is 10"""
@@ -769,6 +791,7 @@ class Moderator(Cog):
 
     @purge.command(name='from', required_perms=Perms.MANAGE_MESSAGES, no_pm=True, ignore_extra=True)
     @cooldown(2, 4, BucketType.guild)
+    @bot_has_permissions(manage_messages=True)
     async def from_(self, ctx, user: MentionedUserID, max_messages: int=10, channel: discord.TextChannel=None):
         """
         Delete messages from a user
@@ -843,6 +866,7 @@ class Moderator(Cog):
                 await self.send_to_modlog(guild, embed=embed)
 
     @command(no_pm=True, ignore_extra=True, required_perms=discord.Permissions(4), aliases=['softbab'])
+    @bot_has_permissions(ban_members=True)
     async def softban(self, ctx, user: MentionedMember, message_days=1):
         """Ban and unban a user from the server deleting that users messages from
         n amount of days in the process"""
@@ -876,13 +900,15 @@ class Moderator(Cog):
         await ctx.send(s)
 
     @command(ignore_extra=True, required_perms=lock_perms, aliases=['zawarudo'])
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(1, 5, BucketType.guild)
+    @bot_has_permissions(manage_channels=True)
     async def lock(self, ctx):
         """Set send_messages permission override of everyone to false on current channel"""
         await self._set_channel_lock(ctx, True, zawarudo=ctx.invoked_with == 'zawarudo')
 
     @command(ignore_extra=True, required_perms=lock_perms, aliases=['tokiwougokidasu'])
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(1, 5, BucketType.guild)
+    @bot_has_permissions(manage_channels=True)
     async def unlock(self, ctx):
         """Set send_messages permission override on current channel to default position"""
         await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwougokidasu')

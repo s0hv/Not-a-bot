@@ -3,7 +3,7 @@ from asyncio import Lock
 from collections import OrderedDict
 
 import discord
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 
 from bot import exceptions
 from bot.bot import group
@@ -26,6 +26,7 @@ class Settings(Cog):
     # Required perms for all settings commands: Manage server
     @cooldown(1, 5)
     @group(invoke_without_command=True, no_pm=True)
+    @bot_has_permissions(embed_links=True)
     async def settings(self, ctx):
         """Gets the current settings on the server"""
         guild = ctx.guild
@@ -38,7 +39,17 @@ class Settings(Cog):
                               ('random_color', 'Add a random color to a user when they join'),
                               ('automute', 'Mute on too many mentions in a message')])
         type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
-        value_conversions = {'modlog': lambda c: '<#%s>' % c, 'mute_role': lambda r: '<@&%s>' % r,
+
+        def convert_mute_role(r):
+            r = self.bot.get_role(r, guild)
+            if not r:
+                return 'deleted role'
+            if ctx.guild.me.top_role < r:
+                return f'<@&{r.id}> Role is higher than my highest role so I cannot give it to others'
+
+            return '<@&%s>' % r.id
+
+        value_conversions = {'modlog': lambda c: '<#%s>' % c, 'mute_role': convert_mute_role,
                              'prefixes': lambda p: '`' + '` `'.join(p) + '`'}
 
         for k, v in fields.items():
@@ -107,7 +118,8 @@ class Settings(Cog):
     async def modlog(self, ctx, channel: discord.TextChannel=None):
         """If no parameters are passed gets the current modlog
         If channel is provided modlog will be set to that channel.
-        channel can be a channel mention, channel id or channel name (case sensitive)"""
+        channel can be a channel mention, channel id or channel name (case sensitive)
+        **Bot needs embed links permissions in modlog**"""
         if channel is None:
             modlog = self.bot.guild_cache.modlog(ctx.guild.id)
             modlog = self.bot.get_channel(modlog)
@@ -118,6 +130,9 @@ class Settings(Cog):
 
             ctx.command.reset_cooldown(ctx)
             return
+
+        if not channel.permissions_for(ctx.guild.me).embed_links:
+            return await ctx.send(f"Bot doesn't have embed links permissions in {channel.mention}")
 
         await self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
         await channel.send('Modlog set to this channel')
@@ -136,11 +151,16 @@ class Settings(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
+        if ctx.guild.me.top_role < role:
+            return await ctx.send('Mute role is higher than my top role.\n'
+                                  'Put it lower so I can give it to users')
+
         await self.bot.guild_cache.set_mute_role(guild.id, role.id)
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.guild)
     @settings.command(ignore_extra=True, required_perms=Perms.ADMIN)
+    @bot_has_permissions(manage_roles=True)
     async def keeproles(self, ctx, boolean: bool=None):
         """Get the current keeproles value on this server or change it.
         Keeproles makes the bot save every users roles so it can give them even if that user rejoins"""
@@ -268,7 +288,7 @@ class Settings(Cog):
 
         await ctx.send(f'Set mute time to {mute_time}')
 
-    @group(invoke_without_command=True, no_dm=True)
+    @group(invoke_without_command=True, no_dm=True, aliases=['message_deleted'])
     @cooldown(2, 10, BucketType.guild)
     async def on_delete(self, ctx):
         """
@@ -343,7 +363,7 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(invoke_without_command=True, no_dm=True)
+    @group(invoke_without_command=True, no_dm=True, aliases=['message_edited'])
     @cooldown(2, 10, BucketType.guild)
     async def on_edit(self, ctx):
         """
@@ -433,6 +453,19 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
+    @join_message.command(name='remove', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['del', 'delete'], ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def remove_join(self, ctx):
+        """
+        Remove welcome message from this server
+        The message format will be saved if you decide to use this feature again
+        """
+        success = await self.cache.set_join_channel(ctx.guild.id, None)
+        if not success:
+            return await ctx.send('Failed to remove welcome message')
+
+        await ctx.send('Remove welcome message')
+
     @join_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     async def join_set(self, ctx, *, message):
@@ -487,6 +520,19 @@ class Settings(Cog):
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
+
+    @leave_message.command(name='remove', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['del', 'delete'], ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def remove_join(self, ctx):
+        """
+        Remove leave message from this server
+        The message format will be saved if you decide to use this feature again
+        """
+        success = await self.cache.set_leave_channel(ctx.guild.id, None)
+        if not success:
+            return await ctx.send('Failed to remove leave message')
+
+        await ctx.send('Remove leave message')
 
     @leave_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
     @cooldown(2, 10, BucketType.guild)

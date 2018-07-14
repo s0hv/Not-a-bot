@@ -22,7 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
@@ -34,10 +33,9 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot import exceptions
 from bot.bot import Bot
-from bot.cooldown import CooldownManager
 from bot.dbutil import DatabaseUtils
 from bot.guildcache import GuildCache
-from utils.utilities import (split_string, slots2dict, retry, random_color)
+from bot.globals import Auth
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -201,7 +199,7 @@ class BotBase(Bot):
 
     async def check_auth(self, ctx):
         if not await self._check_auth(ctx.author.id, ctx.command.auth):
-            raise exceptions.PermException()
+            raise exceptions.PermException(Auth.to_string(ctx.command.auth))
 
         return True
 

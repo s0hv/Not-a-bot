@@ -243,7 +243,7 @@ class Colors(Cog):
                 await ctx.send('Failed to create color {0.name}'.format(role))
 
     @command(no_pm=True, aliases=['colour'])
-    @cooldown(1, 2, type=BucketType.user)
+    @cooldown(1, 5, type=BucketType.user)
     async def color(self, ctx, *color):
         """Set you color on the server.
         To see the colors on this server use {prefix}colors or {prefix}show_colors"""
@@ -291,7 +291,7 @@ class Colors(Cog):
         await ctx.send('Color set to %s' % color.name)
 
     @command(no_pm=True, aliases=['colours'])
-    @cooldown(1, 2, type=BucketType.guild)
+    @cooldown(1, 5, type=BucketType.guild)
     async def colors(self, ctx):
         """Shows the colors on this guild"""
         guild = ctx.guild
@@ -328,7 +328,7 @@ class Colors(Cog):
         await ctx.send('Found color {0} {1[hex]}'.format(name, match))
 
     @command(no_pm=True, required_perms=Perms.MANAGE_ROLES, aliases=['add_colour'])
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 5, type=BucketType.guild)
     async def add_color(self, ctx, color: str, *name):
         """Add a new color to the guild"""
         if not name:
@@ -387,7 +387,7 @@ class Colors(Cog):
         await ctx.send('Added color {} {}'.format(name, str(d_color)))
 
     @command(no_pm=True, required_perms=Perms.MANAGE_ROLES, aliases=['colors_from_roles'])
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 5, type=BucketType.guild)
     async def add_colors_from_roles(self, ctx, *, roles):
         """Turn existing role(s) to colors.
         Usage:

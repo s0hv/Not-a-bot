@@ -9,6 +9,4 @@ class AudioBot(BotBase):
 
     @staticmethod
     def get_command_prefix(self, message):
-        guild = message.guild
-        # Star unpacking isn't supported in return yet
-        return (self.default_prefix, *self.guild_cache.prefixes(guild.id))
+        return self.default_prefix

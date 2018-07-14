@@ -28,14 +28,13 @@ from concurrent.futures import ThreadPoolExecutor
 import discord
 from discord.ext.commands import CommandNotFound, CommandError
 from sqlalchemy import create_engine
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot import exceptions
 from bot.bot import Bot
 from bot.dbutil import DatabaseUtils
-from bot.guildcache import GuildCache
 from bot.globals import Auth
+from bot.guildcache import GuildCache
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -74,36 +73,6 @@ class BotBase(Bot):
     def get_command_prefix(self, message):
         guild = message.guild
         return self.default_prefix if not guild else self.guild_cache.prefixes(guild.id)
-
-    async def cache_guilds(self):
-        import time
-        t = time.time()
-        guilds = self.guilds
-        sql = 'SELECT guild FROM `guilds`'
-        guild_ids = {r[0] for r in await self.dbutil.execute(sql)}
-        new_guilds = {s.id for s in guilds}.difference(guild_ids)
-
-        await self.dbutils.add_guilds(*new_guilds)
-        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild'
-        rows = {}
-        for row in await self.dbutil.execute(sql):
-            guild_id = row['guild']
-            if guild_id in rows:
-                prefix = row['prefix']
-                if prefix is not None:
-                    rows[guild_id]['prefixes'].add(prefix)
-
-            else:
-                d = {**row}
-                d.pop('guild', None)
-                d['prefixes'] = {d.get('prefix') or self.default_prefix}
-                d.pop('prefix')
-                rows[guild_id] = d
-
-        for guild_id, row in rows.items():
-            self.guild_cache.update_cached_guild(guild_id, **row)
-
-        logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
 
     @property
     def get_session(self):
@@ -162,26 +131,6 @@ class BotBase(Bot):
             return
 
         await self.process_commands(message)
-
-    async def on_guild_join(self, guild):
-        sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (%s)' % guild.id
-        try:
-            await self.dbutil.execute(sql)
-            await self.dbutil.execute('INSERT IGNORE INTO `prefixes` (`guild`) VALUES (%s)' % guild.id, commit=True)
-        except SQLAlchemyError:
-            logger.exception('Failed to add new server')
-
-        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild WHERE guilds.guild=%s' % guild.id
-        rows = (await self.dbutil.execute(sql)).fetchall()
-        if not rows:
-            return
-
-        prefixes = {r['prefix'] for r in rows if r['prefix'] is not None} or {self.default_prefix}
-        d = {**rows[0]}
-        d.pop('guild', None)
-        d.pop('prefix', None)
-        d['prefixes'] = prefixes
-        self.guild_cache.update_cached_guild(guild.id, **d)
 
     async def _check_auth(self, user_id, auth_level):
         if auth_level == 0:

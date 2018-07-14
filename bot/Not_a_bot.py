@@ -30,6 +30,7 @@ import discord
 from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
 from utils.utilities import (split_string, slots2dict, retry, random_color)
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -146,6 +147,26 @@ class NotABot(BotBase):
             else:
                 await channel.send('dat boi')
             return
+
+    async def on_guild_join(self, guild):
+        sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (%s)' % guild.id
+        try:
+            await self.dbutil.execute(sql)
+            await self.dbutil.execute('INSERT IGNORE INTO `prefixes` (`guild`) VALUES (%s)' % guild.id, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Failed to add new server')
+
+        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild WHERE guilds.guild=%s' % guild.id
+        rows = (await self.dbutil.execute(sql)).fetchall()
+        if not rows:
+            return
+
+        prefixes = {r['prefix'] for r in rows if r['prefix'] is not None} or {self.default_prefix}
+        d = {**rows[0]}
+        d.pop('guild', None)
+        d.pop('prefix', None)
+        d['prefixes'] = prefixes
+        self.guild_cache.update_cached_guild(guild.id, **d)
 
     async def on_guild_role_delete(self, role):
         await self.dbutils.delete_role(role.id, role.guild.id)

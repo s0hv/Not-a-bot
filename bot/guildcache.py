@@ -25,7 +25,10 @@ class GuildCache:
 
             settings[k] = v
 
-        self._set_internal_value(guild_id, 'prefixes', list(self.prefixes(guild_id, use_set=True)))
+        # Reverse sort prefixes so some prefixes don't get overlooked
+        # e.q. if you add a prefix a and then a prefix aa if the a prefix is
+        # first in the list it will always get invoked when aa is used
+        self._set_internal_value(guild_id, 'prefixes', sorted(list(self.prefixes(guild_id, use_set=True)), reverse=True))
 
     async def set_value(self, guild_id, name, value):
         sql = 'INSERT INTO `guilds` (`guild`, `{0}`) VALUES ({1}, :{0}) ON DUPLICATE KEY UPDATE {0}=:{0}'.format(name, guild_id)
@@ -83,6 +86,7 @@ class GuildCache:
         if success:
             prefixes_list = self.prefixes(guild_id)
             prefixes_list.append(prefix)
+            prefixes_list.sort(reverse=True)
             prefixes.add(prefix)
 
         return success

@@ -614,7 +614,7 @@ class Audio:
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
             terminal.error('Playlist not found even when voice is playing')
-            ctx.send('No playlist found. Reconnect the bot to fix this')
+            await ctx.send('No playlist found. Reconnect the bot to fix this')
 
         return musicplayer
 
@@ -1294,11 +1294,12 @@ class Audio:
             terminal.exception('Error while stopping voice')
 
     async def disconnect_voice(self, musicplayer):
-        await self.close_player(musicplayer)
         try:
             del self.musicplayers[musicplayer.channel.guild.id]
         except:
             pass
+
+        await self.close_player(musicplayer)
         if not self.musicplayers:
             await self.bot.change_presence(**self.bot.config.default_activity)
 

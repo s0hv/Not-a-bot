@@ -373,7 +373,7 @@ class BotAdmin(Cog):
         self.bot._runas = user
         await ctx.send(f'Now running as {user}')
 
-    @command(auth=Auth.BOT_ADMIN, ignore_extra=True)
+    @command(owner_only=True, ignore_extra=True)
     async def update_bot(self, ctx, *, options=None):
         """Does a git pull"""
         cmd = 'git pull'.split(' ')

@@ -235,7 +235,7 @@ class Colors(Cog):
                 await ctx.send('Color {0.name} already exists'.format(role))
                 continue
 
-            lab = self.rgb2lab(*map(lambda v: v/255, color.to_rgb()))
+            lab = self.rgb2lab(tuple(map(lambda v: v/255, color.to_rgb())))
             color = Color(role.id, role.name, color.value, guild.id, lab)
             if await self._add_color2db(color):
                 await ctx.send('Color {} created'.format(role))

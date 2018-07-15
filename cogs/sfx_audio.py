@@ -475,11 +475,10 @@ class Audio:
         if not state.on_join:
             return
 
-        channel = member.guild.me.voice
+        channel = member.guild.me.voice.channel
         if not channel:
             return
 
-        channel = channel
         try:
             if not before and after:
                 if after.channel == channel:

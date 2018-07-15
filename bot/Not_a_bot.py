@@ -158,6 +158,7 @@ class NotABot(BotBase):
             return
 
     async def on_guild_join(self, guild):
+        terminal.info(f'Joined guild {guild.name} {guild.id}')
         if await self.dbutil.is_guild_blacklisted(guild.id):
             await guild.leave()
             return

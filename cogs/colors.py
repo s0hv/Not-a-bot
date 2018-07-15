@@ -127,7 +127,7 @@ class Colors(Cog):
 
         role = self.bot.get_role(id, guild)
         if role is None:
-            return await self._delete_color(guild_id, id)
+            return
 
         color = Color(id, name, value, guild_id, (lab_l, lab_a, lab_b))
 

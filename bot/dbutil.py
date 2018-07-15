@@ -115,8 +115,7 @@ class DatabaseUtils:
         return True
 
     async def index_guild_roles(self, guild):
-        roles = guild.roles
-        roles = [{'id': r.id, 'guild': guild.id} for r in roles]
+        roles = [{'id': r.id, 'guild': guild.id} for r in guild.roles]
         role_ids = [str(r.id) for r in guild.roles]
         sql = 'INSERT IGNORE INTO `roles` (`id`, `guild`) VALUES (:id, :guild)'
         try:

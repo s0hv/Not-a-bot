@@ -64,6 +64,9 @@ class NotABot(BotBase):
 
             if guild.unavailable:
                 continue
+            if len(guild.roles) < 2:
+                continue
+
             await self.dbutil.index_guild_roles(guild)
 
         await self.dbutils.add_guilds(*new_guilds)

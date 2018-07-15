@@ -58,6 +58,10 @@ class NotABot(BotBase):
         guild_ids = {r[0] for r in await self.dbutil.execute(sql)}
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
         for guild in guilds:
+            if await self.dbutil.is_guild_blacklisted(guild.id):
+                await guild.leave()
+                continue
+
             if guild.unavailable:
                 continue
             await self.dbutil.index_guild_roles(guild)
@@ -154,6 +158,10 @@ class NotABot(BotBase):
             return
 
     async def on_guild_join(self, guild):
+        if await self.dbutil.is_guild_blacklisted(guild.id):
+            await guild.leave()
+            return
+
         sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (%s)' % guild.id
         try:
             await self.dbutil.execute(sql)

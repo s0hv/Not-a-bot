@@ -497,7 +497,7 @@ class BotAdmin(Cog):
         await ctx.send(f'Removed the botban of {name}`{user_id}`')
 
     @command(owner_only=True)
-    async def leave_server(self, ctx, guild_id):
+    async def leave_guild(self, ctx, guild_id: int):
         g = self.bot.get_guild(guild_id)
         if not g:
             return await ctx.send(f'Guild {guild_id} not found')
@@ -506,7 +506,7 @@ class BotAdmin(Cog):
         await ctx.send(f'Left guild {g.name} `{g.id}`')
 
     @command(owner_only=True)
-    async def blacklist_guild(self, ctx, guild_id, *, reason):
+    async def blacklist_guild(self, ctx, guild_id: int, *, reason):
         try:
             await self.bot.dbutil.blacklist_guild(guild_id, reason)
         except SQLAlchemyError:
@@ -521,7 +521,7 @@ class BotAdmin(Cog):
         await ctx.send(f'Blacklisted guild {s}')
 
     @command(owner_only=True)
-    async def unblacklist_guild(self, ctx, guild_id):
+    async def unblacklist_guild(self, ctx, guild_id: int):
         try:
             await self.bot.dbutil.unblacklist_guild(guild_id)
         except SQLAlchemyError:

@@ -396,6 +396,12 @@ class DatabaseUtils:
         sql = 'DELETE FROM `guild_blacklist` WHERE guild=%s' % guild_id
         await self.execute(sql, commit=True)
 
+    async def is_guild_blacklisted(self, guild_id):
+        sql = 'SELECT 1 FROM `guild_blacklist` WHERE guild=%s' % guild_id
+        r = await self.execute(sql)
+        r = r.first()
+        return r is not None and r[0] == 1
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

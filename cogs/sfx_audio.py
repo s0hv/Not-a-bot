@@ -156,6 +156,7 @@ class Audio:
         self.bot = bot
         self.music_players = self.bot.music_players
         self.queue = queue
+        self._lang = 'en-us'
 
     def get_voice_state(self, guild):
         playlist = self.music_players.get(guild.id)
@@ -508,7 +509,7 @@ class Audio:
         if gTTS is None:
             return
 
-        gtts = gTTS(string, lang='en-us')
+        gtts = gTTS(string, lang=self._lang)
         gtts.save(path)
         state = self.get_voice_state(guild)
         if not state:

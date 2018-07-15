@@ -479,18 +479,18 @@ class Audio:
         if not channel:
             return
 
-        channel = channel.id
+        channel = channel
         try:
             if not before and after:
-                if after.channel.id == channel:
+                if after.channel == channel:
                     await self.on_join(member)
             elif before and not after:
-                if before.channel.id == channel:
+                if before.channel == channel:
                     await self.on_leave(member)
-            elif before and after and before.channel.id != after.channel.id:
-                if before.channel.id == channel:
+            elif before and after and before.channel != after.channel:
+                if before.channel == channel:
                     await self.on_leave(member)
-                elif after.channel.id == channel:
+                elif after.channel == channel:
                     await self.on_join(member)
         except:
             terminal.exception('Failed to say join leave voice')

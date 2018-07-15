@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import shlex
 from math import ceil
 
 import discord
@@ -396,7 +397,7 @@ class Colors(Cog):
         if not roles:
             return await ctx.send('Give some roles to turn to guild colors')
 
-        roles = roles.split(' ')
+        roles = shlex.split(roles)
         guild = ctx.guild
         success = []
         failed = []

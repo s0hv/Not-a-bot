@@ -508,6 +508,8 @@ class Audio:
         gtts = gTTS(string, lang='en-us')
         gtts.save(path)
         state = self.get_voice_state(guild)
+        if not state:
+            return
 
         state.add_next(path)
 

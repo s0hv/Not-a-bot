@@ -469,7 +469,7 @@ class Audio:
         if member == self.bot.user:
             return
 
-        state = self.music_players[member.guild.id]
+        state = self.music_players.get(member.guild.id)
         if not state:
             return
 

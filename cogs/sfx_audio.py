@@ -447,7 +447,6 @@ class Audio:
         await self.disconnect_voice(state)
 
     async def on_voice_state_update(self, member, before, after):
-        return # Temporary
         if member == self.bot.user:
             return
 
@@ -458,15 +457,15 @@ class Audio:
         try:
             if not before and after:
                 if after.channel == state.channel:
-                    await self.on_join(after)
+                    await self.on_join(member)
             elif before and not after:
                 if before.channel == state.channel:
-                    await self.on_leave(after)
+                    await self.on_leave(member)
             elif before and after and before.channel != after.channel:
                 if before.channel == state.channel:
-                    await self.on_leave(after)
+                    await self.on_leave(member)
                 elif after.channel == state.channel:
-                    await self.on_join(after)
+                    await self.on_join(member)
         except:
             terminal.exception('Failed to say join leave voice')
 

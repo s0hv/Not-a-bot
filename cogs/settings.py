@@ -33,9 +33,9 @@ class Settings(Cog):
         embed = discord.Embed(title='Current settings for %s' % guild.name, description=
                               'To change these settings use {}settings <name> <value>\n'
                               'The name for each setting is specified in brackets\n'
-                              'Value depends on the setting.'.format(ctx.invoked_with))
+                              'Value depends on the setting.'.format(ctx.prefix))
         fields = OrderedDict([('modlog', 'Moderation log'), ('keeproles', 'Re-add roles to user if they rejoin'),
-                              ('prefixes', 'Command prefixes'), ('mute_role', 'Role that is used with timeout and mute'),
+                              ('prefixes', 'Command prefixes'), ('mute_role', 'Role that is used with timeout, mute, mute_roll'),
                               ('random_color', 'Add a random color to a user when they join'),
                               ('automute', 'Mute on too many mentions in a message')])
         type_conversions = {True: 'On', False: 'Off', None: 'Not set'}

@@ -36,5 +36,5 @@ if not discord.opus.is_loaded():
 
 
 terminal.info('SFX bot starting up')
-bot = Ganypepe(prefix='!!', conf=config, pm_help=False, max_messages=1000)
+bot = Ganypepe(prefix='!!', conf=config, pm_help=False, max_messages=100)
 bot.run(config.sfx_token)

@@ -76,9 +76,10 @@ class CommandBlacklisted(BotException):
 
 
 class ImageSizeException(BotException):
-    def __init__(self, message, max_pixel, *args, **kwargs):
-        super().__init__(message, *args, **kwargs)
+    def __init__(self, size, max_pixel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.max_pixel = max_pixel
+        self._message = size
 
     @property
     def message(self):

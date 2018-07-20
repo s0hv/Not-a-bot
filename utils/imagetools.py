@@ -81,6 +81,20 @@ class ColorThief(CF):
 
 
 class GeoPattern(geopatterns.GeoPattern):
+    available_generators = [
+        'bricks',
+        'hexagons',
+        'overlapping_circles',
+        'overlapping_rings',
+        'plaid',
+        'plus_signs',
+        'rings',
+        'sinewaves',
+        'squares',
+        'triangles',
+        'xes'
+    ]
+
     def generate_background(self, base_color, randomize_hue):
         hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 359)
         sat_offset = int(self.hash[17:][:1], 16)
@@ -449,7 +463,7 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
         Image.Image
     """
     x, y = img.size
-    if x * y > max_pixels:  # More pixels than in a 1080p pic is a no no
+    if x * y > max_pixels:  # More pixels than in a 1080p pic is a max by default
         raise ImageSizeException(x * y, max_pixels)
     x_m = x / new_size[0]
     y_m = y / new_size[1]
@@ -492,6 +506,34 @@ def get_duration(frames):
     else:
         duration = [frame.info.get('duration', 20) for frame in frames]
     return duration
+
+
+def fixed_gif_frames(img, func=None):
+    if func is None:
+        def func(img):
+            return img.copy()
+
+    frames = []
+    while True:
+        frames.append(func(img))
+        try:
+            img.seek(img.tell() + 1)
+        except EOFError:
+            frames[-1] = func(img)
+            break
+
+    return frames
+
+
+def get_frames(img):
+    return fixed_gif_frames(img)
+
+
+def convert_frames(img, mode='RGBA'):
+    def func(img):
+        return img.convert(mode)
+
+    return fixed_gif_frames(img, func)
 
 
 def func_to_gif(img, f, get_raw=True):
@@ -593,6 +635,32 @@ def gradient_flash(im, get_raw=True, transparency=None):
         data = Image.open(data)
 
     return data
+
+
+def apply_transparency(frames):
+    im = frames[0]
+    transparency = False
+    if im.mode == 'RGBA' or im.info.get('background', None) is not None or im.info.get('transparency', None) is not None:
+        transparency = True
+
+    if not transparency:
+        return frames
+
+    images = []
+    for img in frames:
+        # Use a mask to map the transparent area in the gif frame
+        # optimize MUST be set to False when saving or transparency
+        # will most likely be broken
+        # source http://www.pythonclub.org/modules/pil/convert-png-gif
+        alpha = img.split()[3]
+        img = img.convert('P', palette=Image.ADAPTIVE, colors=255)
+        mask = Image.eval(alpha, lambda a: 255 if a <= 128 else 0)
+        img.paste(255, mask=mask)
+        img.info['transparency'] = 255
+        img.info['background'] = 255
+        images.append(img)
+
+    return images
 
 
 def optimize_gif(gif_bytes):

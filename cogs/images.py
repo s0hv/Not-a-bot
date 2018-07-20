@@ -8,10 +8,11 @@ from functools import partial
 from io import BytesIO
 from random import randint
 
-from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops
+from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops, GifImagePlugin
 from bs4 import BeautifulSoup
 from discord import File
 from discord.ext.commands import cooldown, BucketType, BotMissingPermissions
+from discord.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
@@ -21,7 +22,8 @@ from bot.bot import command
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
-                              gradient_flash, sepia, optimize_gif, func_to_gif)
+                              gradient_flash, sepia, optimize_gif, func_to_gif,
+                              get_duration, convert_frames, apply_transparency)
 from utils.utilities import get_image_from_message, find_coeffs, check_botperm
 
 logger = logging.getLogger('debug')
@@ -625,6 +627,68 @@ class Images(Cog):
             name = 'blurple.png'
 
         await ctx.send(file=File(data, filename=name))
+
+    @command(ignore_extra=True, aliases=['gspd', 'gif_spd'])
+    @cooldown(2, 5)
+    async def gif_speed(self, ctx, image, speed=None):
+        """
+        Speed up or slow a gif down by multiplying the frame delay
+        the specified speed (higher is faster, lower is slower, 1 is default speed)
+        Due to the fact that different engines render gifs differently higher speed
+        might not actually mean faster gif. After a certain threshold
+        the engine will start throttling and set the frame delay to a preset default
+        If this happens try making the speed value smaller
+        """
+        if speed is None:
+            img = await self._get_image(ctx, None)
+            speed = image
+        else:
+            img = await self._get_image(ctx, image)
+
+        if img is None:
+            return
+
+        if not isinstance(img, GifImagePlugin.GifImageFile):
+            raise BadArgument('Image must be a gif')
+
+        try:
+            speed = float(speed)
+        except (ValueError, TypeError) as e:
+            raise BadArgument(str(e))
+
+        if speed == 1:
+            return await ctx.send("Setting speed to 1 won't change the speed ya know")
+
+        if not 0 < speed <= 10:
+            raise BadArgument('Speed must be larger than 0 and less or equal to 10')
+
+        def do_speedup():
+            frames = convert_frames(img, 'RGBA')
+            durations = get_duration(frames)
+
+            def transform(duration):
+                # Frame delay is stored as an unsigned 2 byte int
+                # A delay of 0 would mean that the frame would change as fast
+                # as the pc can do it which is useless. Also rendering engines
+                # like to round delays higher up to 10 and most don't display the
+                # smallest delays
+                duration = min(max(duration//speed, 5), 65535)
+                return duration
+
+            durations = list(map(transform, durations))
+            frames[0].info['duration'] = durations
+            for f, d in zip(frames, durations):
+                f.info['duration'] = d
+
+            frames = apply_transparency(frames)
+            file = BytesIO()
+            frames[0].save(file, format='GIF', duration=durations, save_all=True,
+                           append_images=frames[1:], loop=65535, optimize=False, disposal=2)
+            file.seek(0)
+            return optimize_gif(file.getvalue())
+
+        file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_speedup)
+        await ctx.send(file=File(file, filename='speedup.gif'))
 
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)

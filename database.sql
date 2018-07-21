@@ -246,6 +246,14 @@ CREATE TABLE `last_seen_users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+CREATE TABLE `activity_log` (
+    `user` BIGINT NOT NULL,
+    game VARCHAR(128) COLLATE utf8mb4_unicode_ci NOT NULL,
+    time INT DEFAULT 0,
+    PRIMARY KEY (`user`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 CREATE TABLE `command_stats` (
     `parent` VARCHAR(40) COLLATE utf8_unicode_ci NOT NULL,
     `cmd` VARCHAR(200) COLLATE utf8_unicode_ci DEFAULT 0,

@@ -401,6 +401,20 @@ class DatabaseUtils:
         r = r.first()
         return r is not None and r[0] == 1
 
+    async def add_multiple_activities(self, data):
+        """
+        data is a list of dicts with each dict containing user, game and time
+        """
+        sql = 'INSERT INTO `activity_log` (`user`, `game`, `time`) VALUES (:user, :game, :time) ON DUPLICATE KEY UPDATE time=VALUES(`time`)'
+
+        try:
+            await self.execute(sql, data, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Failed to log activities')
+            return False
+
+        return True
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

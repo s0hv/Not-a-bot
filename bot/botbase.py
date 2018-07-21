@@ -51,7 +51,7 @@ class BotBase(Bot):
 
         self._guild_cache = GuildCache(self)
         self._dbutil = DatabaseUtils(self)
-        self._setup()
+        self._setup_db()
         self.threadpool = ThreadPoolExecutor(4)
         self.loop.set_default_executor(self.threadpool)
 
@@ -60,7 +60,7 @@ class BotBase(Bot):
         else:
             self.default_cogs = set()
 
-    def _setup(self):
+    def _setup_db(self):
         db = 'discord' if not self.test_mode else 'test'
         engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
                                encoding='utf8', pool_recycle=36000)
@@ -117,8 +117,6 @@ class BotBase(Bot):
         terminal.info('Logged in as {0.user.name}'.format(self))
         await self.dbutil.add_command('help')
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
-        if self.config.default_activity:
-            await self.change_presence(activity=discord.Activity(**self.config.default_activity))
         terminal.debug('READY')
 
         for guild in self.guilds:

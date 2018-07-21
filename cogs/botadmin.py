@@ -532,6 +532,26 @@ class BotAdmin(Cog):
         s = f'{guild} `{guild_id}`' if guild else guild_id
         await ctx.send(f'Unblacklisted guild {s}')
 
+    @command(owner_only=True, ignore_extra=True)
+    async def restart_db(self, ctx):
+        def reconnect():
+            t = time.perf_counter()
+            session = self.bot._Session
+            engine = self.bot._engine
+
+            session.close_all()
+            engine.dispose()
+
+            self.bot._setup_db()
+
+            del session
+            del engine
+            return (time.perf_counter()-t)*1000
+
+        t = await self.bot.loop.run_in_executor(self.bot.threadpool, reconnect)
+
+        await ctx.send(f'Reconnected to db in {t:.0f}ms')
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

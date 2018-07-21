@@ -43,7 +43,7 @@ class ActivityLog(Cog):
 
     @staticmethod
     def status_changed(before, after):
-        if all((before.activity, before.activity.type == ActivityType.playing, before.activity.start, after.activity is None)):
+        if before.activity and before.activity.type == ActivityType.playing and before.activity.start and after.activity is None:
             return True
 
         return False

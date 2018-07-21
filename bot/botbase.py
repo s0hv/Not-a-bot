@@ -121,6 +121,11 @@ class BotBase(Bot):
             await self.change_presence(activity=discord.Activity(**self.config.default_activity))
         terminal.debug('READY')
 
+        for guild in self.guilds:
+            if await self.dbutil.is_guild_blacklisted(guild.id):
+                await guild.leave()
+                continue
+
     async def on_message(self, message):
         await self.wait_until_ready()
         if message.author.bot or message.author == self.user:
@@ -172,3 +177,9 @@ class BotBase(Bot):
         elif ctx.invoked_with:
             exc = CommandNotFound('Command "{}" is not found'.format(ctx.invoked_with))
             self.dispatch('command_error', ctx, exc)
+
+    async def on_guild_join(self, guild):
+        terminal.info(f'Joined guild {guild.name} {guild.id}')
+        if await self.dbutil.is_guild_blacklisted(guild.id):
+            await guild.leave()
+            return

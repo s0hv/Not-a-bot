@@ -287,6 +287,7 @@ class Utilities(Cog):
         headers = {'Content-type': 'application/json'}
 
         await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
+        await ctx.send('Feedback sent')
 
     @command(aliases=['bug'], ignore_extra=True)
     @cooldown(1, 10, BucketType.user)

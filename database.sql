@@ -250,7 +250,7 @@ CREATE TABLE `activity_log` (
     `user` BIGINT NOT NULL,
     game VARCHAR(128) COLLATE utf8mb4_unicode_ci NOT NULL,
     time INT DEFAULT 0,
-    PRIMARY KEY (`user`)
+    PRIMARY KEY (`user`, `game`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

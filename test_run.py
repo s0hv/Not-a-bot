@@ -74,6 +74,7 @@ if not discord.opus.is_loaded():
     discord.opus.load_opus('opus')
 
 initial_cogs = [
+    'activity_log',
     'admin',
     'autoresponds',
     'autoroles',

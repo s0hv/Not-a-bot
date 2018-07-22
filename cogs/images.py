@@ -685,7 +685,11 @@ class Images(Cog):
             frames[0].save(file, format='GIF', duration=durations, save_all=True,
                            append_images=frames[1:], loop=65535, optimize=False, disposal=2)
             file.seek(0)
-            return optimize_gif(file.getvalue())
+            data = file.getvalue()
+            if len(data) > 8000000:
+                return optimize_gif(file.getvalue())
+
+            return data
 
         file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_speedup)
         await ctx.send(file=File(file, filename='speedup.gif'))

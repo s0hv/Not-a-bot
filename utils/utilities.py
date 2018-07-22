@@ -432,6 +432,8 @@ async def get_image_from_message(ctx, *messages):
         except SQLAlchemyError:
             pass
 
+    if image is not None:
+        image = None if not test_url(image) else image
     return image
 
 

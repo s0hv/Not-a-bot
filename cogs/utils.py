@@ -96,6 +96,7 @@ class Utilities(Cog):
             return await ctx.send('No users found with %s' % user)
 
     @command(aliases=['src', 'source_code'])
+    @cooldown(1, 5, BucketType.user)
     async def source(self, ctx, *cmd):
         """Source code for this bot"""
         if cmd:
@@ -126,7 +127,11 @@ class Utilities(Cog):
             return
         await ctx.send(source)
 
-
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.user)
+    async def invite(self, ctx):
+        """This bots invite link"""
+        await ctx.send('https://discordapp.com/api/oauth2/authorize?client_id=214724376669585409&permissions=1342557248&scope=bot')
 
     @staticmethod
     def _unpad_zero(value):

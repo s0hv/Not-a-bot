@@ -4,12 +4,16 @@ import shlex
 import subprocess
 import sys
 import time
+import inspect
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
+import textwrap
+from io import StringIO
 
 import discord
 import psutil
-from discord.ext.commands import cooldown, BucketType, bot_has_permissions
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions, Group
+from discord.ext.commands.errors import BadArgument
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
@@ -92,9 +96,37 @@ class Utilities(Cog):
             return await ctx.send('No users found with %s' % user)
 
     @command(aliases=['src', 'source_code'])
-    async def source(self, ctx):
+    async def source(self, ctx, *cmd):
         """Source code for this bot"""
-        await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
+        if cmd:
+            full_name = ' '.join(cmd)
+            cmnd = self.bot.all_commands.get(cmd[0])
+            if cmnd is None:
+                raise BadArgument(f'Command "{full_name}" not found')
+
+            for c in cmd[1:]:
+                if not isinstance(cmnd, Group):
+                    raise BadArgument(f'Command "{full_name}" not found')
+
+                cmnd = cmnd.get_command(c)
+
+            cmd = cmnd
+
+        if not cmd:
+            await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
+            return
+
+        source = inspect.getsource(cmd.callback)
+        original_source = textwrap.dedent(source)
+        source = original_source.replace('```', '`\u200b`\u200b`')  # Put zero width space between backticks so they can be within a codeblock
+        source = f'```py\n{source}\n```'
+        if len(source) > 2000:
+            file = discord.File(StringIO(original_source), filename=f'{full_name}.py')
+            await ctx.send(f'Content was longer than 2000 ({len(source)} > 2000)', file=file)
+            return
+        await ctx.send(source)
+
+
 
     @staticmethod
     def _unpad_zero(value):

@@ -176,7 +176,7 @@ class BotAdmin(Cog):
             self._last_result = local['x']
         except Exception as e:
             self._last_result = e
-            retval = f'```py\n{e}{traceback.format_exc()}\n```'
+            retval = f'```py\n{e}\n{traceback.format_exc()}\n```'
 
         if not isinstance(retval, str):
             retval = str(retval)

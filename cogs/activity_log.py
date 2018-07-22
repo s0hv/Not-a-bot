@@ -12,6 +12,7 @@ class ActivityLog(Cog):
         self._db_queue = []
         self._update_task = asyncio.run_coroutine_threadsafe(self._game_loop(), loop=bot.loop)
         self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
+        self._update_now = asyncio.Event(loop=bot.loop)
 
     async def add_game_time(self):
         if not self._db_queue:
@@ -23,8 +24,11 @@ class ActivityLog(Cog):
         del q
 
     async def _game_loop(self):
-        while True:
-            await asyncio.sleep(10)
+        while not self._update_now.is_set():
+            try:
+                await asyncio.wait_for(self._update_now.wait(), timeout=10, loop=self.bot.loop)
+            except asyncio.TimeoutError:
+                pass
 
             if not self._db_queue:
                 continue
@@ -43,8 +47,13 @@ class ActivityLog(Cog):
 
     @staticmethod
     def status_changed(before, after):
-        if before.activity and before.activity.type == ActivityType.playing and before.activity.start and after.activity is None:
-            return True
+        try:
+            if before.activity and before.activity.type == ActivityType.playing and before.activity.start and after.activity is None:
+                return True
+
+        # Sometimes you get the error ValueError: year 505XX is out of range
+        except ValueError:
+            pass
 
         return False
 
@@ -53,6 +62,14 @@ class ActivityLog(Cog):
             self._db_queue.append({'user': after.id,
                                    'time': (datetime.utcnow() - before.activity.start).seconds,
                                    'game': before.activity.name})
+
+    def teardown(self, bot):
+        self._update_task_checker.cancel()
+        asyncio.run_coroutine_threadsafe(self._update_now.set(), loop=bot.loop)
+        try:
+            self._update_task.result(timeout=20)
+        except TimeoutError:
+            pass
 
 
 def setup(bot):

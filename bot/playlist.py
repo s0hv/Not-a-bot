@@ -42,9 +42,9 @@ from utils.utilities import (read_lines, write_playlist, timestamp, seconds2str)
 terminal = logging.getLogger('terminal')
 
 try:
-    from numpy import delete
+    from numpy import delete as delete_by_indices
 except ImportError:
-    delete = None
+    delete_by_indices = None
     terminal.warning('Numpy is not installed. Playlist can now only be cleared completely. No deletion by indexes')
 
 logger = logging.getLogger('audio')
@@ -94,8 +94,8 @@ class Playlist:
         if indexes is None:
             self.playlist.clear()
         else:
-            if delete is not None:
-                songs_left = delete(list(self.playlist), indexes)
+            if delete_by_indices is not None:
+                songs_left = delete_by_indices(list(self.playlist), indexes)
                 self.playlist.clear()
                 for song in songs_left:
                     self.playlist.append(song)

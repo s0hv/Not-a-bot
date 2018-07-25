@@ -36,6 +36,7 @@ from discord.activity import Activity, ActivityType
 from discord.errors import HTTPException
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
+from discord.ext.commands import cooldown
 from discord.player import PCMVolumeTransformer
 
 from bot import player
@@ -45,7 +46,8 @@ from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
 from bot.playlist import Playlist
 from bot.song import Song
-from utils.utilities import mean_volume, search, parse_seek
+from utils.utilities import mean_volume, search, parse_seek, send_paged_message
+import weakref
 
 try:
     import aubio
@@ -73,7 +75,15 @@ def get_track_pos(duration, current_pos):
 
 
 class MusicPlayer:
+    __instances__ = weakref.WeakSet()
+
+    @classmethod
+    def get_instances(cls):
+        for inst in cls.__instances__:
+            yield inst
+
     def __init__(self, bot, disconnect, channel=None):
+        self.__instances__.add(self)
         self.bot = bot
         self.play_next = asyncio.Event()
         self.voice = None
@@ -610,11 +620,21 @@ class Audio:
         musicplayer = self.musicplayers.get(guild_id)
         return musicplayer
 
+    def find_musicplayer_from_garbage(self, guild):
+        for obj in MusicPlayer.get_instances():
+            if obj.channel.guild.id == guild.id:
+                self.musicplayers[guild.id] = obj
+                return obj
+
+        return False
+
     async def check_player(self, ctx):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
-            terminal.error('Playlist not found even when voice is playing')
-            await ctx.send('No playlist found. Reconnect the bot to fix this')
+            musicplayer = self.find_musicplayer_from_garbage(ctx.guild)
+            if not musicplayer:
+                terminal.error('Playlist not found even when voice is playing')
+                await ctx.send(f'No playlist found. Use {ctx.prefix}force_stop to reset voice state')
 
         return musicplayer
 
@@ -700,27 +720,29 @@ class Audio:
             return options
 
     @staticmethod
-    async def check_voice(ctx):
+    async def check_voice(ctx, user_connected=True):
         if ctx.voice_client is None:
             await ctx.send('Not connected to a voice channel')
             return False
 
-        if not ctx.author.voice:
-            ctx.send("You aren't connected to a voice channel")
+        if user_connected and not ctx.author.voice:
+            await ctx.send("You aren't connected to a voice channel")
             return False
 
-        elif ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+        elif user_connected and ctx.author.voice.channel.id != ctx.voice_client.channel.id:
             await ctx.send("You aren't connected to this bot's voice channel")
             return False
 
         return True
 
     @command(no_pm=True, aliases=['a'], ignore_extra=True)
+    @cooldown(1, 4, type=BucketType.guild)
     async def again(self, ctx):
         """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
     @command(aliases=['q', 'queue_np'], no_pm=True, ignore_extra=True)
+    @cooldown(1, 3, type=BucketType.guild)
     async def queue_now_playing(self, ctx):
         """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
@@ -748,7 +770,7 @@ class Audio:
                                               channel=ctx.channel)
 
     @commands.cooldown(2, 3, type=BucketType.guild)
-    @command()
+    @command(no_pm=True)
     async def seek(self, ctx, *, where: str):
         """
         If the video is cached you can seek it using this format h m s ms,
@@ -794,6 +816,7 @@ class Audio:
 
         logger.debug('Seeking with dict {0} and these options: before_options="{1}", options="{2}"'.format(seek_dict, current.before_options, options))
 
+        await current.validate_url(self.bot.aiohttp_client)
         musicplayer.player.seek(current.filename, seek_dict, before_options=current.before_options, options=options, speed=speed)
 
     async def _parse_play(self, string, ctx, metadata=None):
@@ -828,7 +851,7 @@ class Audio:
         logger.debug('Parse play returned {0}, {1}'.format(song_name, metadata))
         return song_name, metadata
 
-    @command(enabled=False)
+    @command(enabled=False, hidden=True)
     async def sfx(self, ctx):
         musicplayer = await self.check_player(ctx)
         if not musicplayer:
@@ -864,7 +887,7 @@ class Audio:
         if success:
             musicplayer.start_playlist()
 
-    @command(no_pm=True, enabled=False)
+    @command(no_pm=True, enabled=False, hidden=True)
     async def play_playlist(self, ctx, *, musicplayer):
         """Queue a saved playlist"""
         musicplayer = await self.check_player(ctx)
@@ -902,7 +925,6 @@ class Audio:
         else:
             await search(name, ctx, site, self.downloader)
 
-
     @command()
     @commands.cooldown(1, 5, type=BucketType.user)
     async def search(self, ctx, *, name):
@@ -939,11 +961,12 @@ class Audio:
         return True
 
     @command(no_pm=True, ignore_extra=True, aliases=['summon1'])
+    @cooldown(1, 3, type=BucketType.guild)
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
         return await self._summon(ctx)
 
-    @commands.cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
     async def repeat(self, ctx, value: bool=None):
         if not await self.check_voice(ctx):
@@ -963,7 +986,7 @@ class Audio:
 
         await ctx.send(s)
 
-    @commands.cooldown(1, 5, commands.BucketType.guild)
+    @cooldown(1, 5, BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
     async def speed(self, ctx, value: str):
         """Change the speed of the currently playing song.
@@ -995,17 +1018,13 @@ class Audio:
         musicplayer._speed_mod = v
         await self._seek(musicplayer, current, seek, options=options, speed=v)
 
-    @commands.cooldown(1, 5, commands.BucketType.guild)
+    @commands.cooldown(1, 5, BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
-    async def bass(self, ctx, value: str):
+    async def bass(self, ctx, value: int):
         """Add bass boost or decrease to a song.
         Value can range between -60 and 60"""
-        try:
-            v = int(value)
-            if not (-60 <= v <= 60):
-                return await ctx.send('Value must be between -60 and 60', delete_after=20)
-        except ValueError as e:
-            return await ctx.send('{0} is not an integer\n{1}'.format(value, e), delete_after=20)
+        if not (-60 <= value <= 60):
+            return await ctx.send('Value must be between -60 and 60', delete_after=20)
 
         if not await self.check_voice(ctx):
             return
@@ -1027,7 +1046,7 @@ class Audio:
         current.options = options
         await self._seek(musicplayer, current, seek, options=options)
 
-    @commands.cooldown(2, 5, commands.BucketType.guild)
+    @cooldown(1, 5, BucketType.guild)
     @command(no_pm=True, ignore_extra=True)
     async def stereo(self, ctx, mode='sine'):
         """Works almost the same way {prefix}play does
@@ -1064,6 +1083,7 @@ class Audio:
         await self._seek(musicplayer, current, seek, options=options)
 
     @command(no_pm=True)
+    @cooldown(1, 4, type=BucketType.guild)
     async def clear(self, ctx, *, items):
         """
         Clear the selected indexes from the playlist.
@@ -1092,7 +1112,7 @@ class Audio:
 
         await musicplayer.playlist.clear(index, ctx.channel)
 
-    @commands.cooldown(3, 3, type=BucketType.guild)
+    @cooldown(2, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['vol'])
     async def volume(self, ctx, value: int=-1):
         """
@@ -1112,7 +1132,7 @@ class Audio:
         musicplayer.current_volume = value / 100
         await ctx.send('Set the volume to {:.0%}'.format(musicplayer.current_volume))
 
-    @commands.cooldown(2, 2, type=BucketType.guild)
+    @commands.cooldown(2, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['default_vol', 'd_vol'])
     async def default_volume(self, ctx, value: int=-1):
         """
@@ -1143,7 +1163,7 @@ class Audio:
             tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
             await ctx.send(musicplayer.current.long_str + ' {0}'.format(tr_pos))
 
-    @commands.cooldown(1, 3, type=BucketType.user)
+    @cooldown(1, 3, type=BucketType.user)
     @command(name='playnow', no_pm=True)
     async def play_now(self, ctx, *, song_name: str):
         """
@@ -1161,7 +1181,7 @@ class Audio:
         if success:
             musicplayer.start_playlist()
 
-    @commands.cooldown(2, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['p'])
     async def pause(self, ctx):
         """Pauses the currently played song."""
@@ -1178,7 +1198,7 @@ class Audio:
         musicplayer = self.get_musicplayer(ctx.guild.id)
         await musicplayer.playlist.current_to_file(name, ctx.message.channel)
 
-    @commands.cooldown(2, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['r'])
     async def resume(self, ctx):
         """Resumes the currently played song."""
@@ -1188,7 +1208,7 @@ class Audio:
         musicplayer.resume()
 
     @command(name='bpm', no_pm=True, ignore_extra=True)
-    @commands.cooldown(1, 8, BucketType.guild)
+    @cooldown(1, 8, BucketType.guild)
     async def bpm(self, ctx):
         """Gets the currently playing songs bpm using aubio"""
         if not aubio:
@@ -1261,7 +1281,7 @@ class Audio:
                 pass
             os.remove(tempfile)
 
-    @commands.cooldown(1, 4, type=BucketType.guild)
+    @cooldown(1, 4, type=BucketType.guild)
     @command(no_pm=True)
     async def shuffle(self, ctx):
         """Shuffles the current playlist"""
@@ -1303,26 +1323,51 @@ class Audio:
         if not self.musicplayers:
             await self.bot.change_presence(**self.bot.config.default_activity)
 
-    @command(no_pm=True, aliases=['stop1'])
+    @command(no_pm=True, ignore_extra=True)
+    @cooldown(1, 6, BucketType.guild)
+    async def force_stop(self, ctx):
+        """
+        Forces voice to be stopped no matter what state the bot is in
+        as long as it's connected to voice and the internal state is in sync
+        """
+        try:
+            res = await self.stop.callback(ctx)
+        except Exception:
+            res = False
+
+        if res is False:
+            if not ctx.voice_client:
+                return await ctx.send('Not connected to voice')
+
+            await ctx.voice_client.disconnect()
+            await ctx.send('Disconnected')
+        else:
+            await ctx.send('Disconnected')
+
+    @commands.cooldown(1, 6, BucketType.user)
+    @command(no_pm=True, aliases=['stop1'], ignore_extra=True)
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
         """
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            return
+            return False
 
         await self.disconnect_voice(musicplayer)
 
         if not self.musicplayers:
             self.clear_cache()
 
-    @commands.cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 5, type=BucketType.user)
     @command(no_pm=True, aliases=['skipsen', 'skipperino', 's'])
     async def skip(self, ctx):
         """Skips the current song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
+            return
+
+        if not await self.check_voice(ctx):
             return
 
         if not musicplayer.is_playing():
@@ -1331,13 +1376,13 @@ class Audio:
 
         await musicplayer.skip(ctx.author, ctx.channel)
 
-    @commands.cooldown(1, 5, type=BucketType.guild)
+    @cooldown(1, 5, type=BucketType.guild)
     @command(name='queue', no_pm=True, aliases=['playlist'])
-    async def playlist(self, ctx, index=None):
-        """Get a list of the 10 next songs in the playlist or how long it will take to reach a certain song
-        Usage {prefix}{name} or {prefix}{name} [song index]"""
+    async def playlist(self, ctx, page_index: int=0):
+        """Get a list of the current queue in 10 song chunks
+        To skip to a certain page set the page_index arg"""
 
-        if not await self.check_voice(ctx):
+        if not await self.check_voice(ctx, user_connected=False):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
@@ -1345,50 +1390,34 @@ class Audio:
             return
 
         playlist = list(musicplayer.playlist.playlist)  # good variable naming
+        if not playlist and musicplayer.current is None:
+            return await ctx.send('Nothing playing atm')
 
-        if index is not None:
-            try:
-                index = int(index)
-            except ValueError:
-                return await ctx.send('Index must be an integer', delete_after=60)
-
-            time_left = self.list_length(musicplayer, index)
-            if not time_left:
-                return await ctx.send('Empty playlist')
-
-            try:
-                song = playlist[index - 1]
-            except IndexError:
-                return await ctx.send('No songs at that index', delete_after=60)
-
-            message = 'Time until **{0.title}** is played: {1[0]}m {1[1]}s'.format(song, divmod(floor(time_left), 60))
-            return await ctx.send(message)
-
-        response = 'No songs in queue'
-        expected_time = 0
-        if musicplayer.current is not None:
-            response = f'Currently playing **{musicplayer.current.title}**\n'
-            if musicplayer.voice:
-                expected_time = musicplayer.current.duration - musicplayer.duration
+        dur = get_track_pos(musicplayer.current.duration, 0)
+        response = f'Currently playing **{musicplayer.current.title}** {dur}'
+        if musicplayer.current.requested_by:
+            response += f' enqueued by {musicplayer.current.requested_by}\n'
 
         if not playlist:
             return await ctx.send(response)
 
-        for idx, song in enumerate(playlist[:10]):
-            response += '\n{0}. **{1.title}**'.format(idx + 1, song)
-            if song.duration > 0 and expected_time is not None:
-                response += ' (ETA: {0[0]}m {0[1]}s)'.format(divmod(floor(expected_time), 60))
-                expected_time += song.duration
-            else:
-                expected_time = None
+        pages = []
+        for i in range(0, len(playlist), 10):
+            pages.append(playlist[i:i+10])
 
-        other = len(playlist) - 10
-        if other > 0:
-            response += '\nand **%s** more' % other
+        def get_page(page, idx):
+            nonlocal response
+            durations = self.song_durations(musicplayer, until=idx*10+10)
+            durations = durations[-10:]
+            for _idx, song, dur in enumerate(zip(page, durations)):
+                response += '\n{0}. **{1.title}** {0.requested_by}'.format(_idx + 1, song)
+                response += ' (ETA: {0[0]}m {0[1]}s)'.format(divmod(dur, 60))
 
-        return await ctx.send(response)
+            return response
 
-    @commands.cooldown(1, 3, type=BucketType.guild)
+        await send_paged_message(self.bot, ctx, pages, starting_idx=page_index, page_method=get_page)
+
+    @cooldown(1, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['len'])
     async def length(self, ctx):
         """Gets the length of the current queue"""
@@ -1421,7 +1450,21 @@ class Audio:
 
         return time_left
 
-    @commands.cooldown(2, 4, type=BucketType.user)
+    @staticmethod
+    def song_durations(musicplayer, until=None):
+        playlist = musicplayer.playlist
+        if not playlist:
+            return None
+
+        durations = []
+        time_left = musicplayer.current.duration - musicplayer.duration
+        for song in list(playlist)[:until]:
+            durations.append(time_left)
+            time_left += song.duration
+
+        return durations
+
+    @cooldown(1, 5, type=BucketType.user)
     @command(no_pm=True, aliases=['dur'])
     async def duration(self, ctx):
         """Gets the duration of the current song"""
@@ -1439,6 +1482,7 @@ class Audio:
             await ctx.send('No songs are currently playing')
 
     @command(name='volm', no_pm=True)
+    @cooldown(1, 4, type=BucketType.guild)
     async def vol_multiplier(self, ctx, value=None):
         """The multiplier that is used when dynamically calculating the volume"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
@@ -1452,6 +1496,7 @@ class Audio:
             await ctx.send('Value is not a number', delete_after=60)
 
     @command(no_pm=True)
+    @cooldown(1, 10, type=BucketType.guild)
     async def link(self, ctx):
         """Link to the current song"""
         if not await self.check_voice(ctx):
@@ -1466,7 +1511,6 @@ class Audio:
             return await ctx.send('Not playing anything')
         await ctx.send('Link to **{0.title}** {0.webpage_url}'.format(current))
 
-    @commands.cooldown(1, 4)
     @command(name='delete', no_pm=True, aliases=['del', 'd'], auth=Auth.BOT_MOD)
     async def delete_from_ap(self, ctx, *name):
         """Puts a song to the queue to be deleted from autoplaylist"""
@@ -1528,6 +1572,7 @@ class Audio:
         await ctx.send('Added entry %s' % name, delete_after=60)
 
     @command(no_pm=True)
+    @cooldown(1, 5, type=BucketType.guild)
     async def autoplaylist(self, ctx, option: str):
         """Set the autoplaylist on or off"""
         musicplayer = self.get_musicplayer(ctx.guild.id)

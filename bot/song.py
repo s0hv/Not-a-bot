@@ -109,8 +109,22 @@ class Song:
         else:
             self.filename = self.url
 
+    async def validate_url(self, session):
+        if time.time() - self.last_update <= 7200:
+            return True  # If link is under 2h old it probably still works
+
+        try:
+            async with session.get(self.url) as r:
+                if r.status != 200:
+                    await self.download()
+
+            return True
+        except:
+            logger.exception('Failed to validate url')
+            return False
+
     async def download(self):
-        if self._downloading or self.success:
+        if time.time() - self.last_update <= 7200 or self._downloading or self.success:
             self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
             return
 
@@ -119,8 +133,8 @@ class Song:
         try:
             dl = self.config.download
 
-            if not dl and time.time() - self.last_update < 7200:
-                logger.debug('Skipping new dl')
+            if dl and self.last_update:
+                logger.debug('Skipping dl')
                 return
 
             loop = self.playlist.bot.loop

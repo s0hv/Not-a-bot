@@ -45,6 +45,7 @@ class BotBase(Bot):
     def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, **options):
         super().__init__(self.get_command_prefix, conf, aiohttp, **options)
         self.default_prefix = prefix
+        self._mention_prefix = ()
         self.test_mode = test_mode
         if test_mode:
             self.loop.set_debug(True)
@@ -72,7 +73,11 @@ class BotBase(Bot):
     @staticmethod
     def get_command_prefix(self, message):
         guild = message.guild
-        return self.default_prefix if not guild else self.guild_cache.prefixes(guild.id)
+        if not guild:
+            prefixes = (*self._mention_prefix, self.default_prefix)
+        else:
+            prefixes = (*self.guild_cache.prefixes(guild.id), *self._mention_prefix)
+        return prefixes
 
     @property
     def get_session(self):
@@ -114,6 +119,7 @@ class BotBase(Bot):
             self.unload_extension(c)
 
     async def on_ready(self):
+        self._mention_prefix = (self.user.mention, f'<@!{self.user.id}>')
         terminal.info('Logged in as {0.user.name}'.format(self))
         await self.dbutil.add_command('help')
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)

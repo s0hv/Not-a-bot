@@ -101,6 +101,7 @@ class NotABot(BotBase):
         logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
 
     async def on_ready(self):
+        self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
         terminal.info('Logged in as {0.user.name}'.format(self))
         await self.dbutil.add_command('help')
         await self.cache_guilds()

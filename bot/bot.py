@@ -217,10 +217,20 @@ class Bot(commands.Bot, Client):
         self.aiohttp_client = aiohttp
         self.config = config
         self.voice_clients_ = {}
+        self._error_cdm = commands.CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.guild))
 
     @property
     def runas(self):
         return self._runas
+
+    def _check_error_cd(self, message):
+        if self._error_cdm.valid:
+            bucket = self._error_cdm.get_bucket(message)
+            retry_after = bucket.update_rate_limit()
+            if retry_after:
+                return False
+
+        return True
 
     async def on_command_error(self, context, exception):
         """|coro|
@@ -243,29 +253,35 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, exceptions.SilentException):
             return
 
+        if isinstance(exception, exceptions.PermException):
+            return
+
         channel = context.channel
         exception._domain = context.domain
 
         if isinstance(exception, commands.errors.BotMissingPermissions) or isinstance(exception, commands.errors.MissingPermissions):
+            if not self._check_error_cd(context.message):
+                return
             return await channel.send(str(exception))
 
         if isinstance(exception, commands.errors.CheckFailure):
             return
 
+        error_msg = None
         if isinstance(exception, commands.errors.CommandOnCooldown):
-            await channel.send('Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after), delete_after=20)
-            return
+            error_msg = 'Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after)
 
         if isinstance(exception, commands.errors.BadArgument):
-            await channel.send(str(exception), delete_after=300)
-            return
+            error_msg = str(exception)
 
         if isinstance(exception, exceptions.BotException):
-            await channel.send(exception.message, delete_after=300)
-            return
+            error_msg = str(exception)
 
         if isinstance(exception, commands.errors.MissingRequiredArgument):
-            return await channel.send(str(exception), delete_after=300)
+            error_msg = str(exception)
+
+        if error_msg and self._check_error_cd(context.message):
+            await channel.send(error_msg, delete_after=300)
 
         terminal.warning('Ignoring exception in command {}'.format(context.command))
         traceback.print_exception(type(exception), exception,

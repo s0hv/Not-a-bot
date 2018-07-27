@@ -208,6 +208,12 @@ class GuildCache:
     async def set_on_edit_channel(self, guild_id, channel):
         return await self.set_value(guild_id, 'on_edit_channel', channel)
 
+    def on_edit_embed(self, guild_id):
+        return self.get_settings(guild_id).get('on_edit_embed')
+
+    async def set_on_edit_embed(self, guild_id, boolean):
+        return await self.set_value(guild_id, 'on_edit_embed', boolean)
+
     # On message delete
     def on_delete_message(self, guild_id, default_message=False):
         message = self.get_settings(guild_id).get('on_delete_message')
@@ -224,6 +230,12 @@ class GuildCache:
 
     async def set_on_delete_channel(self, guild_id, channel):
         return await self.set_value(guild_id, 'on_delete_channel', channel)
+
+    def on_delete_embed(self, guild_id):
+        return self.get_settings(guild_id).get('on_delete_embed')
+
+    async def set_on_delete_embed(self, guild_id, boolean):
+        return await self.set_value(guild_id, 'on_delete_embed', boolean)
 
     def get_settings(self, guild_id):
         settings = self[guild_id]

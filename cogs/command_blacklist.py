@@ -26,7 +26,25 @@ class CommandBlacklist(Cog):
     async def blacklist(self, ctx, command_: str, mention=None):
         """Blacklist a command for a user, role or channel
         To blacklist multiple commands at the same time wrap the command names in quotes
-        like this {prefix}{name} \"command1 command2 command3\" #channel"""
+        like this {prefix}{name} \"command1 command2 command3\" #channel
+        The hierarchy of `blacklist` and `whitelist` is as follows
+        Whitelist always overrides blacklist of the same level
+
+        Then levels of scope it can have are as follows
+        `User` > `Role` > `Channel` > `Server` where each level overrides every scope perm after it
+        e.g. Blacklisting command ping for role Member and whitelisting it for role Mod
+        would make it so people with Member role wouldn't be able to use it unless they had Mod role
+
+        Also if you further whitelisted ping from a single member
+        that user would be able to use the command always
+        since user whitelist overrides every other scope
+
+        To blacklist a command server wide specify the commands and don't specify the mention param
+        like this `{prefix}blacklist "cmd1 cmd2 etc"` which would blacklist those commands
+        for everyone in the server unless they have it whitelisted
+        Whitelisting server wide isn't possible
+
+        For dangers of whitelisting see `{prefix}help whitelist`"""
         msg = ctx.message
         guild = ctx.guild
 
@@ -142,7 +160,20 @@ class CommandBlacklist(Cog):
     async def whitelist(self, ctx, command_: str, mention=None):
         """Whitelist a command for a user, role or channel
         To whitelist multiple commands at the same time wrap the command names in quotes
-        like this {prefix}{name} \"command1 command2 command3\" #channel"""
+        like this {prefix}{name} \"command1 command2 command3\" #channel
+
+        To see specifics on the hierarchy of whitelist/blacklist see `{prefix}help blacklist`
+
+        **WHITELISTING COULD BE DANGEROUS IF YOU DON'T KNOW WHAT YOU ARE DOING!**
+        Before whitelisting read the following
+
+        Whitelisting WILL OVERRIDE ANY REQUIRED PERMS for the command being called
+        If a command requires ban perms and you whitelist it for a role
+        everyone with that role can use that command even when they don't have ban perms
+
+        Due to safety reasons whitelisting commands from this module is not allowed.
+        Give the users correct discord perms instead
+        """
         msg = ctx.message
         guild = msg.guild
 
@@ -150,6 +181,9 @@ class CommandBlacklist(Cog):
             name = _command.name
             if mention is None:
                 return await ctx.send('Please mention the thing you want to whitelist. (user, role, channel)')
+
+            if _command.cog_name == self.__class__.__name__:
+                return await ctx.send(f"Due to safety reasons commands from {_command.cog_name} module can't be whitelisted")
 
             elif msg.mentions:
                 if mention != msg.mentions[0].mention:

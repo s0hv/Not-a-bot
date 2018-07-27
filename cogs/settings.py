@@ -307,6 +307,17 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
+    @on_delete.command(name='embed', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, no_pm=True)
+    @cooldown(2, 10, BucketType.guild)
+    async def on_delete_embed(self, ctx, boolean: bool):
+        """Make message deletion log use embeds instead of normal messages
+        Embeds will always have a local timestamp and user pfp in the appropriate slots
+        unlike in a normal message"""
+        success = await self.cache.set_on_delete_embed(ctx.guild.id, boolean)
+        if not success:
+            return await ctx.send('Failed to set value')
+        await ctx.send(f'Set embeds to {boolean}')
+
     @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
     async def remove_on_delete(self, ctx):
@@ -381,6 +392,17 @@ class Settings(Cog):
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
+
+    @on_delete.command(name='embed', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, no_pm=True)
+    @cooldown(2, 10, BucketType.guild)
+    async def on_edit_embed(self, ctx, boolean: bool):
+        """Make message edit log use embeds instead of normal messages
+        Embeds will always have a local timestamp and user pfp in the appropriate slots
+        unlike in a normal message"""
+        success = await self.cache.set_on_edit_embed(ctx.guild.id, boolean)
+        if not success:
+            return await ctx.send('Failed to set value')
+        await ctx.send(f'Set embeds to {boolean}')
 
     @on_edit.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)

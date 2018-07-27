@@ -220,9 +220,8 @@ def from_max_stat(min: int, max: int, value: int) -> tuple:
 class Pokemon(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        #with open(os.path.join(os.getcwd(), 'data', 'pokemon_names.json'), 'r', encoding='utf-8') as f:
-         #   self.poke_names = json.load(f)
-        self.poke_names = {}
+        with open(os.path.join(os.getcwd(), 'data', 'pokemon_hashes.json'), 'r', encoding='utf-8') as f:
+            self.poke_hashes = json.load(f)
 
     @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3, BucketType.user)
@@ -425,11 +424,11 @@ class Pokemon(Cog):
         else:
             shiny = ''
 
-        poke_fmt = re.sub(' |: ', '-', poke).lower()
+        poke_fmt = re.sub(' |: ', '-', poke).lower().replace('♂', 'm').replace('♀', 'f')
         url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)
         embed = Embed(description=f'{mention} caught a {"Shiny " if shiny else ""}**{poke}**', colour=random_color())
         embed.set_image(url=url)
-        poke_fmt = re.sub(' |: ', '-', poke).lower()
+        poke_fmt = re.sub(' |: ', '-', poke).lower().replace('♂', '-m').replace('♀', '-f')
         icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{poke_fmt}.png'
         embed.set_thumbnail(url=icon)
 
@@ -456,13 +455,12 @@ class Pokemon(Cog):
 
                 #self.bot.dbutil.log_pokespawn(poke_name, message.guild.id)
 
-
     async def match_pokemon(self, url):
         async with await self.bot.aiohttp_client.get(url) as r:
             data = await r.content.read()
 
         md = hashlib.md5(data).hexdigest()
-        return self.poke_names.get(md)
+        return self.poke_hashes.get(md)
 
     @command(aliases=['pstats_format'], ignore_extra=True)
     async def pstat_format(self, ctx):

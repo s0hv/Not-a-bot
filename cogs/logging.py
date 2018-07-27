@@ -2,6 +2,7 @@ import asyncio
 import logging
 from queue import Queue
 
+import discord
 from discord import errors
 from discord.abc import PrivateChannel
 from discord.embeds import EmptyEmbed
@@ -10,7 +11,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_delete, format_on_edit,
-                             format_join_leave)
+                             format_join_leave, get_avatar)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -191,23 +192,28 @@ class Logger(Cog):
         if channel is None:
             return
 
+        is_embed = self.bot.guild_cache.on_edit_embed(msg.guild.id)
+
         perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
-        if not perms.send_messages:
+        if not perms.send_messages or (is_embed and not perms.embed_links):
             return
 
         message = self.bot.guild_cache.on_delete_message(msg.guild.id, default_message=True)
         message = format_on_delete(msg, message)
-        message = split_string(message, splitter='\n')
+        message = split_string(message, splitter='\n', maxlen=2048 if is_embed else 2000)
         if len(message) > 2:
             m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.guild)
             logger.info(m)
             terminal.warning(m)
 
         for m in message:
-            try:
+            if is_embed:
+                await channel.send(embed=self.create_embed(msg,
+                                                           f'Message edited in #{msg.channel.name} {msg.channel.id}',
+                                                           m,
+                                                           msg.edited_at))
+            else:
                 await channel.send(m)
-            except errors.HTTPException:
-                await self.bot.get_channel(252872751319089153).send('{} posted spam string'.format(msg.author))
 
     async def on_message_edit(self, before, after):
         if before.content == after.content:
@@ -233,22 +239,36 @@ class Logger(Cog):
         if message is None:
             return
 
+        is_embed = self.bot.guild_cache.on_edit_embed(before.guild.id)
+
         message = format_on_edit(before, after, message)
         if message is None:
             return
 
         perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
-        if not perms.send_messages:
+        if not perms.send_messages or (is_embed and not perms.embed_links):
             return
 
-        message = split_string(message, maxlen=2000)
+        message = split_string(message, maxlen=2048 if is_embed else 2000)
         if len(message) > 4:
             m = '{0.id}: {0.name} On edit message had to post over 4 messages'.format(before.guild)
             logger.info(m)
             terminal.warning(m)
 
         for m in message:
-            await channel.send(m)
+            if is_embed:
+                await channel.send(embed=self.create_embed(after,
+                                                           f'Message edited in #{after.channel.name} {after.channel.id}',
+                                                           m,
+                                                           after.edited_at))
+            else:
+                await channel.send(m)
+
+    @staticmethod
+    def create_embed(message, title, description, timestamp):
+        embed = discord.Embed(title=title, description=description, timestamp=timestamp)
+        embed.set_author(name=str(message.author), icon_url=get_avatar(message.author))
+        return embed
 
     async def on_guild_role_delete(self, role):
         await self.bot.dbutil.delete_role(role.id, role.guild.id)

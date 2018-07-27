@@ -168,6 +168,14 @@ CREATE TABLE `timeouts`(
 ) ENGINE=InnoDB;
 
 
+CREATE TABLE `timeout_logs` (
+    `guild` BIGINT NOT NULL,
+    `user` BIGINT NOT NULL,
+    `reason` TEXT NOT NULL,
+    PRIMARY KEY (`guild`, `user`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 CREATE TABLE `join_leave`(
     `user_id` BIGINT NOT NULL,
     `at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

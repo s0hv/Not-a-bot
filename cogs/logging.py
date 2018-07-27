@@ -211,7 +211,7 @@ class Logger(Cog):
                 await channel.send(embed=self.create_embed(msg,
                                                            f'Message deleted in #{msg.channel.name} {msg.channel.id}',
                                                            m,
-                                                           msg.edited_at))
+                                                           msg.created_at))
             else:
                 await channel.send(m)
 

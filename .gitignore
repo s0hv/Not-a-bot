@@ -38,3 +38,9 @@ data/pokefusion/sprPKMType_*
 .*/
 
 !database.sql
+
+# Stuff
+cache_poke_sprites.py
+Pokemon/
+hash_checks.py
+generate_hashes.py

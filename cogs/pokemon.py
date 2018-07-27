@@ -1,5 +1,6 @@
-import hashlib
+import imagehash
 import csv
+from PIL import Image
 import json
 import math
 import os
@@ -7,6 +8,8 @@ import textwrap
 import logging
 import re
 from functools import partial
+from io import BytesIO
+import numpy
 
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
@@ -20,6 +23,7 @@ from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
 from utils.utilities import basic_check, random_color
+from utils.imagetools import image_from_url
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -220,8 +224,10 @@ def from_max_stat(min: int, max: int, value: int) -> tuple:
 class Pokemon(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        with open(os.path.join(os.getcwd(), 'data', 'pokemon_hashes.json'), 'r', encoding='utf-8') as f:
+        with open(os.path.join(os.getcwd(), 'data', 'pokestats', 'pokemon_hashes.json'), 'r', encoding='utf-8') as f:
             self.poke_hashes = json.load(f)
+            self.poke_names = list(self.poke_hashes.values())
+            self.only_hash = numpy.array(list(map(lambda h: imagehash.hex_to_hash(h).hash.flatten(), self.poke_hashes.keys())))
 
     @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3, BucketType.user)
@@ -402,6 +408,17 @@ class Pokemon(Cog):
         s += '```'
         await ctx.send(s)
 
+    @command(no_pm=True, ignore_extra=True)
+    @cooldown(1, 5, BucketType.guild)
+    async def guess_pokemon(self, ctx, url):
+        img = await image_from_url(url, self.bot.aiohttp_client)
+        if not img:
+            return await ctx.send(f'No image found from {url}')
+
+        guess = await self.bot.loop.run_in_executor(self.bot.threadpool, self.get_match, img)
+        await ctx.send(f'That pokemon might be `{guess}`.\n'
+                       f'Expected accuracy for this is command is max 80% so expect mistakes')
+
     async def _post2pokelog(self, message):
         channel = utils.get(message.guild.channels, name='pokelog')
         if not channel:
@@ -442,8 +459,7 @@ class Pokemon(Cog):
         if message.content:
             return await self._post2pokelog(message)
 
-        if message.embeds:
-            return
+        if message.embeds and message.guild.id in (217677285442977792, 353927534439825429):
             embed = message.embeds[0]
             if 'wild' in embed.title.lower():
                 poke_name = await self.match_pokemon(embed.image.url)
@@ -452,15 +468,24 @@ class Pokemon(Cog):
                     logger.error(f'Pokemon not found from url {embed.image.url}'
                                  f'{embed.title}\n{embed.description}\n'
                                  f'{repr(embed.url)}')
+                    return
 
-                #self.bot.dbutil.log_pokespawn(poke_name, message.guild.id)
+                await self.bot.dbutil.log_pokespawn(poke_name, message.guild.id)
+
+    def get_match(self, img):
+        binarydiff = self.only_hash != imagehash.phash(img,
+                                                       hash_size=16,
+                                                       highfreq_factor=6).hash.reshape(1, -1)
+        hammingdiff = binarydiff.sum(axis=1)
+        closest_match = numpy.argmin(hammingdiff)
+
+        return self.poke_names[closest_match]
 
     async def match_pokemon(self, url):
         async with await self.bot.aiohttp_client.get(url) as r:
-            data = await r.content.read()
+            data = BytesIO(await r.content.read())
 
-        md = hashlib.md5(data).hexdigest()
-        return self.poke_hashes.get(md)
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, self.get_match, Image.open(data))
 
     @command(aliases=['pstats_format'], ignore_extra=True)
     async def pstat_format(self, ctx):

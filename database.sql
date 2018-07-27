@@ -17,6 +17,8 @@ CREATE TABLE `guilds` (
 
     `on_delete_channel` BIGINT DEFAULT NULL,
     `on_edit_channel` BIGINT DEFAULT NULL,
+    `on_delete_embed` BOOL DEFAULT false,
+    `on_edit_embed` BOOL DEFAULT false,
     `on_edit_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `on_delete_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     --`on_bulk_delete` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -171,7 +173,7 @@ CREATE TABLE `timeouts`(
 CREATE TABLE `timeout_logs` (
     `guild` BIGINT NOT NULL,
     `user` BIGINT NOT NULL,
-    `reason` TEXT NOT NULL,
+    `reason` TEXT COLLATE utf8_unicode_ci NOT NULL,
     PRIMARY KEY (`guild`, `user`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -283,6 +285,13 @@ CREATE TABLE `mute_roll_stats` (
     KEY (`games`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+CREATE TABLE `pokespawns` (
+    `guild` BIGINT NOT NULL,
+    `name` VARCHAR(20) COLLATE utf8_unicode_ci NOT NULL,
+    `count` MEDIUMINT UNSIGNED DEFAULT 1,
+    PRIMARY KEY (`guild`, `name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ------------------------
 -- UNDER CONSTRUCTION --
 ------------------------

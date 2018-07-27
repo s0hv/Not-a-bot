@@ -393,7 +393,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @on_delete.command(name='embed', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, no_pm=True)
+    @on_edit.command(name='embed', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, no_pm=True)
     @cooldown(2, 10, BucketType.guild)
     async def on_edit_embed(self, ctx, boolean: bool):
         """Make message edit log use embeds instead of normal messages

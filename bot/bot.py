@@ -280,8 +280,11 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, commands.errors.MissingRequiredArgument):
             error_msg = str(exception)
 
-        if error_msg and self._check_error_cd(context.message):
-            await channel.send(error_msg, delete_after=300)
+        if error_msg:
+            if self._check_error_cd(context.message):
+                await channel.send(error_msg, delete_after=300)
+
+            return
 
         terminal.warning('Ignoring exception in command {}'.format(context.command))
         traceback.print_exception(type(exception), exception,

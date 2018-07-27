@@ -1,8 +1,10 @@
+import hashlib
 import csv
 import json
 import math
 import os
 import textwrap
+import logging
 import re
 from functools import partial
 
@@ -19,6 +21,9 @@ from bot.globals import POKESTATS
 from cogs.cog import Cog
 from utils.utilities import basic_check, random_color
 
+logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
+
 pokestats = re.compile(r'''Level (?P<level>\d+) "?(?P<name>.+?)"?
 .+?
 (Holding: .+?\n)?Nature: (?P<nature>\w+)
@@ -34,7 +39,7 @@ stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
 
-legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (.+?)!')
+legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!')
 legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
                'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',
@@ -215,6 +220,9 @@ def from_max_stat(min: int, max: int, value: int) -> tuple:
 class Pokemon(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        #with open(os.path.join(os.getcwd(), 'data', 'pokemon_names.json'), 'r', encoding='utf-8') as f:
+         #   self.poke_names = json.load(f)
+        self.poke_names = {}
 
     @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3, BucketType.user)
@@ -395,14 +403,7 @@ class Pokemon(Cog):
         s += '```'
         await ctx.send(s)
 
-    async def on_message(self, message):
-        # Ignore others than pokecord
-        if message.author.id != 365975655608745985:
-            return
-
-        if not message.content:
-            return
-
+    async def _post2pokelog(self, message):
         channel = utils.get(message.guild.channels, name='pokelog')
         if not channel:
             return
@@ -415,17 +416,53 @@ class Pokemon(Cog):
         if not match:
             return
 
-        mention, poke = match.groups()
-        if poke.lower() not in legendaries:
+        mention, shiny, poke = match.groups()
+        if poke.lower() not in legendaries and not shiny:
             return
 
-        url = 'http://play.pokemonshowdown.com/sprites/xyani/%s.gif' % re.sub(r' |:|-', '', poke).lower()
-        embed = Embed(description=f'{mention} caught a **{poke}**', colour=random_color())
+        if shiny:
+            shiny = '-shiny'
+        else:
+            shiny = ''
+
+        poke_fmt = re.sub(' |: ', '-', poke).lower()
+        url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)
+        embed = Embed(description=f'{mention} caught a {"Shiny " if shiny else ""}**{poke}**', colour=random_color())
         embed.set_image(url=url)
-        icon = 'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/regular/%s.png' % re.sub(' |: ', '-', poke).lower()
+        poke_fmt = re.sub(' |: ', '-', poke).lower()
+        icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{poke_fmt}.png'
         embed.set_thumbnail(url=icon)
 
         await channel.send(embed=embed)
+
+    async def on_message(self, message):
+        # Ignore others than pokecord
+        if message.author.id != 365975655608745985:
+            return
+
+        if message.content:
+            return await self._post2pokelog(message)
+
+        if message.embeds:
+            return
+            embed = message.embeds[0]
+            if 'wild' in embed.title.lower():
+                poke_name = await self.match_pokemon(embed.image.url)
+                if poke_name is None:
+                    terminal.error(f'Pokemon not found from url {embed.image.url}')
+                    logger.error(f'Pokemon not found from url {embed.image.url}'
+                                 f'{embed.title}\n{embed.description}\n'
+                                 f'{repr(embed.url)}')
+
+                #self.bot.dbutil.log_pokespawn(poke_name, message.guild.id)
+
+
+    async def match_pokemon(self, url):
+        async with await self.bot.aiohttp_client.get(url) as r:
+            data = await r.content.read()
+
+        md = hashlib.md5(data).hexdigest()
+        return self.poke_names.get(md)
 
     @command(aliases=['pstats_format'], ignore_extra=True)
     async def pstat_format(self, ctx):

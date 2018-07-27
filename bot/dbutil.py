@@ -415,6 +415,17 @@ class DatabaseUtils:
 
         return True
 
+    async def log_pokespawn(self, name, guild):
+        sql = 'INSERT INTO `pokespawns` (`name`, `guild`) VALUES (:name, :guild) ON DUPLICATE KEY UPDATE count=count+1'
+
+        try:
+            await self.execute(sql, {'name': name, 'guild': guild}, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Failed to log pokespawn')
+            return False
+
+        return True
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

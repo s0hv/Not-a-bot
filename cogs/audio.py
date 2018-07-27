@@ -1376,6 +1376,25 @@ class Audio:
 
         await musicplayer.skip(ctx.author, ctx.channel)
 
+    @cooldown(1, 5, type=BucketType.user)
+    @command(no_pm=True, aliases=['force_skipsen', 'force_skipperino', 'fs'])
+    async def force_skip(self, ctx):
+        """Force skips this song no matter who queued it without requiring any votes
+        For public servers it's recommended you blacklist this from your server
+        and only give some people access to it"""
+        if not await self.check_voice(ctx):
+            return
+
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
+        if not musicplayer.is_playing():
+            await ctx.send('Not playing any music right now...')
+            return
+
+        await musicplayer.skip(None, ctx.channel)
+
     @cooldown(1, 5, type=BucketType.guild)
     @command(name='queue', no_pm=True, aliases=['playlist'])
     async def playlist(self, ctx, page_index: int=0):

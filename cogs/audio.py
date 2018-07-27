@@ -27,16 +27,18 @@ import logging
 import os
 import random
 import re
+import weakref
 from collections import deque
 from functools import partial
 from math import ceil
 from math import floor
 
+import discord
 from discord.activity import Activity, ActivityType
 from discord.errors import HTTPException
 from discord.ext import commands
-from discord.ext.commands.cooldowns import BucketType
 from discord.ext.commands import cooldown
+from discord.ext.commands.cooldowns import BucketType
 from discord.player import PCMVolumeTransformer
 
 from bot import player
@@ -47,7 +49,6 @@ from bot.globals import Auth
 from bot.playlist import Playlist
 from bot.song import Song
 from utils.utilities import mean_volume, search, parse_seek, send_paged_message
-import weakref
 
 try:
     import aubio
@@ -618,12 +619,14 @@ class Audio:
 
     def get_musicplayer(self, guild_id):
         musicplayer = self.musicplayers.get(guild_id)
+        if musicplayer is None:
+            musicplayer = self.find_musicplayer_from_garbage(guild_id)
         return musicplayer
 
-    def find_musicplayer_from_garbage(self, guild):
+    def find_musicplayer_from_garbage(self, guild_id):
         for obj in MusicPlayer.get_instances():
-            if obj.channel.guild.id == guild.id:
-                self.musicplayers[guild.id] = obj
+            if obj.channel.guild.id == guild_id:
+                self.musicplayers[guild_id] = obj
                 return obj
 
         return False
@@ -631,7 +634,7 @@ class Audio:
     async def check_player(self, ctx):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
-            musicplayer = self.find_musicplayer_from_garbage(ctx.guild)
+            musicplayer = self.find_musicplayer_from_garbage(ctx.guild.id)
             if not musicplayer:
                 terminal.error('Playlist not found even when voice is playing')
                 await ctx.send(f'No playlist found. Use {ctx.prefix}force_stop to reset voice state')
@@ -1321,7 +1324,7 @@ class Audio:
 
         await self.close_player(musicplayer)
         if not self.musicplayers:
-            await self.bot.change_presence(**self.bot.config.default_activity)
+            await self.bot.change_presence(activity=discord.Activity(**self.bot.config.default_activity))
 
     @command(no_pm=True, ignore_extra=True)
     @cooldown(1, 6, BucketType.guild)

@@ -192,7 +192,7 @@ class Logger(Cog):
         if channel is None:
             return
 
-        is_embed = self.bot.guild_cache.on_edit_embed(msg.guild.id)
+        is_embed = self.bot.guild_cache.on_delete_embed(msg.guild.id)
 
         perms = channel.permissions_for(channel.guild.get_member(self.bot.user.id))
         if not perms.send_messages or (is_embed and not perms.embed_links):
@@ -209,7 +209,7 @@ class Logger(Cog):
         for m in message:
             if is_embed:
                 await channel.send(embed=self.create_embed(msg,
-                                                           f'Message edited in #{msg.channel.name} {msg.channel.id}',
+                                                           f'Message deleted in #{msg.channel.name} {msg.channel.id}',
                                                            m,
                                                            msg.edited_at))
             else:

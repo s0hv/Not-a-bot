@@ -56,6 +56,11 @@ class Config:
         self.custom_search = get_config_value(self.config, 'Credentials', 'CustomSearch', str, None)
         self.wolfram_key = get_config_value(self.config, 'Credentials', 'WolframKey', str, None)
         self.feedback_webhook = get_config_value(self.config, 'Credentials', 'FeedbackWebhook', str, None)
+        self.dbl_token = get_config_value(self.config, 'Credentials', 'DBApiKey', str, None)
+
+        self.dbl_server = get_config_value(self.config, 'Webhook', 'Server', str, None)
+        self.dbl_port = get_config_value(self.config, 'Webhook', 'Port', int, None)
+        self.dbl_auth = get_config_value(self.config, 'Webhook', 'Auth', str, None)
 
         self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, False)
 

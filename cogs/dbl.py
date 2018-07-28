@@ -14,13 +14,6 @@ class DBApi(Cog):
         self.dbl = dbl.Client(self.bot, self._token)
         if not self.bot.test_mode:
             self.update_task = self.bot.loop.create_task(self.update_stats())
-
-            try:
-                from sanic import Sanic
-                from sanic.response import json
-            except ImportError:
-                return
-
             self.server = Thread(target=self.run_webhook_server, args=(self.bot.loop,))
             self.server.start()
 
@@ -35,6 +28,12 @@ class DBApi(Cog):
             await asyncio.sleep(3600)
 
     def run_webhook_server(self, main_loop):
+        try:
+            from sanic import Sanic
+            from sanic.response import json
+        except ImportError:
+            return
+
         asyncio.new_event_loop()
         app = Sanic()
 

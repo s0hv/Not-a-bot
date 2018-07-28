@@ -1,16 +1,16 @@
-import imagehash
 import csv
-from PIL import Image
 import json
+import logging
 import math
 import os
-import textwrap
-import logging
 import re
+import textwrap
 from functools import partial
 from io import BytesIO
-import numpy
 
+import imagehash
+import numpy
+from PIL import Image
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
@@ -22,8 +22,8 @@ from bot.bot import command
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
-from utils.utilities import basic_check, random_color
 from utils.imagetools import image_from_url
+from utils.utilities import basic_check, random_color
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -408,7 +408,7 @@ class Pokemon(Cog):
         s += '```'
         await ctx.send(s)
 
-    @command(no_pm=True, ignore_extra=True)
+    @command(ignore_extra=True)
     @cooldown(1, 5, BucketType.guild)
     async def guess_pokemon(self, ctx, url):
         img = await image_from_url(url, self.bot.aiohttp_client)

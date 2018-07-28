@@ -25,7 +25,6 @@ SOFTWARE.
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-import discord
 from discord.ext.commands import CommandNotFound, CommandError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -146,11 +145,11 @@ class BotBase(Bot):
             return True
 
         sql = 'SELECT `auth_level` FROM `bot_staff` WHERE user=%s' % user_id
-        rows = (await self.dbutil.execute(sql)).fetchall()
+        rows = (await self.dbutil.execute(sql)).first()
         if not rows:
             return False
 
-        if rows[0]['auth_level'] >= auth_level:
+        if rows['auth_level'] >= auth_level:
             return True
         else:
             return False

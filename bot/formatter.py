@@ -3,6 +3,7 @@ import itertools
 import logging
 
 import colors
+import discord
 from discord import Embed
 from discord.ext.commands import Command
 from discord.ext.commands.errors import CommandError
@@ -28,6 +29,7 @@ class Formatter(HelpFormatter):
         self.context = context
         self.command = command_or_bot
         self.type = type
+        self.context.skip_check = True
         if self.type not in (self.ExtendedFilter, self.Filtered):
             self.show_check_failure = True  # Don't check command checks if no filters are on
         else:
@@ -53,7 +55,7 @@ class Formatter(HelpFormatter):
         user = ctx.message.author
         channel = ctx.message.channel
         ctx.skip_check = True
-        if user.roles:
+        if isinstance(user, discord.Member) and user.roles:
             roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'

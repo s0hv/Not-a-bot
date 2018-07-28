@@ -7,13 +7,13 @@ from random import randint, random
 
 import discord
 from discord.errors import HTTPException
-from discord.ext.commands import cooldown, BucketType, check
+from discord.ext.commands import cooldown, BucketType, check, \
+    bot_has_permissions
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command
+from bot.bot import command, has_permissions
 from bot.formatter import Paginator
-from bot.globals import Perms
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
                              get_avatar,
@@ -85,6 +85,7 @@ class ServerSpecific(Cog):
     @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(main_check)
+    @bot_has_permissions(manage_roles=True)
     async def grant(self, ctx, user: discord.Member, *, role: discord.Role):
         """Give a role to the specified user if you have the perms to do it"""
         guild = ctx.guild
@@ -109,6 +110,7 @@ class ServerSpecific(Cog):
     @command(no_pm=True)
     @cooldown(2, 4, type=BucketType.user)
     @check(main_check)
+    @bot_has_permissions(manage_roles=True)
     async def ungrant(self, ctx, user: discord.Member, *, role: discord.Role):
         """Remove a role from a user if you have the perms"""
         guild = ctx.guild
@@ -133,9 +135,11 @@ class ServerSpecific(Cog):
 
         await ctx.send('👌')
 
-    @command(required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
+    @command(no_pm=True, ignore_extra=True)
     @cooldown(2, 4, type=BucketType.guild)
     @check(main_check)
+    @has_permissions(administrator=True)
+    @bot_has_permissions(manage_roles=True)
     async def add_grant(self, ctx, role: discord.Role, target_role: discord.Role):
         """Make the given role able to grant the target role"""
         guild = ctx.guild
@@ -156,9 +160,11 @@ class ServerSpecific(Cog):
 
         await ctx.send(f'{role} 👌 {target_role}')
 
-    @command(required_perms=Perms.ADMIN, no_pm=True, ignore_extra=True)
+    @command(no_pm=True, ignore_extra=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(main_check)
+    @has_permissions(administrator=True)
+    @bot_has_permissions(manage_roles=True)
     async def remove_grant(self, ctx, role: discord.Role, target_role: discord.Role):
         """Remove a grantable role from the target role"""
         guild = ctx.guild
@@ -260,7 +266,9 @@ class ServerSpecific(Cog):
         try:
             p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='/home/pi/neural_networks/torch-rnn/')
         except:
-            ctx.send('Not supported')
+            await ctx.send('Not supported')
+            return
+
         await ctx.trigger_typing()
         while p.poll() is None:
             await asyncio.sleep(0.2)
@@ -348,9 +356,11 @@ class ServerSpecific(Cog):
         call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(),
                    guild.id, channel.id, message.id, title, winners)
 
-    @command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
+    @command(no_pm=True)
     @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
+    @has_permissions(manage_roles=True, manage_guild=True)
+    @bot_has_permissions(manage_roles=True)
     async def toggle_every(self, ctx, winners: int, *, expires_in):
         """Host a giveaway to toggle the every role"""
         expires_in = parse_time(expires_in)

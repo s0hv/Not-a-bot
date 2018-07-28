@@ -3,7 +3,6 @@ import logging
 from queue import Queue
 
 import discord
-from discord import errors
 from discord.abc import PrivateChannel
 from discord.embeds import EmptyEmbed
 from sqlalchemy import exc

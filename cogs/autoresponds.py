@@ -1,6 +1,7 @@
 import re
-from utils.utilities import check_botperm
+
 from cogs.cog import Cog
+from utils.utilities import check_botperm
 
 r = re.compile('(?:^| )billy(?: |$)')
 

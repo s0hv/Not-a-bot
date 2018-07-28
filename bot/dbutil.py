@@ -415,6 +415,27 @@ class DatabaseUtils:
 
         return True
 
+    async def get_activities(self, user):
+        sql = 'SELECT * FROM `activity_log` WHERE user=:user ORDER BY time DESC LIMIT 5'
+        try:
+            rows = await self.execute(sql, {'user': user})
+            rows = rows.fetchall()
+        except SQLAlchemyError:
+            logger.exception('Failed to log activities')
+            return False
+
+        return rows
+
+    async def delete_activities(self, user):
+        sql = 'DELETE FROM `activity_log` WHERE user=:user'
+        try:
+            await self.execute(sql, {'user': user}, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Failed to log activities')
+            return False
+
+        return True
+
     async def log_pokespawn(self, name, guild):
         sql = 'INSERT INTO `pokespawns` (`name`, `guild`) VALUES (:name, :guild) ON DUPLICATE KEY UPDATE count=count+1'
 

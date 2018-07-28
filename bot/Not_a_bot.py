@@ -26,11 +26,11 @@ import asyncio
 import logging
 
 import discord
+from sqlalchemy.exc import SQLAlchemyError
 
 from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
 from utils.utilities import (split_string, slots2dict, retry, random_color)
-from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')

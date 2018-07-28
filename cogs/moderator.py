@@ -5,19 +5,17 @@ from datetime import datetime, timedelta
 from random import randint, random
 
 import discord
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import (cooldown, BucketType, bot_has_permissions)
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, group
-from bot.converters import MentionedMember, MentionedUserID
-from bot.globals import Perms, DATA
+from bot.bot import command, group, has_permissions
+from bot.converters import MentionedMember, PossibleUser
+from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              datetime2sql, get_avatar, get_user_id, find_user,
                              seconds2str, get_role, get_channel, Snowflake,
                              basic_check, sql2timedelta, check_botperm)
-
-from discord.ext.commands import bot_has_permissions
 
 logger = logging.getLogger('debug')
 manage_roles = discord.Permissions(268435456)
@@ -163,7 +161,7 @@ class Moderator(Cog):
                         await self.send_to_modlog(guild, embed=embed)
                         return
 
-    @group(invoke_without_command=True, name='automute_whitelist', aliases=['mute_whitelist'])
+    @group(invoke_without_command=True, name='automute_whitelist', aliases=['mute_whitelist'], no_pm=True)
     @cooldown(2, 5, BucketType.guild)
     async def automute_whitelist_(self, ctx):
         """Show roles whitelisted from automutes"""
@@ -180,7 +178,8 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @automute_whitelist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES)
+    @automute_whitelist_.command(no_pm=True)
+    @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
     async def add(self, ctx, *, role):
         """Add a role to the automute whitelist"""
@@ -207,7 +206,8 @@ class Moderator(Cog):
         roles.add(role_.id)
         await ctx.send('Added role {0.name} `{0.id}`'.format(role_))
 
-    @automute_whitelist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, aliases=['del', 'delete'])
+    @automute_whitelist_.command(aliases=['del', 'delete'], no_pm=True)
+    @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
     async def remove(self, ctx, *, role):
         """Remove a role from the automute whitelist"""
@@ -230,7 +230,7 @@ class Moderator(Cog):
         roles.discard(role_.id)
         await ctx.send('Role {0.name} `{0.id}` removed from automute whitelist'.format(role_))
 
-    @group(invoke_without_command=True, name='automute_blacklist', aliases=['mute_blacklist'])
+    @group(invoke_without_command=True, name='automute_blacklist', aliases=['mute_blacklist'], no_pm=True)
     @cooldown(2, 5, BucketType.guild)
     async def automute_blacklist_(self, ctx):
         """Show channels that are blacklisted from automutes.
@@ -248,9 +248,10 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @automute_blacklist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, name='add')
+    @automute_blacklist_.command(name='add', no_pm=True)
+    @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
-    async def add_(self, ctx, *, channel):
+    async def add_(self, ctx, *, channel: discord.TextChannel):
         """Add a channel to the automute blacklist"""
         guild = ctx.guild
         channels = self.automute_blacklist.get(guild.id)
@@ -258,18 +259,15 @@ class Moderator(Cog):
             channels = set()
             self.automute_whitelist[guild.id] = channels
 
-        channel_ = get_channel(guild.channels, channel, name_matching=True)
-        if not channel_:
-            return await ctx.send('Channel {} not found'.format(channel))
-
-        success = await self.bot.dbutils.add_automute_blacklist(guild.id, channel_.id)
+        success = await self.bot.dbutils.add_automute_blacklist(guild.id, channel.id)
         if not success:
             return await ctx.send('Failed to add channel because of an error')
 
-        channels.add(channel_.id)
-        await ctx.send('Added channel {0.name} `{0.id}`'.format(channel_))
+        channels.add(channel.id)
+        await ctx.send('Added channel {0.name} `{0.id}`'.format(channel))
 
-    @automute_blacklist_.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_ROLES, name='remove', aliases=['del', 'delete'])
+    @automute_blacklist_.command(name='remove', aliases=['del', 'delete'], no_pm=True)
+    @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
     async def remove_(self, ctx, *, channel):
         """Remove a channel from the automute blacklist"""
@@ -290,9 +288,10 @@ class Moderator(Cog):
         await ctx.send('Channel {0.name} `{0.id}` removed from automute blacklist'.format(channel_))
 
     # Required perms: manage roles
-    @command(required_perms=manage_roles)
+    @command(no_pm=True)
     @cooldown(2, 5, BucketType.guild)
     @bot_has_permissions(manage_roles=True)
+    @has_permissions(manage_roles=True)
     async def add_role(self, ctx, name, random_color=True, mentionable=True, hoist=False):
         """Add a role to the server.
         random_color makes the bot choose a random color for the role and
@@ -328,8 +327,9 @@ class Moderator(Cog):
 
         return mute_role
 
-    @command(required_perms=manage_roles)
+    @command(no_pm=True)
     @bot_has_permissions(manage_roles=True)
+    @has_permissions(manage_roles=True)
     async def mute(self, ctx, user: MentionedMember, *reason):
         """Mute a user. Only works if the server has set the mute role"""
         mute_role = await self._mute_check(ctx)
@@ -546,8 +546,9 @@ class Moderator(Cog):
                 logger.exception('Could not autounmute user %s' % user.id)
         await self.remove_timeout(user.id, guild.id)
 
-    @command(aliases=['temp_mute'], required_perms=manage_roles)
+    @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)
+    @has_permissions(manage_roles=True)
     async def timeout(self, ctx, user: MentionedMember, *, timeout):
         """Mute user for a specified amount of time
          `timeout` is the duration of the mute.
@@ -629,8 +630,9 @@ class Moderator(Cog):
         except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(user))
 
-    @group(required_perms=manage_roles, invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True, no_pm=True)
     @bot_has_permissions(manage_roles=True)
+    @has_permissions(manage_roles=True)
     async def unmute(self, ctx, user: MentionedMember):
         """Unmute a user"""
         guild = ctx.guild
@@ -684,7 +686,7 @@ class Moderator(Cog):
         delta = row['expires_on'] - datetime.utcnow()
         await ctx.send('Timeout for %s expires in %s' % (member, seconds2str(delta.total_seconds())))
 
-    @unmute.command(no_pm=True, required_perms=discord.Permissions(0))
+    @unmute.command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
     async def when(self, ctx, *user):
         """Shows how long you are still muted for"""
@@ -767,9 +769,10 @@ class Moderator(Cog):
         embed.set_footer(text=str(author), icon_url=get_avatar(author))
         return embed
 
-    @group(required_perms=Perms.MANAGE_MESSAGES, invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True, no_pm=True)
     @cooldown(2, 4, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
+    @has_permissions(manage_messages=True)
     async def purge(self, ctx, max_messages: int=10):
         """Purges n amount of messages from a channel.
         maximum value of max_messages is 500 and the default is 10"""
@@ -790,10 +793,11 @@ class Moderator(Cog):
         embed = self.purge_embed(ctx, messages)
         await self.send_to_modlog(channel.guild, embed=embed)
 
-    @purge.command(name='from', required_perms=Perms.MANAGE_MESSAGES, no_pm=True, ignore_extra=True)
+    @purge.command(name='from', no_pm=True, ignore_extra=True)
     @cooldown(2, 4, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
-    async def from_(self, ctx, user: MentionedUserID, max_messages: int=10, channel: discord.TextChannel=None):
+    @has_permissions(manage_messages=True)
+    async def from_(self, ctx, user: PossibleUser, max_messages: int=10, channel: discord.TextChannel=None):
         """
         Delete messages from a user
         `user` The user mention or id of the user we want to purge messages from
@@ -810,6 +814,9 @@ class Moderator(Cog):
 
         max_messages = min(300, max_messages)
         modlog = self.get_modlog(guild)
+
+        if isinstance(user, discord.User):
+            user = user.id
 
         if channel is not None:
             messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user)
@@ -866,9 +873,10 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
                 await self.send_to_modlog(guild, embed=embed)
 
-    @command(no_pm=True, ignore_extra=True, required_perms=discord.Permissions(4), aliases=['softbab'])
+    @command(no_pm=True, ignore_extra=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)
-    async def softban(self, ctx, user: MentionedMember, message_days=1):
+    @has_permissions(ban_members=True)
+    async def softban(self, ctx, user: PossibleUser, message_days=1):
         """Ban and unban a user from the server deleting that users messages from
         n amount of days in the process"""
         user_ = get_user_id(user)
@@ -900,16 +908,18 @@ class Moderator(Cog):
 
         await ctx.send(s)
 
-    @command(ignore_extra=True, required_perms=lock_perms, aliases=['zawarudo'])
+    @command(ignore_extra=True, aliases=['zawarudo'], no_pm=True)
     @cooldown(1, 5, BucketType.guild)
-    @bot_has_permissions(manage_channels=True)
+    @bot_has_permissions(manage_channels=True, manage_roles=True)
+    @has_permissions(manage_channels=True, manage_roles=True)
     async def lock(self, ctx):
         """Set send_messages permission override of everyone to false on current channel"""
         await self._set_channel_lock(ctx, True, zawarudo=ctx.invoked_with == 'zawarudo')
 
-    @command(ignore_extra=True, required_perms=lock_perms, aliases=['tokiwougokidasu'])
+    @command(ignore_extra=True, aliases=['tokiwougokidasu'], no_pm=True)
     @cooldown(1, 5, BucketType.guild)
-    @bot_has_permissions(manage_channels=True)
+    @bot_has_permissions(manage_channels=True, manage_roles=True)
+    @has_permissions(manage_channels=True, manage_roles=True)
     async def unlock(self, ctx):
         """Set send_messages permission override on current channel to default position"""
         await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwougokidasu')

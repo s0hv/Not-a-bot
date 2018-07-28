@@ -1,8 +1,10 @@
-from cogs.cog import Cog
-from bot.bot import command
-from discord.ext.commands import cooldown, BucketType
-import discord
 import textwrap
+
+import discord
+from discord.ext.commands import cooldown, BucketType
+
+from bot.bot import command
+from cogs.cog import Cog
 
 
 class Privacy(Cog):

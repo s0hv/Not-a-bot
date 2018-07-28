@@ -8,9 +8,8 @@ from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 from discord.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import command
+from bot.bot import command, has_permissions
 from bot.converters import PossibleUser
-from bot.globals import Perms
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
@@ -61,7 +60,7 @@ class Server(Cog):
 
         await send_paged_message(self.bot, ctx, pages, starting_idx=page-1, page_method=get_msg)
 
-    @command(no_dm=True, aliases=['mr_top'])
+    @command(no_dm=True, aliases=['mr_top', 'mr_stats'])
     @cooldown(2, 5, BucketType.channel)
     async def mute_roll_top(self, ctx, user: PossibleUser=None):
         stats = await self.bot.dbutil.get_mute_roll(ctx.guild.id)
@@ -136,8 +135,9 @@ class Server(Cog):
         else:
             return data, mime_type
 
-    @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'], required_perms=Perms.MANAGE_EMOJIS)
+    @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'])
     @cooldown(2, 6, BucketType.guild)
+    @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def add_emote(self, ctx, link, *name):
         """Add an emote to the server"""
@@ -187,8 +187,9 @@ class Server(Cog):
         else:
             await ctx.send('created emote %s' % name)
 
-    @command(no_pm=True, aliases=['trihard'], required_perms=Perms.MANAGE_EMOJIS)
+    @command(no_pm=True, aliases=['trihard'])
     @cooldown(2, 6, BucketType.guild)
+    @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def steal(self, ctx, *emoji):
         """Add emotes to this server from other servers.

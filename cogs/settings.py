@@ -3,15 +3,15 @@ from asyncio import Lock
 from collections import OrderedDict
 
 import discord
-from discord.ext.commands import cooldown, BucketType, bot_has_permissions
+from discord.ext.commands import (cooldown, BucketType, bot_has_permissions)
 
 from bot import exceptions
-from bot.bot import group
+from bot.bot import group, has_permissions
 from bot.converters import TimeDelta
-from bot.globals import Perms
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
-                             format_join_leave, get_role, timedelta2sql)
+                             format_join_leave, timedelta2sql, seconds2str,
+                             sql2timedelta)
 
 
 class Settings(Cog):
@@ -94,27 +94,31 @@ class Settings(Cog):
 
         await ctx.send('Removed prefix {}'.format(prefix))
 
-    @cooldown(1, 5)
+    @cooldown(1, 5, BucketType.guild)
     @group(no_pm=True, invoke_without_command=True, aliases=['prefixes'])
     async def prefix(self, ctx):
         """Shows all the active prefixes on this server"""
         prefixes = self.cache.prefixes(ctx.guild.id)
-        await ctx.send('Current prefixes on server\n`{}`'.format('` `'.join(prefixes)))
+        await ctx.send(f'Current prefixes on server`{"` `".join(prefixes)}`\n'
+                       f'Use `{ctx.prefix}{ctx.invoked_with} add` to add more prefixes')
 
-    @cooldown(2, 10)
-    @prefix.command(required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @prefix.command(no_pm=True)
+    @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_channels=True, manage_guild=True)
     async def add(self, ctx, prefix: str):
         """Add a prefix to this server"""
         await self._add_prefix(ctx, ctx.guild.id, prefix)
 
-    @cooldown(2, 10)
-    @prefix.command(aliases=['delete', 'del'], required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @prefix.command(aliases=['delete', 'del'], no_pm=True)
+    @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_channels=True, manage_guild=True)
     async def remove(self, ctx, prefix: str):
         """Remove and active prefix from use"""
         await self._remove_prefix(ctx, ctx.guild.id, prefix)
 
-    @cooldown(1, 5, type=BucketType.guild)
-    @settings.command(ignore_extra=True, required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @settings.command(ignore_extra=True, no_pm=True)
+    @cooldown(1, 10, type=BucketType.guild)
+    @has_permissions(manage_channels=True, manage_guild=True)
     async def modlog(self, ctx, channel: discord.TextChannel=None):
         """If no parameters are passed gets the current modlog
         If channel is provided modlog will be set to that channel.
@@ -124,9 +128,11 @@ class Settings(Cog):
             modlog = self.bot.guild_cache.modlog(ctx.guild.id)
             modlog = self.bot.get_channel(modlog)
             if modlog:
-                await ctx.send('Current modlog channel is %s' % modlog.mention)
+                await ctx.send(f'Current modlog channel is {modlog.mention}\n'
+                               f'Use `{ctx.prefix}{ctx.invoked_with} channel_name` to change it')
             else:
-                await ctx.send('No modlog channel set')
+                await ctx.send('No modlog channel set\n'
+                               f'Use `{ctx.prefix}{ctx.invoked_with} channel_name` to set one')
 
             ctx.command.reset_cooldown(ctx)
             return
@@ -137,17 +143,21 @@ class Settings(Cog):
         await self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
         await channel.send('Modlog set to this channel')
 
+    @settings.command(no_pm=True)
     @cooldown(1, 5, type=BucketType.guild)
-    @settings.command(ignore_extra=True, required_perms=Perms.MANAGE_ROLES)
-    async def mute_role(self, ctx, role: discord.Role=None):
-        """Get the current role for muted people on this server or set it"""
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
+    async def mute_role(self, ctx, *, role: discord.Role=None):
+        """Get the current role for muted people on this server or set it by specifying a role
+        Mute role is used for timeouts, mutes, automutes and mute_roll"""
         guild = ctx.guild
         if role is None:
-            role = get_role(guild, self.bot.guild_cache.mute_role(guild.id), name_matching=True)
+            role = self.bot.guild_cache.mute_role(guild.id)
             if role:
-                await ctx.send('Current role for muted people is {0} `{0.id}`'.format(role))
+                await ctx.send(f'Current role for muted people is {role} `{role.id}`\n'
+                               f'Specify a role with the command to change it')
             else:
-                await ctx.send('No role set for muted people')
+                await ctx.send('No role set for muted people. Specify a role to set it')
             ctx.command.reset_cooldown(ctx)
             return
 
@@ -155,15 +165,19 @@ class Settings(Cog):
             return await ctx.send('Mute role is higher than my top role.\n'
                                   'Put it lower so I can give it to users')
 
-        await self.bot.guild_cache.set_mute_role(guild.id, role.id)
+        if not await self.bot.guild_cache.set_mute_role(guild.id, role.id):
+            return await ctx.send('Error while setting mute role')
+
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.guild)
-    @settings.command(ignore_extra=True, required_perms=Perms.ADMIN)
+    @settings.command(ignore_extra=True, no_pm=True)
+    @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def keeproles(self, ctx, boolean: bool=None):
         """Get the current keeproles value on this server or change it.
-        Keeproles makes the bot save every users roles so it can give them even if that user rejoins"""
+        Keeproles makes the bot save every users roles so it can give them even if that user rejoins
+        but only the roles the bot can give"""
         guild = ctx.guild
         current = self.cache.keeproles(guild.id)
 
@@ -199,8 +213,10 @@ class Settings(Cog):
         await self.cache.set_keeproles(guild.id, boolean)
         await ctx.send('Keeproles set to %s' % str(boolean))
 
-    @settings.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
+    @settings.command(no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_roles=True, manage_guild=True)
+    @bot_has_permissions(manage_roles=True)
     async def random_color(self, ctx, value: bool=None):
         """Check if random color is on or change the current value of it.
         Random color will make the bot give a random color role to all new users who join
@@ -217,22 +233,34 @@ class Settings(Cog):
         value = 'on' if value else 'off'
         await ctx.send('Changed the value to ' + value)
 
-    @settings.command(name='automute', required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @settings.command(name='automute', ignore_extra=True)
     async def automute_(self, ctx):
+        # No need for checks. The automute command does that for you
         await self.automute.invoke(ctx)
 
-    @group(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True, invoke_without_command=True)
+    @group(ignore_extra=True, invoke_without_command=True, no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_roles=True, manage_guild=True)
+    @bot_has_permissions(manage_roles=True)
     async def automute(self, ctx, value: bool=None):
-        """Check or set the status of automatic muting"""
+        """Check or set the status of automatic muting
+        set value to a boolean to change the state between on and off
+        Automute only counts role pings that are actual pings and user mentions
+        To blacklist a channel from this (makes it so anyone can mention as many things as they like without automute doing anything)
+        use `{prefix}automute_blacklist add <channel>`
+
+        To whitelist a role (makes it so anyone who has the role gets ignored by automute)
+        use `{prefix}automute_blacklist add <role>`
+
+        Use subcommands to control other settings"""
         guild = ctx.guild
         if value is None:
             guild = ctx.guild
             embed = discord.Embed(title='Current automute settings for %s' % guild.name,
                                   description=
-                                  'To change these values use {}settings automute <name> <value>\n'
+                                  f'To change these values use {ctx.prefix}automute <name> <value>\n'
                                   'The name for each setting is specified in brackets\n'
-                                  'Value depends on the setting.'.format( ctx.invoked_with))
+                                  'Value depends on the setting.')
             fields = OrderedDict([('limit', 'How many mentions needed for an automute to happen'),
                                   ('time', 'How long the mute will last. Infinite if not set')])
             type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
@@ -240,23 +268,34 @@ class Settings(Cog):
             embed.add_field(name='Automute state', value=type_conversions.get(self.cache.automute(guild.id)))
             for k, v in fields.items():
                 value = getattr(self.cache, 'automute_' + k, None)(guild.id)
+                if k == 'time' and value:
+                    if isinstance(value, str):
+                        value = sql2timedelta(value)
+                    value = seconds2str(value.total_seconds(), long_def=False)
+                else:
+                    value = type_conversions.get(value, str(value))
+
                 embed.add_field(name='%s (%s)' % (v, k),
-                                value=type_conversions.get(value, str(value)),
+                                value=value,
                                 inline=True)
 
             return await ctx.send(embed=embed)
 
         success = await self.cache.set_automute(guild.id, value)
         if not success:
-            return ctx.send('Failed to set automute value')
+            return await ctx.send('Failed to set automute value')
 
         value = 'on' if value else 'off'
         await ctx.send('Set automute value to ' + value)
 
-    @automute.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @automute.command(ignore_extra=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_roles=True, manage_guild=True)
+    @bot_has_permissions(manage_roles=True)
     async def limit(self, ctx, limit: int=None):
-        """Check or set the limit of mentions in a message for the bot to mute a user"""
+        """Check or set the limit of mentions in a message for the bot to mute a user
+        It only counts role mentions that actually ping and user mentions
+        """
         guild = ctx.guild
         if limit is None:
             return await ctx.send('Current limit is {}'.format(self.cache.automute_limit(guild.id)))
@@ -273,20 +312,23 @@ class Settings(Cog):
 
         await ctx.send('Set automute limit to ' + str(limit))
 
-    @automute.command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD, ignore_extra=True)
+    @automute.command(no_pnm=True, ignore_extra=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_roles=True, manage_guild=True)
+    @bot_has_permissions(manage_roles=True)
     async def time(self, ctx, *, mute_time: TimeDelta=None):
-        if mute_time is None:
-            return await ctx.send(f'Automute time is currently set to {self.cache.automute_time(ctx.guild.id)}')
-        if mute_time.days > 29:
+        """How long automute timeouts for
+        If mute_time is not specified this will set it to perma mute"""
+
+        if mute_time and mute_time.days > 29:
             return await ctx.send('Time must be under 30 days')
 
-        format = timedelta2sql(mute_time)
+        format = timedelta2sql(mute_time) if mute_time else None
         success = await self.cache.set_automute_time(ctx.guild.id, format)
         if not success:
             return await ctx.send('Failed to set time')
 
-        await ctx.send(f'Set mute time to {mute_time}')
+        await ctx.send(f'Set mute time to {mute_time if mute_time else "perma mute"}')
 
     @group(invoke_without_command=True, no_dm=True, aliases=['message_deleted'])
     @cooldown(2, 10, BucketType.guild)
@@ -294,32 +336,38 @@ class Settings(Cog):
         """
         Gives the current message format that is used when a message is deleted if logging is enabled for deleted messages
         If a format isn't set the default format is used.
+        Use subcommands to control options such as message format, channel and whether to use embeds
         To see formatting help use {prefix}formatting
         """
         guild = ctx.guild
         message = self.cache.on_delete_message(guild.id)
         channel = self.cache.on_delete_channel(guild.id)
+        embed = self.cache.on_delete_embed(guild.id)
         if message is None and channel is None:
-            return await ctx.send("On message delete message format hasn't been set")
+            return await ctx.send("On message delete channel hasn't been set\n"
+                                  f"Use `{ctx.prefix}{ctx.invoked_with} channel <channel>` to set one")
         elif message is None:
             message = self.cache.on_delete_message(guild.id, default_message=True)
 
-        msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
+        msg = f'Current format in channel <#{channel}>{" using embed" if embed else ""}\n{message}'
         await ctx.send(msg)
 
-    @on_delete.command(name='embed', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, no_pm=True)
+    @on_delete.command(name='embed', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def on_delete_embed(self, ctx, boolean: bool):
         """Make message deletion log use embeds instead of normal messages
         Embeds will always have a local timestamp and user pfp in the appropriate slots
-        unlike in a normal message"""
+        unlike in a normal message.
+        Embeds don't ping either when a message with a ping is deleted"""
         success = await self.cache.set_on_delete_embed(ctx.guild.id, boolean)
         if not success:
             return await ctx.send('Failed to set value')
         await ctx.send(f'Set embeds to {boolean}')
 
-    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
+    @on_delete.command(ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def remove_on_delete(self, ctx):
         """
         Remove message logging from this server.
@@ -331,13 +379,14 @@ class Settings(Cog):
 
         await ctx.send('Remove deleted message logging')
 
-    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
+    @on_delete.command(aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def set(self, ctx, *, message_format):
         """
         Set the message format for deleted message logging.
-        See {prefix}formatting for more info on how to format messages.
         A default format is used if this is not specified
+        See {prefix}formatting for more info on how to format messages.
         """
         message = ctx.message
         try:
@@ -345,8 +394,7 @@ class Settings(Cog):
         except Exception as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
-        splitted = split_string(formatted, splitter='\n')
-        if len(splitted) > 2:
+        if len(formatted) > 250:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
         success = await self.cache.set_on_delete_message(message.guild.id, message_format)
@@ -355,7 +403,8 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @on_delete.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @on_delete.command(no_pm=True)
+    @has_permissions(manage_guild=True, manage_channel=True)
     @cooldown(2, 10, BucketType.guild)
     async def channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel deleted messages are logged in to"""
@@ -374,38 +423,45 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(invoke_without_command=True, no_dm=True, aliases=['message_edited'])
+    @group(invoke_without_command=True, no_dm=True, aliases=['message_edited'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
     async def on_edit(self, ctx):
         """
         Gives the current message format that is used when a message is edited if logging is enabled for edited messages
+        Use subcommands to control options such as message format, channel and whether to use embeds
+
         If a format isn't set the default format is used.
         To see formatting help use {prefix}formatting
         """
         guild = ctx.guild
         message = self.cache.on_edit_message(guild.id)
         channel = self.cache.on_edit_channel(guild.id)
+        embed = self.cache.on_edit_embed(guild.id)
         if message is None and channel is None:
-            return await ctx.send("On message edit message format hasn't been set")
+            return await ctx.send("On message edit channel hasn't been set\n"
+                                  f"Use `{ctx.prefix}{ctx.invoked_with} channel <channel>` to set one")
         elif message is None:
             message = self.cache.on_edit_message(guild.id, default_message=True)
 
-        msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
+        msg = f'Current format in channel <#{channel}>{" using embed" if embed else ""}\n{message}'
         await ctx.send(msg)
 
-    @on_edit.command(name='embed', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, no_pm=True)
+    @on_edit.command(name='embed', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def on_edit_embed(self, ctx, boolean: bool):
         """Make message edit log use embeds instead of normal messages
         Embeds will always have a local timestamp and user pfp in the appropriate slots
-        unlike in a normal message"""
+        unlike in a normal message
+        Embeds don't ping either when a message with a ping is deleted"""
         success = await self.cache.set_on_edit_embed(ctx.guild.id, boolean)
         if not success:
             return await ctx.send('Failed to set value')
         await ctx.send(f'Set embeds to {boolean}')
 
-    @on_edit.command(required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
+    @on_edit.command(ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def remove_on_edit(self, ctx):
         """
         Remove edited message logging from this server.
@@ -417,8 +473,9 @@ class Settings(Cog):
 
         await ctx.send('Remove edited message logging')
 
-    @on_edit.command(name='set', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL, aliases=['message'])
+    @on_edit.command(name='set', aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def set_(self, ctx, *, message_format):
         """
         Set the message format for edited message logging.
@@ -431,8 +488,7 @@ class Settings(Cog):
         except Exception as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
-        splitted = split_string(formatted, splitter='\n')
-        if len(splitted) > 2:
+        if len(formatted) > 250:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
         success = await self.cache.set_on_edit_message(message.guild.id, message_format)
@@ -441,8 +497,9 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @on_edit.command(name='channel', required_perms=Perms.MANAGE_GUILD | Perms.MANAGE_CHANNEL)
+    @on_edit.command(name='channel', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def channel_(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel message edits are logged to"""
         guild = ctx.guild
@@ -451,7 +508,7 @@ class Settings(Cog):
             if channel is None:
                 await ctx.send('Currently not logging edited messages')
             else:
-                await ctx.send('Currently logging edited messages to <#{}>'.format(channel))
+                await ctx.send(f'Currently logging edited messages to <#{channel}>')
             return
 
         success = await self.cache.set_on_edit_channel(guild.id, channel.id)
@@ -463,20 +520,23 @@ class Settings(Cog):
     @group(invoke_without_command=True, aliases=['on_join', 'welcome_message'])
     @cooldown(2, 10, BucketType.guild)
     async def join_message(self, ctx):
-        """Get the welcome/join message on this server"""
+        """Get the welcome/join message on this server
+        Use subcommands to set values for welcome message options"""
         guild = ctx.guild
         message = self.cache.join_message(guild.id)
         channel = self.cache.join_channel(guild.id)
         if message is None and channel is None:
-            return await ctx.send("Member join message format hasn't been set")
+            return await ctx.send("Member join channel hasn't been set\n"
+                                  f"Use `{ctx.prefix}{ctx.invoked_with} channel <channel>` to set one")
         elif message is None:
             message = self.cache.join_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @join_message.command(name='remove', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['del', 'delete'], ignore_extra=True)
+    @join_message.command(name='remove', aliases=['del', 'delete'], ignore_extra=True, no_pm=True)
     @cooldown(1, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def remove_join(self, ctx):
         """
         Remove welcome message from this server
@@ -488,8 +548,9 @@ class Settings(Cog):
 
         await ctx.send('Remove welcome message')
 
-    @join_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
+    @join_message.command(name='set', aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def join_set(self, ctx, *, message):
         """Set the welcome message on this server
         See {prefix}formatting for help on formatting the message"""
@@ -499,8 +560,7 @@ class Settings(Cog):
         except Exception as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
-        splitted = split_string(formatted, splitter='\n')
-        if len(splitted) > 1:
+        if len(formatted) > 1000:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
         success = await self.cache.set_join_message(guild.id, message)
@@ -509,8 +569,9 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @join_message.command(name='channel', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @join_message.command(name='channel', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def join_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the join/welcome message channel"""
         guild = ctx.guild
@@ -528,7 +589,7 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(invoke_without_command=True, aliases=['on_leave'])
+    @group(invoke_without_command=True, aliases=['on_leave'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
     async def leave_message(self, ctx):
         """Get the current message that is sent when a user leaves the server"""
@@ -536,15 +597,16 @@ class Settings(Cog):
         message = self.cache.leave_message(guild.id)
         channel = self.cache.leave_channel(guild.id)
         if message is None and channel is None:
-            return await ctx.send("Member leave message format hasn't been set")
+            return await ctx.send("Member leave channel hasn't been set\n"
+                                  f"Use `{ctx.prefix}{ctx.invoked_with} channel <channel>` to set one")
         elif message is None:
             message = self.cache.leave_message(guild.id, default_message=True)
 
-        msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await ctx.send(msg)
+        await ctx.send(f'Current format in channel <#{channel}>\n{message}')
 
-    @leave_message.command(name='remove', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['del', 'delete'], ignore_extra=True)
+    @leave_message.command(name='remove', no_pm=True, aliases=['del', 'delete'], ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def remove_join(self, ctx):
         """
         Remove leave message from this server
@@ -556,8 +618,9 @@ class Settings(Cog):
 
         await ctx.send('Remove leave message')
 
-    @leave_message.command(name='set', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD, aliases=['message'])
+    @leave_message.command(name='set', aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def leave_set(self, ctx, *, message):
         """Set the leave message on this server
         See {prefix}formatting for help on formatting the message"""
@@ -577,8 +640,9 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @leave_message.command(name='channel', required_perms=Perms.MANAGE_CHANNEL | Perms.MANAGE_GUILD)
+    @leave_message.command(name='channel', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
+    @has_permissions(manage_guild=True, manage_channel=True)
     async def leave_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Set the channel that user leave messages are sent to"""
         guild = ctx.guild

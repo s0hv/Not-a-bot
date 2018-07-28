@@ -80,7 +80,7 @@ class Search:
                     reason = json['error'].get('message', 'Unknown reason')
                     return await ctx.send('Failed to search because of an error\n```{}```'.format(reason))
 
-                logger.debug('Search result: {}'.format(json))
+                #logger.debug('Search result: {}'.format(json))
 
                 total_results = json['searchInformation']['totalResults']
                 if int(total_results) == 0:

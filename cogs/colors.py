@@ -11,15 +11,14 @@ from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from discord.errors import InvalidArgument
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import (cooldown, BucketType, bot_has_permissions)
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command
-from bot.globals import Perms
+from bot.bot import command, has_permissions
 from cogs.cog import Cog
-from utils.utilities import split_string, get_role, y_n_check, y_check, \
-    Snowflake
+from utils.utilities import (split_string, get_role, y_n_check, y_check,
+                             Snowflake)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -328,7 +327,9 @@ class Colors(Cog):
         name, match = matches
         await ctx.send('Found color {0} {1[hex]}'.format(name, match))
 
-    @command(no_pm=True, required_perms=Perms.MANAGE_ROLES, aliases=['add_colour'])
+    @command(no_pm=True, aliases=['add_colour'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def add_color(self, ctx, color: str, *name):
         """Add a new color to the guild"""
@@ -387,7 +388,9 @@ class Colors(Cog):
 
         await ctx.send('Added color {} {}'.format(name, str(d_color)))
 
-    @command(no_pm=True, required_perms=Perms.MANAGE_ROLES, aliases=['colors_from_roles'])
+    @command(no_pm=True, aliases=['colors_from_roles'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def add_colors_from_roles(self, ctx, *, roles):
         """Turn existing role(s) to colors.
@@ -436,8 +439,9 @@ class Colors(Cog):
 
         await self._add_colors_from_roles(success, ctx)
 
-    @command(no_pm=True, required_perms=Perms.MANAGE_ROLES,
-             aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
+    @command(no_pm=True, aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
     @cooldown(1, 3, type=BucketType.guild)
     async def delete_color(self, ctx, *, name):
         """Delete a color from the server"""

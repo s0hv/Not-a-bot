@@ -38,7 +38,7 @@ import discord
 import numpy as np
 from PIL import Image, ImageFont
 from colour import Color
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon, Circle
 from numpy import pi, random
@@ -54,7 +54,6 @@ from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text,
                              get_image_from_message, basic_check)
 
-from discord.ext.commands import bot_has_permissions
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(

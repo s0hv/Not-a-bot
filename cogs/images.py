@@ -8,7 +8,8 @@ from functools import partial
 from io import BytesIO
 from random import randint
 
-from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops, GifImagePlugin
+from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops, \
+    GifImagePlugin
 from bs4 import BeautifulSoup
 from discord import File
 from discord.ext.commands import cooldown, BucketType, BotMissingPermissions

@@ -1,18 +1,19 @@
+import inspect
 import logging
 import os
 import shlex
 import subprocess
 import sys
+import textwrap
 import time
-import inspect
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
-import textwrap
 from io import StringIO
 
 import discord
 import psutil
-from discord.ext.commands import cooldown, BucketType, bot_has_permissions, Group
+from discord.ext.commands import cooldown, BucketType, bot_has_permissions, \
+    Group
 from discord.ext.commands.errors import BadArgument
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -32,6 +33,7 @@ class Utilities(Cog):
         super().__init__(bot)
 
     @command(ignore_extra=True)
+    @cooldown(1, 5, BucketType.guild)
     async def ping(self, ctx):
         """Ping pong"""
         local_delay = datetime.utcnow().timestamp() - ctx.message.created_at.timestamp()
@@ -51,6 +53,7 @@ class Utilities(Cog):
         await ctx.send(message)
 
     @command(aliases=['e', 'emoji'])
+    @cooldown(1, 5, BucketType.channel)
     async def emote(self, ctx, emote: str):
         """Get the link to an emote"""
         emote = get_emote_url(emote)
@@ -59,8 +62,8 @@ class Utilities(Cog):
 
         await ctx.send(emote)
 
-    @cooldown(1, 1, type=BucketType.user)
     @command(aliases=['howtoping'])
+    @cooldown(1, 4, BucketType.channel)
     async def how2ping(self, ctx, *, user):
         """Searches a user by their name and get the string you can use to ping them"""
         if ctx.guild:
@@ -95,10 +98,11 @@ class Utilities(Cog):
         else:
             return await ctx.send('No users found with %s' % user)
 
-    @command(aliases=['src', 'source_code'])
+    @command(aliases=['src', 'source_code', 'sauce'])
     @cooldown(1, 5, BucketType.user)
     async def source(self, ctx, *cmd):
-        """Source code for this bot"""
+        """Link to the source code for this bot
+        You can also get the source code of commands by doing {prefix}{name} cmd_name"""
         if cmd:
             full_name = ' '.join(cmd)
             cmnd = self.bot.all_commands.get(cmd[0])
@@ -139,7 +143,7 @@ class Utilities(Cog):
             return
         return value.lstrip('0')
 
-    @command(ignore_extra=True, aliases=['bot', 'about', 'botinfo'])
+    @command(ignore_extra=True, aliases=['bot', 'botinfo'])
     @cooldown(2, 5, BucketType.user)
     @bot_has_permissions(embed_links=True)
     async def stats(self, ctx):
@@ -171,20 +175,22 @@ class Utilities(Cog):
             except:
                 logger.exception('Failed to get extended mem usage')
 
-        users = len([a for a in self.bot.get_all_members()])
+        users = 0
+        for _ in self.bot.get_all_members():
+            users += 1
+
         guilds = len(self.bot.guilds)
 
         try:
             # Get the last time the bot was updated
-            last_updated = format_rfc2822(os.stat('.git/refs/heads/rewrite').st_mtime, localtime=True)
+            last_updated = format_rfc2822(os.stat('.git/refs/heads/master').st_mtime, localtime=True)
         except OSError:
             logger.exception('Failed to get last updated')
             last_updated = 'N/A'
 
         sql = 'SELECT * FROM `command_stats` ORDER BY `uses` DESC LIMIT 3'
-        session = self.bot.get_session
         try:
-            rows = session.execute(sql)
+            rows = await self.bot.dbutil.execute(sql)
         except SQLAlchemyError:
             logger.exception('Failed to get command stats')
             top_cmd = 'Failed to get command stats'
@@ -214,7 +220,7 @@ class Utilities(Cog):
         await ctx.send(embed=embed)
 
     @command(name='roles', ignore_extra=True, no_pm=True)
-    @cooldown(1, 5, type=BucketType.guild)
+    @cooldown(1, 10, type=BucketType.guild)
     async def get_roles(self, ctx, page=''):
         """Get roles on this server"""
         guild_roles = sorted(ctx.guild.roles, key=lambda r: r.name)

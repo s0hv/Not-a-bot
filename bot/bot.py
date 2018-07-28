@@ -34,13 +34,14 @@ from aiohttp import ClientSession
 from discord import state
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
+from discord.ext.commands.bot import _mention_pattern, _mentions_transforms
 from discord.ext.commands.errors import CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.http import HTTPClient
 
 from bot.formatter import Formatter
 from bot.globals import Auth
-from utils.utilities import is_superset, is_owner, check_blacklist
+from utils.utilities import is_owner, check_blacklist, no_dm
 
 try:
     import uvloop
@@ -74,20 +75,19 @@ class Command(commands.Command):
         super(Command, self).__init__(name=name, callback=callback, **kwargs)
         self.level = kwargs.pop('level', 0)
         self.owner_only = kwargs.pop('owner_only', False)
-        self.required_perms = kwargs.pop('required_perms', None)
         self.auth = kwargs.pop('auth', Auth.NONE)
 
-        if [k for k in kwargs.keys() if 'perm' in k]:
-            raise PermissionError('Bad permission kwarg in command {} in cog {}. Should be required_perms'.format(self, self.cog_name))
+        if 'required_perms' in kwargs:
+            raise DeprecationWarning('Required perms is deprecated, use "from bot.bot import has_permissions" instead')
+
+        self.checks.insert(0, check_blacklist)
 
         if self.owner_only:
             terminal.info('registered owner_only command %s' % name)
-            self.checks.append(is_owner)
+            self.checks.insert(0, is_owner)
 
-        self.checks.append(check_blacklist)
-
-        if self.required_perms is not None:
-            self.checks.append(is_superset)
+        if 'no_pm' in kwargs or 'no_dm' in kwargs:
+            self.checks.insert(0, no_dm)
 
     async def can_run(self, ctx):
         original = ctx.command
@@ -113,7 +113,7 @@ class Command(commands.Command):
                 # since we have no checks, then we just return True.
                 return True
 
-            return await discord.utils.async_all(predicate(ctx) for predicate in predicates) or ctx.override_perms
+            return ctx.override_perms or await discord.utils.async_all(predicate(ctx) for predicate in predicates)
 
         finally:
             ctx.command = original
@@ -121,7 +121,8 @@ class Command(commands.Command):
 
 class Group(Command, commands.Group):
     def __init__(self, **attrs):
-        super(Group, self).__init__(**attrs)
+        Command.__init__(self, **attrs)
+        self.invoke_without_command = attrs.pop('invoke_without_command', False)
 
     def group(self, *args, **kwargs):
         def decorator(func):
@@ -135,8 +136,6 @@ class Group(Command, commands.Group):
         def decorator(func):
             if 'owner_only' not in kwargs:
                 kwargs['owner_only'] = self.owner_only
-            if 'required_perms' not in kwargs:
-                kwargs['required_perms'] = self.required_perms
 
             result = command(*args, **kwargs)(func)
             self.add_command(result)
@@ -200,11 +199,15 @@ class Bot(commands.Bot, Client):
         super().__init__(prefix, owner_id=config.owner, **options)
         self._runas = None
         self.remove_command('help')
-        cmd = self.group(**{'name': 'help', 'pass_context': True, 'invoke_without_command': True,
-                            'help': """Shows all commands you can use on this server.
-                            Use {prefix}{name} all to see all commands"""})(self.help)
 
-        @cmd.command(name='all', pass_context=True)
+        @self.group(invoke_without_command=True)
+        @commands.cooldown(1, 10, commands.BucketType.guild)
+        async def help(ctx, *commands_: str):
+            """Shows all commands you can use on this server.
+            Use {prefix}{name} all to see all commands"""
+            await self._help(ctx, *commands_)
+
+        @help.command(name='all')
         async def all_(ctx, *commands_: str):
             """Shows all available commands even if you don't have the correct
             permissions to use the commands. Bot owner only commands are still hidden tho"""
@@ -256,6 +259,9 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, exceptions.PermException):
             return
 
+        if isinstance(exception, discord.Forbidden):
+            return
+
         channel = context.channel
         exception._domain = context.domain
 
@@ -299,61 +305,57 @@ class Bot(commands.Bot, Client):
 
         return members
 
-    async def _help(self, ctx, *commands_, type=Formatter.ExtendedFilter):
+    async def _help(self, ctx, *commands, type=Formatter.ExtendedFilter):
         """Shows this message."""
-        author = ctx.message.author
-        destination = author if self.pm_help else ctx.message.channel
+        author = ctx.author
+        if isinstance(ctx.author, discord.User):
+            type = Formatter.Generic
+
+        bot = ctx.bot
+        destination = ctx.message.channel
         is_owner = author.id == self.owner_id
 
         def repl(obj):
-            return commands.bot._mentions_transforms.get(obj.group(0), '')
+            return _mentions_transforms.get(obj.group(0), '')
 
         # help by itself just lists our own commands.
-        if len(commands_) == 0:
+        if len(commands) == 0:
             pages = await self.formatter.format_help_for(ctx, self, is_owner=is_owner, type=type)
-        elif len(commands_) == 1:
+        elif len(commands) == 1:
             # try to see if it is a cog name
-            name = commands.bot._mention_pattern.sub(repl, commands_[0])
-            if name in self.cogs:
-                command_ = self.cogs[name]
+            name = _mention_pattern.sub(repl, commands[0])
+            command = None
+            if name in bot.cogs:
+                command = bot.cogs[name]
             else:
-                command_ = self.get_command(name)
-                if command_ is None:
-                    await destination.send(self.command_not_found.format(name))
+                command = bot.all_commands.get(name)
+                if command is None:
+                    await destination.send(bot.command_not_found.format(name))
                     return
 
-            pages = await self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
+            pages = await self.formatter.format_help_for(ctx, command, is_owner=is_owner, type=type)
         else:
-            name = commands.bot._mention_pattern.sub(repl, commands_[0])
-            command_ = self.get_command(name)
-            if command_ is None:
-                await destination.send(self.command_not_found.format(name))
+            name = _mention_pattern.sub(repl, commands[0])
+            command = bot.all_commands.get(name)
+            if command is None:
+                await destination.send(bot.command_not_found.format(name))
                 return
 
-            for key in commands_[1:]:
+            for key in commands[1:]:
                 try:
-                    key = commands.bot._mention_pattern.sub(repl, key)
-                    command_ = command_.commands.get(key)
-                    if command_ is None:
-                        await destination.send(self.command_not_found.format(key))
+                    key = _mention_pattern.sub(repl, key)
+                    command = command.all_commands.get(key)
+                    if command is None:
+                        await destination.send(bot.command_not_found.format(key))
                         return
                 except AttributeError:
-                    await destination.send(self.command_has_no_subcommands.format(command_, key))
+                    await destination.send( bot.command_has_no_subcommands.format(command, key))
                     return
 
-            pages = await self.formatter.format_help_for(ctx, command_, is_owner=is_owner, type=type)
-
-        if self.pm_help is None:
-            characters = sum(map(len, pages))
-            # modify destination based on length of pages.
-            if characters > 1000:
-                destination = ctx.message.author
+            pages = await self.formatter.format_help_for(ctx, commands, is_owner=is_owner, type=type)
 
         for page in pages:
             await destination.send(embed=page)
-
-    async def help(self, ctx, *commands_: str):
-        await self._help(ctx, *commands_)
 
     async def invoke(self, ctx):
         """|coro|
@@ -468,6 +470,29 @@ def group(name=None, **attrs):
     if 'cls' not in attrs:
         attrs['cls'] = Group
     return commands.command(name=name, **attrs)
+
+
+def has_permissions(**perms):
+    """
+    Same as the default discord.ext.commands.has_permissions
+    except this one supports overriding perms
+    """
+    def predicate(ctx):
+        if ctx.override_perms:
+            return True
+
+        ch = ctx.channel
+        permissions = ch.permissions_for(ctx.author)
+
+        missing = [perm for perm, value in perms.items() if getattr(permissions, perm, None) != value]
+
+        if not missing:
+            return True
+
+        raise commands.MissingPermissions(missing)
+
+    return commands.check(predicate)
+
 
 
 class FormatterDeprecated(HelpFormatter):

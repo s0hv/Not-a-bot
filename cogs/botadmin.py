@@ -2,16 +2,16 @@ import asyncio
 import logging
 import os
 import pprint
-import sys
 import re
 import shlex
 import subprocess
-import time
+import sys
 import textwrap
+import time
 import traceback
-from utils.utilities import split_string
 from importlib import reload, import_module
-from io import BytesIO
+from io import BytesIO, StringIO
+from types import ModuleType
 
 import aiohttp
 import discord
@@ -22,12 +22,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
 from bot.converters import PossibleUser
-from bot.globals import Auth
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
+from utils.utilities import split_string
 from utils.utilities import y_n_check, basic_check, y_check, check_import
-from types import ModuleType
-
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -182,7 +180,7 @@ class BotAdmin(Cog):
             retval = str(retval)
 
         if len(retval) > 2000:
-            await ctx.send(file=discord.File(retval, filename='result.txt'))
+            await ctx.send(file=discord.File(StringIO(retval), filename='result.txt'))
         else:
             await ctx.send(retval)
 
@@ -277,7 +275,7 @@ class BotAdmin(Cog):
             await self.bot.loop.run_in_executor(self.bot.threadpool,
                                                 self.bot.load_extension, cog_name)
         except Exception as e:
-            return await ctx.send('Could not reload %s because of an error\n%s' % (cog_name, e))
+            return await ctx.send('Could not load %s because of an error\n%s' % (cog_name, e))
 
         await ctx.send('Loaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
@@ -289,16 +287,19 @@ class BotAdmin(Cog):
             await self.bot.loop.run_in_executor(self.bot.threadpool,
                                                 self.bot.unload_extension, cog_name)
         except Exception as e:
-            return await ctx.send('Could not reload %s because of an error\n%s' % (cog_name, e))
+            return await ctx.send('Could not unload %s because of an error\n%s' % (cog_name, e))
 
         await ctx.send('Unloaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
     @command(owner_only=True)
     async def shutdown(self, ctx):
         try:
-            ctx.send('Beep boop')
+            await ctx.send('Beep boop')
         except HTTPException:
             pass
+
+        await self.bot.logout()
+        await self.bot.aiohttp_client.close()
 
         try:
             audio = self.bot.get_cog('Audio')
@@ -307,6 +308,16 @@ class BotAdmin(Cog):
 
             pending = asyncio.Task.all_tasks(loop=self.bot.loop)
             gathered = asyncio.gather(*pending, loop=self.bot.loop)
+
+            try:
+                session = self.bot._Session
+                engine = self.bot._engine
+
+                session.close_all()
+                engine.dispose()
+            except:
+                logger.exception('Failed to shut db down gracefully')
+
             try:
                 gathered.cancel()
                 self.bot.loop.run_until_complete(gathered)
@@ -320,7 +331,8 @@ class BotAdmin(Cog):
         except Exception:
             terminal.exception('Bot shutdown error')
         finally:
-            await self.bot.logout()
+            import sys
+            sys.exit(0)
 
     @command(owner_only=True)
     async def notice_me(self, ctx):

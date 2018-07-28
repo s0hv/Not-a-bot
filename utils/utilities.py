@@ -23,13 +23,13 @@ SOFTWARE.
 """
 
 import asyncio
-import sys
 import logging
 import mimetypes
 import os
 import re
 import shlex
 import subprocess
+import sys
 import time
 from collections import OrderedDict, Iterable
 from datetime import timedelta
@@ -38,13 +38,13 @@ from random import randint
 import discord
 import numpy
 from discord import abc
+from discord.ext.commands.errors import MissingPermissions
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
 
-from bot.exceptions import NoCachedFileException, PermException, CommandBlacklisted, NotOwner
+from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
 from bot.paged_message import PagedMessage
-from discord.ext.commands.errors import MissingPermissions
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -58,7 +58,7 @@ terminal = logging.getLogger('terminal')
 time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
 timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
                            re.DOTALL)
-timedelta_regex = re.compile(r'(?P<days>\d+?) (?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
+timedelta_regex = re.compile(r'((?P<days>\d+?) )?(?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
 seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
 
 
@@ -120,8 +120,6 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
         if length > 0:
             splits += [splits_dict]
 
-
-
         return splits
 
     elif isinstance(to_split, Iterable):
@@ -141,7 +139,7 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
                 splits.append(s[:maxlen-3] + '...')
 
         if chunk:
-            splits.append(s)
+            splits.append(chunk)
 
         return splits
 
@@ -272,7 +270,15 @@ def y_check(s):
 
 def bool_check(s):
     msg = s.lower().strip()
-    return msg in ['y', 'yes', 'true', 'on']
+    return is_true(msg) or is_false(msg)
+
+
+def is_true(s):
+    return s in ['y', 'yes', 'true', 'on']
+
+
+def is_false(s):
+    return s in ['n', 'false', 'no', 'stop']
 
 
 def check_negative(n):
@@ -480,7 +486,7 @@ def timedelta2sql(timedelta):
 
 
 def sql2timedelta(value):
-    return timedelta(**timedelta_regex.match(value).groupdict())
+    return timedelta(**{k: int(v) if v else 0 for k, v in timedelta_regex.match(value).groupdict().items()})
 
 
 def call_later(func, loop, timeout, *args, **kwargs):
@@ -613,7 +619,7 @@ def get_channel_id(s):
         return int(match.groups()[0])
 
 
-def seconds2str(seconds):
+def seconds2str(seconds, long_def=True):
     seconds = int(round(seconds, 0))
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
@@ -624,12 +630,18 @@ def seconds2str(seconds):
             return '%s %ss ' % (str(i), string)
         return '%s %s ' % (str(i), string)
 
-    d = check_plural('day', d) if d else ''
-    h = check_plural('hour', h) if h else ''
-    m = check_plural('minute', m) if m else ''
-    s = check_plural('second', s) if s else ''
+    if long_def:
+        d = check_plural('day', d) if d else ''
+        h = check_plural('hour', h) if h else ''
+        m = check_plural('minute', m) if m else ''
+        s = check_plural('second', s) if s else ''
+    else:
+        d = str(d) + 'd ' if d else ''
+        h = str(h) + 'h ' if h else ''
+        m = str(m) + 'm ' if m else ''
+        s = str(s) + 's' if s else ''
 
-    return d + h + m + s.strip()
+    return (d + h + m + s).strip()
 
 
 def find_user(s, members, case_sensitive=False, ctx=None):
@@ -993,3 +1005,8 @@ def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None):
 
     return False
 
+
+def no_dm(ctx):
+    if ctx.guild is None:
+        raise discord.ext.commands.NoPrivateMessage('This command cannot be used in private messages.')
+    return True

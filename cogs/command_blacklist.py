@@ -2,7 +2,7 @@ import logging
 from functools import partial
 
 import discord
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import cooldown, BucketType, has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group
@@ -21,7 +21,8 @@ class CommandBlacklist(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @group(ignore_extra=True, no_pm=True, required_perms=perms, invoke_without_command=True)
+    @group(ignore_extra=True, no_pm=True, invoke_without_command=True)
+    @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def blacklist(self, ctx, command_: str, mention=None):
         """Blacklist a command for a user, role or channel
@@ -92,6 +93,7 @@ class CommandBlacklist(Cog):
             await _blacklist(command.name)
 
     @blacklist.command(ignore_extra=True, no_pm=True)
+    @has_permissions(administrator=True)
     async def toggle(self, ctx):
         """
         Disable all commands on this server (owner will still be able to use them)
@@ -155,7 +157,8 @@ class CommandBlacklist(Cog):
 
         return True
 
-    @command(required_perms=perms, ignore_extra=True, no_pm=True)
+    @command(ignore_extra=True, no_pm=True)
+    @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def whitelist(self, ctx, command_: str, mention=None):
         """Whitelist a command for a user, role or channel
@@ -385,7 +388,7 @@ class CommandBlacklist(Cog):
         return smallest_row
 
     @command(no_pm=True)
-    @cooldown(1, 20)
+    @cooldown(1, 30, BucketType.user)
     async def role_perms(self, ctx, *role):
         """Show white- and blacklist for all or specified role"""
         guild = ctx.guild

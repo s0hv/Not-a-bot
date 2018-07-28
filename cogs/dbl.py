@@ -21,9 +21,8 @@ class DBApi(Cog):
             except ImportError:
                 return
 
-            self.server = Thread()
-
-
+            self.server = Thread(target=self.run_webhook_server, args=(self.bot.loop,))
+            self.server.start()
 
     async def update_stats(self):
         while True:

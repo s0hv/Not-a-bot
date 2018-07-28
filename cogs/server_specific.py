@@ -29,7 +29,7 @@ def create_check(guild_ids):
     return guild_check
 
 
-whitelist = (217677285442977792, 353927534439825429)
+whitelist = [217677285442977792, 353927534439825429]
 main_check = create_check(whitelist)
 
 
@@ -302,36 +302,15 @@ class ServerSpecific(Cog):
 
         await ctx.send('You now have the default role. Reload discord (ctrl + r) to get your global emotes')
 
-    @command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
-    @cooldown(1, 3, type=BucketType.guild)
-    @check(main_check)
-    async def toggle_every(self, ctx, winners: int, *, expires_in):
-        """Host a giveaway to toggle the every role"""
-        expires_in = parse_time(expires_in)
-        if not expires_in:
-            return await ctx.send('Invalid time string')
-
-        if expires_in.days > 29:
-            return await ctx.send('Maximum time is 29 days 23 hours 59 minutes and 59 seconds')
-
-        if not self.bot.test_mode and expires_in.total_seconds() < 300:
-            return await ctx.send('Minimum time is 5 minutes')
-
-        if winners < 1:
-            return await ctx.send('There must be more than 1 winner')
-
-        if winners > 30:
-            return await ctx.send('Maximum amount of winners is 30')
-
-        channel = ctx.channel
-        guild = ctx.guild
+    async def _toggle_every(self, channel, winners: int, expires_in):
+        guild = channel.guild
         perms = channel.permissions_for(guild.get_member(self.bot.user.id))
         if not perms.manage_roles and not perms.administrator:
-            return await ctx.send('Invalid server perms')
+            return await channel.send('Invalid server perms')
 
         role = self.bot.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082, guild)
         if role is None:
-            return await ctx.send('Every role not found')
+            return await channel.send('Every role not found')
 
         sql = 'INSERT INTO `giveaways` (`guild`, `title`, `message`, `channel`, `winners`, `expires_in`) VALUES (:guild, :title, :message, :channel, :winners, :expires_in)'
 
@@ -364,9 +343,33 @@ class ServerSpecific(Cog):
                                           commit=True)
         except SQLAlchemyError:
             logger.exception('Failed to create every toggle')
-            return await ctx.send('SQL error')
+            return await channel.send('SQL error')
 
-        call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(), guild.id, channel.id, message.id, title, winners)
+        call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(),
+                   guild.id, channel.id, message.id, title, winners)
+
+    @command(required_perms=Perms.MANAGE_ROLES | Perms.MANAGE_GUILD)
+    @cooldown(1, 3, type=BucketType.guild)
+    @check(main_check)
+    async def toggle_every(self, ctx, winners: int, *, expires_in):
+        """Host a giveaway to toggle the every role"""
+        expires_in = parse_time(expires_in)
+        if not expires_in:
+            return await ctx.send('Invalid time string')
+
+        if expires_in.days > 29:
+            return await ctx.send('Maximum time is 29 days 23 hours 59 minutes and 59 seconds')
+
+        if not self.bot.test_mode and expires_in.total_seconds() < 300:
+            return await ctx.send('Minimum time is 5 minutes')
+
+        if winners < 1:
+            return await ctx.send('There must be more than 1 winner')
+
+        if winners > 30:
+            return await ctx.send('Maximum amount of winners is 30')
+
+        await self._toggle_every(ctx.channel, winners, expires_in)
 
     async def delete_giveaway_from_db(self, message_id):
         sql = 'DELETE FROM `giveaways` WHERE message=:message'

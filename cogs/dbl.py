@@ -2,7 +2,8 @@ import dbl
 from cogs.cog import Cog
 import logging
 import asyncio
-from threading import Thread
+import os
+from datetime import timedelta
 
 logger = logging.getLogger('debug')
 
@@ -14,8 +15,6 @@ class DBApi(Cog):
         self.dbl = dbl.Client(self.bot, self._token)
         if not self.bot.test_mode:
             self.update_task = self.bot.loop.create_task(self.update_stats())
-            self.server = Thread(target=self.run_webhook_server, args=(self.bot.loop,))
-            self.server.start()
 
     async def update_stats(self):
         while True:
@@ -27,36 +26,35 @@ class DBApi(Cog):
             except Exception as e:
                 logger.exception(f'Failed to post server count\n{e}')
 
-    def run_webhook_server(self, main_loop):
+            await self._check_votes()
+
+    async def _check_votes(self):
         try:
-            from sanic import Sanic
-            from sanic.response import json
-        except ImportError:
-            logger.warning('Sanic not found. Webhook server not started')
+            botinfo = await self.dbl.get_bot_info(self.bot.user.id)
+        except Exception as e:
+            logger.exception(f'Failed to get botinfo\n{e}')
             return
 
-        loop = asyncio.new_event_loop()
-        app = Sanic()
+        server_specific = self.bot.get_cog('ServerSpecific')
+        if not server_specific:
+            return
 
-        @app.route("/webhook", methods=["POST", ])
-        async def webhook(request):
-            if request.headers.get('Authorization') != self.bot.config.dbl_auth:
-                logger.warning('Unauthorized webhook access')
-                return
+        channel = self.bot.get_channel(339517543989379092)
+        if not channel:
+            return
 
-            js = request.json
-            main_loop.create_task(self.on_vote(int(js['bot']),
-                                               int(js['user']),
-                                               js['type'],
-                                               js['isWeekend']))
+        with open(os.path.join(os.getcwd(), 'data', 'votes.txt'), 'r') as f:
+            old_votes = int(f.read().strip(' \n\r\t'))
 
-            return json({'a': 'a'}, status=200)
+        new_votes = botinfo['votes'] - old_votes
+        new_giveaways = new_votes // 10
+        if not new_giveaways:
+            return
 
-        logger.info(f'Starting webhook server {self.bot.config.dbl_server} on the port {self.bot.config.dbl_port}')
-        app.run(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port)
+        with open(os.path.join(os.getcwd(), 'data', 'votes.txt'), 'w') as f:
+            f.write(str(botinfo['votes'] - botinfo['votes'] % 10))
 
-    async def on_vote(self, bot: int, user: int, type: str, is_weekend: bool):
-        print(f'{user} voted on bot {bot}')
+        await server_specific._toggle_every(channel, new_giveaways, timedelta(days=1))
 
 
 def setup(bot):

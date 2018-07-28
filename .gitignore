@@ -33,6 +33,7 @@ data/images/
 data/temp/
 __pycache__/
 data/pokefusion/sprPKMType_*
+data/votes.txt
 
 # Hidden files
 .*/

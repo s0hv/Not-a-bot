@@ -35,10 +35,8 @@ class DBApi(Cog):
             logger.warning('Sanic not found. Webhook server not started')
             return
 
-        print('getting loop')
         loop = asyncio.new_event_loop()
         app = Sanic()
-        print('got loop and sanic')
 
         @app.route("/webhook", methods=["POST", ])
         async def webhook(request):
@@ -54,10 +52,9 @@ class DBApi(Cog):
 
             return json({'a': 'a'}, status=200)
 
-        if __name__ == "__main__":
-            logger.info(f'Starting webhook server {self.bot.config.dbl_server} on the port {self.bot.config.dbl_port}')
-            fut = asyncio.run_coroutine_threadsafe(app.create_server(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port), loop=loop)
-            loop.run_until_complete(fut)
+        logger.info(f'Starting webhook server {self.bot.config.dbl_server} on the port {self.bot.config.dbl_port}')
+        fut = asyncio.run_coroutine_threadsafe(app.create_server(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port), loop=loop)
+        loop.run_until_complete(fut)
 
     async def on_vote(self, bot: int, user: int, type: str, is_weekend: bool):
         print(f'{user} voted on bot {bot}')

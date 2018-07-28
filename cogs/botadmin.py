@@ -12,6 +12,7 @@ import traceback
 from importlib import reload, import_module
 from io import BytesIO, StringIO
 from types import ModuleType
+import functools
 
 import aiohttp
 import discord
@@ -155,6 +156,8 @@ class BotAdmin(Cog):
                         'channel': ctx.channel,
                         'bot': ctx.bot,
                         'loop': ctx.bot.loop,
+                        # A quick hack to run async functions in normal function
+                        'await': functools.partial(asyncio.run_coroutine_threadsafe, loop=ctx.bot.loop),
                         '_': self._last_result})
 
         code = textwrap.indent(code, '  ')
@@ -162,14 +165,19 @@ class BotAdmin(Cog):
         last = lines[-1]
         if not last.strip().startswith('return'):
             whitespace = len(last) - len(last.strip())
-            lines[-1] = ' ' * whitespace + 'return ' + last.strip()  # if code doesn't have a return make one
+            if whitespace > 2:
+                lines.append('  return')
+            else:
+                lines[-1] = '  return ' + last.strip()  # if code doesn't have a return make one
 
         lines = '\n'.join(lines)
-        code = f'async def f():\n{lines}\nx = asyncio.run_coroutine_threadsafe(f(), loop).result()'  # Transform the code to a function
+        code = f'def f():\n{lines}\nx = f()'  # Transform the code to a function
         local = {}  # The variables outside of the function f() get stored here
 
         try:
-            await self.bot.loop.run_in_executor(self.bot.threadpool, exec, compile(code, '<eval>', 'exec'), context, local)
+            def run():
+                exec(compile(code, '<eval>', 'exec'), context, local)
+            await self.bot.loop.run_in_executor(self.bot.threadpool, run)
             retval = pprint.pformat(local['x'])
             self._last_result = local['x']
         except Exception as e:

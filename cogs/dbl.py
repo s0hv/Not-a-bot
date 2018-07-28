@@ -35,8 +35,10 @@ class DBApi(Cog):
             logger.warning('Sanic not found. Webhook server not started')
             return
 
+        print('getting loop')
         loop = asyncio.new_event_loop()
         app = Sanic()
+        print('got loop and sanic')
 
         @app.route("/webhook", methods=["POST", ])
         async def webhook(request):

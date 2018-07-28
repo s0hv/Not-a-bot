@@ -53,8 +53,7 @@ class DBApi(Cog):
             return json({'a': 'a'}, status=200)
 
         logger.info(f'Starting webhook server {self.bot.config.dbl_server} on the port {self.bot.config.dbl_port}')
-        fut = asyncio.run_coroutine_threadsafe(app.create_server(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port), loop=loop)
-        loop.run_until_complete(fut)
+        loop.run_until_complete(app.create_server(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port))
 
     async def on_vote(self, bot: int, user: int, type: str, is_weekend: bool):
         print(f'{user} voted on bot {bot}')

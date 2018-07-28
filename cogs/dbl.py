@@ -19,22 +19,23 @@ class DBApi(Cog):
 
     async def update_stats(self):
         while True:
+            await asyncio.sleep(3600)
             logger.info('Posting server count')
             try:
                 await self.dbl.post_server_count()
                 logger.info(f'Posted server count {len(self.bot.guilds)}')
             except Exception as e:
                 logger.exception(f'Failed to post server count\n{e}')
-            await asyncio.sleep(3600)
 
     def run_webhook_server(self, main_loop):
         try:
             from sanic import Sanic
             from sanic.response import json
         except ImportError:
+            logger.warning('Sanic not found. Webhook server not started')
             return
 
-        asyncio.new_event_loop()
+        loop = asyncio.new_event_loop()
         app = Sanic()
 
         @app.route("/webhook", methods=["POST", ])
@@ -52,7 +53,9 @@ class DBApi(Cog):
             return json({'a': 'a'}, status=200)
 
         if __name__ == "__main__":
-            app.run(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port)
+            logger.info(f'Starting webhook server {self.bot.config.dbl_server} on the port {self.bot.config.dbl_port}')
+            fut = asyncio.run_coroutine_threadsafe(app.create_server(host=self.bot.config.dbl_server, port=self.bot.config.dbl_port), loop=loop)
+            loop.run_until_complete(fut)
 
     async def on_vote(self, bot: int, user: int, type: str, is_weekend: bool):
         print(f'{user} voted on bot {bot}')

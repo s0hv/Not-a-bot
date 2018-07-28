@@ -262,6 +262,9 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, discord.Forbidden):
             return
 
+        if isinstance(exception, exceptions.NotOwner):
+            return
+
         channel = context.channel
         exception._domain = context.domain
 

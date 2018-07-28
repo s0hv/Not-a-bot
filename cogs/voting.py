@@ -176,6 +176,10 @@ class VoteManager:
         self.parser.add_argument('-no_duplicate_votes', action='store_true')
         self.parser.add_argument('-allow_multiple_entries', action='store_true')
 
+    def __unload(self):
+        for poll in list(self.polls.values()):
+            poll.stop()
+
     def load_polls(self):
         session = self.bot.get_session
         sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'

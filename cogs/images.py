@@ -237,15 +237,16 @@ class Pokefusion:
 class Images(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.threadpool = ThreadPoolExecutor(3)
-        self._driver_lock = Lock(loop=bot.loop)
-        self.queue = Queue(loop=bot.loop)
-        self.queue.put_nowait(1)
+        self.threadpool = bot.threadpool
         try:
             self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
         except WebDriverException:
             terminal.exception('failed to load pokefusion')
             self._pokefusion = None
+
+    def __unload(self):
+        if self.pokefusion:
+            self.pokefusion.driver.quit()
 
     @staticmethod
     def __local_check(ctx):

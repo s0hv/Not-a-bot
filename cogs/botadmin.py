@@ -294,20 +294,36 @@ class BotAdmin(Cog):
     @command(owner_only=True)
     async def shutdown(self, ctx):
         try:
-            await ctx.send('Beep boop')
+            await ctx.send('Beep boop :wave:')
         except HTTPException:
             pass
 
-        await self.bot.logout()
+        logger.info('Unloading extensions')
+
+        def unload_all():
+            for ext in list(self.bot.extensions.keys()):
+                try:
+                    self.bot.unload_extension(ext)
+                except:
+                    pass
+
+        logger.info('Unloaded extensions')
+        await self.bot.loop.run_in_executor(self.bot.threadpool, unload_all)
         await self.bot.aiohttp_client.close()
+        logger.info('Closed aiohttp client')
 
         try:
             audio = self.bot.get_cog('Audio')
             if audio:
                 await audio.shutdown()
 
-            pending = asyncio.Task.all_tasks(loop=self.bot.loop)
-            gathered = asyncio.gather(*pending, loop=self.bot.loop)
+            try:
+                logger.info('Logging out')
+                await self.bot.logout()
+                logger.info('Logged out')
+            except:
+                pass
+
 
             try:
                 session = self.bot._Session
@@ -317,22 +333,13 @@ class BotAdmin(Cog):
                 engine.dispose()
             except:
                 logger.exception('Failed to shut db down gracefully')
-
-            try:
-                gathered.cancel()
-                self.bot.loop.run_until_complete(gathered)
-
-                # we want to retrieve any exceptions to make sure that
-                # they don't nag us about it being un-retrieved.
-                gathered.exception()
-            except:
-                pass
+            logger.info('Closed db connection')
 
         except Exception:
-            terminal.exception('Bot shutdown error')
+            logger.exception('Bot shutdown error')
+
         finally:
-            import sys
-            sys.exit(0)
+            exit(0)
 
     @command(owner_only=True)
     async def notice_me(self, ctx):

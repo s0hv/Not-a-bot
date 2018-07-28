@@ -32,6 +32,11 @@ class Moderator(Cog):
         self._load_timeouts()
         self._load_automute()
 
+    def __unload(self):
+        for timeouts in list(self.timeouts.values()):
+            for timeout in list(timeouts.values()):
+                timeout.cancel()
+
     def _load_automute(self):
         sql = 'SELECT * FROM `automute_blacklist`'
         session = self.bot.get_session

@@ -18,6 +18,15 @@ class LastSeen(Cog):
         self._updates = set()
         self._update_task = asyncio.run_coroutine_threadsafe(self._status_loop(), loop=bot.loop)
         self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
+        self._update_now = asyncio.Event(loop=bot.loop)
+
+    def __unload(self):
+        self._update_task_checker.cancel()
+        self.bot.loop.call_soon_threadsafe(self._update_now.set)
+        try:
+            self._update_task.result(timeout=20)
+        except:
+            self._update_task.cancel()
 
     async def save_updates(self):
         if not self._updates:
@@ -43,18 +52,16 @@ class LastSeen(Cog):
             self._update_task = self.bot.loop.create_task(self._status_loop())
 
     async def _status_loop(self):
-        while True:
-            await asyncio.sleep(10)
+        while not self._update_now.is_set():
+            try:
+                await asyncio.wait_for(self._update_now.wait(), timeout=10, loop=self.bot.loop)
+            except asyncio.TimeoutError:
+                pass
 
             if not self._updates:
                 continue
 
-            try:
-                await asyncio.shield(self.save_updates())
-            except asyncio.CancelledError:
-                return
-            except asyncio.TimeoutError:
-                continue
+            await self.save_updates()
 
     @staticmethod
     def status_changed(before, after):

@@ -19,6 +19,14 @@ class ActivityLog(Cog):
         self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
         self._update_now = asyncio.Event(loop=bot.loop)
 
+    def __unload(self):
+        self._update_task_checker.cancel()
+        self.bot.loop.call_soon_threadsafe(self._update_now.set)
+        try:
+            self._update_task.result(timeout=20)
+        except TimeoutError:
+            pass
+
     async def add_game_time(self):
         if not self._db_queue:
             return
@@ -113,15 +121,6 @@ class ActivityLog(Cog):
             return await ctx.send('Failed to delete game records. Exception has been logged')
 
         await ctx.send('All of your game data has been removed')
-
-    def __unload(self):
-        self._update_task_checker.cancel()
-        self.bot.loop.call_soon_threadsafe(self._update_now.set)
-        try:
-            self._update_task.result(timeout=20)
-        except TimeoutError:
-            pass
-
 
 def setup(bot):
     bot.add_cog(ActivityLog(bot))

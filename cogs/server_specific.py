@@ -36,8 +36,13 @@ main_check = create_check(whitelist)
 class ServerSpecific(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+
         asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
         self.main_whitelist = whitelist
+
+    def __unload(self):
+        for g in list(self.bot.every_giveaways.values()):
+            g.cancel()
 
     async def load_giveaways(self):
         sql = 'SELECT * FROM `giveaways`'

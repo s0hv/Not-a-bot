@@ -104,6 +104,9 @@ class JoJo:
             self.parser.add_argument(arg, type=int, default=argparse.SUPPRESS,
                                      required=False)
 
+    def __unload(self):
+        plt.close('all')
+
     def create_empty_stats_circle(self, color='k'):
         fig = plt.figure()
         ax = fig.add_subplot(111)

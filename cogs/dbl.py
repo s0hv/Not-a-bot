@@ -15,8 +15,19 @@ class DBApi(Cog):
         super().__init__(bot)
         self._token = self.bot.config.dbl_token
         self.dbl = dbl.Client(self.bot, self._token)
+        self.update_task = None
         if not self.bot.test_mode:
             self.update_task = self.bot.loop.create_task(self.update_stats())
+
+    def __unload(self):
+        if self.update_task:
+            self.update_task.cancel()
+
+        task = self.bot.loop.create_task(self.dbl.close())
+        try:
+            task.result(timeout=20)
+        except:
+            return
 
     async def update_stats(self):
         while True:

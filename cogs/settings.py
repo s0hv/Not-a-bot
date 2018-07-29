@@ -354,7 +354,7 @@ class Settings(Cog):
 
     @on_delete.command(name='embed', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def on_delete_embed(self, ctx, boolean: bool):
         """Make message deletion log use embeds instead of normal messages
         Embeds will always have a local timestamp and user pfp in the appropriate slots
@@ -367,7 +367,7 @@ class Settings(Cog):
 
     @on_delete.command(ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_on_delete(self, ctx):
         """
         Remove message logging from this server.
@@ -381,7 +381,7 @@ class Settings(Cog):
 
     @on_delete.command(aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def set(self, ctx, *, message_format):
         """
         Set the message format for deleted message logging.
@@ -404,7 +404,7 @@ class Settings(Cog):
             await ctx.send('Successfully set the message format')
 
     @on_delete.command(no_pm=True)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     @cooldown(2, 10, BucketType.guild)
     async def channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel deleted messages are logged in to"""
@@ -448,7 +448,7 @@ class Settings(Cog):
 
     @on_edit.command(name='embed', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def on_edit_embed(self, ctx, boolean: bool):
         """Make message edit log use embeds instead of normal messages
         Embeds will always have a local timestamp and user pfp in the appropriate slots
@@ -461,7 +461,7 @@ class Settings(Cog):
 
     @on_edit.command(ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_on_edit(self, ctx):
         """
         Remove edited message logging from this server.
@@ -475,7 +475,7 @@ class Settings(Cog):
 
     @on_edit.command(name='set', aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def set_(self, ctx, *, message_format):
         """
         Set the message format for edited message logging.
@@ -499,7 +499,7 @@ class Settings(Cog):
 
     @on_edit.command(name='channel', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def channel_(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the channel message edits are logged to"""
         guild = ctx.guild
@@ -536,7 +536,7 @@ class Settings(Cog):
 
     @join_message.command(name='remove', aliases=['del', 'delete'], ignore_extra=True, no_pm=True)
     @cooldown(1, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_join(self, ctx):
         """
         Remove welcome message from this server
@@ -550,7 +550,7 @@ class Settings(Cog):
 
     @join_message.command(name='set', aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def join_set(self, ctx, *, message):
         """Set the welcome message on this server
         See {prefix}formatting for help on formatting the message"""
@@ -571,7 +571,7 @@ class Settings(Cog):
 
     @join_message.command(name='channel', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def join_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Check or set the join/welcome message channel"""
         guild = ctx.guild
@@ -606,7 +606,7 @@ class Settings(Cog):
 
     @leave_message.command(name='remove', no_pm=True, aliases=['del', 'delete'], ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_join(self, ctx):
         """
         Remove leave message from this server
@@ -620,7 +620,7 @@ class Settings(Cog):
 
     @leave_message.command(name='set', aliases=['message'], no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def leave_set(self, ctx, *, message):
         """Set the leave message on this server
         See {prefix}formatting for help on formatting the message"""
@@ -642,7 +642,7 @@ class Settings(Cog):
 
     @leave_message.command(name='channel', no_pm=True)
     @cooldown(2, 10, BucketType.guild)
-    @has_permissions(manage_guild=True, manage_channel=True)
+    @has_permissions(manage_guild=True, manage_channels=True)
     async def leave_channel(self, ctx, *, channel: discord.TextChannel=None):
         """Set the channel that user leave messages are sent to"""
         guild = ctx.guild

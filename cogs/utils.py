@@ -300,6 +300,11 @@ class Utilities(Cog):
     async def bugreport(self, ctx):
         await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hvaperuna/Not-a-bot/issues')
 
+    @command(ingore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def vote(self, ctx):
+        await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
+
 
 def setup(bot):
     bot.add_cog(Utilities(bot))

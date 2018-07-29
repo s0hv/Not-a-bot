@@ -156,9 +156,14 @@ class BotAdmin(Cog):
                         'channel': ctx.channel,
                         'bot': ctx.bot,
                         'loop': ctx.bot.loop,
-                        # A quick hack to run async functions in normal function
-                        'await': functools.partial(asyncio.run_coroutine_threadsafe, loop=ctx.bot.loop),
                         '_': self._last_result})
+
+        # A quick hack to run async functions in normal function
+        # It's not pretty but it does what it needs
+        def disgusting(coro):
+            return asyncio.run_coroutine_threadsafe(coro, loop=ctx.bot.loop).result()
+
+        context['await'] = disgusting
 
         code = textwrap.indent(code, '  ')
         lines = list(filter(bool, code.split('\n')))

@@ -59,13 +59,14 @@ class DBApi(Cog):
         with open(os.path.join(os.getcwd(), 'data', 'votes.txt'), 'r') as f:
             old_votes = int(f.read().strip(' \n\r\t'))
 
-        new_votes = botinfo['votes'] - old_votes
+        points = botinfo['points']
+        new_votes = points - old_votes
         new_giveaways = new_votes // 10
         if not new_giveaways:
             return
 
         with open(os.path.join(os.getcwd(), 'data', 'votes.txt'), 'w') as f:
-            f.write(str(botinfo['votes'] - botinfo['votes'] % 10))
+            f.write(str(points - points % 10))
 
         await server_specific._toggle_every(channel, new_giveaways, timedelta(days=1))
 

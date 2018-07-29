@@ -258,7 +258,7 @@ class VoteManager:
 
         await poll.count_votes()
 
-    @command(aliases=['vote'], no_pm=True)
+    @command(no_pm=True)
     @bot_has_permissions(embed_links=True)
     @has_permissions(manage_messages=True, manage_channels=True, manage_guild=True)
     @cooldown(1, 20, BucketType.guild)

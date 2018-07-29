@@ -408,7 +408,7 @@ class Pokemon(Cog):
         s += '```'
         await ctx.send(s)
 
-    @command(ignore_extra=True)
+    @command(ignore_extra=True, aliases=['gp'])
     @cooldown(1, 5, BucketType.guild)
     async def guess_pokemon(self, ctx, url):
         img = await image_from_url(url, self.bot.aiohttp_client)

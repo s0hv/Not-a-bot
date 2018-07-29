@@ -91,7 +91,7 @@ class ActivityLog(Cog):
         embed.set_author(name=str(ctx.author), icon_url=get_avatar(ctx.author))
         for game in games:
 
-            embed.add_field(name=game['game'], value=seconds2str(seconds=game['time']))
+            embed.add_field(name=game['game'], value=seconds2str(seconds=game['time'], long_def=False), inline=False)
 
         await ctx.send(embed=embed)
 

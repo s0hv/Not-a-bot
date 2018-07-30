@@ -629,8 +629,6 @@ class Audio:
                 self.musicplayers[guild_id] = obj
                 return obj
 
-        return False
-
     async def check_player(self, ctx):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:

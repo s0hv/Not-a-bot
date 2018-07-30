@@ -48,6 +48,7 @@ from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
 from bot.playlist import Playlist
 from bot.song import Song
+from bot.youtube import url2id, get_related_vids, id2url
 from utils.utilities import mean_volume, search, parse_seek, send_paged_message
 
 try:
@@ -92,9 +93,11 @@ class MusicPlayer:
         self.channel = channel
         self.repeat = False
         self._disconnect = disconnect
+        self.last = None
 
-        self.playlist = Playlist(bot, download=True, channel=self.channel)
+        self.playlist = Playlist(bot, channel=self.channel)
         self.autoplaylist = bot.config.autoplaylist
+        self.autoplay = False  # Youtube autoplay
         self.volume = self.bot.config.default_volume
         self.volume_multiplier = bot.config.volume_multiplier
         self.audio_player = None
@@ -174,8 +177,8 @@ class MusicPlayer:
             users = self.voice.channel.members
             users = list(filter(lambda x: not x.bot, users))
             if not users:
-                await self.send('No voice activity. Disconnecting')
                 await stop()
+                await self.send('No voice activity. Disconnecting')
                 return
 
     async def _play_audio(self):
@@ -183,7 +186,17 @@ class MusicPlayer:
             self.play_next.clear()
             if self.current is None:
                 if self.playlist.peek() is None:
-                    if self.autoplaylist:
+                    if self.autoplay and self.last:
+                        vid_id = url2id(self.last.webpage_url)
+                        vid_id = await get_related_vids(vid_id, self.bot.aiohttp_client)
+                        if not vid_id:
+                            self.autoplay = False
+                            await self.send("Couldn't find autoplay video. Stopping autoplay")
+                            continue
+
+                        self.current = await self.playlist.get_from_url(id2url(vid_id))
+
+                    elif self.autoplaylist:
                         self.current = await self.playlist.get_from_autoplaylist()
                     else:
                         # If autoplaylist not enabled wait until playlist is populated
@@ -255,6 +268,7 @@ class MusicPlayer:
             await self.playlist.download_next()
             await self.play_next.wait()
 
+            self.last = self.current
             if not self.repeat:
                 self.current = None
                 if volume_task is not None:
@@ -374,10 +388,9 @@ class MusicPlayder:
                 await asyncio.sleep(1)
 
     def create_audio_task(self):
-        # TODO Create heartbeat that will be checked to know if the task has died
         self.audio_player = self.bot.loop.create_task(self.play_audio())
         self.activity_check = self.bot.loop.create_task(self._activity_check())
-        self.bot.loop.create_task(self.websocket_check())
+        # self.bot.loop.create_task(self.websocket_check())
 
     @property
     def player(self):

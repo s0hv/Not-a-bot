@@ -417,6 +417,15 @@ class Playlist:
             self.playlist.append(song)
             self.bot.loop.call_soon_threadsafe(self.not_empty.set)
 
+    async def get_from_url(self, url):
+        song = Song(self, webpage_url=url, config=self.bot.config)
+        terminal.debug(f'Downloading {song.webpage_url} from url')
+        await song.download()
+        await song.on_ready.wait()
+        if not song.success:
+            return
+        return song
+
     async def get_from_autoplaylist(self):
         song = self.get_random_song('autoplaylist')
         if song is None:

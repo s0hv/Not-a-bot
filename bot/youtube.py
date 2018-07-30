@@ -24,7 +24,9 @@ async def get_related_vids(vid_id, client):
         soup = BeautifulSoup(content, 'lxml')
         up_next = soup.find('div', {'class': 'watch-sidebar'})
         if up_next:
-            return id_regex.findall(str(up_next))
+            matches = id_regex.findall(str(up_next))
+            if matches:
+                return matches[0]
 
         ids = id_regex.findall(content)
         if not ids:

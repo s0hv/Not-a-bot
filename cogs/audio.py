@@ -868,6 +868,12 @@ class Audio:
         return await self.play_song(ctx, song_name)
 
     async def play_song(self, ctx, song_name, priority=False, **metadata):
+        if not ctx.author.voice:
+            return await ctx.send('Not connected to a voice channel')
+
+        if ctx.voice_client and ctx.voice_client.channel.id != ctx.author.voice.channel.id:
+            return await ctx.send('Not connected to the same channel as the bot')
+
         success = False
         if ctx.voice_client is None:
             success = await self._summon(ctx, create_task=False)

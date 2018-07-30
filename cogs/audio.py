@@ -195,6 +195,11 @@ class MusicPlayer:
                             continue
 
                         self.current = await self.playlist.get_from_url(id2url(vid_id))
+                        if not self.current.success:
+                            self.autoplay = False
+                            await self.send('Failed to dl video. Stopping autoplay')
+                            self.current = None
+                            continue
 
                     elif self.autoplaylist:
                         self.current = await self.playlist.get_from_autoplaylist()

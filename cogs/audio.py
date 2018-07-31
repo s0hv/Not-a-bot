@@ -1550,7 +1550,7 @@ class Audio:
         if value is None:
             return await ctx.send(f'Autoplay currently {"on" if musicplayer.autoplay else "off"}')
 
-        s = f'Autoplay set {"on" if musicplayer.autoplay else "off"}'
+        s = f'Autoplay set {"on" if value else "off"}'
         await ctx.send(s)
 
     @command(name='volm', no_pm=True)

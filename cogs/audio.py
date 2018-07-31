@@ -1550,6 +1550,7 @@ class Audio:
         if value is None:
             return await ctx.send(f'Autoplay currently {"on" if musicplayer.autoplay else "off"}')
 
+        musicplayer.autoplay = value
         s = f'Autoplay set {"on" if value else "off"}'
         await ctx.send(s)
 

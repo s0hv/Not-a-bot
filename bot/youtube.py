@@ -41,12 +41,3 @@ async def get_related_vids(vid_id, client, filtered=None):
         for _id in ids:
             if _id != vid_id and _id not in filtered:
                 return _id
-
-
-import asyncio
-from aiohttp.client import ClientSession
-
-loop = asyncio.get_event_loop()
-c = ClientSession(loop=loop)
-id = loop.run_until_complete(get_related_vids('g9hwjQBQFIo', c))
-print(id)

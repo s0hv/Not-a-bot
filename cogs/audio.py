@@ -93,7 +93,6 @@ class MusicPlayer:
         self.channel = channel
         self.repeat = False
         self._disconnect = disconnect
-        self.last = None
 
         self.playlist = Playlist(bot, channel=self.channel)
         self.autoplaylist = bot.config.autoplaylist
@@ -112,6 +111,15 @@ class MusicPlayer:
     def start_playlist(self):
         self.audio_player = self.bot.loop.create_task(self._play_audio())
         self.activity_check = self.bot.loop.create_task(self._activity_check())
+
+    @property
+    def history(self):
+        return self.playlist.history
+
+    @property
+    def last(self):
+        if self.history:
+            return self.history[-1]
 
     @property
     def source(self):
@@ -188,7 +196,8 @@ class MusicPlayer:
                 if self.playlist.peek() is None:
                     if self.autoplay and self.last:
                         vid_id = url2id(self.last.webpage_url)
-                        vid_id = await get_related_vids(vid_id, self.bot.aiohttp_client)
+                        history = [url2id(s.webpage_url) for s in self.history]
+                        vid_id = await get_related_vids(vid_id, self.bot.aiohttp_client, filtered=history)
                         if not vid_id:
                             self.autoplay = False
                             await self.send("Couldn't find autoplay video. Stopping autoplay")
@@ -273,7 +282,7 @@ class MusicPlayer:
             await self.playlist.download_next()
             await self.play_next.wait()
 
-            self.last = self.current
+            self.history.append(self.current)
             if not self.repeat:
                 self.current = None
                 if volume_task is not None:
@@ -650,10 +659,8 @@ class Audio:
     async def check_player(self, ctx):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
-            musicplayer = self.find_musicplayer_from_garbage(ctx.guild.id)
-            if not musicplayer:
-                terminal.error('Playlist not found even when voice is playing')
-                await ctx.send(f'No playlist found. Use {ctx.prefix}force_stop to reset voice state')
+            terminal.error('Playlist not found even when voice is playing')
+            await ctx.send(f'No playlist found. Use {ctx.prefix}force_stop to reset voice state')
 
         return musicplayer
 
@@ -1526,6 +1533,25 @@ class Audio:
             await ctx.send(msg)
         else:
             await ctx.send('No songs are currently playing')
+
+    @command(no_pm=True)
+    @cooldown(2, 6)
+    async def autoplay(self, ctx, value: bool=None):
+        """Determines if youtube autoplay should be emulated
+        If no value is passed current value is output"""
+        musicplayer = await self.check_player(ctx)
+
+        if not musicplayer:
+            return await ctx.send('Not playing any music right now')
+
+        if not await self.check_voice(ctx):
+            return
+
+        if value is None:
+            return await ctx.send(f'Autoplay currently {"on" if musicplayer.autoplay else "off"}')
+
+        s = f'Autoplay set {"on" if musicplayer.autoplay else "off"}'
+        await ctx.send(s)
 
     @command(name='volm', no_pm=True)
     @cooldown(1, 4, type=BucketType.guild)

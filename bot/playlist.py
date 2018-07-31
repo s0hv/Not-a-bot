@@ -56,6 +56,7 @@ class Playlist:
         self.channel = channel
         self.download = download
         self.playlist = deque()
+        self.history = deque(maxlen=5)
         self.downloader = Downloader(CACHE)
         self.not_empty = asyncio.Event()
         self.playlist_path = PLAYLISTS

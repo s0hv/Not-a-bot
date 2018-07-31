@@ -266,7 +266,7 @@ class Playlist:
 
                     await message.delete()
 
-                task = discord.compat.create_task(progress_info(), loop=self.bot.loop)
+                task = self.bot.loop.create_task(progress_info())
 
                 async def _on_error(e):
                     try:

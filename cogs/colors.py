@@ -21,9 +21,12 @@ from bot.bot import command, has_permissions
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
                              Snowflake)
+import re
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
+
+rgb_splitter = re.compile(r'^(\d{1,3})([, ])(\d{1,3})\2(\d{1,3})$')
 
 
 class Color:
@@ -266,9 +269,96 @@ class Colors(Cog):
 
         return empty
 
+    @staticmethod
+    def split_rgb(s):
+        rgb = rgb_splitter.match(s)
+        if rgb:
+            rgb = rgb.groups()
+            rgb = (rgb[0], *rgb[2:])
+            return tuple(map(int, rgb))
+
+    @staticmethod
+    def rgb2hex(*rgb):
+        rgb = map(lambda c: hex(c)[2:].zfill(2), rgb)
+        return '#' + ''.join(rgb)
+
+    @staticmethod
+    def s_int2hex(i: str):
+        """
+        Convert integer string to hex
+        """
+        try:
+            if len(i) > 8:
+                raise BadArgument(f'Integer color value too long for {i}')
+
+            return '#' + hex(int(i))[2:].zfill(6)
+        except (ValueError, TypeError):
+            raise BadArgument(f'Failed to convert int to hex ({i})')
+
+    def parse_color_range(self, start, end, steps=10):
+        color1 = self.color_from_str(start)
+        color2 = self.color_from_str(end)
+        colors = Colour(color1).range_to(color2, steps)
+        return colors
+
+    def color_from_str(self, color):
+        color = color.replace('0x', '#')
+        if not color.startswith('#'):
+            match = self.match_color(color, False)
+            if not match:
+                rgb = self.split_rgb(color.strip('()[]{}').replace(', ', ','))
+                if not rgb:
+                    color = self.s_int2hex(color)
+                else:
+                    if len(list(filter(lambda i: -1 < i < 256, rgb))) != 3:
+                        raise BadArgument(f'Bad rgb values for {rgb}')
+
+                    color = rgb
+
+            else:
+                color = match
+
+        elif len(color) > 9:
+            raise BadArgument(f'Hex value too long for {color}')
+
+        return color
+
+    @command(aliases=['cr', 'gradient'])
+    @cooldown(1, 5, BucketType.channel)
+    async def color_range(self, ctx, start, end, steps: int=10):
+        """
+        Makes a color gradient from one color to another in the given steps
+        """
+        if steps > 30 or steps < 2:
+            raise BadArgument('Maximum amount of steps is 30 and minimum is 2')
+
+        colors = self.parse_color_range(start, end, steps)
+        size = (50, 50)
+        images = []
+        hex_colors = []
+
+        def do_the_thing():
+            for color in colors:
+                try:
+                    im = Image.new('RGB', size, color.get_hex_l())
+                    images.append(im)
+                    hex_colors.append(color.get_hex_l())
+                except (TypeError, ValueError):
+                    raise BadArgument(f'Failed to create image using color {color}')
+
+            concat = self.concatenate_colors(images)
+            data = BytesIO()
+            concat.save(data, 'PNG')
+            data.seek(0)
+            return data
+
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
+        await ctx.send(' '.join(hex_colors), file=discord.File(data, 'colors.png'))
+
     @command(aliases=['c'])
     @cooldown(1, 5, BucketType.channel)
-    async def get_color(self, ctx, *colors):
+    async def get_color(self, ctx, *, colors):
+        colors = shlex.split(colors)
         if len(colors) > 20:
             raise BadArgument('Maximum amount of colors is 20')
 
@@ -278,25 +368,12 @@ class Colors(Cog):
 
         def do_the_thing():
             for color in colors:
-                color = color.replace('0x', '#')
-                if not color.startswith('#'):
-                    match = self.match_color(color, False)
-                    if not match:
-                        try:
-                            if len(color) > 8:
-                                raise BadArgument(f'Integer color value too long for {color}')
-
-                            i = int(color)
-                            color = '#' + hex(i)[2:].zfill(6)
-                        except (ValueError, TypeError):
-                            raise BadArgument(f'Failed to convert int to hex ({color})')
-
-                elif len(color) > 9:
-                    raise BadArgument(f'Hex value too long for {color}')
-
+                color = self.color_from_str(color)
                 try:
                     im = Image.new('RGB', size, color)
                     images.append(im)
+                    if isinstance(color, tuple):
+                        color = self.rgb2hex(*color)
                     hex_colors.append(color)
                 except (TypeError, ValueError):
                     raise BadArgument(f'Failed to create image using color {color}')

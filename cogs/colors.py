@@ -3,15 +3,17 @@ import json
 import logging
 import os
 import shlex
+from io import BytesIO
 from math import ceil
 
 import discord
+from PIL import Image
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from discord.errors import InvalidArgument
-from discord.ext.commands import (cooldown, BucketType, bot_has_permissions)
+from discord.ext.commands import (cooldown, BucketType, bot_has_permissions, BadArgument)
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -169,14 +171,24 @@ class Colors(Cog):
 
             return matches
 
-    def match_color(self, color):
+    def match_color(self, color, convert2discord=True):
         color = color.lower()
         if color in self._color_names:
-            rgb = self._color_names[color]['rgb']
+            rgb = self._color_names[color]
+
+            if not convert2discord:
+                return rgb['hex']
+
+            rgb = rgb['rgb']
             rgb = tuple(map(lambda c: c/255.0, rgb))
         else:
             try:
-                rgb = Colour(color).rgb
+                rgb = Colour(color)
+
+                if not convert2discord:
+                    return rgb.get_hex_l()
+
+                rgb = rgb.rgb
             except:
                 return
 
@@ -241,6 +253,62 @@ class Colors(Cog):
                 colors[role.id] = color
             else:
                 await ctx.send('Failed to create color {0.name}'.format(role))
+
+    @staticmethod
+    def concatenate_colors(images, width=50):
+        max_width = 50*len(images)
+        empty = Image.new('RGB', (max_width, width))
+
+        offset = 0
+        for im in images:
+            empty.paste(im, (offset, 0))
+            offset += width
+
+        return empty
+
+    @command(aliases=['c'])
+    @cooldown(1, 5, BucketType.channel)
+    async def get_color(self, ctx, *colors):
+        if len(colors) > 20:
+            raise BadArgument('Maximum amount of colors is 20')
+
+        images = []
+        hex_colors = []
+        size = (50, 50)
+
+        def do_the_thing():
+            for color in colors:
+                color = color.replace('0x', '#')
+                if not color.startswith('#'):
+                    match = self.match_color(color, False)
+                    if not match:
+                        try:
+                            if len(color) > 8:
+                                raise BadArgument(f'Integer color value too long for {color}')
+
+                            i = int(color)
+                            color = '#' + hex(i)[2:].zfill(6)
+                        except (ValueError, TypeError):
+                            raise BadArgument(f'Failed to convert int to hex ({color})')
+
+                elif len(color) > 9:
+                    raise BadArgument(f'Hex value too long for {color}')
+
+                try:
+                    im = Image.new('RGB', size, color)
+                    images.append(im)
+                    hex_colors.append(color)
+                except (TypeError, ValueError):
+                    raise BadArgument(f'Failed to create image using color {color}')
+
+            concat = self.concatenate_colors(images)
+            data = BytesIO()
+            concat.save(data, 'PNG')
+            data.seek(0)
+            return data
+
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
+        await ctx.send(' '.join(hex_colors), file=discord.File(data, 'colors.png'))
 
     @command(no_pm=True, aliases=['colour'])
     @cooldown(1, 5, type=BucketType.user)

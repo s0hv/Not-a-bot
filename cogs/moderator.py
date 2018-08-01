@@ -881,35 +881,30 @@ class Moderator(Cog):
     @command(no_pm=True, ignore_extra=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
-    async def softban(self, ctx, user: PossibleUser, message_days=1):
+    async def softban(self, ctx, user: PossibleUser, message_days: int=1):
         """Ban and unban a user from the server deleting that users messages from
         n amount of days in the process"""
-        user_ = get_user_id(user)
         guild = ctx.guild
-        if user_ is None:
-            return await ctx.send('User %s could not be found' % user)
-
         if not (1 <= message_days <= 7):
             return await ctx.send('Message days must be between 1 and 7')
 
+        user_name = str(user)
+        if isinstance(user, discord.User):
+            user = user.id
+            user_name += f' `{user.id}`'
         try:
-            await guild.ban(Snowflake(user_), reason=f'{ctx.author} softbanned', delete_message_days=message_days)
+            await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', delete_message_days=message_days)
         except discord.Forbidden:
             return await ctx.send("The bot doesn't have ban perms")
         except discord.HTTPException:
             return await ctx.send('Something went wrong while trying to ban. Try again')
 
         try:
-            await guild.unban(Snowflake(user_), reason=f'{ctx.author} softbanned')
+            await guild.unban(Snowflake(user), reason=f'{ctx.author} softbanned')
         except discord.HTTPException:
             return await ctx.send('Failed to unban after ban')
 
-        member = guild.get_member(user_)
-        s = 'Softbanned user '
-        if not member:
-            s += '<@!{0}> `{0}`'.format(user_)
-        else:
-            s += '{} `{}`'.format(str(member), member.id)
+        s = f'Softbanned user {user_name}'
 
         await ctx.send(s)
 

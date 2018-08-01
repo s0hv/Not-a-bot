@@ -891,7 +891,7 @@ class Moderator(Cog):
         user_name = str(user)
         if isinstance(user, discord.User):
             user = user.id
-            user_name += f' `{user.id}`'
+            user_name += f' `{user}`'
         try:
             await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', delete_message_days=message_days)
         except discord.Forbidden:

@@ -355,9 +355,9 @@ class Colors(Cog):
         data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
         await ctx.send(' '.join(hex_colors), file=discord.File(data, 'colors.png'))
 
-    @command(aliases=['c'])
+    @command(aliases=['c'], name='get_color')
     @cooldown(1, 5, BucketType.channel)
-    async def get_color(self, ctx, *, colors):
+    async def get_color_image(self, ctx, *, colors):
         colors = shlex.split(colors)
         if len(colors) > 20:
             raise BadArgument('Maximum amount of colors is 20')

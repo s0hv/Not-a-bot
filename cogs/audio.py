@@ -341,7 +341,7 @@ class MusicPlayer:
                         await self.send(f'{required_votes} votes reached, skipping', channel=messageable)
                         return self.voice.stop()
 
-                    await self.send(f'{len(self._skip_votes)}/{required_votes} until skip')
+                    await self.send(f'{len(self._skip_votes)}/{required_votes} until skip', channel=messageable)
 
             else:
                 self.voice.stop()
@@ -968,7 +968,7 @@ class Audio:
 
     async def _summon(self, ctx, create_task=True):
         if not ctx.author.voice:
-            ctx.send("You aren't connected to a voice channel")
+            await ctx.send("You aren't connected to a voice channel")
             return False
 
         channel = ctx.author.voice.channel
@@ -981,14 +981,23 @@ class Audio:
             musicplayer.change_channel(ctx.channel)
 
         if musicplayer.voice is None:
-            musicplayer.voice = await channel.connect()
+            try:
+                musicplayer.voice = await channel.connect()
+            except (discord.HTTPException, asyncio.TimeoutError) as e:
+                await ctx.send(f'Failed to join vc because of an error\n{e}')
+                return False
+
             if create_task:
                 musicplayer.start_playlist()
         else:
-            if channel.id != musicplayer.voice.channel.id:
-                await musicplayer.voice.move_to(channel)
-            elif musicplayer.voice.is_connected():
-                await musicplayer.voice.channel.connect()
+            try:
+                if channel.id != musicplayer.voice.channel.id:
+                    await musicplayer.voice.move_to(channel)
+                elif not musicplayer.voice.is_connected():
+                    await musicplayer.voice.channel.connect()
+            except (discord.HTTPException, asyncio.TimeoutError) as e:
+                await ctx.send(f'Failed to join vc because of an error\n{e}')
+                return False
 
         return True
 

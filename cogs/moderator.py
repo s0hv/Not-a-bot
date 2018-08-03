@@ -610,12 +610,13 @@ class Moderator(Cog):
         expires_on = datetime2sql(now + time)
         await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds())
 
-        gay = not reason or 'phil' in reason or 'ligma' in reason or 'christianServer' in reason
-        if ctx.author.id in abusers and (gay or time.total_seconds() <= 660):
-            if mute_role not in ctx.author.roles:
-                very_gay = timedelta(seconds=time.total_seconds()*2)
-                await ctx.author.add_roles(mute_role, reason='Abuse this')
-                await self.add_timeout(ctx, guild.id, ctx.author.id, datetime2sql(now + very_gay), very_gay.total_seconds())
+        if guild.id == 217677285442977792:
+            gay = not reason or 'phil' in reason or 'ligma' in reason or 'christianServer' in reason or 'sugondese' in reason or 'deez nuts' in reason
+            if ctx.author.id in abusers and (gay or time.total_seconds() <= 660):
+                if mute_role not in ctx.author.roles:
+                    very_gay = timedelta(seconds=time.total_seconds()*2)
+                    await ctx.author.add_roles(mute_role, reason='Abuse this')
+                    await self.add_timeout(ctx, guild.id, ctx.author.id, datetime2sql(now + very_gay), very_gay.total_seconds())
 
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
 

@@ -611,7 +611,11 @@ class Moderator(Cog):
         await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds())
 
         if guild.id == 217677285442977792:
-            gay = not reason or 'phil' in reason or 'ligma' in reason or 'christianServer' in reason or 'sugondese' in reason or 'deez nuts' in reason
+            words = ('game', 'phil', 'ligma', 'christianserver', 'sugondese',
+                     'deeznuts', 'haha', 'mute', 'lost')
+            rs = '' if not reason else reason.lower().replace(' ', '')
+            gay = not reason or any([word in rs for word in words])
+
             if ctx.author.id in abusers and (gay or time.total_seconds() <= 660):
                 if mute_role not in ctx.author.roles:
                     very_gay = timedelta(seconds=time.total_seconds()*2)

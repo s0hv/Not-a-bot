@@ -169,12 +169,16 @@ class Audio:
     @command(no_pm=True, ignore_extra=True, aliases=['summon2'])
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
-        summoned_channel = ctx.message.author.voice.channel
-        if summoned_channel is None:
+        voice = ctx.message.author.voice
+        if voice is None:
             await ctx.send('You are not in a voice channel')
             return False
 
         state = self.get_voice_state(ctx.guild)
+        summoned_channel = voice.channel
+        if state.voice is None:
+            state.voice = ctx.voice_client
+
         if state.voice is None:
             try:
                 state.voice = await summoned_channel.connect()

@@ -583,8 +583,12 @@ class Moderator(Cog):
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
         r = self.bot.get_role(339841138393612288, guild)
-        if self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
+        if not user.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
+
+        abusers = (189458911886049281, 117699419951988737)
+        if user.id in abusers and ctx.author.id in abusers:
+            return await ctx.send("Abuse this 🖕")
 
         if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
             return await ctx.send('No <:peepoWeird:423445885180051467>')
@@ -602,6 +606,11 @@ class Moderator(Cog):
         now = datetime.utcnow()
         expires_on = datetime2sql(now + time)
         await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds())
+
+        gay = not reason or 'phil' in reason or 'ligma' in reason or 'christianServer' in reason
+        if ctx.author.id in abusers and (gay or time.total_seconds() <= 660):
+            await ctx.author.add_roles(mute_role, reason='Abuse this')
+            await self.add_timeout(ctx, guild.id, ctx.author.id, expires_on, time.total_seconds())
 
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
 

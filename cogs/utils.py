@@ -9,12 +9,14 @@ import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
 from io import StringIO
+from urllib.parse import quote
 
 import discord
 import psutil
-from discord.ext.commands import cooldown, BucketType, bot_has_permissions, \
-    Group
+from discord.ext.commands import (cooldown, BucketType, bot_has_permissions,
+                                  Group)
 from discord.ext.commands.errors import BadArgument
+from pip._internal.commands.search import SearchCommand
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
@@ -304,6 +306,45 @@ class Utilities(Cog):
     @cooldown(1, 10, BucketType.guild)
     async def vote(self, ctx):
         await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
+
+    @command(name='pip')
+    @cooldown(1, 5, BucketType.channel)
+    @bot_has_permissions(embed_links=True)
+    async def get_package(self, ctx, *, name):
+        def search():
+            try:
+                search_command = SearchCommand()
+                options, _ = search_command.parse_args([])
+                hits = search_command.search(name, options)
+                if hits:
+                    return hits[0]
+            except:
+                logger.exception('Failed to search package from PyPi')
+                return
+
+        hit = await self.bot.loop.run_in_executor(self.bot.threadpool, search)
+        if not hit:
+            return await ctx.send('No matches')
+
+        async with self.bot.aiohttp_client.get(f'https://pypi.org/pypi/{quote(hit["name"])}/json') as r:
+            if r.status != 200:
+                return await ctx.send(f'HTTP error {r.status}')
+
+            json = await r.json()
+
+        info = json['info']
+        description = info['description']
+        if len(description) > 1000:
+            description = split_string(description, splitter='\n', maxlen=1000)[0] + '...'
+
+        embed = discord.Embed(title=hit['name'],
+                              description=description,
+                              url=info["package_url"])
+        embed.add_field(name='Author', value=info['author'])
+        embed.add_field(name='Version', value=info['version'])
+        embed.add_field(name='License', value=info['license'])
+
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

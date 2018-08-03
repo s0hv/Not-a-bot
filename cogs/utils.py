@@ -16,7 +16,14 @@ import psutil
 from discord.ext.commands import (cooldown, BucketType, bot_has_permissions,
                                   Group)
 from discord.ext.commands.errors import BadArgument
-from pip._internal.commands.search import SearchCommand
+try:
+    from pip.commands import SearchCommand
+except ImportError:
+    try:
+        from pip._internal.commands.search import SearchCommand
+    except ImportError:
+        SearchCommand = None
+
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
@@ -311,6 +318,9 @@ class Utilities(Cog):
     @cooldown(1, 5, BucketType.channel)
     @bot_has_permissions(embed_links=True)
     async def get_package(self, ctx, *, name):
+        if SearchCommand is None:
+            return await ctx.send('Not supported')
+
         def search():
             try:
                 search_command = SearchCommand()

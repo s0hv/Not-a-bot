@@ -99,6 +99,10 @@ class ServerSpecific(Cog):
         if length == 0:
             return
 
+        no = (117256618617339905, 189458911886049281)
+        if author.id in no and user.id in no and user.id != author.id:
+            return await ctx.send('no')
+
         can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
         if can_grant is None:
             return
@@ -125,7 +129,7 @@ class ServerSpecific(Cog):
             return
 
         no = (117256618617339905, 189458911886049281)
-        if author.id in no and user.id in no:
+        if author.id in no and user.id in no and user.id != author.id:
             return await ctx.send('no')
 
         can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)

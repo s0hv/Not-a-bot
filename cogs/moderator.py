@@ -615,7 +615,7 @@ class Moderator(Cog):
             rs = '' if not reason else reason.lower().replace(' ', '')
             gay = not reason or any([word in rs for word in words])
 
-            if ctx.author.id in abusers and (gay or time.total_seconds() <= 660):
+            if ctx.author.id in abusers and gay:
                 if mute_role not in ctx.author.roles:
                     very_gay = timedelta(seconds=time.total_seconds()*2)
                     await ctx.send('Abuse this <:christianServer:336568327939948546>')

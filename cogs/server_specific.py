@@ -124,8 +124,9 @@ class ServerSpecific(Cog):
         if length == 0:
             return
 
-        if role.id == 451830668595298304:
-            return  # server specific thingy
+        no = (117256618617339905, 189458911886049281)
+        if author.id in no and user.id in no:
+            return await ctx.send('no')
 
         can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
         if can_grant is None:

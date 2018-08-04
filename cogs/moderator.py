@@ -345,6 +345,9 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
+        if user.id == 189458911886049281 # tfw rice literally too stronk
++            return await ctx.send("Weak! <@!189458911886049281>'s heterosexuality overpowers you <:christianServer:336568327939948546>")
+
         if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
             return await ctx.send('No <:peepoWeird:423445885180051467>')
 

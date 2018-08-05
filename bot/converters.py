@@ -66,8 +66,7 @@ class AnyUser(PossibleUser):
     async def convert(self, ctx, argument):
         try:
             user = await PossibleUser.convert(self, ctx, argument)
-            if not user:
-                return argument
+            return user or argument
         except BadArgument:
             return argument
 

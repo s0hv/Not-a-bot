@@ -42,7 +42,7 @@ terminal.addHandler(handler)
 
 logger = logging.getLogger('audio')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='audio.log', encoding='utf-8', mode='a')
+handler = logging.FileHandler(filename='audio.log', encoding='utf-8-sig', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 

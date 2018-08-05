@@ -36,13 +36,13 @@ from bot.formatter import LoggingFormatter
 
 discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.INFO)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8-sig', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 discord_logger.addHandler(handler)
 
 logger = logging.getLogger('debug')
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
+handler = logging.FileHandler(filename='debug.log', encoding='utf-8-sig', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 

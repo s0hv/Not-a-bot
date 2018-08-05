@@ -153,7 +153,8 @@ class Moderator(Cog):
                         if time is not None:
                             if isinstance(time, str):
                                 time = sql2timedelta(time)
-                            await self.add_timeout(message.channel, guild.id, user.id, datetime.utcnow() + time, time.total_seconds())
+                            await self.add_timeout(message.channel, guild.id, user.id, datetime.utcnow() + time, time.total_seconds(),
+                                                   reason='Automuted for too many mentions')
                             d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, time)
                         else:
                             d = 'Automuted user {0} `{0.id}`'.format(message.author)
@@ -480,7 +481,9 @@ class Moderator(Cog):
             if mute_role in user.roles or mute_role in ctx.author.roles:
                 return await ctx.send('One of the participants is already muted')
 
-            await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds())
+            choices.remove(loser)
+            await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds(),
+                                   reason=f'Lost mute roll to {choices[0]}')
             try:
                 await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
             except discord.DiscordException:
@@ -499,13 +502,10 @@ class Moderator(Cog):
         except SQLAlchemyError:
             logger.exception('Could not delete untimeout')
 
-    async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds):
+    async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
+                          reason='No reason'):
         try:
-            sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`) VALUES ' \
-                  '(:guild, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
-
-            d = {'guild': guild_id, 'user': user_id, 'expires_on': expires_on}
-            await self.bot.dbutils.execute(sql, params=d, commit=True)
+            await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on, reason)
         except SQLAlchemyError:
             logger.exception('Could not save timeout')
             await ctx.send('Could not save timeout. Canceling action')
@@ -607,8 +607,6 @@ class Moderator(Cog):
             return await ctx.send('Minimum timeout is 1 minute')
 
         now = datetime.utcnow()
-        expires_on = datetime2sql(now + time)
-        await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds())
 
         if guild.id == 217677285442977792:
             words = ('game', 'phil', 'ligma', 'christianserver', 'sugondese', 'deeznuts', 'haha', 'mute', 'lost')
@@ -620,9 +618,13 @@ class Moderator(Cog):
                     very_gay = timedelta(seconds=time.total_seconds()*2)
                     await ctx.send('Abuse this <:christianServer:336568327939948546>')
                     await ctx.author.add_roles(mute_role, reason='Abuse this')
-                    await self.add_timeout(ctx, guild.id, ctx.author.id, datetime2sql(now + very_gay), very_gay.total_seconds())
+                    await self.add_timeout(ctx, guild.id, ctx.author.id, datetime2sql(now + very_gay), very_gay.total_seconds(),
+                                           reason='Abuse this <:christianServer:336568327939948546>')
 
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
+        expires_on = datetime2sql(now + time)
+        await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds(),
+                               reason=reason)
 
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
@@ -697,7 +699,7 @@ class Moderator(Cog):
         if not list(filter(lambda r: r.id == muted_role, member.roles)):
             return await ctx.send('%s is not muted' % member)
 
-        sql = 'SELECT expires_on FROM `timeouts` WHERE guild=%s AND user=%s' % (guild.id, member.id)
+        sql = 'SELECT expires_on, reason FROM `timeouts` WHERE guild=%s AND user=%s' % (guild.id, member.id)
 
         try:
             row = (await self.bot.dbutil.execute(sql)).first()
@@ -708,7 +710,9 @@ class Moderator(Cog):
             return await ctx.send('User %s is permamuted' % str(member))
 
         delta = row['expires_on'] - datetime.utcnow()
-        await ctx.send('Timeout for %s expires in %s' % (member, seconds2str(delta.total_seconds())))
+        reason = row['reason']
+        await ctx.send('Timeout for %s expires in %s\n'
+                       'Timeout reason: %s' % (member, seconds2str(delta.total_seconds(), False), reason))
 
     @unmute.command(no_pm=True)
     @cooldown(1, 3, BucketType.user)

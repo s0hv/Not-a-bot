@@ -447,6 +447,13 @@ class DatabaseUtils:
 
         return True
 
+    async def add_timeout(self, guild, user, expires_on, reason):
+        sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`, `reason`) VALUES ' \
+              '(:guild, :user, :expires_on, :reason) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on), reason=VALUES(reason)'
+
+        params = {'guild': guild, 'user': user, 'expires_on': expires_on, 'reason': reason}
+        await self.bot.dbutils.execute(sql, params=params, commit=True)
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

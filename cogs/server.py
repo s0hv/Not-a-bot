@@ -135,7 +135,7 @@ class Server(Cog):
         else:
             return data, mime_type
 
-    @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji'])
+    @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji', 'add_emtoe'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)

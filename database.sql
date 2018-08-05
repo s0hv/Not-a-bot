@@ -165,9 +165,10 @@ CREATE TABLE `giveaways` (
 CREATE TABLE `timeouts`(
     `guild` BIGINT NOT NULL,
     `user` BIGINT NOT NULL,
+    `reason` TEXT COLLATE utf8_unicode_ci NOT NULL,
     `expires_on` datetime NOT NULL,
     PRIMARY KEY (`user`, `guild`)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `timeout_logs` (

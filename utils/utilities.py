@@ -32,7 +32,7 @@ import subprocess
 import sys
 import time
 from collections import OrderedDict, Iterable
-from datetime import timedelta
+from datetime import timedelta, datetime
 from random import randint
 
 import discord
@@ -66,6 +66,19 @@ class Object:
     # Empty class to store variables
     def __init__(self):
         pass
+
+
+class CallLater:
+    def __init__(self, future, runs_at):
+        self._future = future
+        self.runs_at = runs_at
+
+    @property
+    def future(self):
+        return self._future
+
+    def cancel(self):
+        self.future.cancel()
 
 
 # Made so only ids can be used
@@ -489,13 +502,14 @@ def sql2timedelta(value):
     return timedelta(**{k: int(v) if v else 0 for k, v in timedelta_regex.match(value).groupdict().items()})
 
 
-def call_later(func, loop, timeout, *args, **kwargs):
+def call_later(func, loop, timeout, *args, after=None, **kwargs):
     """
     Call later for async functions
     Args:
         func: async function
         loop: asyncio loop
         timeout: how long to wait
+        after: Func to pass to future.add_done_callback
 
     Returns:
         asyncio.Task
@@ -509,7 +523,11 @@ def call_later(func, loop, timeout, *args, **kwargs):
 
         await func(*args, **kwargs)
 
-    return asyncio.run_coroutine_threadsafe(wait(), loop)
+    fut = asyncio.run_coroutine_threadsafe(wait(), loop)
+    if callable(after):
+        fut.add_done_callback(after)
+
+    return CallLater(fut, datetime.utcnow() + timedelta(seconds=timeout))
 
 
 def get_users_from_ids(guild, *ids):

@@ -26,7 +26,8 @@ from bot.converters import PossibleUser
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
 from utils.utilities import split_string
-from utils.utilities import y_n_check, basic_check, y_check, check_import
+from utils.utilities import (y_n_check, basic_check, y_check, check_import, parse_timeout,
+                             call_later)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -583,6 +584,21 @@ class BotAdmin(Cog):
         t = await self.bot.loop.run_in_executor(self.bot.threadpool, reconnect)
 
         await ctx.send(f'Reconnected to db in {t:.0f}ms')
+
+    def remove_call(self, _, msg_id):
+        self.bot.call_laters.pop(msg_id, None)
+
+    @command(owner_only=True)
+    async def call_later(self, ctx, *, call):
+        msg = ctx.message
+        # Parse timeout can basically parse anything where you want time
+        # separated from the rest
+        run_in, call = parse_timeout(call)
+        msg.content = f'{ctx.prefix}{call}'
+        new_ctx = await self.bot.get_context(msg)
+        self.bot.call_laters[msg.id] = call_later(self.bot.invoke, self.bot.loop,
+                                                  run_in.total_seconds(), new_ctx,
+                                                  after=functools.partial(self.remove_call, msg_id=msg.id))
 
 
 def setup(bot):

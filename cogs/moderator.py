@@ -75,9 +75,6 @@ class Moderator(Cog):
                 guild = row['guild']
                 user = row['user']
 
-                task = call_later(self.untimeout, self.bot.loop, time.total_seconds(),
-                                  user, guild)
-
                 if guild not in self.timeouts:
                     guild_timeouts = {}
                     self.timeouts[guild] = guild_timeouts
@@ -88,8 +85,12 @@ class Moderator(Cog):
                 if t:
                     t.cancel()
 
+                seconds = time.total_seconds()
+                if seconds <= 1:
+                    seconds = 1
+                task = call_later(self.untimeout, self.bot.loop, seconds,
+                                  user, guild, after=lambda f: guild_timeouts.pop(user, None))
                 guild_timeouts[user] = task
-                task.add_done_callback(lambda f: guild_timeouts.pop(user, None))
 
             except:
                 logger.exception('Could not untimeout %s' % row)
@@ -511,9 +512,6 @@ class Moderator(Cog):
             await ctx.send('Could not save timeout. Canceling action')
             return False
 
-        task = call_later(self.untimeout, self.bot.loop,
-                          as_seconds, user_id, guild_id)
-
         if guild_id not in self.timeouts:
             guild_timeouts = {}
             self.timeouts[guild_id] = guild_timeouts
@@ -524,9 +522,11 @@ class Moderator(Cog):
         if t:
             t.cancel()
 
-        guild_timeouts[user_id] = task
-        task.add_done_callback(lambda f: guild_timeouts.pop(user_id, None))
+        task = call_later(self.untimeout, self.bot.loop,
+                          as_seconds, user_id, guild_id,
+                          after=lambda f: guild_timeouts.pop(user_id, None))
 
+        guild_timeouts[user_id] = task
         return True
 
     async def untimeout(self, user_id, guild_id):

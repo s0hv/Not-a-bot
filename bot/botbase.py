@@ -51,6 +51,7 @@ class BotBase(Bot):
 
         self._guild_cache = GuildCache(self)
         self._dbutil = DatabaseUtils(self)
+        self.call_laters = {}
         self._setup_db()
         self.threadpool = ThreadPoolExecutor(4)
         self.loop.set_default_executor(self.threadpool)

@@ -14,7 +14,7 @@ from urllib.parse import quote
 import discord
 import psutil
 from discord.ext.commands import (cooldown, BucketType, bot_has_permissions,
-                                  Group)
+                                  Group, clean_content)
 from discord.ext.commands.errors import BadArgument
 from bot.converters import FuzzyRole
 
@@ -268,6 +268,12 @@ class Utilities(Cog):
             return await ctx.send("{} isn't a valid integer".format(id))
 
         await ctx.send(str(discord.utils.snowflake_time(id)))
+
+    @command()
+    @cooldown(1, 5, BucketType.user)
+    async def birthday(self, ctx, *, user: clean_content):
+        url = 'http://itsyourbirthday.today/#' + quote(user)
+        await ctx.send(url)
 
     @command(name='unzalgo')
     @cooldown(2, 5, BucketType.guild)

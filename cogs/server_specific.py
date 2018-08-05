@@ -62,8 +62,9 @@ class ServerSpecific(Cog):
             if message in self.bot.every_giveaways:
                 self.bot.every_giveaways[message].cancel()
 
-            fut = call_later(self.remove_every, self.bot.loop, timeout, guild, channel, message, title, winners)
-            fut.add_done_callback(lambda f: self.bot.every_giveaways.pop(message))
+            fut = call_later(self.remove_every, self.bot.loop, timeout, guild, channel, message, title, winners,
+                             after=lambda f: self.bot.every_giveaways.pop(message))
+            self.bot.every_giveaways[message] = fut
 
     @property
     def dbutil(self):
@@ -363,8 +364,10 @@ class ServerSpecific(Cog):
             logger.exception('Failed to create every toggle')
             return await channel.send('SQL error')
 
-        call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(),
-                   guild.id, channel.id, message.id, title, winners)
+        task = call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(),
+                          guild.id, channel.id, message.id, title, winners)
+
+        self.bot.every_giveaways[message.id] = task
 
     @command(no_pm=True)
     @cooldown(1, 3, type=BucketType.guild)

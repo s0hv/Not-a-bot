@@ -87,6 +87,7 @@ initial_cogs = [
     'hearthstone',
     'images',
     'jojo',
+    'last_seen',
     'logging',
     'misc',
     'moderator',

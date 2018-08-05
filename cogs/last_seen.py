@@ -1,6 +1,8 @@
 import asyncio
 from datetime import datetime
 
+import discord
+
 from cogs.cog import Cog
 
 
@@ -10,6 +12,20 @@ class UserSeen:
         self.username = str(user)
         self.guild_id = 0 if guild_id is None else guild_id
         self.timestamp = datetime.utcnow()
+
+    def __hash__(self):
+        return hash(self.user_id)
+
+    def __eq__(self, other):
+        # Called when adding one of this object to a set
+        # set compares the item already in it to the item being added
+        # It does not however replace on duplicate
+        # This is why we have to modify the object ourselves in case newer data is present
+        eq = self.user_id == other.user_id and self.guild_id == other.guild_id
+        if eq:
+            self.timestamp = other.timestamp
+
+        return eq
 
 
 class LastSeen(Cog):
@@ -71,8 +87,21 @@ class LastSeen(Cog):
         if before.activity != after.activity:
             return True
 
+        if before.nick != after.nick:
+            return True
+
+        if before.avatar != after.avatar:
+            return False
+
+    @staticmethod
+    def get_guild(user):
+        if isinstance(user, discord.User):
+            return None
+        else:
+            return user.guild.id
+
     async def on_message(self, message):
-        guild = None if not message.guild else message.guild.id
+        guild = self.get_guild(message.author)
         o = UserSeen(message.author, guild)
         self._updates.add(o)
 
@@ -82,8 +111,18 @@ class LastSeen(Cog):
             self._updates.add(o)
             return
 
-    async def on_reaction_add(self, reaction, user):
-        guild = None if not user.guild else user.guild.id
+    async def on_reaction_add(self, _, user):
+        guild = self.get_guild(user)
+        o = UserSeen(user, guild)
+        self._updates.add(o)
+
+    async def on_typing(self, _, user, __):
+        guild = self.get_guild(user)
+        o = UserSeen(user, guild)
+        self._updates.add(o)
+
+    async def on_member_join(self, user):
+        guild = user.guild
         o = UserSeen(user, guild)
         self._updates.add(o)
 

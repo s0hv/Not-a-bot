@@ -265,7 +265,7 @@ def y_n_check(msg):
 
 def y_check(s):
     s = s.lower().strip()
-    return s in ['y', 'yes']
+    return is_true(s)
 
 
 def bool_check(s):
@@ -1010,3 +1010,22 @@ def no_dm(ctx):
     if ctx.guild is None:
         raise discord.ext.commands.NoPrivateMessage('This command cannot be used in private messages.')
     return True
+
+
+async def wait_for_yes(ctx, timeout=60):
+    _check = basic_check(ctx.author, ctx.channel)
+
+    def check(msg):
+        return _check(msg) and bool_check(msg.content)
+
+    try:
+        msg = await ctx.bot.wait_for('message', check=check, timeout=timeout)
+    except asyncio.TimeoutError:
+        await ctx.send('Took too long')
+        return
+
+    if not y_check(msg.content):
+        await ctx.send('Cancelling')
+        return
+
+    return msg

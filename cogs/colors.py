@@ -258,14 +258,32 @@ class Colors(Cog):
                 await ctx.send('Failed to create color {0.name}'.format(role))
 
     @staticmethod
-    def concatenate_colors(images, width=50):
-        max_width = 50*len(images)
-        empty = Image.new('RGB', (max_width, width))
+    def concatenate_colors(images, width=50, custom_width: int=None):
+        max_width = width*len(images)
+        if custom_width and max_width < custom_width:
+            max_width = custom_width
+
+        empty = Image.new('RGBA', (max_width, width), (0,0,0,0))
 
         offset = 0
         for im in images:
             empty.paste(im, (offset, 0))
             offset += width
+
+        return empty
+
+    @staticmethod
+    def stack_colors(images, height=50, max_width: int=None):
+        max_height = height*len(images)
+        if not max_width:
+            max_width = max(map(lambda i: i.width, images))
+
+        empty = Image.new('RGBA', (max_width, max_height), (0,0,0,0))
+
+        offset = 0
+        for im in images:
+            empty.paste(im, (0, offset))
+            offset += height
 
         return empty
 
@@ -302,6 +320,10 @@ class Colors(Cog):
         return colors
 
     def color_from_str(self, color):
+        color = color.lower()
+        if color in ('transparent', 'none', 'invisible'):
+            return 0, 0, 0, 0
+
         color = color.replace('0x', '#')
         if not color.startswith('#'):
             match = self.match_color(color, False)
@@ -328,9 +350,15 @@ class Colors(Cog):
     async def color_range(self, ctx, start, end, steps: int=10):
         """
         Makes a color gradient from one color to another in the given steps
+        Resulting colors are concatenated horizontally
+
+        Example use
+        {prefix}{name} red blue 25
+        would give you color range from red to blue in 25 steps
+        To see all values accepted as colors check `{prefix}help get_color`
         """
-        if steps > 30 or steps < 2:
-            raise BadArgument('Maximum amount of steps is 30 and minimum is 2')
+        if steps > 40 or steps < 2:
+            raise BadArgument('Maximum amount of steps is 40 and minimum is 2')
 
         colors = self.parse_color_range(start, end, steps)
         size = (50, 50)
@@ -357,28 +385,55 @@ class Colors(Cog):
 
     @command(aliases=['c'], name='get_color')
     @cooldown(1, 5, BucketType.channel)
-    async def get_color_image(self, ctx, *, colors):
-        colors = shlex.split(colors)
-        if len(colors) > 20:
-            raise BadArgument('Maximum amount of colors is 20')
+    async def get_color_image(self, ctx, *, color_list):
+        """
+        Post a picture of a color or multiple colors
+        when specifying multiple colors make sure colors that have a space in them
+        like light blue are written using quotes like this `red "light blue" green`
+        By default colors are concatenated horizontally. For vertical stacking
+        use a newline like this
+        ```
+        {prefix}{name} red green
+        blue yellow
+        ```
+        Which would have red and green on top and blue and yellow on bottom
+
+        Color can be a
+        \u200b \u200b \u200b• hex value (`#000000` or `0x000000`)
+        \u200b \u200b \u200b• RGB tuple `(0,0,0)`
+        \u200b \u200b \u200b• Color name. All compatible names are listed [here](https://en.wikipedia.org/wiki/List_of_colors_(compact))
+        \u200b \u200b \u200b• Any of `invisible`, `none`, `transparent` for transparent spot
+        """
+        color_list = [shlex.split(c) for c in color_list.split('\n')]
+        lengths = map(len, color_list)
+        if sum(lengths) > 30:
+            raise BadArgument('Maximum amount of colors is 30')
 
         images = []
         hex_colors = []
         size = (50, 50)
 
         def do_the_thing():
-            for color in colors:
-                color = self.color_from_str(color)
-                try:
-                    im = Image.new('RGB', size, color)
-                    images.append(im)
-                    if isinstance(color, tuple):
-                        color = self.rgb2hex(*color)
-                    hex_colors.append(color)
-                except (TypeError, ValueError):
-                    raise BadArgument(f'Failed to create image using color {color}')
+            for colors in color_list:
+                ims = []
+                for color in colors:
+                    color = self.color_from_str(color)
+                    try:
+                        im = Image.new('RGBA', size, color)
+                        ims.append(im)
+                        if isinstance(color, tuple):
+                            color = self.rgb2hex(*color)
+                        hex_colors.append(color)
+                    except (TypeError, ValueError):
+                        raise BadArgument(f'Failed to create image using color {color}')
 
-            concat = self.concatenate_colors(images)
+                images.append(self.concatenate_colors(ims))
+
+            if len(images) > 1:
+                concat = self.stack_colors(images)
+            else:
+                concat = images[0]
+
             data = BytesIO()
             concat.save(data, 'PNG')
             data.seek(0)
@@ -389,8 +444,9 @@ class Colors(Cog):
 
     @command(no_pm=True, aliases=['colour'])
     @cooldown(1, 5, type=BucketType.user)
-    async def color(self, ctx, *color):
+    async def color(self, ctx, *, color=None):
         """Set you color on the server.
+        {prefix}{name} name of color
         To see the colors on this server use {prefix}colors or {prefix}show_colors"""
         guild = ctx.guild
         colors = self._colors.get(guild.id, None)
@@ -409,7 +465,8 @@ class Colors(Cog):
 
             else:
                 name = colors.get(user_colors.pop())
-                return await ctx.send('Your current color is {0}. Use {1}colors to see a list of colors in this guild. To also see the role colors use {1}show_colors'.format(name, ctx.prefix))
+                return await ctx.send('Your current color is {0}. To set a color use {1}{2} color name\n'
+                                      'Use {1}colors to see a list of colors in this guild. To also see the role colors use {1}show_colors'.format(name, ctx.prefix, ctx.invoked_with))
 
         color = ' '.join(color)
         color_ = self.get_color(color, guild.id)

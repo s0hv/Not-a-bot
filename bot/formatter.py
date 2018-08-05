@@ -90,7 +90,7 @@ class Formatter(HelpFormatter):
 
             # <long doc> section
             if self.command.help:
-                self._paginator.edit_page(self.command.name, self.command.help.format(prefix=self.context.prefix, name=self.context.invoked_with))
+                self._paginator.edit_page(self.command.name, self.command.help.format(prefix=self.context.prefix, name=self.command.name))
 
             self._paginator.add_field('Usage', signature)
 

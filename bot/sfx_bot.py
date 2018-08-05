@@ -40,8 +40,7 @@ terminal = logging.getLogger('terminal')
 
 initial_cogs = ['cogs.sfx_audio',
                 'cogs.utils',
-                'cogs.botadmin',
-                'cogs.last_seen']
+                'cogs.botadmin']
 
 
 class Ganypepe(Bot):

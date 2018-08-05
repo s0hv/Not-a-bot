@@ -16,6 +16,8 @@ import psutil
 from discord.ext.commands import (cooldown, BucketType, bot_has_permissions,
                                   Group)
 from discord.ext.commands.errors import BadArgument
+from bot.converters import FuzzyRole
+
 try:
     from pip.commands import SearchCommand
 except ImportError:
@@ -70,6 +72,13 @@ class Utilities(Cog):
             return await ctx.send('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
 
         await ctx.send(emote)
+
+    @command(aliases=['roleping'])
+    @cooldown(1, 4, BucketType.channel)
+    async def how2role(self, ctx, *, role: FuzzyRole):
+        """Searches a role and tells you how to ping it"""
+        name = role.name.replace('@', '@\u200b')
+        await ctx.send(f'`{role.mention}` {name}')
 
     @command(aliases=['howtoping'])
     @cooldown(1, 4, BucketType.channel)
@@ -246,13 +255,13 @@ class Utilities(Cog):
         for role in guild_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
-        roles = split_string(roles, splitter='\n', maxlen=1990)
+        roles = split_string(roles, splitter='\n', maxlen=1000)
         await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
 
     @command(aliases=['created_at', 'snowflake'], ignore_extra=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def snowflake_time(self, ctx, id: int):
-        """Gets creation date from the specified discord id"""
+        """Gets creation date from the specified discord id in UTC"""
         try:
             int(id)
         except ValueError:
@@ -263,6 +272,9 @@ class Utilities(Cog):
     @command(name='unzalgo')
     @cooldown(2, 5, BucketType.guild)
     async def unzalgo_(self, ctx, *, text=None):
+        """Unzalgo text
+        if text is not specified a cache lookup on zalgo text is done for the last 100 msgs
+        and the first found zalgo text is unzalgo'd"""
         if text is None:
             messages = self.bot._connection._messages
             for i in range(-1, -100, -1):
@@ -307,17 +319,20 @@ class Utilities(Cog):
     @command(aliases=['bug'], ignore_extra=True)
     @cooldown(1, 10, BucketType.user)
     async def bugreport(self, ctx):
+        """For reporting bugs"""
         await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hvaperuna/Not-a-bot/issues')
 
     @command(ingore_extra=True)
     @cooldown(1, 10, BucketType.guild)
     async def vote(self, ctx):
+        """Pls vote thx"""
         await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
 
     @command(name='pip')
     @cooldown(1, 5, BucketType.channel)
     @bot_has_permissions(embed_links=True)
     async def get_package(self, ctx, *, name):
+        """Get a package from pypi"""
         if SearchCommand is None:
             return await ctx.send('Not supported')
 

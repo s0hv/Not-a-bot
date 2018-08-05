@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import json
 import logging
@@ -8,6 +9,7 @@ import textwrap
 from functools import partial
 from io import BytesIO
 
+import discord
 import imagehash
 import numpy
 from PIL import Image
@@ -23,7 +25,7 @@ from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
 from utils.imagetools import image_from_url
-from utils.utilities import basic_check, random_color
+from utils.utilities import basic_check, random_color, wait_for_yes
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -418,6 +420,46 @@ class Pokemon(Cog):
         guess = await self.bot.loop.run_in_executor(self.bot.threadpool, self.get_match, img)
         await ctx.send(f'That pokemon might be `{guess}`.\n'
                        f'Expected accuracy for this is command is max 80% so expect mistakes')
+
+    @staticmethod
+    async def create_pokelog(ctx):
+        guild = ctx.guild
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(send_messages=False),
+            guild.me: discord.PermissionOverwrite(send_messages=True,
+                                                  embed_links=True)
+        }
+
+        try:
+            channel = await guild.create_text_channel('pokelog', overwrites=overwrites,
+                                                      reason=f'{ctx.author} created pokelog')
+        except discord.HTTPException as e:
+            return await ctx.send(f'Failed to create pokelog because of an error\n{e}')
+
+        await ctx.send(f'Pokelog created in {channel.mention}')
+
+    @command(ignore_extra=True)
+    @cooldown(1, 5, BucketType.guild)
+    async def pokelog(self, ctx):
+        """
+        To log caught pokecord legendaries and shinies you need a channel name pokelog
+        You can use this command to set one up with correct perms
+
+        Some exceptions are Phione which isn't logged since it's so common
+        and beldum evolution line which is logged due to it's rarity
+        """
+        channel = utils.get(ctx.guild.channels, name='pokelog')
+        if not channel:
+            await ctx.send('Pokelog channel not present. Do you want to crete one (Y/N)')
+            msg = await wait_for_yes(ctx, 30)
+            if not msg:
+                return
+
+            await self.create_pokelog(ctx)
+            return
+
+        await ctx.send(f'Current pokelog channel is {channel.mention}\n'
+                       'Make sure this bot has send messages and embed links perms set to ✅')
 
     async def _post2pokelog(self, message):
         channel = utils.get(message.guild.channels, name='pokelog')

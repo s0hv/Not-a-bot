@@ -5,7 +5,7 @@ from discord.ext.commands import cooldown, BucketType, bot_has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
-from bot.converters import PossibleUser
+from bot.converters import AnyUser
 from cogs.cog import Cog
 
 logger = logging.getLogger('debug')
@@ -20,13 +20,16 @@ class Stats(Cog):
     @cooldown(2, 5, type=BucketType.guild)
     @bot_has_permissions(embed_links=True)
     async def mention_stats(self, ctx, page=None):
-        """Get stats on how many times which roles are mentioned on this server"""
+        """
+        Get stats on how many times which roles are mentioned on this server
+        Only counts mentions in channels the bot can see
+        Also matches all role mentions not just those that ping"""
         guild = ctx.guild
 
         if page is not None:
             try:
                 # No one probably hasn't created this many roles
-                if len(page) > 6:
+                if len(page) > 3:
                     return await ctx.send('Page out of range')
 
                 page = int(page)
@@ -63,8 +66,9 @@ class Stats(Cog):
 
     @command(aliases=['seen'])
     @cooldown(1, 5, BucketType.user)
-    async def last_seen(self, ctx, user: PossibleUser):
-        """Get when a user was last seen"""
+    async def last_seen(self, ctx, user: AnyUser):
+        """Get when a user was last seen on this server and elsewhere
+        User can be a mention, user id, or full discord username with discrim Username#0001"""
 
         if isinstance(user, discord.User):
             user_id = user.id
@@ -76,22 +80,22 @@ class Stats(Cog):
             user_id = None
             username = user
 
+        if user_id:
+            user_clause = 'user=:user'
+        else:
+            user_clause = 'username=:user'
+
         guild = ctx.guild
         if guild is not None:
             guild = guild.id
-            sql = 'SELECT * FROM `last_seen_users` WHERE (guild=0 OR guild=:guild) AND '
+            sql = 'SELECT seen.* FROM `last_seen_users` seen WHERE guild=:guild AND {0} ' \
+                  'UNION ALL (SELECT  seen2.* FROM `last_seen_users` seen2 WHERE guild!=:guild AND {0} ORDER BY seen2.last_seen DESC LIMIT 1)'.format(user_clause)
         else:
             guild = 0
-            sql = 'SELECT * FROM `last_seen_users` WHERE guild=0 AND'
+            sql = 'SELECT * FROM `last_seen_users` WHERE guild=0 AND %s' % user_clause
 
-        if user_id:
-            sql += 'user=:user ORDER BY last_seen DESC LIMIT 2'
-        else:
-            sql += 'username=:user ORDER BY last_seen DESC LIMIT 2'
-
-        session = self.bot.get_session
         try:
-            rows = session.execute(sql, {'guild': guild, 'user': user_id or username}).fetchall()
+            rows = (await self.bot.dbutil.execute(sql, {'guild': guild, 'user': user_id or username})).fetchall()
         except SQLAlchemyError:
             terminal.exception('Failed to get last seen from db')
             return await ctx.send('Failed to get user because of an error')
@@ -103,7 +107,7 @@ class Stats(Cog):
         global_ = None
 
         for row in rows:
-            if row['guild'] == 0:
+            if not guild or row['guild'] != guild:
                 global_ = row
 
             else:

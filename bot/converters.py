@@ -8,9 +8,6 @@ from utils.utilities import parse_time
 
 
 class MentionedMember(converter.MemberConverter):
-    def __init__(self):
-        super().__init__()
-
     async def convert(self, ctx, argument):
         message = ctx.message
         match = self._get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
@@ -27,9 +24,10 @@ class MentionedMember(converter.MemberConverter):
 
 
 class PossibleUser(converter.IDConverter):
-    def __init__(self):
-        super().__init__()
-
+    """
+    Possibly returns a user object
+    If no user is found returns user id if it could be parsed from argument
+    """
     async def convert(self, ctx, argument):
         match = self._get_id_match(argument) or re.match(r'<@!?([0-9]+)>$', argument)
         state = ctx._state
@@ -53,12 +51,25 @@ class PossibleUser(converter.IDConverter):
             predicate = lambda u: u.name == arg
             result = discord.utils.find(predicate, state._users.values())
             if result is None:
-                return arg
+                raise BadArgument(f'No user id or user found with "{argument}"')
 
         if result is None:
             raise BadArgument('User "{}" not found'.format(argument))
 
         return result
+
+
+class AnyUser(PossibleUser):
+    """
+    Like possible user but fall back to given value when nothing is found
+    """
+    async def convert(self, ctx, argument):
+        try:
+            user = await PossibleUser.convert(self, ctx, argument)
+            if not user:
+                return argument
+        except BadArgument:
+            return argument
 
 
 class MentionedUser(converter.UserConverter):
@@ -104,3 +115,24 @@ class TimeDelta(converter.Converter):
             raise BadArgument(f'Failed to parse time from {argument}')
 
         return time
+
+
+class FuzzyRole(converter.RoleConverter):
+    async def convert(self, ctx, argument):
+        guild = ctx.message.guild
+        if not guild:
+            raise converter.NoPrivateMessage()
+
+        match = self._get_id_match(argument) or re.match(r'<@&([0-9]+)>$', argument)
+        params = dict(id=int(match.group(1))) if match else dict(name=argument)
+        result = discord.utils.get(guild.roles, **params)
+        if result is None:
+            def pred(role):
+                return role.name.lower().startswith(argument)
+
+            result = discord.utils.find(pred, guild.roles)
+
+        if result is None:
+            raise BadArgument('Role not found with "{}"'.format(argument))
+
+        return result

@@ -27,7 +27,7 @@ from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
 from utils.utilities import split_string
 from utils.utilities import (y_n_check, basic_check, y_check, check_import, parse_timeout,
-                             call_later)
+                             call_later, seconds2str)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -599,6 +599,8 @@ class BotAdmin(Cog):
         self.bot.call_laters[msg.id] = call_later(self.bot.invoke, self.bot.loop,
                                                   run_in.total_seconds(), new_ctx,
                                                   after=functools.partial(self.remove_call, msg_id=msg.id))
+
+        await ctx.send(f'Scheduled call `{msg.id}` to run in {seconds2str(run_in.total_seconds(), False)}')
 
 
 def setup(bot):

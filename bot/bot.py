@@ -59,7 +59,8 @@ terminal = logging.getLogger('terminal')
 
 
 class Context(commands.context.Context):
-    __slots__ = ('override_perms', 'skip_check', 'original_user', 'domain')
+    __slots__ = ('override_perms', 'skip_check', 'original_user', 'domain',
+                 'received_at')
 
     def __init__(self, **attrs):
         super().__init__(**attrs)
@@ -68,6 +69,7 @@ class Context(commands.context.Context):
         # Used when wanting to skip database check like in help command
         self.skip_check = attrs.pop('skip_check', False)
         self.domain = attrs.get('domain', None)
+        self.received_at = attrs.get('received_at', None)
 
 
 class Command(commands.Command):
@@ -399,8 +401,9 @@ class Bot(commands.Bot, Client):
 
         return ctx
 
-    async def process_commands(self, message):
+    async def process_commands(self, message, local_time=None):
         ctx = await self.get_context(message, cls=Context)
+        ctx.received_at = local_time
         await self.invoke(ctx)
 
     def command(self, *args, **kwargs):

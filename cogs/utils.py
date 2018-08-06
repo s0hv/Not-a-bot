@@ -43,12 +43,16 @@ class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(ignore_extra=True)
+    @command(ignore_extra=True, aliases=['pong'])
     @cooldown(1, 5, BucketType.guild)
     async def ping(self, ctx):
         """Ping pong"""
-        local_delay = datetime.utcnow().timestamp() - ctx.message.created_at.timestamp()
         t = time.perf_counter()
+        if ctx.received_at:
+            local_delay = t - ctx.received_at
+        else:
+            local_delay = datetime.utcnow().timestamp() - ctx.message.created_at.timestamp()
+
         await ctx.trigger_typing()
         t = time.perf_counter() - t
         message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms\nWebsocket ping {:.0f}ms'.format(t*1000, local_delay*1000, self.bot.latency*1000)

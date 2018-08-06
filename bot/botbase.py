@@ -23,6 +23,7 @@ SOFTWARE.
 """
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from discord.ext.commands import CommandNotFound, CommandError
@@ -131,6 +132,7 @@ class BotBase(Bot):
                 continue
 
     async def on_message(self, message):
+        local = time.perf_counter()
         await self.wait_until_ready()
         if message.author.bot or message.author == self.user:
             return
@@ -139,7 +141,7 @@ class BotBase(Bot):
         if message.author.id != self.owner_id and (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
             return
 
-        await self.process_commands(message)
+        await self.process_commands(message, local_time=local)
 
     async def _check_auth(self, user_id, auth_level):
         if auth_level == 0:

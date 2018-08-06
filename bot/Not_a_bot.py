@@ -24,6 +24,7 @@ SOFTWARE.
 
 import asyncio
 import logging
+import time
 
 import discord
 from sqlalchemy.exc import SQLAlchemyError
@@ -137,6 +138,7 @@ class NotABot(BotBase):
                     return
 
     async def on_message(self, message):
+        local = time.perf_counter()
         await self.wait_until_ready()
         if message.author.bot or message.author == self.user:
             return
@@ -145,7 +147,7 @@ class NotABot(BotBase):
         if message.author.id != self.owner_id and (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
             return
 
-        await self.process_commands(message)
+        await self.process_commands(message, local_time=local)
 
         oshit = self.cdm.get_cooldown('oshit')
         channel = message.channel

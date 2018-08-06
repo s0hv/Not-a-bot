@@ -245,8 +245,8 @@ class Images(Cog):
             self._pokefusion = None
 
     def __unload(self):
-        if self.pokefusion:
-            self.pokefusion.driver.quit()
+        if self._pokefusion:
+            self._pokefusion.driver.quit()
 
     @staticmethod
     def __local_check(ctx):
@@ -254,6 +254,9 @@ class Images(Cog):
             raise BotMissingPermissions(('attach_files', ))
 
         return True
+
+    async def image_func(self, func, *args, **kwargs):
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, func, *args, **kwargs)
 
     @staticmethod
     def save_image(img, format='PNG'):
@@ -695,6 +698,31 @@ class Images(Cog):
 
         file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_speedup)
         await ctx.send(file=File(file, filename='speedup.gif'))
+
+    @command(ignore_extra=True)
+    @cooldown(2, 5)
+    async def smug(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'smug_man.png'))
+
+            w, h = 729, 607
+            img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True)
+            template.paste(img, (168, 827), img)
+            file = BytesIO()
+            template.save(file, 'PNG')
+            file.seek(0)
+            return file
+
+        file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='smug_man.png'))
 
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)

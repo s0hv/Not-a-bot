@@ -468,7 +468,6 @@ class Colors(Cog):
                 return await ctx.send('Your current color is {0}. To set a color use {1}{2} color name\n'
                                       'Use {1}colors to see a list of colors in this guild. To also see the role colors use {1}show_colors'.format(name, ctx.prefix, ctx.invoked_with))
 
-        color = ' '.join(color)
         color_ = self.get_color(color, guild.id)
         if not color_:
             match = self.closest_match(color, guild)

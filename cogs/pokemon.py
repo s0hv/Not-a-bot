@@ -503,7 +503,7 @@ class Pokemon(Cog):
 
         if message.embeds and message.guild.id in (217677285442977792, 353927534439825429):
             embed = message.embeds[0]
-            if 'wild' in embed.title.lower():
+            if isinstance(embed.title, str) and 'wild' in embed.title.lower():
                 poke_name = await self.match_pokemon(embed.image.url)
                 if poke_name is None:
                     terminal.error(f'Pokemon not found from url {embed.image.url}')

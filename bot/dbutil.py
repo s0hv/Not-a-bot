@@ -454,6 +454,15 @@ class DatabaseUtils:
         params = {'guild': guild, 'user': user, 'expires_on': expires_on, 'reason': reason}
         await self.bot.dbutils.execute(sql, params=params, commit=True)
 
+    async def add_todo(self, todo, priority=0):
+        sql = 'INSERT INTO `todo` (`todo`, `priority`) VALUES (:todo, :priority)'
+        rowid = (await self.execute(sql, {'todo': todo, 'priority': priority}, commit=True)).lastrowid
+        return rowid
+
+    async def get_todo(self, limit):
+        sql = 'SELECT * FROM `todo` WHERE `completed` IS FALSE ORDER BY priority DESC LIMIT %s' % limit
+        return await self.execute(sql)
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

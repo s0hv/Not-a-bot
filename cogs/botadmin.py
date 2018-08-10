@@ -602,6 +602,35 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Scheduled call `{msg.id}` to run in {seconds2str(run_in.total_seconds(), False)}')
 
+    @command(owner_only=True)
+    async def add_todo(self, ctx, priority: int=0, *, todo):
+        try:
+            rowid = await self.bot.dbutil.add_todo(todo, priority=priority)
+        except SQLAlchemyError:
+            logger.exception('Failed to add todo')
+            return await ctx.send('Failed to add to todo')
+
+        await ctx.send(f'Added todo with priority {priority} and id {rowid}')
+
+    @command(owner_only=True, name='todo')
+    async def list_todo(self, ctx, limit: int=3):
+        try:
+            rows = (await self.bot.dbutil.get_todo(limit)).fetchall()
+        except SQLAlchemyError:
+            logger.exception('Failed to get todo')
+            return await ctx.send('Failed to get todo')
+
+        if not rows:
+            return await ctx.send('Nothing to do')
+
+        s = ''
+        for row in rows:
+            s += f'{row["time"]} `{row["priority"]}` {row["todo"]}\n\n'
+
+        if len(rows) > 2000:
+            return await ctx.send('Too long todo')
+        await ctx.send(s)
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

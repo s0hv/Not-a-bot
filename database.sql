@@ -293,6 +293,19 @@ CREATE TABLE `pokespawns` (
     `count` MEDIUMINT UNSIGNED DEFAULT 1,
     PRIMARY KEY (`guild`, `name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+CREATE TABLE `todo` (
+    `time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `completed_at` TIMESTAMP NULL DEFAULT NULL,
+    `completed` BOOL DEFAULT FALSE,
+    `todo` TEXT COLLATE utf8mb4_unicode_ci,
+    `priority` TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
 ------------------------
 -- UNDER CONSTRUCTION --
 ------------------------

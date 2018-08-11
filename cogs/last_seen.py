@@ -122,7 +122,12 @@ class LastSeen(Cog):
         self._updates.add(o)
 
     async def on_member_join(self, user):
-        guild = user.guild
+        guild = user.guild.id
+        o = UserSeen(user, guild)
+        self._updates.add(o)
+
+    async def on_member_leave(self, user):
+        guild = user.guild.id
         o = UserSeen(user, guild)
         self._updates.add(o)
 

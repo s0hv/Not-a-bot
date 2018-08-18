@@ -84,7 +84,7 @@ class MusicPlayer:
         for inst in cls.__instances__:
             yield inst
 
-    def __init__(self, bot, disconnect, channel=None):
+    def __init__(self, bot, disconnect, channel=None, downloader=None):
         self.__instances__.add(self)
         self.bot = bot
         self.play_next = asyncio.Event()
@@ -94,7 +94,7 @@ class MusicPlayer:
         self.repeat = False
         self._disconnect = disconnect
 
-        self.playlist = Playlist(bot, channel=self.channel)
+        self.playlist = Playlist(bot, channel=self.channel, downloader=downloader)
         self.autoplaylist = bot.config.autoplaylist
         self.autoplay = False  # Youtube autoplay
         self.volume = self.bot.config.default_volume
@@ -975,7 +975,8 @@ class Audio:
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
-            musicplayer = MusicPlayer(self.bot, self.disconnect_voice, channel=ctx.channel)
+            musicplayer = MusicPlayer(self.bot, self.disconnect_voice, channel=ctx.channel,
+                                      downloader=self.downloader)
             self.musicplayers[ctx.guild.id] = musicplayer
         else:
             musicplayer.change_channel(ctx.channel)
@@ -1630,15 +1631,16 @@ class Audio:
             data = current.webpage_url
             name = data
 
-        elif 'playlist' in name:
+        elif 'playlist' in name or 'channel' in name:
             async def on_error(e):
                 await ctx.send('Failed to get playlist %s' % e)
 
-            info = await musicplayer.playlist.extract_info(name, on_error=on_error)
+            info = await self.downloader.extract_info(self.bot.loop, url=name, download=False,
+                                                      on_error=on_error)
             if info is None:
                 return
 
-            links = await musicplayer.playlist.process_playlist(info, channel=ctx.message.channel)
+            links = await Playlist.process_playlist(info, channel=ctx.message.channel)
             if links is None:
                 await ctx.send('Incompatible playlist')
 

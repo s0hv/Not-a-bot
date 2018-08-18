@@ -51,13 +51,13 @@ logger = logging.getLogger('audio')
 
 
 class Playlist:
-    def __init__(self, bot, download=False, channel=None):
+    def __init__(self, bot, download=False, channel=None, downloader: Downloader=None):
         self.bot = bot
         self.channel = channel
         self.download = download
         self.playlist = deque()
         self.history = deque(maxlen=5)
-        self.downloader = Downloader(CACHE)
+        self.downloader = Downloader(CACHE) if not downloader else downloader
         self.not_empty = asyncio.Event()
         self.playlist_path = PLAYLISTS
         self.adding_songs = False
@@ -379,15 +379,14 @@ class Playlist:
     async def extract_info(self, name, on_error=None):
         return await self.downloader.extract_info(self.bot.loop, url=name, download=False, on_error=on_error)
 
-    async def process_playlist(self, info, channel=None):
-        if channel is None:
-            channel = self.channel
-
+    @staticmethod
+    async def process_playlist(info, channel=None):
         if 'entries' in info:
             entries = info['entries']
 
             if entries[0]['ie_key'].lower() != 'youtube':
-                await channel.send('Only youtube playlists are currently supported')
+                if channel:
+                    await channel.send('Only youtube playlists are currently supported')
                 return
 
             links = []

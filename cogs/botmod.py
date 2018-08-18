@@ -38,7 +38,9 @@ class BotMod(Cog):
         """Delete pending songs from autoplaylist"""
         delete_songs = set(read_lines(DELETE_AUTOPLAYLIST))
 
-        songs = set(read_lines(AUTOPLAYLIST))
+        _songs = read_lines(AUTOPLAYLIST)
+        songs = set(_songs)
+        duplicates = len(_songs) - len(songs)
 
         failed = 0
         succeeded = 0
@@ -54,7 +56,7 @@ class BotMod(Cog):
 
         empty_file(DELETE_AUTOPLAYLIST)
 
-        await ctx.send('Successfully deleted {0} songs and failed {1}'.format(succeeded, failed))
+        await ctx.send('Successfully deleted {0} songs, {1} duplicates and failed {2}'.format(succeeded, duplicates, failed))
 
 
 def setup(bot):

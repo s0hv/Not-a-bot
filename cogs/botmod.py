@@ -27,7 +27,7 @@ class BotMod(Cog):
         if invalid:
             await ctx.send('Invalid url(s):\n%s' % ', '.join(invalid), delete_after=40)
 
-        write_playlist(AUTOPLAYLIST, songs, 'a')
+        write_playlist(AUTOPLAYLIST, songs, mode='a')
         empty_file(ADD_AUTOPLAYLIST)
 
         amount = len(songs)

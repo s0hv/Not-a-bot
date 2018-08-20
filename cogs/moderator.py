@@ -350,7 +350,7 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
             return await ctx.send('No <:peepoWeird:423445885180051467>')
 
-        if ctx.author.top_role < user.top_role:
+        if ctx.author != guild.owner and ctx.author.top_role < user.top_role:
             return await ctx.send('The one you are trying to mute is higher in the role hierarchy')
 
         reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
@@ -596,7 +596,7 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
             return await ctx.send('No <:peepoWeird:423445885180051467>')
 
-        if ctx.author.top_role < user.top_role:
+        if ctx.author != guild.owner and ctx.author.top_role < user.top_role:
             return await ctx.send('The one you are trying to timeout is higher in the role hierarchy')
 
         if time.days > 30:

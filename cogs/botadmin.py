@@ -625,11 +625,18 @@ class BotAdmin(Cog):
 
         s = ''
         for row in rows:
-            s += f'{row["time"]} `{row["priority"]}` {row["todo"]}\n\n'
+            s += f'{row["id"]} {row["time"]} `{row["priority"]}` {row["todo"]}\n\n'
 
         if len(rows) > 2000:
             return await ctx.send('Too long todo')
         await ctx.send(s)
+
+    @command(owner_only=True)
+    async def complete_todo(self, ctx, id: int):
+        sql = 'UPDATE `todo` SET completed_at=CURRENT_TIMESTAMP, completed=TRUE WHERE id=%s AND completed=FALSE' % id
+
+        res = await self.bot.dbutil.execute(sql)
+        await ctx.send(f'{res.rowcount} rows updated')
 
 
 def setup(bot):

@@ -300,7 +300,7 @@ class Audio:
                 sfx = self._search_sfx(name)
                 if not sfx:
                     name = name.replace('@', '\u200b@')
-                    await ctx.send(f"{ctx.author} Couldn't find {name}. Skipping it", delete_after=30)
+                    await ctx.send(f"{ctx.author.mention} Couldn't find {name}. Skipping it", delete_after=30)
                     continue
 
                 sfx_list.append(sfx[0])

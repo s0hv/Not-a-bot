@@ -139,6 +139,44 @@ class Moderator(Cog):
             if not check_botperm('manage_roles', guild=message.guild, channel=message.channel):
                 return
 
+            s = '.img penile hemorrhage'
+            if guild.id != 217677285442977792 and message.content.strip().lower() == s:
+                def check(msg):
+                    if msg.author.id != 439205512425504771 or msg.channel != message.channel:
+                        return False
+
+                    if not msg.embeds or not msg.embeds[0].author:
+                        return False
+
+                    embed = msg.embeds[0]
+                    if embed.title != 'Image Search Results' or (isinstance(embed.author.icon_url, str) and str(user.id) not in embed.author.icon_url):
+                        return False
+
+                    return True
+
+                try:
+                    msg = await self.bot.wait_for('message', check=check, timeout=20)
+                except asyncio.TimeoutError:
+                    return
+
+                await msg.delete()
+
+                time = timedelta(days=3)
+                await self.add_timeout(message.channel, guild.id, user.id,
+                                       datetime.utcnow() + time, time.total_seconds(),
+                                       reason=f'Automuted for {message.content}')
+
+                await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
+                d = f'Automuted user {user} `{user.id}` for {time}'
+                embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d,
+                                      timestamp=datetime.utcnow())
+                embed.add_field(name='Reason', value=message.content)
+                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+                embed.set_footer(text=str(self.bot.user),
+                                 icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
+                await self.send_to_modlog(guild, embed=embed)
+                return
+
             limit = self.bot.guild_cache.automute_limit(guild.id)
             if len(message.mentions) + len(message.role_mentions) > limit:
                 blacklist = self.automute_blacklist.get(guild.id, ())

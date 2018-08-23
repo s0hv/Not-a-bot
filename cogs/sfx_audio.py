@@ -299,7 +299,8 @@ class Audio:
             if search:
                 sfx = self._search_sfx(name)
                 if not sfx:
-                    await ctx.send("Couldn't find %s. Skipping it" % name, delete_after=30)
+                    name = name.replace('@', '\u200b@')
+                    await ctx.send(f"{ctx.author} Couldn't find {name}. Skipping it", delete_after=30)
                     continue
 
                 sfx_list.append(sfx[0])
@@ -365,7 +366,7 @@ class Audio:
 
     @command(name='combo', no_pm=True, aliases=['concat', 'c'])
     @commands.cooldown(2, 4, type=commands.BucketType.user)
-    async def combine(self, ctx, *, names):
+    async def combine(self, ctx, *, names: commands.clean_content):
         """Play multiple sfx in a row"""
         max_combo = self.bot.config.max_combo
         names = shlex.split(names)

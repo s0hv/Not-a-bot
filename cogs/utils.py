@@ -13,8 +13,8 @@ from urllib.parse import quote
 
 import discord
 import psutil
-from discord.ext.commands import (cooldown, BucketType, bot_has_permissions,
-                                  Group, clean_content)
+from discord.ext.commands import (BucketType, bot_has_permissions, Group,
+                                  clean_content)
 from discord.ext.commands.errors import BadArgument
 from bot.converters import FuzzyRole
 
@@ -28,7 +28,7 @@ except ImportError:
 
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command
+from bot.bot import command, cooldown
 from cogs.cog import Cog
 from utils.unzalgo import unzalgo, is_zalgo
 from utils.utilities import (random_color, get_avatar, split_string,

@@ -13,11 +13,11 @@ from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from discord.errors import InvalidArgument
-from discord.ext.commands import (cooldown, BucketType, bot_has_permissions, BadArgument)
+from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument)
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, has_permissions
+from bot.bot import command, has_permissions, cooldown
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
                              Snowflake)

@@ -40,8 +40,9 @@ from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.http import HTTPClient
 
 from bot.formatter import Formatter
+from bot.cooldowns import Cooldown, CooldownMapping
 from bot.globals import Auth
-from utils.utilities import is_owner, check_blacklist, no_dm
+from utils.utilities import is_owner, check_blacklist, no_dm, seconds2str
 
 try:
     import uvloop
@@ -90,6 +91,12 @@ class Command(commands.Command):
 
         if 'no_pm' in kwargs or 'no_dm' in kwargs:
             self.checks.insert(0, no_dm)
+
+    def undo_use(self, ctx):
+        """Undoes one use of command"""
+        if self._buckets.valid:
+            bucket = self._buckets.get_bucket(ctx.message)
+            bucket.undo_one()
 
     async def can_run(self, ctx):
         original = ctx.command
@@ -203,7 +210,7 @@ class Bot(commands.Bot, Client):
         self.remove_command('help')
 
         @self.group(invoke_without_command=True)
-        @commands.cooldown(1, 10, commands.BucketType.guild)
+        @cooldown(1, 10, commands.BucketType.guild)
         async def help(ctx, *commands_: str):
             """Shows all commands you can use on this server.
             Use {prefix}{name} all to see all commands"""
@@ -222,7 +229,7 @@ class Bot(commands.Bot, Client):
         self.aiohttp_client = aiohttp
         self.config = config
         self.voice_clients_ = {}
-        self._error_cdm = commands.CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.guild))
+        self._error_cdm = CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.guild))
 
     @property
     def runas(self):
@@ -280,7 +287,7 @@ class Bot(commands.Bot, Client):
 
         error_msg = None
         if isinstance(exception, commands.errors.CommandOnCooldown):
-            error_msg = 'Command on cooldown. Try again in {:.2f}s'.format(exception.retry_after)
+            error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
         if isinstance(exception, commands.errors.BadArgument):
             error_msg = str(exception)
@@ -476,6 +483,18 @@ def group(name=None, **attrs):
     if 'cls' not in attrs:
         attrs['cls'] = Group
     return commands.command(name=name, **attrs)
+
+
+def cooldown(rate, per, type=commands.BucketType.default):
+    """See `commands.cooldown` docs"""
+
+    def decorator(func):
+        if isinstance(func, Command):
+            func._buckets = CooldownMapping(Cooldown(rate, per, type))
+        else:
+            func.__commands_cooldown__ = Cooldown(rate, per, type)
+        return func
+    return decorator
 
 
 def has_permissions(**perms):

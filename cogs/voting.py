@@ -5,10 +5,10 @@ import operator
 from datetime import datetime, timedelta
 
 import discord
-from discord.ext.commands import bot_has_permissions, cooldown, BucketType
+from discord.ext.commands import bot_has_permissions, BucketType
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, has_permissions
+from bot.bot import command, has_permissions, cooldown
 from utils.utilities import (get_emote_name_id, parse_time, datetime2sql,
                              get_avatar)
 

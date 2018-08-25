@@ -37,12 +37,11 @@ import discord
 from discord.activity import Activity, ActivityType
 from discord.errors import HTTPException
 from discord.ext import commands
-from discord.ext.commands import cooldown
 from discord.ext.commands.cooldowns import BucketType
 from discord.player import PCMVolumeTransformer
 
 from bot import player
-from bot.bot import command
+from bot.bot import command, cooldown
 from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth

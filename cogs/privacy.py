@@ -1,9 +1,9 @@
 import textwrap
 
 import discord
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import BucketType
 
-from bot.bot import command
+from bot.bot import command, cooldown
 from cogs.cog import Cog
 
 

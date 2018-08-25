@@ -22,9 +22,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import BucketType
 
-from bot.bot import command
+from bot.bot import command, cooldown
 
 
 class Hearthstone:

@@ -1,7 +1,6 @@
 from discord.ext import commands
-from discord.ext.commands import cooldown
 
-from bot.bot import group
+from bot.bot import group, cooldown
 from cogs.cog import Cog
 from utils.utilities import split_string
 

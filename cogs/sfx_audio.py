@@ -34,6 +34,7 @@ from numpy import random
 
 from bot.formatter import Paginator
 from bot.player import FFmpegPCMAudio, play
+from bot.bot import cooldown
 
 try:
     from gtts import gTTS
@@ -237,7 +238,7 @@ class Audio:
             pass
 
     @command(no_pm=True)
-    @commands.cooldown(2, 4, type=commands.BucketType.user)
+    @cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx, *, name):
         """Play a sound effect"""
         file = self._search_sfx(name)
@@ -365,7 +366,7 @@ class Audio:
             state.add_to_queue(entry)
 
     @command(name='combo', no_pm=True, aliases=['concat', 'c'])
-    @commands.cooldown(2, 4, type=commands.BucketType.user)
+    @cooldown(2, 4, type=commands.BucketType.user)
     async def combine(self, ctx, *, names: commands.clean_content):
         """Play multiple sfx in a row"""
         max_combo = self.bot.config.max_combo
@@ -415,7 +416,7 @@ class Audio:
         await ctx.send('Random sfx set to %s' % values_rev.get(value))
 
     @command(pass_context=True)
-    @commands.cooldown(1, 4, type=commands.BucketType.user)
+    @cooldown(1, 4, type=commands.BucketType.user)
     async def sfxlist(self, ctx):
         """List of all the sound effects"""
         sfx = os.listdir(SFX_FOLDER)
@@ -445,7 +446,7 @@ class Audio:
             await ctx.send(embed=embed)
 
     @command(name='on_join')
-    @commands.cooldown(2, 4, type=commands.BucketType.user)
+    @cooldown(2, 4, type=commands.BucketType.user)
     async def _on_join(self, ctx, val: bool=None):
         guild = ctx.guild
         state = self.get_voice_state(guild)
@@ -459,7 +460,7 @@ class Audio:
         await ctx.send(f'On join set to {val}')
 
     @command(no_pm=True, aliases=['stop2'])
-    @commands.cooldown(2, 4, type=commands.BucketType.user)
+    @cooldown(2, 4, type=commands.BucketType.user)
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.

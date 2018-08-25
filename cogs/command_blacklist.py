@@ -2,10 +2,10 @@ import logging
 from functools import partial
 
 import discord
-from discord.ext.commands import cooldown, BucketType, has_permissions
+from discord.ext.commands import BucketType, has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, group
+from bot.bot import command, group, cooldown
 from bot.formatter import Paginator
 from bot.globals import BlacklistTypes, PermValues
 from cogs.cog import Cog

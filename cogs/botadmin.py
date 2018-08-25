@@ -638,6 +638,15 @@ class BotAdmin(Cog):
         res = await self.bot.dbutil.execute(sql)
         await ctx.send(f'{res.rowcount} rows updated')
 
+    @command(owner_only=True)
+    async def reset_cooldown(self, ctx, command):
+        cmd = self.bot.all_commands.get(command, None)
+        if not cmd:
+            return await ctx.send(f'Command {command} not found')
+
+        cmd.reset_cooldown(ctx)
+        await ctx.send(f'Cooldown of {cmd.name} reset')
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

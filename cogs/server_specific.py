@@ -3,21 +3,19 @@ import logging
 import shlex
 import subprocess
 from datetime import datetime
-from random import randint, random
+import random
 
 import discord
 from discord.errors import HTTPException
-from discord.ext.commands import cooldown, BucketType, check, \
-    bot_has_permissions
+from discord.ext.commands import (BucketType, check, bot_has_permissions)
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, has_permissions
+from bot.bot import command, has_permissions, cooldown
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
-                             get_avatar,
-                             retry, send_paged_message)
+                             get_avatar, retry, send_paged_message)
 
 logger = logging.getLogger('debug')
 
@@ -321,6 +319,36 @@ class ServerSpecific(Cog):
 
         await ctx.send('You now have the default role. Reload discord (ctrl + r) to get your global emotes')
 
+    @command(no_pm=True)
+    @cooldown(1, 600)
+    @bot_has_permissions(manage_guild=True)
+    @check(main_check)
+    async def rotate(self, ctx, emoji=None):
+        emoji_faces = ['😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊',
+                       '😋', '😎', '😍', '😘', '😗', '😙', '😚', '☺', '🙂', '🤗',
+                       '\U0001f929', '🤔', '\U0001f928', '😐', '😑', '😶', '🙄',
+                       '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴', '😌',
+                       '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑',
+                       '😲', '☹', '🙁', '😖', '😞', '😟', '😤', '😢', '😭', '😦',
+                       '😧', '😨', '😩', '\U0001f92f', '😬', '😰', '😱', '😳',
+                       '\U0001f92a', '😵', '😡', '😠', '\U0001f92c', '😷', '🤒',
+                       '🤕', '🤢', '\U0001f92e', '🤧', '😇', '🤠', '🤡', '🤥',
+                       '\U0001f92b', '\U0001f92d', '\U0001f9d0', '🤓', '😈', '👿',
+                       '👶']
+
+        if emoji is not None and emoji not in emoji_faces:
+            return await ctx.send('Invalid emoji')
+
+        elif emoji is None:
+            emoji = random.choice(emoji_faces)
+
+        try:
+            await ctx.guild.edit(name=emoji*50)
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to change name because of an error\n{e}')
+        else:
+            await ctx.send('♻')
+
     async def _toggle_every(self, channel, winners: int, expires_in):
         guild = channel.guild
         perms = channel.permissions_for(guild.get_member(self.bot.user.id))
@@ -480,10 +508,10 @@ class ServerSpecific(Cog):
         if guild.id != 366940074635558912:
             return
 
-        if random() < 0.09:
+        if random.random() < 0.09:
             name = str(member.discriminator)
         else:
-            name = str(randint(1000, 9999))
+            name = str(random.randint(1000, 9999))
         await member.edit(nick=name, reason='Auto nick')
 
 

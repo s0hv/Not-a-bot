@@ -2,8 +2,7 @@ import base64
 import logging
 import os
 import time
-from asyncio import Queue, Lock
-from concurrent.futures import ThreadPoolExecutor
+from asyncio import Lock
 from functools import partial
 from io import BytesIO
 from random import randint
@@ -12,14 +11,14 @@ from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops, \
     GifImagePlugin
 from bs4 import BeautifulSoup
 from discord import File
-from discord.ext.commands import cooldown, BucketType, BotMissingPermissions
+from discord.ext.commands import BucketType, BotMissingPermissions
 from discord.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
-from bot.bot import command
+from bot.bot import command, cooldown
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,

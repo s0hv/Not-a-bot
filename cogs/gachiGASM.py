@@ -1,4 +1,5 @@
-from bot.bot import command
+from bot.bot import command, cooldown
+from discord.ext.commands import BucketType
 from cogs.cog import Cog
 
 
@@ -7,6 +8,7 @@ class gachiGASM(Cog):
         super().__init__(bot)
 
     @command()
+    @cooldown(1, 2, BucketType.channel)
     async def gachify(self, ctx, *, words):
         """Gachify a string"""
         if ' ' not in words:
@@ -17,6 +19,7 @@ class gachiGASM(Cog):
             return await ctx.send(words.replace(' ', ' ♂ ').upper())
 
     @command()
+    @cooldown(1, 2, BucketType.channel)
     async def gachify2(self, ctx, *, words):
         """An alternative way of gachifying"""
         return await ctx.send('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')

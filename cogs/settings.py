@@ -3,10 +3,10 @@ from asyncio import Lock
 from collections import OrderedDict
 
 import discord
-from discord.ext.commands import (cooldown, BucketType, bot_has_permissions)
+from discord.ext.commands import (BucketType, bot_has_permissions)
 
 from bot import exceptions
-from bot.bot import group, has_permissions
+from bot.bot import group, has_permissions, cooldown
 from bot.converters import TimeDelta
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,

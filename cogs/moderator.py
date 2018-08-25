@@ -5,15 +5,15 @@ from datetime import datetime, timedelta
 from random import randint, random
 
 import discord
-from discord.ext.commands import (cooldown, BucketType, bot_has_permissions)
+from discord.ext.commands import (BucketType, bot_has_permissions)
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, group, has_permissions
+from bot.bot import command, group, has_permissions, cooldown
 from bot.converters import MentionedMember, PossibleUser
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
-                             datetime2sql, get_avatar, get_user_id, find_user,
+                             datetime2sql, get_avatar, find_user,
                              seconds2str, get_role, get_channel, Snowflake,
                              basic_check, sql2timedelta, check_botperm)
 

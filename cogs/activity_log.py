@@ -3,9 +3,9 @@ from datetime import datetime
 
 import discord
 from discord.activity import ActivityType
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import BucketType
 
-from bot.bot import command
+from bot.bot import command, cooldown
 from cogs.cog import Cog
 from utils.utilities import (get_avatar, seconds2str, bool_check, is_false,
                              basic_check)

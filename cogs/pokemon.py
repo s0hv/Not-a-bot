@@ -1,4 +1,3 @@
-import asyncio
 import csv
 import json
 import logging
@@ -16,11 +15,11 @@ from PIL import Image
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
-from discord.ext.commands import cooldown, BucketType
+from discord.ext.commands import BucketType
 from discord.ext.commands.converter import UserConverter
 from discord.ext.commands.errors import BadArgument, UserInputError
 
-from bot.bot import command
+from bot.bot import command, cooldown
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog

@@ -1,10 +1,10 @@
 import logging
 
 import discord
-from discord.ext.commands import cooldown, BucketType, bot_has_permissions
+from discord.ext.commands import BucketType, bot_has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command
+from bot.bot import command, cooldown
 from bot.converters import AnyUser
 from cogs.cog import Cog
 

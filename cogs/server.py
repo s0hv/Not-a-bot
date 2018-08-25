@@ -4,11 +4,11 @@ import logging
 from math import ceil
 
 import discord
-from discord.ext.commands import cooldown, BucketType, bot_has_permissions
+from discord.ext.commands import BucketType, bot_has_permissions
 from discord.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import command, has_permissions
+from bot.bot import command, has_permissions, cooldown
 from bot.converters import PossibleUser
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url

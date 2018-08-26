@@ -86,6 +86,18 @@ class ImageSizeException(BotException):
         return f"Image has too many pixels {self._message} > {self.max_pixel}"
 
 
+class ImageResizeException(BotException):
+    def __init__(self, size, max_pixel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_pixel = max_pixel
+        self._message = size
+
+    @property
+    def message(self):
+        return f"Resized image would have too many pixels {self._message} > {self.max_pixel}\n" \
+               "Usually this is because of extremely wide/tall pictures"
+
+
 class NotEnoughPrefixes(BotException):
     pass
 

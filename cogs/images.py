@@ -297,23 +297,26 @@ class Images(Cog):
             return
 
         await ctx.trigger_typing()
-        x, y = 9, 10
-        w, h = 854, 480
-        template = Image.open(path)
-        img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False, resample=Image.BILINEAR)
-        new_w, new_h = img.width, img.height
-        if new_w != w:
-            x += int((w - new_w)/2)
 
-        if new_h != h:
-            y += int((h - new_h) / 2)
+        def do_it():
+            nonlocal img
 
-        img = img.convert("RGBA")
-        template.paste(img, (x, y), img)
-        file = BytesIO()
-        template.save(file, format='PNG')
-        file.seek(0)
-        await ctx.send(file=File(file, filename='top10-anime-deaths.png'))
+            x, y = 9, 10
+            w, h = 854, 480
+            template = Image.open(path)
+            img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False, resample=Image.BILINEAR)
+            new_w, new_h = img.width, img.height
+            if new_w != w:
+                x += int((w - new_w)/2)
+
+            if new_h != h:
+                y += int((h - new_h) / 2)
+
+            img = img.convert("RGBA")
+            template.paste(img, (x, y), img)
+            return self.save_image(template)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='top10-anime-deaths.png'))
 
     @command(ignore_extra=True)
     @cooldown(3, 5, type=BucketType.guild)
@@ -325,23 +328,26 @@ class Images(Cog):
             return
 
         await ctx.trigger_typing()
-        x, y = 9, 10
-        w, h = 854, 480
-        template = Image.open(path)
-        img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False, resample=Image.BILINEAR)
-        new_w, new_h = img.width, img.height
-        if new_w != w:
-            x += int((w - new_w)/2)
 
-        if new_h != h:
-            y += int((h - new_h) / 2)
+        def do_it():
+            nonlocal img
 
-        img = img.convert("RGBA")
-        template.paste(img, (x, y), img)
-        file = BytesIO()
-        template.save(file, format='PNG')
-        file.seek(0)
-        await ctx.send(file=File(file, filename='top10-anime-deaths.png'))
+            x, y = 9, 10
+            w, h = 854, 480
+            template = Image.open(path)
+            img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False, resample=Image.BILINEAR)
+            new_w, new_h = img.width, img.height
+            if new_w != w:
+                x += int((w - new_w)/2)
+
+            if new_h != h:
+                y += int((h - new_h) / 2)
+
+            img = img.convert("RGBA")
+            template.paste(img, (x, y), img)
+            return self.save_image(template)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='top10-anime-deaths.png'))
 
     @command(ignore_extra=True)
     @cooldown(3, 5, type=BucketType.guild)
@@ -352,29 +358,32 @@ class Images(Cog):
         if img is None:
             return
 
-        path = os.path.join(TEMPLATES, 'is_it_a_trap.png')
-        path2 = os.path.join(TEMPLATES, 'is_it_a_trap_layer.png')
-        img = img.convert("RGBA")
-        await ctx.trigger_typing()
-        x, y = 820, 396
-        w, h = 355, 505
-        rotation = -22.5
+        await ctx.trugger_typing()
 
-        img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False,
-                                       resample=Image.BILINEAR)
-        img = img.rotate(rotation, expand=True, resample=Image.BILINEAR)
-        x_place = x - int(img.width / 2)
-        y_place = y - int(img.height / 2)
+        def do_it():
+            nonlocal img
 
-        template = Image.open(path)
+            path = os.path.join(TEMPLATES, 'is_it_a_trap.png')
+            path2 = os.path.join(TEMPLATES, 'is_it_a_trap_layer.png')
+            img = img.convert("RGBA")
+            x, y = 820, 396
+            w, h = 355, 505
+            rotation = -22.5
 
-        template.paste(img, (x_place, y_place), img)
-        layer = Image.open(path2)
-        template.paste(layer, (0, 0), layer)
-        file = BytesIO()
-        template.save(file, format='PNG')
-        file.seek(0)
-        await ctx.send(file=File(file, filename='is_it_a_trap.png'))
+            img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=False,
+                                           resample=Image.BILINEAR)
+            img = img.rotate(rotation, expand=True, resample=Image.BILINEAR)
+            x_place = x - int(img.width / 2)
+            y_place = y - int(img.height / 2)
+
+            template = Image.open(path)
+
+            template.paste(img, (x_place, y_place), img)
+            layer = Image.open(path2)
+            template.paste(layer, (0, 0), layer)
+            return self.save_image(template)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='is_it_a_trap.png'))
 
     @command(ignore_extra=True, aliases=['jotaro_no'])
     @cooldown(3, 5, BucketType.guild)
@@ -384,32 +393,35 @@ class Images(Cog):
         if img is None:
             return
         await ctx.trigger_typing()
-        # The size we want from the transformation
-        width = 524
-        height = 326
-        d_x = 90
-        w, h = img.size
 
-        coeffs = find_coeffs(
-            [(d_x, 0), (width - d_x, 0), (width, height), (0, height)],
-            [(0, 0), (w, 0), (w, h), (0, h)])
+        def do_it():
+            nonlocal img
 
-        img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
-                            Image.BICUBIC)
+            # The size we want from the transformation
+            width = 524
+            height = 326
+            d_x = 90
+            w, h = img.size
 
-        template = os.path.join(TEMPLATES, 'jotaro.png')
-        template = Image.open(template)
+            coeffs = find_coeffs(
+                [(d_x, 0), (width - d_x, 0), (width, height), (0, height)],
+                [(0, 0), (w, 0), (w, h), (0, h)])
 
-        white = Image.new('RGBA', template.size, 'white')
+            img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
+                                Image.BICUBIC)
 
-        x, y = 9, 351
-        white.paste(img, (x, y))
-        white.paste(template, mask=template)
+            template = os.path.join(TEMPLATES, 'jotaro.png')
+            template = Image.open(template)
 
-        file = BytesIO()
-        white.save(file, format='PNG')
-        file.seek(0)
-        await ctx.send(file=File(file, filename='jotaro_no.png'))
+            white = Image.new('RGBA', template.size, 'white')
+
+            x, y = 9, 351
+            white.paste(img, (x, y))
+            white.paste(template, mask=template)
+
+            return self.save_image(white)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='jotaro_no.png'))
 
     @command(ignore_extra=True, aliases=['jotaro_photo'])
     @cooldown(2, 5, BucketType.guild)
@@ -422,58 +434,63 @@ class Images(Cog):
         img = await self._get_image(ctx, image)
         if img is None:
             return
+
+        extension = 'webp' if use_webp else 'gif'
         await ctx.trigger_typing()
 
-        r = 34.7
-        x = 6
-        y = -165
-        width = 468
-        height = 439
-        duration = [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
-                    80, 120, 120, 120, 120, 120, 30, 120, 120, 120, 120, 120,
-                    120, 120, 760, 2000]  # Frame timing
+        def do_it():
+            nonlocal img
 
-        frames = [frame.copy().convert('RGBA') for frame in ImageSequence.Iterator(Image.open(os.path.join(TEMPLATES, 'jotaro_photo.gif')))]
-        photo = os.path.join(TEMPLATES, 'photo.png')
-        finger = os.path.join(TEMPLATES, 'finger.png')
+            r = 34.7
+            x = 6
+            y = -165
+            width = 468
+            height = 439
+            duration = [120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120, 120,
+                        80, 120, 120, 120, 120, 120, 30, 120, 120, 120, 120, 120,
+                        120, 120, 760, 2000]  # Frame timing
 
-        im = Image.open(photo)
-        img = img.convert('RGBA')
-        img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BICUBIC,
-                                       can_be_bigger=False, crop_to_size=True,
-                                       center_cropped=True, background_color='black')
-        w, h = img.size
-        width, height = (472, 441)
-        coeffs = find_coeffs(
-            [(0, 0), (437, 0), (width, height), (0, height)],
-            [(0, 0), (w, 0), (w, h), (0, h)])
-        img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
-                            Image.BICUBIC)
-        img = img.rotate(r, resample=Image.BICUBIC, expand=True)
-        im.paste(img, box=(x, y), mask=img)
-        finger = Image.open(finger)
-        im.paste(finger, mask=finger)
-        frames[-1] = im
+            frames = [frame.copy().convert('RGBA') for frame in ImageSequence.Iterator(Image.open(os.path.join(TEMPLATES, 'jotaro_photo.gif')))]
+            photo = os.path.join(TEMPLATES, 'photo.png')
+            finger = os.path.join(TEMPLATES, 'finger.png')
 
-        if use_webp:
-            # We save room for some colors when not using the shadow in a gif
-            shadow = os.path.join(TEMPLATES, 'photo.png')
-            im.alpha_composite(shadow)
-            extension = 'webp'
-            kwargs = {}
-        else:
-            # Duration won't work in the save() params when using a gif so I have to do it this way
-            frames[0].info['duration'] = duration
-            extension = 'gif'
-            kwargs = {'optimize': True}
+            im = Image.open(photo)
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BICUBIC,
+                                           can_be_bigger=False, crop_to_size=True,
+                                           center_cropped=True, background_color='black')
+            w, h = img.size
+            width, height = (472, 441)
+            coeffs = find_coeffs(
+                [(0, 0), (437, 0), (width, height), (0, height)],
+                [(0, 0), (w, 0), (w, h), (0, h)])
+            img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
+                                Image.BICUBIC)
+            img = img.rotate(r, resample=Image.BICUBIC, expand=True)
+            im.paste(img, box=(x, y), mask=img)
+            finger = Image.open(finger)
+            im.paste(finger, mask=finger)
+            frames[-1] = im
 
-        file = BytesIO()
-        frames[0].save(file, format=extension, save_all=True, append_images=frames[1:], duration=duration, **kwargs)
-        if file.tell() > 8000000:
-            return await ctx.send('Generated image was too big in filesize')
-        file.seek(0)
-        file = await self.bot.loop.run_in_executor(self.threadpool, partial(optimize_gif, file.getvalue()))
-        await ctx.send(file=File(file, filename='jotaro_photo.{}'.format(extension)))
+            if use_webp:
+                # We save room for some colors when not using the shadow in a gif
+                shadow = os.path.join(TEMPLATES, 'photo.png')
+                im.alpha_composite(shadow)
+                kwargs = {}
+            else:
+                # Duration won't work in the save() params when using a gif so I have to do it this way
+                frames[0].info['duration'] = duration
+                kwargs = {'optimize': True}
+
+            file = BytesIO()
+            frames[0].save(file, format=extension, save_all=True, append_images=frames[1:], duration=duration, **kwargs)
+            if file.tell() > 8000000:
+                raise BotException('Generated image was too big in filesize')
+
+            file.seek(0)
+            return optimize_gif(file.getvalue())
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='jotaro_photo.{}'.format(extension)))
 
     @command(ignore_extra=True, aliases=['jotaro3'])
     @cooldown(2, 5, BucketType.guild)
@@ -483,24 +500,26 @@ class Images(Cog):
             return
         await ctx.trigger_typing()
 
-        im = Image.open(os.path.join(TEMPLATES, 'jotaro_smile.png'))
-        img = img.convert('RGBA')
-        i = Image.new('RGBA', im.size, 'black')
-        size = (max(img.size), max(img.size))
-        img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
-                                       crop_to_size=True, center_cropped=True)
-        coeffs = find_coeffs([(0, 68), (358, 0), (410, 335), (80, 435)],
-                             [(0, 0), (img.width, 0), size, (0, img.height)])
-        img = img.transform((410, 435), Image.PERSPECTIVE, coeffs,
-                            Image.BICUBIC)
-        x, y = (178, 479)
-        i.paste(img, (x, y), mask=img)
-        i.paste(im, mask=im)
+        def do_it():
+            nonlocal img
 
-        file = BytesIO()
-        i.save(file, 'PNG')
-        file.seek(0)
-        await ctx.send(file=File(file, filename='jotaro.png'))
+            im = Image.open(os.path.join(TEMPLATES, 'jotaro_smile.png'))
+            img = img.convert('RGBA')
+            i = Image.new('RGBA', im.size, 'black')
+            size = (max(img.size), max(img.size))
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                           crop_to_size=True, center_cropped=True)
+            coeffs = find_coeffs([(0, 68), (358, 0), (410, 335), (80, 435)],
+                                 [(0, 0), (img.width, 0), size, (0, img.height)])
+            img = img.transform((410, 435), Image.PERSPECTIVE, coeffs,
+                                Image.BICUBIC)
+            x, y = (178, 479)
+            i.paste(img, (x, y), mask=img)
+            i.paste(im, mask=im)
+
+            return self.save_image(i)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='jotaro.png'))
 
     @command(aliases=['tbc'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
@@ -514,33 +533,35 @@ class Images(Cog):
             return
 
         await ctx.trigger_typing()
-        if not no_sepia:
-            img = sepia(img)
 
-        width, height = img.width, img.height
-        if width < 300:
-            width = 300
+        def do_it():
+            nonlocal img
+            if not no_sepia:
+                img = sepia(img)
 
-        if height < 200:
-            height = 200
+            width, height = img.width, img.height
+            if width < 300:
+                width = 300
 
-        img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BILINEAR)
-        width, height = img.width, img.height
-        tbc = Image.open(os.path.join(TEMPLATES, 'tbc.png'))
-        x = int(width * 0.09)
-        y = int(height * 0.90)
-        tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),
-                                       can_be_bigger=False, resample=Image.BILINEAR)
+            if height < 200:
+                height = 200
 
-        if y + tbc.height > height:
-            y = height - tbc.height - 10
+            img = resize_keep_aspect_ratio(img, (width, height), resample=Image.BILINEAR)
+            width, height = img.width, img.height
+            tbc = Image.open(os.path.join(TEMPLATES, 'tbc.png'))
+            x = int(width * 0.09)
+            y = int(height * 0.90)
+            tbc = resize_keep_aspect_ratio(tbc, (width * 0.5, height * 0.3),
+                                           can_be_bigger=False, resample=Image.BILINEAR)
 
-        img.paste(tbc, (x, y), tbc)
+            if y + tbc.height > height:
+                y = height - tbc.height - 10
 
-        file = BytesIO()
-        img.save(file, 'PNG')
-        file.seek(0)
-        await ctx.send(file=File(file, filename='To_be_continued.png'))
+            img.paste(tbc, (x, y), tbc)
+
+            return self.save_image(img)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='To_be_continued.png'))
 
     @command(aliases=['heaven', 'heavens_door'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
@@ -550,20 +571,21 @@ class Images(Cog):
             return
         await ctx.trigger_typing()
 
-        overlay = Image.open(os.path.join(TEMPLATES, 'heaven.png'))
-        base = Image.open(os.path.join(TEMPLATES, 'heaven_base.png'))
-        size = (750, 750)
-        img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
-                                       crop_to_size=True, center_cropped=True)
+        def do_it():
+            nonlocal img
+            overlay = Image.open(os.path.join(TEMPLATES, 'heaven.png'))
+            base = Image.open(os.path.join(TEMPLATES, 'heaven_base.png'))
+            size = (750, 750)
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                           crop_to_size=True, center_cropped=True)
 
-        img = img.convert('RGBA')
-        x, y = (200, 160)
-        base.paste(img, (x, y), mask=img)
-        base.alpha_composite(overlay)
-        data = BytesIO()
-        base.save(data, 'PNG')
-        data.seek(0)
-        await ctx.send(file=File(data, filename='overheaven.png'))
+            img = img.convert('RGBA')
+            x, y = (200, 160)
+            base.paste(img, (x, y), mask=img)
+            base.alpha_composite(overlay)
+            return self.save_image(base)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='overheaven.png'))
 
     @command(aliases=['puccireset'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
@@ -573,19 +595,20 @@ class Images(Cog):
             return
         await ctx.trigger_typing()
 
-        img = img.convert('RGBA')
-        im = Image.open(os.path.join(TEMPLATES, 'pucci_bg.png'))
-        overlay = Image.open(os.path.join(TEMPLATES, 'pucci_faded.png'))
-        size = (682, 399)
-        img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
-                                       crop_to_size=True, center_cropped=True)
-        x, y = (0, 367)
-        im.paste(img, (x, y), mask=img)
-        im.alpha_composite(overlay)
-        data = BytesIO()
-        im.save(data, 'PNG')
-        data.seek(0)
-        await ctx.send(file=File(data, filename='pucci_reset.png'))
+        def do_it():
+            nonlocal img
+            img = img.convert('RGBA')
+            im = Image.open(os.path.join(TEMPLATES, 'pucci_bg.png'))
+            overlay = Image.open(os.path.join(TEMPLATES, 'pucci_faded.png'))
+            size = (682, 399)
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                           crop_to_size=True, center_cropped=True)
+            x, y = (0, 367)
+            im.paste(img, (x, y), mask=img)
+            im.alpha_composite(overlay)
+            return self.save_image(im)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='pucci_reset.png'))
 
     @command(ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)
@@ -617,20 +640,27 @@ class Images(Cog):
         img = await self._get_image(ctx, image)
         if img is None:
             return
-        im = Image.new('RGBA', img.size, color='#7289DA')
-        img = img.convert('RGBA')
-        if img.format == 'GIF':
-            def multiply(frame):
-                return ImageChops.multiply(frame, im)
 
-            data = await self.bot.loop.run_in_executor(self.threadpool, partial(func_to_gif, img, multiply,  get_raw=True))
-            name = 'blurple.gif'
-        else:
-            img = ImageChops.multiply(img, im)
-            data = self.save_image(img)
-            name = 'blurple.png'
+        def do_it():
+            nonlocal img
+            im = Image.new('RGBA', img.size, color='#7289DA')
+            img = img.convert('RGBA')
+            if img.format == 'GIF':
+                def multiply(frame):
+                    return ImageChops.multiply(frame, im)
 
-        await ctx.send(file=File(data, filename=name))
+                data = func_to_gif(img, multiply,  get_raw=True)
+                name = 'blurple.gif'
+            else:
+                img = ImageChops.multiply(img, im)
+                data = self.save_image(img)
+                name = 'blurple.png'
+
+            return data, name
+
+        async with ctx.typing():
+            file = File(*await self.image_func(do_it))
+        await ctx.send(file=file)
 
     @command(ignore_extra=True, aliases=['gspd', 'gif_spd'])
     @cooldown(2, 5)
@@ -695,11 +725,12 @@ class Images(Cog):
 
             return data
 
-        file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_speedup)
+        async with ctx.typing():
+            file = await self.image_func(do_speedup)
         await ctx.send(file=File(file, filename='speedup.gif'))
 
     @command(ignore_extra=True)
-    @cooldown(2, 5)
+    @cooldown(2, 5, BucketType.guild)
     async def smug(self, ctx, image=None):
         img = await self._get_image(ctx, image)
 
@@ -708,6 +739,7 @@ class Images(Cog):
 
         def do_it():
             nonlocal img
+            img = img.convert('RGBA')
             template = Image.open(os.path.join(TEMPLATES, 'smug_man.png'))
 
             w, h = 729, 607
@@ -715,13 +747,80 @@ class Images(Cog):
                                            resample=Image.BICUBIC, crop_to_size=True,
                                            center_cropped=True)
             template.paste(img, (168, 827), img)
-            file = BytesIO()
-            template.save(file, 'PNG')
-            file.seek(0)
-            return file
+            return self.save_image(template)
 
-        file = await self.image_func(do_it)
+        async with ctx.typing():
+            file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='smug_man.png'))
+
+    @command(ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
+    async def seeyouagain(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'seeyouagain.png'))
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (360, 300), can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True)
+
+            template.paste(img, (800, 915), img)
+            return self.save_image(template)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='see_you_again.png'))
+
+    @command(ignore_extra=True, aliases=['sha'])
+    @cooldown(2, 5, BucketType.guild)
+    async def sheer_heart_attack(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'sheer_heart_attack.png'))
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (1000, 567), can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True, background_color='white')
+
+            template.paste(img, (0, 563), img)
+            return self.save_image(template)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='sha.png'))
+
+    @command(ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
+    async def kira(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'kira.png'))
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (810, 980), can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True)
+
+            bg = Image.new('RGBA', (1918, 2132), (0, 0, 0, 0))
+
+            bg.paste(img, (610, 1125), img)
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='kira.png'))
 
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)

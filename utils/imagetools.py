@@ -40,7 +40,7 @@ from colour import Color
 from geopatterns.utils import promap
 from numpy import sqrt
 
-from bot.exceptions import ImageSizeException
+from bot.exceptions import ImageSizeException, ImageResizeException
 
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
@@ -445,7 +445,7 @@ def create_shadow(img, percent, opacity, x, y):
 
 def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
                              center_cropped=False, background_color=None,
-                             resample=Image.NEAREST, max_pixels=2073600):
+                             resample=Image.NEAREST, max_pixels=8294400):
     """
     Args:
         img: Image to be cropped
@@ -463,8 +463,9 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
         Image.Image
     """
     x, y = img.size
-    if x * y > max_pixels:  # More pixels than in a 1080p pic is a max by default
+    if 0 < max_pixels < x * y:  # More pixels than in a 4k pic is a max by default
         raise ImageSizeException(x * y, max_pixels)
+
     x_m = x / new_size[0]
     y_m = y / new_size[1]
     check = y_m <= x_m if can_be_bigger else y_m >= x_m
@@ -473,7 +474,11 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
     else:
         m = new_size[0] / x
 
-    img = img.resize((int(x * m), int(y * m)), resample=resample)
+    new_x, new_y = int(x * m), int(y * m)
+    if max_pixels > 0 and new_x * new_y > max_pixels//2:
+        raise ImageResizeException(new_x * new_y, max_pixels//2)
+
+    img = img.resize((new_x, new_y), resample=resample)
     if crop_to_size:
         if center_cropped:
             w, h = img.size

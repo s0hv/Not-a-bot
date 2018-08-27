@@ -36,4 +36,4 @@ if videos['new']:
     add_to_ap([url_format % vid for vid in videos['new']])
 
 if videos['deleted']:
-    add_to_ap([url_format % vid for vid in videos['deleted']])
+    delete_from_ap([url_format % vid for vid in videos['deleted']])

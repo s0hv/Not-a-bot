@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import logging
 import os
 import pprint
@@ -12,7 +13,6 @@ import traceback
 from importlib import reload, import_module
 from io import BytesIO, StringIO
 from types import ModuleType
-import functools
 
 import aiohttp
 import discord
@@ -22,11 +22,13 @@ from discord.user import BaseUser
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
+from bot.config import Config
 from bot.converters import PossibleUser
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
 from utils.utilities import split_string
-from utils.utilities import (y_n_check, basic_check, y_check, check_import, parse_timeout,
+from utils.utilities import (y_n_check, basic_check, y_check, check_import,
+                             parse_timeout,
                              call_later, seconds2str)
 
 logger = logging.getLogger('debug')
@@ -373,6 +375,18 @@ class BotAdmin(Cog):
         reload(import_module('bot.dbutil'))
         from bot import dbutil
         self.bot._dbutil = dbutil.DatabaseUtils(self.bot)
+        await ctx.send(':ok_hand:')
+
+    @command(owner_only=True)
+    async def reload_config(self, ctx):
+        try:
+            config = Config()
+        except:
+            logger.exception('Failed to reload config')
+            await ctx.send('Failed to reload config')
+            return
+
+        self.bot.config = config
         await ctx.send(':ok_hand:')
 
     @command(owner_only=True)

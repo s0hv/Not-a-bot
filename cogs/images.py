@@ -358,7 +358,7 @@ class Images(Cog):
         if img is None:
             return
 
-        await ctx.trugger_typing()
+        await ctx.trigger_typing()
 
         def do_it():
             nonlocal img

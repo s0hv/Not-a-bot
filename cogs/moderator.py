@@ -140,7 +140,7 @@ class Moderator(Cog):
                 return
 
             s = '.img penile hemorrhage'
-            if guild.id != 217677285442977792 and message.content.strip().lower() == s:
+            if guild.id == 217677285442977792 and message.content.strip().lower() == s:
                 def check(msg):
                     if msg.author.id != 439205512425504771 or msg.channel != message.channel:
                         return False

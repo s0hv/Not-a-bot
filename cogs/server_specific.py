@@ -5,10 +5,12 @@ import subprocess
 from datetime import datetime
 import random
 
+import aioredis
 import discord
 from discord.errors import HTTPException
 from discord.ext.commands import (BucketType, check, bot_has_permissions)
 from numpy.random import choice
+from numpy import sqrt
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, has_permissions, cooldown
@@ -37,6 +39,11 @@ class ServerSpecific(Cog):
 
         asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
         self.main_whitelist = whitelist
+        task = asyncio.run_coroutine_threadsafe(aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
+                                                                      password=self.bot.config.redis_auth,
+                                                                      loop=bot.loop, encoding='utf-8'), loop=bot.loop)
+
+        self.redis = task.result()
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
@@ -513,6 +520,77 @@ class ServerSpecific(Cog):
         else:
             name = str(random.randint(1000, 9999))
         await member.edit(nick=name, reason='Auto nick')
+
+    async def on_message(self, message):
+        if not message.guild or message.guild.id not in self.main_whitelist:
+            return
+
+        if message.webhook_id:
+            return
+
+        blacklist = self.bot.get_cog('Moderator')
+        if not blacklist:
+            return
+
+        blacklist = blacklist.automute_blacklist.get(message.guild.id, ())
+
+        if message.channel.id in blacklist:
+            return
+
+        user = message.author
+        key = f'{message.guild.id}:{user.id}'
+        value = await self.redis.get(key)
+        if value:
+            score, last_msg = value.split(':', 1)
+            score = float(score)
+        else:
+            score, last_msg = 0, None
+
+        ttl = await self.redis.ttl(key)
+        created = (datetime.utcnow() - user.created_at)
+        joined = (datetime.utcnow() - user.joined_at)
+        if joined.days > 14:
+            joined = 0.2  # 2/sqrt(1)*2
+        else:
+            # seconds to days
+            # value is max up to 1 day after join
+            joined = max(joined.total_seconds()/86400, 1)
+            joined = 2/sqrt(joined)*2
+
+        if created.days > 14:
+            created = 0.2  # 2/(7**(1/4))*4
+        else:
+            # Calculated the same as join
+            created = max(created.total_seconds()/86400, 1)
+            created = 2/(created**(1/5))*4
+
+        points = created+joined
+        if ttl > 6:
+            ttl = max(10-ttl, 0.5)
+            points += 6*1/sqrt(ttl)
+
+        if user.avatar is None:
+            points += 5
+
+        msg = message.content
+        if msg:
+            msg = msg.lower()
+            if msg == last_msg:
+                points += 5*((created+joined)/5)
+        else:
+            msg = ''
+
+        score += points
+
+        if score > 90:
+            channel = self.bot.get_channel(252872751319089153)
+            if channel:
+                await channel.send(f'{user.mention} got muted for spam with score of {score} at {message.created_at}')
+
+            score = 0
+            msg = ''
+
+        await self.redis.set(key, f'{score}:{msg}', expire=10)
 
 
 def setup(bot):

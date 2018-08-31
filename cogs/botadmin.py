@@ -161,8 +161,10 @@ class BotAdmin(Cog):
 
         # A quick hack to run async functions in normal function
         # It's not pretty but it does what it needs
-        def disgusting(coro):
-            return asyncio.run_coroutine_threadsafe(coro, loop=ctx.bot.loop).result()
+        def disgusting(coro_or_fut):
+            if isinstance(coro_or_fut, asyncio.Future):
+                return asyncio.run_coroutine_threadsafe(asyncio.wait_for(coro_or_fut, 60, loop=ctx.bot.loop), loop=ctx.bot.loop).result()
+            return asyncio.run_coroutine_threadsafe(coro_or_fut, loop=ctx.bot.loop).result()
 
         context['await'] = disgusting
 

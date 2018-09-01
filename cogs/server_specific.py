@@ -528,13 +528,16 @@ class ServerSpecific(Cog):
         if message.webhook_id:
             return
 
+        if message.author.bot:
+            return
+
         blacklist = self.bot.get_cog('Moderator')
         if not blacklist:
             return
 
         blacklist = blacklist.automute_blacklist.get(message.guild.id, ())
 
-        if message.channel.id in blacklist:
+        if message.channel.id in blacklist or message.channel.id in (384422173462364163, 484450452243742720):
             return
 
         user = message.author
@@ -547,30 +550,31 @@ class ServerSpecific(Cog):
             score, last_msg = 0, None
 
         ttl = await self.redis.ttl(key)
-        created = (datetime.utcnow() - user.created_at)
-        joined = (datetime.utcnow() - user.joined_at)
-        if joined.days > 14:
+        created_td = (datetime.utcnow() - user.created_at)
+        joined_td = (datetime.utcnow() - user.joined_at)
+        if joined_td.days > 14:
             joined = 0.2  # 2/sqrt(1)*2
         else:
             # seconds to days
             # value is max up to 1 day after join
-            joined = max(joined.total_seconds()/86400, 1)
+            joined = max(joined_td.total_seconds()/86400, 1)
             joined = 2/sqrt(joined)*2
 
-        if created.days > 14:
+        if created_td.days > 14:
             created = 0.2  # 2/(7**(1/4))*4
         else:
             # Calculated the same as join
-            created = max(created.total_seconds()/86400, 1)
+            created = max(created_td.total_seconds()/86400, 1)
             created = 2/(created**(1/5))*4
 
         points = created+joined
-        if ttl > 6:
+
+        if ttl > 0:
             ttl = max(10-ttl, 0.5)
             points += 6*1/sqrt(ttl)
 
         if user.avatar is None:
-            points += 5
+            points += 5*max(created/2, 1)
 
         msg = message.content
         if msg:
@@ -582,7 +586,12 @@ class ServerSpecific(Cog):
 
         score += points
 
-        if score > 90:
+        needed_for_mute = 50
+
+        needed_for_mute += min(joined_td.days, 14)*2.14
+        needed_for_mute += min(created_td.days, 21)*1.42
+
+        if score > needed_for_mute:
             channel = self.bot.get_channel(252872751319089153)
             if channel:
                 await channel.send(f'{user.mention} got muted for spam with score of {score} at {message.created_at}')

@@ -343,7 +343,7 @@ class ServerSpecific(Cog):
                        '\U0001f92b', '\U0001f92d', '\U0001f9d0', '🤓', '😈', '👿',
                        '👶',
                        '🐶', '🐱', '🐻', '🐸', '🐵', '🐧', '🐔', '🐣', '🐥', '🐝',
-                       '🐍', '🐢']
+                       '🐍', '🐢', '🐹']
 
         if emoji is not None and emoji not in emoji_faces:
             return await ctx.send('Invalid emoji')

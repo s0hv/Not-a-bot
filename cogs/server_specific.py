@@ -12,12 +12,13 @@ from discord.ext.commands import (BucketType, check, bot_has_permissions)
 from numpy.random import choice
 from numpy import sqrt
 from sqlalchemy.exc import SQLAlchemyError
+from datetime import timedelta
 
 from bot.bot import command, has_permissions, cooldown
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
-                             get_avatar, retry, send_paged_message)
+                             get_avatar, retry, send_paged_message, check_botperm)
 
 logger = logging.getLogger('debug')
 
@@ -343,9 +344,11 @@ class ServerSpecific(Cog):
                        '\U0001f92b', '\U0001f92d', '\U0001f9d0', '🤓', '😈', '👿',
                        '👶',
                        '🐶', '🐱', '🐻', '🐸', '🐵', '🐧', '🐔', '🐣', '🐥', '🐝',
-                       '🐍', '🐢', '🐹']
+                       '🐍', '🐢', '🐹',
+                       '💩']
 
         if emoji is not None and emoji not in emoji_faces:
+            ctx.command.reset_cooldown(ctx)
             return await ctx.send('Invalid emoji')
 
         elif emoji is None:
@@ -524,7 +527,8 @@ class ServerSpecific(Cog):
         await member.edit(nick=name, reason='Auto nick')
 
     async def on_message(self, message):
-        if not message.guild or message.guild.id not in self.main_whitelist:
+        guild = message.guild
+        if not guild or guild.id not in self.main_whitelist:
             return
 
         if message.webhook_id:
@@ -533,16 +537,44 @@ class ServerSpecific(Cog):
         if message.author.bot:
             return
 
-        blacklist = self.bot.get_cog('Moderator')
-        if not blacklist:
+        if message.type != discord.MessageType.default:
             return
 
-        blacklist = blacklist.automute_blacklist.get(message.guild.id, ())
+        moderator = self.bot.get_cog('Moderator')
+        if not moderator:
+            return
+
+        blacklist = moderator.automute_blacklist.get(guild.id, ())
 
         if message.channel.id in blacklist or message.channel.id in (384422173462364163, 484450452243742720):
             return
 
         user = message.author
+        whitelist = moderator.automute_whitelist.get(guild.id, ())
+        invulnerable = discord.utils.find(lambda r: r.id in whitelist,
+                                          user.roles)
+
+        if invulnerable is not None:
+            return
+
+        mute_role = self.bot.guild_cache.mute_role(message.guild.id)
+        mute_role = discord.utils.find(lambda r: r.id == mute_role,
+                                       message.guild.roles)
+        if not mute_role:
+            return
+
+        if not isinstance(user, discord.Member):
+            user = guild.get_member(user.id)
+            if not user:
+                logger.debug(f'User found when expected member and member not found in guild {guild.name} user {user} in channel {message.channel.name}')
+                return
+
+        if mute_role in user.roles:
+            return
+
+        if not check_botperm('manage_roles', guild=message.guild, channel=message.channel):
+            return
+
         key = f'{message.guild.id}:{user.id}'
         value = await self.redis.get(key)
         if value:
@@ -552,6 +584,7 @@ class ServerSpecific(Cog):
             score, last_msg = 0, None
 
         ttl = await self.redis.ttl(key)
+        certainty = 0
         created_td = (datetime.utcnow() - user.created_at)
         joined_td = (datetime.utcnow() - user.joined_at)
         if joined_td.days > 14:
@@ -561,6 +594,7 @@ class ServerSpecific(Cog):
             # value is max up to 1 day after join
             joined = max(joined_td.total_seconds()/86400, 1)
             joined = 2/sqrt(joined)*2
+            certainty += joined * 4
 
         if created_td.days > 14:
             created = 0.2  # 2/(7**(1/4))*4
@@ -568,6 +602,7 @@ class ServerSpecific(Cog):
             # Calculated the same as join
             created = max(created_td.total_seconds()/86400, 1)
             created = 2/(created**(1/5))*4
+            certainty += created * 4
 
         points = created+joined
 
@@ -577,12 +612,14 @@ class ServerSpecific(Cog):
 
         if user.avatar is None:
             points += 5*max(created/2, 1)
+            certainty += 20
 
         msg = message.content
         if msg:
             msg = msg.lower()
             if msg == last_msg:
                 points += 5*((created+joined)/5)
+                certainty += 20
         else:
             msg = ''
 
@@ -593,10 +630,32 @@ class ServerSpecific(Cog):
         needed_for_mute += min(joined_td.days, 14)*2.14
         needed_for_mute += min(created_td.days, 21)*1.42
 
-        if score > needed_for_mute:
+        certainty *= 100 / needed_for_mute
+        certainty = min(round(certainty, 1), 100)
+
+        if score > needed_for_mute and certainty > 25:
+            certainty = str(certainty) + '%'
             channel = self.bot.get_channel(252872751319089153)
             if channel:
                 await channel.send(f'{user.mention} got muted for spam with score of {score} at {message.created_at}')
+
+            time = timedelta(hours=2)
+            await moderator.add_timeout(message.channel, guild.id, user.id,
+                                        datetime.utcnow() + time,
+                                        time.total_seconds(),
+                                        reason='Automuted for spam. Certainty %s' % certainty)
+
+            d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author,
+                                                             time)
+
+            await message.author.add_roles(mute_role, reason='[Automute] Spam')
+            embed = discord.Embed(title='Moderation action [AUTOMUTE]',
+                                  description=d, timestamp=datetime.utcnow())
+            embed.add_field(name='Reason', value='Spam')
+            embed.add_field(name='Certainty', value=certainty)
+            embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+            embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
+            await moderator.send_to_modlog(guild, embed=embed)
 
             score = 0
             msg = ''

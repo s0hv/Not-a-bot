@@ -63,7 +63,7 @@ class Utilities(Cog):
                 sql_t = time.time() - sql_t
                 message += '\nDatabase ping {:.0f}ms'.format(sql_t * 1000)
             except SQLAlchemyError:
-                message += '\nDatabase could not be reached' \
+                message += '\nDatabase could not be reached'
 
         await ctx.send(message)
 

@@ -176,6 +176,9 @@ class BotAdmin(Cog):
             # Put zero width space between backticks so they can be within a codeblock
             source = original_source.replace('```', '`\u200b`\u200b`')
             source = f'```py\n{source}\n```'
+            if len(source) > 2000:
+                return original_source
+
             return source
 
         context['await'] = disgusting
@@ -199,7 +202,9 @@ class BotAdmin(Cog):
             def run():
                 exec(compile(code, '<eval>', 'exec'), context, local)
             await self.bot.loop.run_in_executor(self.bot.threadpool, run)
-            retval = pprint.pformat(local['x'])
+            retval = local['x']
+            if not isinstance(retval, str):
+                retval = pprint.pformat(local['x'])
             self._last_result = local['x']
         except Exception as e:
             self._last_result = e
@@ -209,7 +214,7 @@ class BotAdmin(Cog):
             retval = str(retval)
 
         if len(retval) > 2000:
-            await ctx.send(file=discord.File(StringIO(retval), filename='result.txt'))
+            await ctx.send(file=discord.File(StringIO(retval), filename='result.py'))
         else:
             await ctx.send(retval)
 

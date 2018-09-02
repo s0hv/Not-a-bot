@@ -847,6 +847,32 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='josuke.png'))
 
+    @command(ignore_extra=True, aliases=['josuke2'])
+    @cooldown(2, 5, BucketType.guild)
+    async def josuke_binoculars(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'josuke_binoculars.png'))
+            img = img.convert('RGBA')
+            size = (700, 415)
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True)
+
+            bg = Image.new('RGBA', template.size, (255, 255, 255))
+
+            bg.paste(img, (50, 460), img)
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='josuke_binoculars.png'))
+
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):

@@ -13,6 +13,8 @@ from numpy.random import choice
 from numpy import sqrt
 from sqlalchemy.exc import SQLAlchemyError
 from datetime import timedelta
+import unicodedata
+import emoji
 
 from bot.bot import command, has_permissions, cooldown
 from bot.formatter import Paginator
@@ -327,35 +329,56 @@ class ServerSpecific(Cog):
 
         await ctx.send('You now have the default role. Reload discord (ctrl + r) to get your global emotes')
 
+    # https://stackoverflow.com/questions/48340622/extract-all-emojis-from-string-and-ignore-fitzpatrick-modifiers-skin-tones-etc
+    @staticmethod
+    def check_type(emoji_str):
+        if unicodedata.name(emoji_str).startswith("EMOJI MODIFIER"):
+            return False
+        else:
+            return True
+
+    def extract_emojis(self, emojis):
+        return [c for c in emojis if c in emoji.UNICODE_EMOJI and self.check_type(c)]
+
     @command(no_pm=True)
     @cooldown(1, 600)
     @bot_has_permissions(manage_guild=True)
     @check(main_check)
     async def rotate(self, ctx, emoji=None):
-        emoji_faces = ['😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉', '😊',
-                       '😋', '😎', '😍', '😘', '😗', '😙', '😚', '☺', '🙂', '🤗',
-                       '\U0001f929', '🤔', '\U0001f928', '😐', '😑', '😶', '🙄',
-                       '😏', '😣', '😥', '😮', '🤐', '😯', '😪', '😫', '😴', '😌',
-                       '😛', '😜', '😝', '🤤', '😒', '😓', '😔', '😕', '🙃', '🤑',
-                       '😲', '☹', '🙁', '😖', '😞', '😟', '😤', '😢', '😭', '😦',
-                       '😧', '😨', '😩', '\U0001f92f', '😬', '😰', '😱', '😳',
-                       '\U0001f92a', '😵', '😡', '😠', '\U0001f92c', '😷', '🤒',
-                       '🤕', '🤢', '\U0001f92e', '🤧', '😇', '🤠', '🤡', '🤥',
-                       '\U0001f92b', '\U0001f92d', '\U0001f9d0', '🤓', '😈', '👿',
-                       '👶',
-                       '🐶', '🐱', '🐻', '🐸', '🐵', '🐧', '🐔', '🐣', '🐥', '🐝',
-                       '🐍', '🐢', '🐹',
-                       '💩']
+        emoji_faces = {'😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉',
+                       '😊', '😋', '😎', '😍', '😘', '😗', '😙', '😚', '☺',
+                       '🙂', '🤗', '\U0001f929', '🤔', '\U0001f928', '😐', '😑',
+                       '😶', '🙄', '😏', '😣', '😥', '😮', '🤐', '😯', '😪',
+                       '😫', '😴', '😌', '😛', '😜', '😝', '🤤', '😒', '😓',
+                       '😔', '😕', '🙃', '🤑', '😲', '☹', '🙁', '😖', '😞',
+                       '😟', '😤', '😢', '😭', '😦', '😧', '😨', '😩',
+                       '\U0001f92f', '😬', '😰', '😱', '😳', '👱', '\U0001f92a',
+                       '😡', '😠', '\U0001f92c', '😷', '🤒', '🤕', '🤢', '😵',
+                       '\U0001f92e', '🤧', '😇', '🤠', '🤡', '🤥', '\U0001f92b',
+                       '\U0001f92d', '\U0001f9d0', '🤓', '😈', '👿', '👶', '🐶',
+                       '🐱', '🐻', '🐸', '🐵', '🐧', '🐔', '🐣', '🐥', '🐝',
+                       '🐍', '🐢', '🐹', '💩', '👦', '👧', '👨', '👩'}
 
-        if emoji is not None and emoji not in emoji_faces:
-            ctx.command.reset_cooldown(ctx)
-            return await ctx.send('Invalid emoji')
+        if emoji is not None:
+            invalid = True
+            emoji_check = emoji
+            if len(emoji) > 1:
+                emojis = self.extract_emojis(emoji)
+                if len(emojis) == 1:
+                    emoji_check = emojis[0]
+
+            if emoji_check in emoji_faces:
+                invalid = False
+
+            if invalid:
+                ctx.command.reset_cooldown(ctx)
+                return await ctx.send('Invalid emoji')
 
         elif emoji is None:
             emoji = random.choice(emoji_faces)
 
         try:
-            await ctx.guild.edit(name=emoji*50)
+            await ctx.guild.edit(name=emoji*(100//(len(emoji))))
         except discord.HTTPException as e:
             await ctx.send(f'Failed to change name because of an error\n{e}')
         else:

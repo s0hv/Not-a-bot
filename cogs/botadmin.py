@@ -13,6 +13,7 @@ import traceback
 from importlib import reload, import_module
 from io import BytesIO, StringIO
 from types import ModuleType
+import inspect
 
 import aiohttp
 import discord
@@ -168,7 +169,17 @@ class BotAdmin(Cog):
                 return asyncio.run_coroutine_threadsafe(asyncio.wait_for(coro_or_fut, 60, loop=ctx.bot.loop), loop=ctx.bot.loop).result()
             return asyncio.run_coroutine_threadsafe(coro_or_fut, loop=ctx.bot.loop).result()
 
+        # Gets source of object
+        def get_source(o):
+            source = inspect.getsource(o)
+            original_source = textwrap.dedent(source)
+            # Put zero width space between backticks so they can be within a codeblock
+            source = original_source.replace('```', '`\u200b`\u200b`')
+            source = f'```py\n{source}\n```'
+            return source
+
         context['await'] = disgusting
+        context['source'] = get_source
 
         code = textwrap.indent(code, '  ')
         lines = list(filter(bool, code.split('\n')))

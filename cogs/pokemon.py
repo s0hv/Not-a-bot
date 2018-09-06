@@ -15,7 +15,7 @@ from PIL import Image
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
-from discord.ext.commands import BucketType
+from discord.ext.commands import BucketType, has_permissions, bot_has_permissions
 from discord.ext.commands.converter import UserConverter
 from discord.ext.commands.errors import BadArgument, UserInputError
 
@@ -438,6 +438,8 @@ class Pokemon(Cog):
         await ctx.send(f'Pokelog created in {channel.mention}')
 
     @command(ignore_extra=True)
+    @has_permissions(manage_channels=True)
+    @bot_has_permissions(manage_channels=True, manage_roles=True)
     @cooldown(1, 5, BucketType.guild)
     async def pokelog(self, ctx):
         """

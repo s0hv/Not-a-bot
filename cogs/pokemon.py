@@ -482,7 +482,7 @@ class Pokemon(Cog):
         else:
             shiny = ''
 
-        poke_fmt = re.sub(' | ', '-', poke).lower().replace('♂', 'm').replace('♀', 'f')
+        poke_fmt = poke.lower().replace('♂', 'm').replace('♀', 'f').replace(' ', '-')
         url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)
         embed = Embed(description=f'{mention} caught a {"Shiny " if shiny else ""}**{poke}**', colour=random_color())
         embed.set_image(url=url)

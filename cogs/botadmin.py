@@ -680,8 +680,13 @@ class BotAdmin(Cog):
         await ctx.send(f'Cooldown of {cmd.name} reset')
 
     @command(owner_only=True)
-    async def send_message(self, channel: discord.TextChannel, *, message):
-        await channel.send(message)
+    async def send_message(self, ctx, channel: discord.TextChannel, *, message):
+        try:
+            await channel.send(' '.join(message))
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to send message\n```py\n{e}\n```')
+        except:
+            await ctx.send('Failed to send message')
 
 
 def setup(bot):

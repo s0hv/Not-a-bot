@@ -679,6 +679,10 @@ class BotAdmin(Cog):
         cmd.reset_cooldown(ctx)
         await ctx.send(f'Cooldown of {cmd.name} reset')
 
+    @command(owner_only=True)
+    async def send_message(self, channel: discord.TextChannel, *, message):
+        await channel.send(message)
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

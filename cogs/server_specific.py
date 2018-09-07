@@ -4,7 +4,6 @@ import shlex
 import subprocess
 from datetime import datetime
 import random
-from math import ceil
 
 import aioredis
 import discord
@@ -35,6 +34,9 @@ def create_check(guild_ids):
 
 whitelist = [217677285442977792, 353927534439825429]
 main_check = create_check(whitelist)
+grant_whitelist = {486834412651151361}
+grant_whitelist.update(whitelist)
+grant_check = create_check(grant_whitelist)
 
 
 class ServerSpecific(Cog):
@@ -43,6 +45,7 @@ class ServerSpecific(Cog):
 
         asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
         self.main_whitelist = whitelist
+        self.grant_whitelist = grant_whitelist
         task = asyncio.run_coroutine_threadsafe(aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
                                                                       password=self.bot.config.redis_auth,
                                                                       loop=bot.loop, encoding='utf-8'), loop=bot.loop)
@@ -99,7 +102,7 @@ class ServerSpecific(Cog):
 
     @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)
-    @check(main_check)
+    @check(grant_check)
     @bot_has_permissions(manage_roles=True)
     async def grant(self, ctx, user: discord.Member, *, role: discord.Role):
         """Give a role to the specified user if you have the perms to do it"""
@@ -128,7 +131,7 @@ class ServerSpecific(Cog):
 
     @command(no_pm=True)
     @cooldown(2, 4, type=BucketType.user)
-    @check(main_check)
+    @check(grant_check)
     @bot_has_permissions(manage_roles=True)
     async def ungrant(self, ctx, user: discord.Member, *, role: discord.Role):
         """Remove a role from a user if you have the perms"""
@@ -157,7 +160,7 @@ class ServerSpecific(Cog):
 
     @command(no_pm=True, ignore_extra=True)
     @cooldown(2, 4, type=BucketType.guild)
-    @check(main_check)
+    @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def add_grant(self, ctx, role: discord.Role, target_role: discord.Role):
@@ -182,7 +185,7 @@ class ServerSpecific(Cog):
 
     @command(no_pm=True, ignore_extra=True)
     @cooldown(1, 4, type=BucketType.user)
-    @check(main_check)
+    @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def remove_grant(self, ctx, role: discord.Role, target_role: discord.Role):
@@ -236,7 +239,7 @@ class ServerSpecific(Cog):
 
     @command(no_pm=True, aliases=['get_grants', 'grants'])
     @cooldown(1, 4)
-    @check(main_check)
+    @check(grant_check)
     async def show_grants(self, ctx, user: discord.Member=None):
         """Shows the roles you or the specified user can grant"""
         guild = ctx.guild
@@ -272,7 +275,7 @@ class ServerSpecific(Cog):
         for s in split_string(msg, maxlen=2000, splitter='\n'):
             await ctx.send(s)
 
-    @command()
+    @command(disabled=True)
     @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
     async def text(self, ctx):

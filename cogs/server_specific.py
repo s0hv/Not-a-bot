@@ -4,6 +4,7 @@ import shlex
 import subprocess
 from datetime import datetime
 import random
+from math import ceil
 
 import aioredis
 import discord
@@ -601,10 +602,11 @@ class ServerSpecific(Cog):
         key = f'{message.guild.id}:{user.id}'
         value = await self.redis.get(key)
         if value:
-            score, last_msg = value.split(':', 1)
+            score, repeats, last_msg = value.split(':', 2)
             score = float(score)
+            repeats = int(repeats)
         else:
-            score, last_msg = 0, None
+            score, repeats, last_msg = 0, 0, None
 
         ttl = await self.redis.ttl(key)
         certainty = 0
@@ -629,7 +631,7 @@ class ServerSpecific(Cog):
 
         points = created+joined
 
-        if ttl > 0:
+        if ttl > 4:
             ttl = max(10-ttl, 0.5)
             points += 6*1/sqrt(ttl)
 
@@ -638,11 +640,16 @@ class ServerSpecific(Cog):
             certainty += 20
 
         msg = message.content
+
         if msg:
             msg = msg.lower()
+            len_multi = max(sqrt(len(msg))/18, 0.5)
             if msg == last_msg:
-                points += 5*((created+joined)/5)
-                certainty += 20
+                repeats += 1
+                points += 5*((created+joined)/5) * len_multi
+                points += repeats*3*len_multi
+                certainty += repeats * 4
+
         else:
             msg = ''
 
@@ -656,7 +663,7 @@ class ServerSpecific(Cog):
         certainty *= 100 / needed_for_mute
         certainty = min(round(certainty, 1), 100)
 
-        if score > needed_for_mute and certainty > 25:
+        if score > needed_for_mute and certainty > 40:
             certainty = str(certainty) + '%'
             channel = self.bot.get_channel(252872751319089153)
             if channel:
@@ -683,7 +690,7 @@ class ServerSpecific(Cog):
             score = 0
             msg = ''
 
-        await self.redis.set(key, f'{score}:{msg}', expire=10)
+        await self.redis.set(key, f'{score}:{repeats}:{msg}', expire=10)
 
 
 def setup(bot):

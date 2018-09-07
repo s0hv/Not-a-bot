@@ -150,7 +150,7 @@ class Colors(Cog):
             color = self._colors[guild_id].pop(role_id)
             logger.debug(f'Deleting color {color.name} with value {color.value} from guild {guild_id}')
         except KeyError:
-            logger.debug(f'Deleting color {role_id} from guild {guild_id}')
+            logger.debug(f'Deleting color {role_id} from guild {guild_id} if it existed')
 
         await self.bot.dbutils.delete_role(role_id, guild_id)
 

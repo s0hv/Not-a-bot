@@ -98,6 +98,7 @@ class Pokefusion:
             return
 
         await self._update_lock.acquire()
+        success = False
         try:
             logger.info('Updating pokecache')
             r = await self.client.get('http://pokefusion.japeal.com/PKMSelectorV3.php')
@@ -117,10 +118,12 @@ class Pokefusion:
             types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
             await self.cache_types(start=max(len(list(types)), 1))
             self._last_updated = time.time()
+            success = True
         except:
             logger.exception('Failed to update pokefusion cache')
         finally:
             self._update_lock.release()
+            return success
 
     def get_by_name(self, name):
         poke = self._pokemon.get(name.lower())

@@ -208,7 +208,7 @@ class BotAdmin(Cog):
 
         def code_block(s, pretty_print=True):
             if not isinstance(s, str) or pretty_print:
-                s = NoStringWrappingPrettyPrinter().pformat(s)
+                s = NoStringWrappingPrettyPrinter(width=1).pformat(s)
 
             return f'```py\n{s}\n```'
 
@@ -238,7 +238,7 @@ class BotAdmin(Cog):
             retval = local['x']
             self._last_result = retval
             if not isinstance(retval, str) and not isinstance(retval, NonFormatted):
-                retval = NoStringWrappingPrettyPrinter().pformat(retval)
+                retval = NoStringWrappingPrettyPrinter(width=1).pformat(retval)
         except Exception as e:
             self._last_result = e
             retval = f'```py\n{e}\n{traceback.format_exc()}\n```'

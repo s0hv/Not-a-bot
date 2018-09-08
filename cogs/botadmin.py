@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import inspect
 import logging
 import os
 import pprint
@@ -12,8 +13,8 @@ import time
 import traceback
 from importlib import reload, import_module
 from io import BytesIO, StringIO
+from pprint import PrettyPrinter
 from types import ModuleType
-import inspect
 
 import aiohttp
 import discord
@@ -34,6 +35,27 @@ from utils.utilities import (y_n_check, basic_check, y_check, check_import,
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
+
+
+class NoStringWrappingPrettyPrinter(PrettyPrinter):
+    def _format_str(self, s):
+        if '\n' in s:
+            s = f'"""{s}"""'
+        else:
+            s = f'"{s}"'
+
+        return s
+
+    def _format(self, object, stream, *args):
+        if isinstance(object, str):
+            stream.write(self._format_str(object))
+        else:
+            super()._format(object, stream, *args)
+
+
+class NonFormatted:
+    def __init__(self, original):
+        self.original = original
 
 
 class BotAdmin(Cog):
@@ -181,8 +203,19 @@ class BotAdmin(Cog):
 
             return source
 
+        def no_pformat(o):
+            return NonFormatted(o)
+
+        def code_block(s, pretty_print=True):
+            if not isinstance(s, str) or pretty_print:
+                s = NoStringWrappingPrettyPrinter().pformat(s)
+
+            return f'```py\n{s}\n```'
+
         context['await'] = disgusting
         context['source'] = get_source
+        context['code_block'] = code_block
+        context['no_format'] = no_pformat
 
         code = textwrap.indent(code, '  ')
         lines = list(filter(bool, code.split('\n')))
@@ -203,9 +236,9 @@ class BotAdmin(Cog):
                 exec(compile(code, '<eval>', 'exec'), context, local)
             await self.bot.loop.run_in_executor(self.bot.threadpool, run)
             retval = local['x']
-            if not isinstance(retval, str):
-                retval = pprint.pformat(local['x'])
-            self._last_result = local['x']
+            self._last_result = retval
+            if not isinstance(retval, str) and not isinstance(retval, NonFormatted):
+                retval = NoStringWrappingPrettyPrinter().pformat(retval)
         except Exception as e:
             self._last_result = e
             retval = f'```py\n{e}\n{traceback.format_exc()}\n```'

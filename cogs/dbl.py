@@ -22,7 +22,9 @@ class DBApi(Cog):
 
     async def on_vote(self, json):
         s = f'<@{json["user"]}> voted for <@{json["bot"]}>'
-        await self.bot.aiohttp_client.post(self.bot.config.dbl_webhook, data=s)
+        json = {'content': s}
+        headers = {'Content-type': 'application/json'}
+        await self.bot.aiohttp_client.post(self.bot.config.dbl_webhook, json=json, headers=headers)
 
     def __unload(self):
         self.bot.server.remove_listener(self.on_vote)

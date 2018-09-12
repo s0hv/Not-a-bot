@@ -56,6 +56,8 @@ class ServerSpecific(Cog):
         for g in list(self.bot.every_giveaways.values()):
             g.cancel()
 
+        self.redis.close()
+
     async def load_giveaways(self):
         sql = 'SELECT * FROM `giveaways`'
         try:

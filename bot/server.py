@@ -21,7 +21,7 @@ class WebhookServer:
                 return text('OK')
 
             for listener in self._listeners:
-                asyncio.ensure_future(listener(request.json), loop=bot.loop)
+                asyncio.run_coroutine_threadsafe(listener(request.json), loop=bot.loop)
 
             return text('OK')
 

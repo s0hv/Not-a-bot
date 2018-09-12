@@ -23,6 +23,7 @@ SOFTWARE.
 """
 
 import asyncio
+import aioredis
 import logging
 import time
 from bot.server import WebhookServer
@@ -52,6 +53,7 @@ class NotABot(BotBase):
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
         self._server = WebhookServer(self)
+        self.redis = None
 
     @property
     def server(self):
@@ -112,6 +114,11 @@ class NotABot(BotBase):
         terminal.info('Logged in as {0.user.name}'.format(self))
         await self.dbutil.add_command('help')
         await self.cache_guilds()
+
+        self.redis = await aioredis.create_redis((self.config.db_host, self.config.redis_port),
+                                                 password=self.config.redis_auth,
+                                                 loop=self.loop, encoding='utf-8')
+
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         if self.config.default_activity:
             await self.change_presence(activity=discord.Activity(**self.config.default_activity))

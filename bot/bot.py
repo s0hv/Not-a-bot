@@ -275,12 +275,14 @@ class Bot(commands.Bot, Client):
             return
 
         channel = context.channel
-        exception._domain = context.domain
 
         if isinstance(exception, commands.errors.BotMissingPermissions) or isinstance(exception, commands.errors.MissingPermissions):
-            if not self._check_error_cd(context.message):
-                return
-            return await channel.send(str(exception))
+            if self._check_error_cd(context.message):
+                try:
+                    return await channel.send(str(exception))
+                except discord.Forbidden:
+                    pass
+            return
 
         if isinstance(exception, commands.errors.CheckFailure):
             return
@@ -289,19 +291,18 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, commands.errors.CommandOnCooldown):
             error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
-        if isinstance(exception, commands.errors.BadArgument):
+        if isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument):
             error_msg = str(exception)
 
         if isinstance(exception, exceptions.BotException):
             error_msg = str(exception)
 
-        if isinstance(exception, commands.errors.MissingRequiredArgument):
-            error_msg = str(exception)
-
         if error_msg:
             if self._check_error_cd(context.message):
-                await channel.send(error_msg, delete_after=300)
-
+                try:
+                    await channel.send(error_msg, delete_after=300)
+                except discord.Forbidden:
+                    pass
             return
 
         terminal.warning('Ignoring exception in command {}'.format(context.command))

@@ -46,18 +46,11 @@ class ServerSpecific(Cog):
         asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
-        task = asyncio.run_coroutine_threadsafe(aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
-                                                                      password=self.bot.config.redis_auth,
-                                                                      loop=bot.loop, encoding='utf-8'), loop=bot.loop)
-
-        self.redis = task.result()
+        self.redis = self.bot.redis
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
             g.cancel()
-
-        self.redis.close()
-        asyncio.run_coroutine_threadsafe(self.redis.wait_closed(), loop=self.bot.loop).result(20)
 
     async def load_giveaways(self):
         sql = 'SELECT * FROM `giveaways`'
@@ -382,7 +375,7 @@ class ServerSpecific(Cog):
                 return await ctx.send('Invalid emoji')
 
         elif emoji is None:
-            emoji = random.choice(emoji_faces)
+            emoji = random.choice(list(emoji_faces))
 
         try:
             await ctx.guild.edit(name=emoji*(100//(len(emoji))))

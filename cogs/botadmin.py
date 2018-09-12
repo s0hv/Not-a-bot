@@ -123,6 +123,7 @@ class BotAdmin(Cog):
                 self.bot.unload_extension(name)
                 self.load_extension(name, lib=lib)
             except Exception as e:
+                logger.exception('Failed to reload extension %s' % name)
                 return 'Could not reload %s because of an error\n%s' % (name, e)
 
             return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter()-t)*1000)
@@ -378,6 +379,11 @@ class BotAdmin(Cog):
         await self.bot.loop.run_in_executor(self.bot.threadpool, unload_all)
         await self.bot.aiohttp_client.close()
         logger.info('Closed aiohttp client')
+
+        redis = getattr(self.bot, 'redis', None)
+        if redis:
+            redis.close()
+            await redis.wait_closed()
 
         try:
             audio = self.bot.get_cog('Audio')

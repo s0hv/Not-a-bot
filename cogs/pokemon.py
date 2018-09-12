@@ -446,8 +446,23 @@ class Pokemon(Cog):
         To log caught pokecord legendaries and shinies you need a channel name pokelog
         You can use this command to set one up with correct perms
 
-        Some exceptions are Phione which isn't logged since it's so common
-        and beldum evolution line which is logged due to it's rarity
+        To include more pokemon or exclude pokemon you need to edit the
+        channel description. The format is as follows
+        ```
+        ---
+        Phione
+        Shaymin
+
+        +++
+        Beldum
+        Metang
+        Metagross
+        ```
+
+        where pokemon under the --- are excluded and pokemon under +++ are included
+        in pokelog. The name of the pokemon must be the same what p!info gives
+        of that pokemon. Excluding also overrides including so if you put a pokemon
+        to be excluded and included it will be excluded
         """
         channel = utils.get(ctx.guild.channels, name='pokelog')
         if not channel:
@@ -476,7 +491,31 @@ class Pokemon(Cog):
             return
 
         mention, shiny, poke = match.groups()
-        if poke.lower() not in legendaries and not shiny:
+
+        include = []
+        exclude = []
+        if channel.topic:
+            container = None
+            for line in channel.topic.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+
+                if line == '---':
+                    container = exclude
+                    continue
+
+                if line == '+++':
+                    container = include
+                    continue
+
+                if container is not None:
+                    container.append(line.lower())
+
+        if poke.lower() not in legendaries and not shiny and poke.lower() not in include:
+            return
+
+        if poke.lower() in exclude and not shiny:
             return
 
         if shiny:

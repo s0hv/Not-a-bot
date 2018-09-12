@@ -461,7 +461,7 @@ class Pokemon(Cog):
         where pokemon under the --- are excluded and pokemon under +++ are included
         in pokelog. The name of the pokemon must be the same what p!info gives
         of that pokemon. Excluding also overrides including so if you put a pokemon
-        to be excluded and included it will be excluded
+        to be excluded and included it will be excluded. Shinies are logged no matter the settings
         """
         channel = utils.get(ctx.guild.channels, name='pokelog')
         if not channel:

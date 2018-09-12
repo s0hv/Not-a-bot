@@ -8,7 +8,7 @@ logger = logging.getLogger('debug')
 
 class WebhookServer:
     def __init__(self, bot, listeners=None):
-        app = Sanic()
+        app = Sanic(configure_logging=bot.test_mode)
         self.bot = bot
         self._listeners = set() if not listeners else set(listeners)
 

@@ -53,7 +53,7 @@ legendaries = ['arceus', 'articuno', 'azelf', 'beldum', 'blacephalon', 'buzzwole
                'kyogre', 'kyurem', 'landorus', 'latias', 'latios', 'lugia',
                'lunala', 'magearna', 'manaphy', 'marshadow', 'meloetta',
                'mesprit', 'metang', 'metagross', 'mew', 'mewtwo', 'moltres', 'naganadel', 'necrozma',
-               'nihilego', 'palkia', 'pheromosa', 'poipole', 'raikou',
+               'nihilego', 'palkia', 'pheromosa', 'phione', 'poipole', 'raikou',
                'rayquaza', 'regice', 'regigigas', 'regirock', 'registeel',
                'reshiram', 'shaymin', 'silvally', 'solgaleo', 'stakataka',
                'suicune', 'tapu bulu', 'tapu fini', 'tapu koko', 'tapu lele',

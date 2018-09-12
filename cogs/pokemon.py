@@ -45,14 +45,14 @@ MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
 
 legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!')
-legendaries = ['arceus', 'articuno', 'azelf', 'beldum', 'blacephalon', 'buzzwole',
+legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
                'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',
                'entei', 'genesect', 'giratina', 'groudon', 'guzzlord',
                'heatran', 'ho-oh', 'hoopa', 'jirachi', 'kartana', 'keldeo',
                'kyogre', 'kyurem', 'landorus', 'latias', 'latios', 'lugia',
                'lunala', 'magearna', 'manaphy', 'marshadow', 'meloetta',
-               'mesprit', 'metang', 'metagross', 'mew', 'mewtwo', 'moltres', 'naganadel', 'necrozma',
+               'mesprit', 'mew', 'mewtwo', 'moltres', 'naganadel', 'necrozma',
                'nihilego', 'palkia', 'pheromosa', 'phione', 'poipole', 'raikou',
                'rayquaza', 'regice', 'regigigas', 'regirock', 'registeel',
                'reshiram', 'shaymin', 'silvally', 'solgaleo', 'stakataka',
@@ -60,7 +60,6 @@ legendaries = ['arceus', 'articuno', 'azelf', 'beldum', 'blacephalon', 'buzzwole
                'terrakion', 'thundurus', 'tornadus', 'type: null', 'uxie',
                'victini', 'virizion', 'volcanion', 'xerneas', 'xurkitree',
                'yveltal', 'zapdos', 'zekrom', 'zeraora', 'zygarde']
-
 
 
 # Stats taken from https://www.kaggle.com/mylesoneill/pokemon-sun-and-moon-gen-7-stats

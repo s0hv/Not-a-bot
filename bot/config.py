@@ -61,6 +61,7 @@ class Config:
         self.dbl_server = get_config_value(self.config, 'Webhook', 'Server', str, None)
         self.dbl_port = get_config_value(self.config, 'Webhook', 'Port', int, None)
         self.dbl_auth = get_config_value(self.config, 'Webhook', 'Auth', str, None)
+        self.dbl_auth = get_config_value(self.config, 'Webhook', 'Webhook', str, None)
 
         self.random_sfx = get_config_value(self.config, 'SFXSettings', 'RandomSfx', bool, False)
 

@@ -25,6 +25,7 @@ SOFTWARE.
 import asyncio
 import logging
 import time
+from bot.server import WebhookServer
 
 import discord
 from sqlalchemy.exc import SQLAlchemyError
@@ -50,6 +51,11 @@ class NotABot(BotBase):
         self.hi_new = {ord(c): '' for c in ", '"}
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
+        self._server = WebhookServer(self)
+
+    @property
+    def server(self):
+        return self._server
 
     async def cache_guilds(self):
         import time

@@ -57,6 +57,7 @@ class ServerSpecific(Cog):
             g.cancel()
 
         self.redis.close()
+        asyncio.run_coroutine_threadsafe(self.redis.wait_closed(), loop=self.bot.loop).result(20)
 
     async def load_giveaways(self):
         sql = 'SELECT * FROM `giveaways`'

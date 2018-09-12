@@ -33,7 +33,7 @@ import discord
 from aiohttp import ClientSession
 from discord import state
 from discord.ext import commands
-from discord.ext.commands import CommandNotFound
+from discord.ext.commands import CommandNotFound, bot_has_permissions
 from discord.ext.commands.bot import _mention_pattern, _mentions_transforms
 from discord.ext.commands.errors import CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
@@ -210,6 +210,7 @@ class Bot(commands.Bot, Client):
         self.remove_command('help')
 
         @self.group(invoke_without_command=True)
+        @bot_has_permissions(embed_links=True)
         @cooldown(1, 10, commands.BucketType.guild)
         async def help(ctx, *commands_: str):
             """Shows all commands you can use on this server.
@@ -217,6 +218,8 @@ class Bot(commands.Bot, Client):
             await self._help(ctx, *commands_)
 
         @help.command(name='all')
+        @bot_has_permissions(embed_links=True)
+        @cooldown(1, 10, commands.BucketType.guild)
         async def all_(ctx, *commands_: str):
             """Shows all available commands even if you don't have the correct
             permissions to use the commands. Bot owner only commands are still hidden tho"""

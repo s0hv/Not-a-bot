@@ -82,6 +82,7 @@ initial_cogs = [
     'botmod',
     'colors',
     'command_blacklist',
+    'dbl',
     'emotes',
     'gachiGASM',
     'hearthstone',

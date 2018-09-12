@@ -2,6 +2,8 @@ import asyncio
 import logging
 import os
 from datetime import timedelta
+from sanic import Sanic
+from sanic import response
 
 import dbl
 
@@ -10,24 +12,40 @@ from cogs.cog import Cog
 logger = logging.getLogger('debug')
 
 
+app = Sanic()
+
+
+@app.route('/webhook', methods=['POST'])
+async def webhook(request):
+    print(request)
+    return response.text('OK')
+
+
 class DBApi(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._token = self.bot.config.dbl_token
-        self.dbl = dbl.Client(self.bot, self._token)
         self.update_task = None
+        self.dbl = None
+        self.server = asyncio.run_coroutine_threadsafe(app.create_server(bot.config.dbl_server,
+                                                                         bot.config.dbl_port), bot.loop)
         if not self.bot.test_mode:
+            self.dbl = dbl.Client(self.bot, self._token, loop=bot.loop)
             self.update_task = self.bot.loop.create_task(self.update_stats())
 
     def __unload(self):
         if self.update_task:
             self.update_task.cancel()
 
-        task = self.bot.loop.create_task(self.dbl.close())
-        try:
-            task.result(timeout=20)
-        except:
-            return
+        if self.server:
+            self.server.cancel()
+
+        if self.dbl:
+            task = self.bot.loop.create_task(self.dbl.close())
+            try:
+                task.result(timeout=20)
+            except:
+                return
 
     async def update_stats(self):
         while True:

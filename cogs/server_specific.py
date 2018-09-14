@@ -680,10 +680,12 @@ class ServerSpecific(Cog):
                                                              time)
 
             await message.author.add_roles(mute_role, reason='[Automute] Spam')
+            url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
             embed = discord.Embed(title='Moderation action [AUTOMUTE]',
                                   description=d, timestamp=datetime.utcnow())
             embed.add_field(name='Reason', value='Spam')
             embed.add_field(name='Certainty', value=certainty)
+            embed.add_field(name='link', value=url)
             embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
             embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
             await moderator.send_to_modlog(guild, embed=embed)

@@ -168,9 +168,11 @@ class Moderator(Cog):
 
                 await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
                 d = f'Automuted user {user} `{user.id}` for {time}'
+                url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
                 embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d,
                                       timestamp=datetime.utcnow())
                 embed.add_field(name='Reason', value=message.content)
+                embed.add_field(name='link', value=url)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(self.bot.user),
                                  icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
@@ -198,9 +200,11 @@ class Moderator(Cog):
                         else:
                             d = 'Automuted user {0} `{0.id}`'.format(message.author)
 
+                        url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
                         embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
                         embed.add_field(name='Reason', value='Too many mentions in a message')
+                        embed.add_field(name='link', value=url)
                         embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                         embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
                         await self.send_to_modlog(guild, embed=embed)
@@ -410,10 +414,12 @@ class Moderator(Cog):
             if chn:
                 author = ctx.author
                 description = '{} muted {} {}'.format(author.mention, user, user.id)
+                url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
                 embed = discord.Embed(title='🤐 Moderation action [MUTE]',
                                       timestamp=datetime.utcnow(),
                                       description=description)
                 embed.add_field(name='Reason', value=reason)
+                embed.add_field(name='link', value=url)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
                 await self.send_to_modlog(guild, embed=embed)
@@ -683,10 +689,12 @@ class Moderator(Cog):
                 description = '{} muted {} `{}` for {}'.format(author.mention,
                                                                user, user.id, time)
 
+                url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
                 embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
                                       timestamp=datetime.utcnow() + time,
                                       description=description)
                 embed.add_field(name='Reason', value=reason)
+                embed.add_field(name='link', value=url)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
 

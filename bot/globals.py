@@ -48,6 +48,7 @@ CACHE = join(_wd, 'data', 'audio', 'cache')
 POKESTATS = join(DATA, 'pokestats')
 PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
 PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
+WORKING_DIR = _wd
 
 PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': False,
                       'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,

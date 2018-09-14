@@ -4,10 +4,10 @@ import logging
 import os
 import shlex
 from io import BytesIO
-from math import ceil
+from math import ceil, sqrt
 
 import discord
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
@@ -15,12 +15,13 @@ from colour import Color as Colour
 from discord.errors import InvalidArgument
 from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument)
 from numpy.random import choice
+import textwrap
 from sqlalchemy.exc import SQLAlchemyError
-
+from bot.globals import WORKING_DIR
 from bot.bot import command, has_permissions, cooldown
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
-                             Snowflake)
+                             Snowflake, check_botperm)
 import re
 
 logger = logging.getLogger('debug')
@@ -42,6 +43,14 @@ class Color:
 
     def __str__(self):
         return self.name
+
+    # https://stackoverflow.com/a/2262152/6046713
+    def to_rgb(self):
+        return (self.value >> 16) & 255, (self.value >> 8) & 255, self.value & 255
+
+    @property
+    def rgb(self):
+        return self.to_rgb()
 
 
 class Colors(Cog):
@@ -258,12 +267,11 @@ class Colors(Cog):
                 await ctx.send('Failed to create color {0.name}'.format(role))
 
     @staticmethod
-    def concatenate_colors(images, width=50, custom_width: int=None):
+    def concatenate_colors(images, width=50):
         max_width = width*len(images)
-        if custom_width and max_width < custom_width:
-            max_width = custom_width
+        height = max(map(lambda i: i.height, images))
 
-        empty = Image.new('RGBA', (max_width, width), (0,0,0,0))
+        empty = Image.new('RGBA', (max_width, height), (0,0,0,0))
 
         offset = 0
         for im in images:
@@ -491,15 +499,8 @@ class Colors(Cog):
 
         await ctx.send('Color set to %s' % color.name)
 
-    @command(no_pm=True, aliases=['colours'])
-    @cooldown(1, 5, type=BucketType.guild)
-    async def colors(self, ctx):
-        """Shows the colors on this guild"""
-        guild = ctx.guild
-        colors = self._colors.get(guild.id)
-        if not colors:
-            return await ctx.send("This guild doesn't have any color roles")
-
+    @staticmethod
+    def text_only_colors(colors):
         s = ''
         le = len(colors) - 1
         for idx, color in enumerate(colors.values()):
@@ -509,8 +510,95 @@ class Colors(Cog):
                 s += ', '
 
         s = split_string(s, maxlen=2000, splitter=', ')
-        for msg in s:
-            await ctx.send(msg)
+        return s
+
+    # https://stackoverflow.com/a/3943023/6046713
+    @staticmethod
+    def text_color(color: Color):
+        r, g, b = color.rgb
+        if (r * 0.299 + g * 0.587 + b * 0.114) > 186:
+            return '#000000'
+
+        return '#FFFFFF'
+
+    def draw_text(self, color: Color, size, font: ImageFont.FreeTypeFont):
+        im = Image.new('RGB', size, color.rgb)
+
+        draw = ImageDraw.Draw(im)
+        name = str(color)
+        text_size = font.getsize(name)
+        text_color = self.text_color(color)
+        if text_size[0] > size[0]:
+            all_lines = []
+            lines = split_string(name, maxlen=len(name)//(text_size[0]/size[0]))
+            margin = 2
+            total_y = 0
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                if text_size[1] + total_y > size[1]:
+                    break
+
+                x = (size[0] - font.getsize(line)[0]) // 2
+                all_lines.append((line, x))
+                total_y += margin + text_size[1]
+
+            y = (size[1] - total_y) // 2
+            for line, x in all_lines:
+                draw.text((x, y), line, font=font, fill=text_color)
+                y += margin + text_size[1]
+
+        else:
+            x = (size[0] - text_size[0]) // 2
+            y = (size[1] - text_size[1]) // 2
+            draw.text((x, y), name, font=font, fill=text_color)
+        return im
+
+    @command(no_pm=True, aliases=['colours'])
+    @cooldown(1, 5, type=BucketType.guild)
+    async def colors(self, ctx):
+        """Shows the colors on this guild"""
+        guild = ctx.guild
+        colors = self._colors.get(guild.id)
+        if not colors:
+            return await ctx.send("This guild doesn't have any color roles")
+
+        if not check_botperm('attach_files', ctx=ctx):
+            for msg in self.text_only_colors(colors):
+                await ctx.send(msg)
+
+            return
+
+        def do_the_thing():
+            nonlocal colors
+            size = (100, 100)
+            colors = list(colors.values())
+            side = ceil(sqrt(len(colors)))
+            font = ImageFont.truetype(os.path.join(WORKING_DIR, 'M-1c', 'mplus-1c-bold.ttf'),
+                                          encoding='utf-8', size=17)
+
+            images = []
+            for i in range(0, len(colors), side):
+                color_range = colors[i:i+side]
+                ims = []
+                for color in color_range:
+                    ims.append(self.draw_text(color, size, font))
+
+                if not ims:
+                    continue
+                images.append(self.concatenate_colors(ims, width=size[0]))
+
+            stack = self.stack_colors(images, size[1])
+
+            data = BytesIO()
+            stack.save(data, 'PNG')
+            data.seek(0)
+            return data
+
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
+        await ctx.send(file=discord.File(data, 'colors.png'))
 
     @command(aliases=['search_colour'])
     @cooldown(1, 3, BucketType.user)

@@ -262,7 +262,7 @@ class Utilities(Cog):
         roles = split_string(roles, splitter='\n', maxlen=1000)
         await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
 
-    @command(aliases=['created_at', 'snowflake'], ignore_extra=True)
+    @command(aliases=['created_at', 'snowflake', 'snoflake'], ignore_extra=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def snowflake_time(self, ctx, id: int):
         """Gets creation date from the specified discord id in UTC"""

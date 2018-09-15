@@ -54,6 +54,7 @@ class NotABot(BotBase):
         self.anti_abuse_switch = False  # lol
         self._server = WebhookServer(self)
         self.redis = None
+        self.antispam = True
 
     @property
     def server(self):

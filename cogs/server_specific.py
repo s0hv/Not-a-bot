@@ -552,6 +552,9 @@ class ServerSpecific(Cog):
         await member.edit(nick=name, reason='Auto nick')
 
     async def on_message(self, message):
+        if not self.bot.antispam:
+            return
+
         guild = message.guild
         if not guild or guild.id not in self.main_whitelist:
             return
@@ -632,6 +635,10 @@ class ServerSpecific(Cog):
 
         points = created+joined
 
+        old_ttl = 10
+        if ttl > 0:
+            old_ttl = min(ttl+2, 10)
+
         if ttl > 4:
             ttl = max(10-ttl, 0.5)
             points += 6*1/sqrt(ttl)
@@ -693,7 +700,7 @@ class ServerSpecific(Cog):
             score = 0
             msg = ''
 
-        await self.redis.set(key, f'{score}:{repeats}:{msg}', expire=10)
+        await self.redis.set(key, f'{score}:{repeats}:{msg}', expire=old_ttl)
 
 
 def setup(bot):

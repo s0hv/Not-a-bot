@@ -206,6 +206,23 @@ class Colors(Cog):
 
         return self.check_rgb(rgb)
 
+    @staticmethod
+    def closest_color_match(color, colors):
+        if isinstance(color, Color):
+            lab = color.lab
+        else:
+            lab = color
+
+        closest_match = None
+        similarity = 0
+        for c in colors:
+            d = 100 - delta_e_cie2000(c.lab, lab)
+            if d > similarity:
+                similarity = d
+                closest_match = c
+
+        return closest_match, similarity
+
     def closest_match(self, color, guild):
         colors = self._colors.get(guild.id)
         if not colors:
@@ -216,15 +233,7 @@ class Colors(Cog):
             return
 
         color = self.rgb2lab(rgb)
-        closest_match = None
-        similarity = 0
-        for c in colors.values():
-            d = 100 - delta_e_cie2000(c.lab, color)
-            if d > similarity:
-                similarity = d
-                closest_match = c
-
-        return closest_match, similarity
+        return self.closest_color_match(color, colors.values())
 
     async def on_guild_role_delete(self, role):
         await self._delete_color(role.guild.id, role.id)
@@ -512,6 +521,19 @@ class Colors(Cog):
         s = split_string(s, maxlen=2000, splitter=', ')
         return s
 
+    def sort_by_color(self, colors):
+        start = self.rgb2lab((0,0,0))
+        color, _ = self.closest_color_match(start, colors)
+        sorted_colors = [color]
+        colors.remove(color)
+
+        while colors:
+            closest, _ = self.closest_color_match(sorted_colors[-1], colors)
+            colors.remove(closest)
+            sorted_colors.append(closest)
+
+        return sorted_colors
+
     # https://stackoverflow.com/a/3943023/6046713
     @staticmethod
     def text_color(color: Color):
@@ -575,7 +597,7 @@ class Colors(Cog):
             nonlocal colors
             size = (100, 100)
             colors = list(colors.values())
-            colors.sort(key=lambda c: c.value)
+            colors = self.sort_by_color(colors)
             side = ceil(sqrt(len(colors)))
             font = ImageFont.truetype(os.path.join(WORKING_DIR, 'M-1c', 'mplus-1c-bold.ttf'),
                                           encoding='utf-8', size=17)

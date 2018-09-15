@@ -575,6 +575,7 @@ class Colors(Cog):
             nonlocal colors
             size = (100, 100)
             colors = list(colors.values())
+            colors.sort(key=lambda c: c.value)
             side = ceil(sqrt(len(colors)))
             font = ImageFont.truetype(os.path.join(WORKING_DIR, 'M-1c', 'mplus-1c-bold.ttf'),
                                           encoding='utf-8', size=17)

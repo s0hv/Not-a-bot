@@ -1,26 +1,26 @@
 import asyncio
 import logging
+import random
 import shlex
 import subprocess
+import unicodedata
 from datetime import datetime
-import random
+from datetime import timedelta
 
-import aioredis
 import discord
+import emoji
 from discord.errors import HTTPException
 from discord.ext.commands import (BucketType, check, bot_has_permissions)
-from numpy.random import choice
 from numpy import sqrt
+from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
-from datetime import timedelta
-import unicodedata
-import emoji
 
 from bot.bot import command, has_permissions, cooldown
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
-                             get_avatar, retry, send_paged_message, check_botperm)
+                             get_avatar, retry, send_paged_message,
+                             check_botperm)
 
 logger = logging.getLogger('debug')
 
@@ -34,7 +34,7 @@ def create_check(guild_ids):
 
 whitelist = [217677285442977792, 353927534439825429]
 main_check = create_check(whitelist)
-grant_whitelist = {486834412651151361}
+grant_whitelist = {486834412651151361, 279016719916204032}
 grant_whitelist.update(whitelist)
 grant_check = create_check(grant_whitelist)
 

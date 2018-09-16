@@ -463,6 +463,24 @@ class DatabaseUtils:
         sql = 'SELECT * FROM `todo` WHERE `completed` IS FALSE ORDER BY priority DESC LIMIT %s' % limit
         return await self.execute(sql)
 
+    async def add_temprole(self, user, role, guild, expires_at):
+        sql = 'INSERT INTO `temproles` (`user`, `role`, `guild`, `expires_at`) VALUES ' \
+              '(:user, :role, :guild, :expires_at) ON DUPLICATE KEY UPDATE expires_at=:expires_at'
+
+        try:
+            await self.execute(sql, {'user': user, 'role': role,
+                                     'guild': guild, 'expires_at': expires_at})
+        except SQLAlchemyError:
+            logger.exception('Failed to add temprole')
+
+    async def remove_temprole(self, user: int, role: int):
+        sql = 'DELETE FROM `temproles` WHERE user=:user AND role=:role'
+
+        try:
+            await self.execute(sql, {'user': user, 'role': role})
+        except SQLAlchemyError:
+            logger.exception('Failed to remove temprole')
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

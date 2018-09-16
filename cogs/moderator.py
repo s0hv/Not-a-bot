@@ -9,7 +9,7 @@ from discord.ext.commands import (BucketType, bot_has_permissions)
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group, has_permissions, cooldown
-from bot.converters import MentionedMember, PossibleUser
+from bot.converters import MentionedMember, PossibleUser, TimeDelta
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
@@ -26,16 +26,22 @@ class Moderator(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.timeouts = self.bot.timeouts
+        self.temproles = self.bot.temproles
         self.automute_blacklist = {}
         self.automute_whitelist = {}
         self._current_rolls = {}  # Users currently active in a mute roll
         self._load_timeouts()
         self._load_automute()
+        self._load_temproles()
 
     def __unload(self):
         for timeouts in list(self.timeouts.values()):
             for timeout in list(timeouts.values()):
                 timeout.cancel()
+
+        for temproles in list(self.temproles.values()):
+            for temprole in list(temproles.values()):
+                temprole.cancel()
 
     def _load_automute(self):
         sql = 'SELECT * FROM `automute_blacklist`'
@@ -64,6 +70,19 @@ class Moderator(Cog):
                 s = self.automute_whitelist[id_]
 
             s.add(row['role'])
+
+    def _load_temproles(self):
+        session = self.bot.get_session
+        sql = 'SELECT * FROM `temproles`'
+        rows = session.execute(sql)
+
+        for row in rows:
+            time = row['expires_at'] - datetime.utcnow()
+            guild = row['guild']
+            user = row['user']
+            role = row['role']
+
+            self.register_temprole(user, role, guild, time.total_seconds())
 
     def _load_timeouts(self):
         session = self.bot.get_session
@@ -992,6 +1011,86 @@ class Moderator(Cog):
     async def unlock(self, ctx):
         """Set send_messages permission override on current channel to default position"""
         await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwougokidasu')
+
+    def get_temproles(self, guild: int):
+        temproles = self.temproles.get(guild, None)
+        if temproles is None:
+            temproles = {}
+            self.temproles[guild] = temproles
+
+        return temproles
+
+    async def remove_role(self, user, role, guild):
+        guild = self.bot.get_guild(guild)
+        if not guild:
+            await self.bot.dbutil.remove_temprole(user, role)
+            return
+
+        user = guild.get_member(user)
+
+        if not user:
+            await self.bot.dbutil.remove_temprole(user, role)
+            return
+
+        try:
+            await user.remove_roles(Snowflake(role), reason='Removed temprole')
+        except discord.HTTPException:
+            pass
+
+        await self.bot.dbutil.remove_temprole(user, role)
+
+    def register_temprole(self, user: int, role: int, guild: int, time):
+        temproles = self.get_temproles(guild)
+        old = temproles.get(user)
+        if old:
+            old.cancel()
+
+        if time <= 1:
+            time = 1
+
+        task = call_later(self.remove_role, self.bot.loop, time,
+                          user, role, guild, after=lambda _: temproles.pop(user))
+
+        temproles[user] = task
+
+    @command(ignore_extra=True, no_pm=True)
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
+    @cooldown(1, 5, BucketType.guild)
+    async def temprole(self, ctx, time: TimeDelta, user: discord.Member, *, role: discord.Role):
+        if time.days > 7:
+            return await ctx.send('Max days is 7')
+
+        total_seconds = time.total_seconds()
+
+        if total_seconds < 60:
+            return await ctx.send('Must be over minute')
+
+        bot = ctx.guild.me
+        if role > bot.top_role:
+            return await ctx.send('Role is higher than my top role')
+
+        if role > ctx.author.top_role:
+            return await ctx.send('Role is higher than your top role')
+
+        expires_at = datetime.utcnow() + time
+
+        self.register_temprole(user.id, role.id, user.guild.id, total_seconds)
+        expires_at = datetime2sql(expires_at)
+        await self.bot.dbutil.add_temprole(user.id, role.id, user.guild.id,
+                                           expires_at)
+
+        try:
+            await user.add_roles(role, reason=f'{ctx.author} temprole {seconds2str(total_seconds, long_def=False)}')
+        except discord.HTTPException as e:
+            await ctx.send('Failed to add role because of an error\n%s' % e)
+            return
+        except:
+            logger.exception('Failed to add role')
+            await ctx.send('Failed to add role. An exception has been logged')
+            return
+
+        await ctx.send(f'Added {role} to {user} for {seconds2str(total_seconds, long_def=False)}')
 
     @staticmethod
     async def delete_messages(channel, message_ids):

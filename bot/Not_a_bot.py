@@ -49,6 +49,7 @@ class NotABot(BotBase):
         self._random_color = None
         self.polls = {}
         self.timeouts = {}
+        self.temproles = {}
         self.hi_new = {ord(c): '' for c in ", '"}
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol

@@ -306,6 +306,15 @@ CREATE TABLE `todo` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+CREATE TABLE `temproles` (
+    `role` BIGINT NOT NULL,
+    `user` BIGINT NOT NULL,
+    `guild` BIGINT NOT NULL,
+    `expires_at` TIMESTAMP NOT NULL,
+
+    PRIMARY KEY (`role`, `user`)
+) ENGINE=InnoDB;
+
 ------------------------
 -- UNDER CONSTRUCTION --
 ------------------------

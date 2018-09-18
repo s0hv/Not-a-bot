@@ -721,7 +721,7 @@ class BotAdmin(Cog):
     @command(owner_only=True)
     async def send_message(self, ctx, channel: discord.TextChannel, *, message):
         try:
-            await channel.send(' '.join(message))
+            await channel.send(message)
         except discord.HTTPException as e:
             await ctx.send(f'Failed to send message\n```py\n{e}\n```')
         except:

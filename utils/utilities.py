@@ -426,10 +426,13 @@ async def get_image_from_message(ctx, *messages):
                         image = get_avatar(user)
 
     dbutil = ctx.bot.dbutil
-    if image is None:
-        channel = ctx.channel
-        guild = channel.guild
-        sql = 'SELECT attachment FROM `messages` WHERE guild={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(guild.id, channel.id)
+    if image is None or not isinstance(image, str):
+        if isinstance(image, int):
+            sql = 'SELECT attachment FROM `messages` WHERE message_id=%s' % image
+        else:
+            channel = ctx.channel
+            guild = channel.guild
+            sql = 'SELECT attachment FROM `messages` WHERE guild={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(guild.id, channel.id)
         try:
             rows = (await dbutil.execute(sql)).fetchall()
             for row in rows:

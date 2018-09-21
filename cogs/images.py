@@ -898,6 +898,16 @@ class Images(Cog):
         file.seek(0)
         await ctx.send(s, file=File(file, filename='pokefusion.png'))
 
+    @command(ignore_extra=True, aliases=['get_im'])
+    @cooldown(3, 3, BucketType.guild)
+    async def get_image(self, ctx, *, data=None):
+        """Get's the latest image in the channel if data is None
+        otherwise gets the image based on data. If data is an id, first avatar lookup is done
+        then message lookup. If data is an image url this will just return that url"""
+        img = await get_image_from_message(ctx, data)
+        s = img if img else 'No image found'
+        return await ctx.send(s)
+
     @command(owner_only=True)
     async def update_poke_cache(self, ctx):
         if await self._pokefusion.update_cache() is False:

@@ -888,7 +888,11 @@ class Images(Cog):
         if not self._pokefusion:
             return await ctx.send('Pokefusion not supported')
         await ctx.trigger_typing()
-        img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
+        try:
+            img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
+        except NoPokeFoundException as e:
+            return await ctx.send(str(e))
+
         file = BytesIO()
         img.save(file, 'PNG')
         file.seek(0)

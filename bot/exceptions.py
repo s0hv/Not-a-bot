@@ -43,6 +43,9 @@ class BotException(CommandError):
     def message(self):
         return self._message
 
+    def __str__(self):
+        return self.message
+
     @property
     def __cause__(self):
         return self

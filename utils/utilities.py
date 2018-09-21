@@ -638,7 +638,11 @@ def get_channel_id(s):
 
 
 def seconds2str(seconds, long_def=True):
-    seconds = int(round(seconds, 0))
+    seconds_ = int(round(seconds, 0))
+    if not seconds_:
+        return f'{round(seconds, 2)}s'
+
+    seconds = seconds_
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     d, h = divmod(h, 24)

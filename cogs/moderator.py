@@ -1115,23 +1115,22 @@ class Moderator(Cog):
         if not embed.footer or str(ctx.author.id) not in embed.footer.icon_url:
             return await ctx.send("You aren't responsible for this mod action")
 
-        reason_field = None
-        for field in embed.fields:
+        idx = -1
+        for idx, field in enumerate(embed.fields):
             if field.name == 'Reason':
-                reason_field = field
+                break
 
-        if not reason_field:
+        if idx < 0:
             return await ctx.send('No reason found')
 
-        reason_field.value = reason
-
+        embed.set_field_at(idx, name='Reason', value=reason)
         await msg.edit(embed=embed)
 
         user_id = re.findall(r'(\d+)', msg.embeds[0].description)
         if user_id:
             user_id = int(user_id[-1])
             try:
-                await self.bot.dbutil.change_modlog_reason(ctx.guild.id, user_id, reason)
+                await self.bot.dbutil.edit_timeout(ctx.guild.id, user_id, reason)
             except SQLAlchemyError:
                 logger.exception('Failed to change modlog reason')
 

@@ -1453,20 +1453,20 @@ class Audio:
         if not playlist and musicplayer.current is None:
             return await ctx.send('Nothing playing atm')
 
-        dur = get_track_pos(musicplayer.current.duration, 0)
-        response = f'Currently playing **{musicplayer.current.title}** {dur}'
-        if musicplayer.current.requested_by:
-            response += f' enqueued by {musicplayer.current.requested_by}\n'
-
-        if not playlist:
-            return await ctx.send(response)
-
         pages = []
         for i in range(0, len(playlist), 10):
             pages.append(playlist[i:i+10])
 
         def get_page(page, idx):
-            nonlocal response
+            playlist = list(musicplayer.playlist.playlist)  # good variable naming
+            if not playlist and musicplayer.current is None:
+                return 'Nothing playing atm'
+
+            dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
+            response = f'Currently playing **{musicplayer.current.title}** {dur}'
+            if musicplayer.current.requested_by:
+                response += f' enqueued by {musicplayer.current.requested_by}\n'
+
             durations = self.song_durations(musicplayer, until=idx*10+10)
             durations = durations[-10:]
             for _idx, song_dur in enumerate(zip(page, durations)):

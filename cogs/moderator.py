@@ -749,7 +749,7 @@ class Moderator(Cog):
             if t:
                 t.cancel()
 
-    async def _unmute_when(self, ctx, user):
+    async def _unmute_when(self, ctx, user, embed=True):
         guild = ctx.guild
         if user:
             member = find_user(' '.join(user), guild.members, case_sensitive=True, ctx=ctx)
@@ -777,20 +777,28 @@ class Moderator(Cog):
 
         delta = row['expires_on'] - datetime.utcnow()
         reason = row['reason']
-        await ctx.send('Timeout for %s expires in %s\n'
-                       'Timeout reason: %s' % (member, seconds2str(delta.total_seconds(), False), reason))
+        s = 'Timeout for %s expires in %s\n' % (member, seconds2str(delta.total_seconds(), False))
+        reason_s = 'Timeout reason: %s' % reason
+
+        if embed:
+            embed = discord.Embed(title='Unmute when', description=s, timestamp=row['expires_on'])
+            embed.add_field(name='Reason', value=reason_s)
+            embed.set_footer(text='Expires at')
+            await ctx.send(embed=embed)
+        else:
+            await ctx.send(s)
 
     @unmute.command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
     async def when(self, ctx, *user):
         """Shows how long you are still muted for"""
-        await self._unmute_when(ctx, user)
+        await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
     @command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
     async def unmute_when(self, ctx, *user):
         """Shows how long you are still muted for"""
-        await self._unmute_when(ctx, user)
+        await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
     # Only use this inside commands
     @staticmethod

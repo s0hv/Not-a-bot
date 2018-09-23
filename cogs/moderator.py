@@ -1112,7 +1112,7 @@ class Moderator(Cog):
             return await ctx.send('Embed not found')
 
         embed = msg.embeds[0]
-        if not embed.footer or not str(ctx.author.id) not in embed.footer.icon_url:
+        if not embed.footer or str(ctx.author.id) not in embed.footer.icon_url:
             return await ctx.send("You aren't responsible for this mod action")
 
         reason_field = None

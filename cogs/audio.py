@@ -229,6 +229,9 @@ class MusicPlayer:
             else:
                 speed = 1
 
+            if not self.current.downloading and not self.current.success:
+                await self.current.download()
+
             logger.debug(f'Next song is {self.current}')
             logger.debug('Waiting for dl')
 

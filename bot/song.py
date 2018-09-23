@@ -103,11 +103,16 @@ class Song:
         if 'url' in kwargs:
             self.last_update = time.time()
             self.success = True
+            self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
 
         if self.playlist.bot.config.download:
             self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(**kwargs)
         else:
             self.filename = self.url
+
+    @property
+    def downloading(self):
+        return self._downloading
 
     async def validate_url(self, session):
         if time.time() - self.last_update <= 7200:

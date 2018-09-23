@@ -1475,7 +1475,7 @@ class Audio:
             for _idx, song_dur in enumerate(zip(page, durations)):
                 song, dur = song_dur
                 dur = int(dur)
-                response += '\n{0}. **{1.title}** {1.requested_by}'.format(_idx + 1, song)
+                response += '\n{0}. **{1.title}** {1.requested_by}'.format(_idx + 1 + 10*idx, song)
                 response += ' (ETA: {0[0]}m {0[1]}s)'.format(divmod(dur, 60))
 
             return response

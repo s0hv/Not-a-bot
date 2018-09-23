@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 from datetime import datetime, timedelta
 from random import randint, random
 
@@ -1091,6 +1092,50 @@ class Moderator(Cog):
             return
 
         await ctx.send(f'Added {role} to {user} for {seconds2str(total_seconds, long_def=False)}')
+
+    @command(no_pm=True)
+    @cooldown(1, 4, BucketType.user)
+    async def reason(self, ctx, message_id: int, *, reason):
+        modlog = self.get_modlog(ctx.guild)
+        if not modlog:
+            return await ctx.send('Modlog not found')
+
+        try:
+            msg = await modlog.get_message(message_id)
+        except discord.HTTPException as e:
+            return await ctx.send('Failed to get message\n%s' % e)
+
+        if not msg.author.id != self.bot.user.id:
+            return await ctx.send('Modlog entry not by this bot')
+
+        if not msg.embeds:
+            return await ctx.send('Embed not found')
+
+        embed = msg.embeds[0]
+        if not embed.footer or not str(ctx.author.id) not in embed.footer.icon_url:
+            return await ctx.send("You aren't responsible for this mod action")
+
+        reason_field = None
+        for field in embed.fields:
+            if field.name == 'Reason':
+                reason_field = field
+
+        if not reason_field:
+            return await ctx.send('No reason found')
+
+        reason_field.value = reason
+
+        await msg.edit(embed=embed)
+
+        user_id = re.findall(r'(\d+)', msg.embeds[0].description)
+        if user_id:
+            user_id = int(user_id[-1])
+            try:
+                await self.bot.dbutil.change_modlog_reason(ctx.guild.id, user_id, reason)
+            except SQLAlchemyError:
+                logger.exception('Failed to change modlog reason')
+
+        await ctx.send('Reason edited')
 
     @staticmethod
     async def delete_messages(channel, message_ids):

@@ -452,7 +452,14 @@ class DatabaseUtils:
               '(:guild, :user, :expires_on, :reason) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on), reason=VALUES(reason)'
 
         params = {'guild': guild, 'user': user, 'expires_on': expires_on, 'reason': reason}
-        await self.bot.dbutils.execute(sql, params=params, commit=True)
+        await self.execute(sql, params=params, commit=True)
+
+    async def edit_timeout(self, guild, user, reason):
+        sql = 'UPDATE `timeouts` SET reason=:reason WHERE guild=:guild AND user=:user'
+
+        params = {'reason': reason, 'guild': guild, 'user': user}
+
+        await self.execute(sql, params=params, commit=True)
 
     async def add_todo(self, todo, priority=0):
         sql = 'INSERT INTO `todo` (`todo`, `priority`) VALUES (:todo, :priority)'

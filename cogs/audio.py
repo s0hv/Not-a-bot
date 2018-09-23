@@ -1457,6 +1457,9 @@ class Audio:
         for i in range(0, len(playlist), 10):
             pages.append(playlist[i:i+10])
 
+        if not pages:
+            pages.append([])
+
         def get_page(page, idx):
             playlist = list(musicplayer.playlist.playlist)  # good variable naming
             if not playlist and musicplayer.current is None:

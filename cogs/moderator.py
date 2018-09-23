@@ -1105,7 +1105,7 @@ class Moderator(Cog):
         except discord.HTTPException as e:
             return await ctx.send('Failed to get message\n%s' % e)
 
-        if not msg.author.id != self.bot.user.id:
+        if msg.author.id != self.bot.user.id:
             return await ctx.send('Modlog entry not by this bot')
 
         if not msg.embeds:

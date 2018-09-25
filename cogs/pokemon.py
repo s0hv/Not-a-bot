@@ -522,11 +522,19 @@ class Pokemon(Cog):
         else:
             shiny = ''
 
-        poke_fmt = poke.lower().replace('♂', 'm').replace('♀', 'f').replace(' ', '-')
+        poke_fmt = poke.lower().replace('♂', 'm').replace('♀', 'f')
+        poke_fmt = re.sub('[-. :]', '', poke_fmt)
+
+        # Hardcode unown to always return the link to unown f since
+        # that's the only unown in pokecord
+        if 'unown' in poke_fmt:
+            poke_fmt = 'unown-f'
+            poke = 'unown-f'
+
         url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)
         embed = Embed(description=f'{mention} caught a {"Shiny " if shiny else ""}**{poke}**', colour=random_color())
         embed.set_image(url=url)
-        poke_fmt = re.sub(' |: ', '-', poke).lower().replace('♂', '-m').replace('♀', '-f')
+        poke_fmt = re.sub(' |: ', '-', poke).lower().replace('♂', '-m').replace('♀', '-f').replace('.', '')
         icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{poke_fmt}.png'
         embed.set_thumbnail(url=icon)
 

@@ -685,7 +685,7 @@ class ServerSpecific(Cog):
         certainty *= 100 / needed_for_mute
         certainty = min(round(certainty, 1), 100)
 
-        if score > needed_for_mute and certainty > 70:
+        if score > needed_for_mute and certainty > 55:
             certainty = str(certainty) + '%'
             channel = self.bot.get_channel(252872751319089153)
             if channel:

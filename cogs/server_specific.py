@@ -112,7 +112,12 @@ class ServerSpecific(Cog):
         if author.id in no and user.id in no and user.id != author.id:
             return await ctx.send('no')
 
-        can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
+        # artx - smartx crew
+        if guild.id == 217677285442977792 and ctx.autor.id == 129446563847077889 and role.id == 330308713502081036:
+            can_grant = True
+        else:
+            can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
+
         if can_grant is None:
             return
         elif can_grant is False:
@@ -141,7 +146,11 @@ class ServerSpecific(Cog):
         if author.id in no and user.id in no and user.id != author.id:
             return await ctx.send('no')
 
-        can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
+        # artx - smartx crew
+        if guild.id == 217677285442977792 and ctx.autor.id == 129446563847077889 and role.id == 330308713502081036:
+            can_grant = True
+        else:
+            can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
         if can_grant is None:
             return
         elif can_grant is False:
@@ -248,6 +257,11 @@ class ServerSpecific(Cog):
         except SQLAlchemyError:
             logger.exception('Failed to get role grants')
             return await ctx.send('Failed execute sql')
+
+        # artx - smartx crew
+        if guild.id == 217677285442977792 and ctx.autor.id == 129446563847077889:
+            rows = list(rows)
+            rows.append({'role': 330308713502081036})
 
         if not rows:
             return await ctx.send("{} can't grant any roles".format(user))

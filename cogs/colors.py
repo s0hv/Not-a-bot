@@ -398,7 +398,11 @@ class Colors(Cog):
             return data
 
         data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
-        await ctx.send(' '.join(hex_colors), file=discord.File(data, 'colors.png'))
+        if steps > 10:
+            s = f'From {colors[0].get_hex_l()} to {colors[-1].get_hex_l()}'
+        else:
+            s = ' '.join(hex_colors)
+        await ctx.send(s, file=discord.File(data, 'colors.png'))
 
     @command(aliases=['c'], name='get_color')
     @cooldown(1, 5, BucketType.channel)

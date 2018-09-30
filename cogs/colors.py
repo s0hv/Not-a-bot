@@ -377,7 +377,7 @@ class Colors(Cog):
         if steps > 500 or steps < 2:
             raise BadArgument('Maximum amount of steps is 500 and minimum is 2')
 
-        colors = self.parse_color_range(start, end, steps)
+        colors = list(self.parse_color_range(start, end, steps))
         size = (50, 50)
         images = []
         hex_colors = []

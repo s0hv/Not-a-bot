@@ -416,7 +416,7 @@ class CommandBlacklist(Cog):
         for row in rows:
             if row['role'] != last:
                 last = row['role']
-                role = self.bot.get_role(row['role'], guild)
+                role = guild.get_role(row['role'])
                 if role is None:
                     logger.warning('Role {} has been deleted and it has perms'.format(row['role']))
                     continue

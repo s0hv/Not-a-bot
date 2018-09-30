@@ -233,7 +233,7 @@ class ServerSpecific(Cog):
 
         paginator = Paginator('Role grants')
         for role_id, roles in role_grants.items():
-            role = self.bot.get_role(role_id, ctx.guild)
+            role = ctx.guild.get_role(role_id)
             role_name = role.name if role else '*Deleted role*'
             paginator.add_field(f'{role_name} `{role_id}`')
             for role in roles:
@@ -269,7 +269,7 @@ class ServerSpecific(Cog):
         msg = 'Roles {} can grant:\n'.format(user)
         roles = set()
         for row in rows:
-            role = self.bot.get_role(row['role'], guild)
+            role = guild.get_role(row['role'])
             if not role:
                 continue
 
@@ -328,7 +328,7 @@ class ServerSpecific(Cog):
             return
 
         guild = ctx.guild
-        role = self.bot.get_role(352099343953559563, guild)
+        role = guild.get_role(352099343953559563)
         if not role:
             return await ctx.send('Default role not found')
 
@@ -406,7 +406,7 @@ class ServerSpecific(Cog):
         if not perms.manage_roles and not perms.administrator:
             return await channel.send('Invalid server perms')
 
-        role = self.bot.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082, guild)
+        role = guild.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082)
         if role is None:
             return await channel.send('Every role not found')
 
@@ -486,7 +486,7 @@ class ServerSpecific(Cog):
             await self.delete_giveaway_from_db(message)
             return
 
-        role = self.bot.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082, guild)
+        role = guild.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082)
         if role is None:
             await self.delete_giveaway_from_db(message)
             return

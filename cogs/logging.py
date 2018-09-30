@@ -110,7 +110,7 @@ class Logger(Cog):
         roles = []
         guild = message.guild
         for role_id in set(message.raw_role_mentions):
-            role = self.bot.get_role(role_id, guild)
+            role = guild.get_role(role_id)
             if role:
                 roles.append(role)
 

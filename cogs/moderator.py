@@ -236,7 +236,7 @@ class Moderator(Cog):
         """Show roles whitelisted from automutes"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
-        roles = map(lambda r: self.bot.get_role(r, guild), roles)
+        roles = map(lambda r: guild.get_role(r), roles)
         roles = [r for r in roles if r]
         if not roles:
             return await ctx.send('No roles whitelisted from automutes')
@@ -389,7 +389,7 @@ class Moderator(Cog):
             await ctx.send('No mute role set')
             return False
 
-        mute_role = self.bot.get_role(mute_role, guild)
+        mute_role = guild.get_role(mute_role)
         if mute_role is None:
             await ctx.send('Could not find the mute role')
             return False
@@ -608,7 +608,7 @@ class Moderator(Cog):
             await self.remove_timeout(user_id, guild_id)
             return
 
-        if self.bot.get_role(mute_role, guild):
+        if guild.get_role(mute_role):
             try:
                 await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
             except discord.HTTPException:
@@ -646,7 +646,7 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
-        r = self.bot.get_role(339841138393612288, guild)
+        r = guild.get_role(339841138393612288)
         if not ctx.author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
 
@@ -735,7 +735,7 @@ class Moderator(Cog):
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 
-        mute_role = self.bot.get_role(mute_role, guild)
+        mute_role = guild.get_role(mute_role)
         if mute_role is None:
             return await ctx.send('Could not find the muted role')
 

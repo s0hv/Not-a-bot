@@ -135,7 +135,7 @@ class NotABot(BotBase):
         if not guild:
             return
 
-        role = self.get_role(348208141541834773, guild)
+        role = guild.get_role(348208141541834773)
         if not role:
             return
 
@@ -148,7 +148,7 @@ class NotABot(BotBase):
             try:
                 await role.edit(color=random_color())
             except discord.HTTPException:
-                role = self.get_role(348208141541834773, guild)
+                role = guild.get_role(348208141541834773)
                 if role is None:
                     return
 
@@ -207,7 +207,7 @@ class NotABot(BotBase):
         await self.dbutils.delete_role(role.id, role.guild.id)
 
     async def _wants_to_be_noticed(self, member, guild, remove=True):
-        role = self.get_role(318762162552045568, guild)
+        role = guild.get_role(318762162552045568)
         if not role:
             return
 

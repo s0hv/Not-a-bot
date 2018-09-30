@@ -41,7 +41,7 @@ class Settings(Cog):
         type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
 
         def convert_mute_role(r):
-            r = self.bot.get_role(r, guild)
+            r = guild.get_role(r)
             if not r:
                 return 'deleted role'
             if ctx.guild.me.top_role < r:

@@ -50,7 +50,7 @@ class Stats(Cog):
         p = page*10
         for idx, row in enumerate(rows[p-10:p]):
             added += 1
-            role = self.bot.get_role(row['role'], guild)
+            role = guild.get_role(row['role'])
             if role:
                 role_name, role = role.name, role.id
             else:

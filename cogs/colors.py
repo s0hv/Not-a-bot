@@ -427,8 +427,8 @@ class Colors(Cog):
         """
         color_list = [shlex.split(c) for c in color_list.split('\n')]
         lengths = map(len, color_list)
-        if sum(lengths) > 30:
-            raise BadArgument('Maximum amount of colors is 30')
+        if sum(lengths) > 100:
+            raise BadArgument('Maximum amount of colors is 100')
 
         images = []
         hex_colors = []

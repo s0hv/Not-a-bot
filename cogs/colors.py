@@ -362,7 +362,7 @@ class Colors(Cog):
 
         return color
 
-    @command(aliases=['cr', 'gradient'])
+    @command(aliases=['cr', 'gradient', 'hue'])
     @cooldown(1, 5, BucketType.channel)
     async def color_range(self, ctx, start, end, steps: int=10):
         """
@@ -374,8 +374,8 @@ class Colors(Cog):
         would give you color range from red to blue in 25 steps
         To see all values accepted as colors check `{prefix}help get_color`
         """
-        if steps > 40 or steps < 2:
-            raise BadArgument('Maximum amount of steps is 40 and minimum is 2')
+        if steps > 500 or steps < 2:
+            raise BadArgument('Maximum amount of steps is 500 and minimum is 2')
 
         colors = self.parse_color_range(start, end, steps)
         size = (50, 50)

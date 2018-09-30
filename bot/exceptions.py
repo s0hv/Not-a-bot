@@ -101,6 +101,16 @@ class ImageResizeException(BotException):
                "Usually this is because of extremely wide/tall pictures"
 
 
+class TooManyFrames(BotException):
+    def __init__(self, max_frames, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.max_frames = max_frames
+
+    @property
+    def message(self):
+        return f'Too many gif frames. Max is {self.max_frames}'
+
+
 class NotEnoughPrefixes(BotException):
     pass
 

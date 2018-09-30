@@ -40,7 +40,8 @@ from colour import Color
 from geopatterns.utils import promap
 from numpy import sqrt
 
-from bot.exceptions import ImageSizeException, ImageResizeException
+from bot.exceptions import (ImageSizeException, ImageResizeException,
+                            TooManyFrames)
 
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
@@ -548,8 +549,8 @@ def func_to_gif(img, f, get_raw=True):
     else:
         frames = [frame.convert('RGBA') for frame in ImageSequence.Iterator(img)]
 
-    if len(frames) > 100:
-        raise ValueError('Maximum amount of frames is 100')
+    if len(frames) > 150:
+        raise TooManyFrames('Maximum amount of frames is 100')
 
     images = []
     for frame in frames:
@@ -584,8 +585,8 @@ def gradient_flash(im, get_raw=True, transparency=None):
 
     while True:
         frames.append(f(im))
-        if len(frames) > 120:
-            raise Exception('fuck this')
+        if len(frames) > 150:
+            raise TooManyFrames('fuck this')
         try:
             im.seek(im.tell() + 1)
         except EOFError:

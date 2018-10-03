@@ -467,10 +467,10 @@ class Bot(commands.Bot, Client):
             for idx in reversed(removed):
                 del listeners[idx]
 
-    def handle_reaction_add(self, reaction, user):
+    async def on_reaction_add(self, reaction, user):
         self.handle_reaction_changed(reaction, user)
 
-    def handle_reaction_remove(self, reaction, user):
+    async def on_reaction_remove(self, reaction, user):
         self.handle_reaction_changed(reaction, user)
 
     @staticmethod

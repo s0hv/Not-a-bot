@@ -370,9 +370,11 @@ class Moderator(Cog):
             return await ctx.send('Cannot create roles in DM')
 
         default_perms = guild.default_role.permissions
-        color = None
         if random_color:
-            color = discord.Color(randint(0, 16777215))
+            color = discord.Color(randint(1, 16777215))
+        else:
+            color = discord.Color.default()
+
         try:
             r = await guild.create_role(name=name, permissions=default_perms, colour=color,
                                         mentionable=mentionable, hoist=hoist,

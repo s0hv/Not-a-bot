@@ -338,20 +338,30 @@ class Utilities(Cog):
         """Pls vote thx"""
         await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
 
-    def find_emoji(self, emojis, name):
+    @staticmethod
+    def find_emoji(emojis, name):
         for e in emojis:
             if e.name.lower() == name:
                 return e
 
-        return name
-
     @command()
     @cooldown(1, 5, BucketType.user)
     async def emojify(self, ctx, *, text):
+        """Turns your text without emotes to text with discord custom emotes"""
         emojis = ctx.bot.emojis
         new_text = ''
+        emoji_cache = {}
         for s in text.split(' '):
-            new_text += str(self.find_emoji(emojis, s.lower())) + ' '
+            e = emoji_cache.get(s.lower())
+            if not e:
+                e = self.find_emoji(emojis, s.lower())
+                if e is None:
+                    e = s
+                else:
+                    e = str(e)
+                    emoji_cache[s.lower()] = e
+
+            new_text += e + ' '
 
         await ctx.send(new_text)
 

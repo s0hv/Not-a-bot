@@ -640,11 +640,6 @@ class Moderator(Cog):
         if user.id == ctx.author.id and time.total_seconds() < 21600:
             return await ctx.send('If you gonna timeout yourself at least make it a longer timeout')
 
-        # Abuse protection for my server
-        nigu_nerea = (287664210152783873, 208185517412581376)
-        if user.id in nigu_nerea and ctx.author.id in nigu_nerea:
-            return await ctx.send("It's time to stop")
-
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
 

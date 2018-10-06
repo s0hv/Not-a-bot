@@ -426,9 +426,9 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='jotaro_no.png'))
 
-    @command(ignore_extra=True, aliases=['jotaro_photo'])
+    @command(ignore_extra=True, aliases=['jotaro2'])
     @cooldown(2, 5, BucketType.guild)
-    async def jotaro2(self, ctx, image=None):
+    async def jotaro_photo(self, ctx, image=None):
         """Jotaro takes an image and looks at it"""
         # Set to false because discord doesn't embed it correctly
         # Should be used if it can be embedded since the file size is much smaller
@@ -523,6 +523,32 @@ class Images(Cog):
             return self.save_image(i)
 
         await ctx.send(file=File(await self.image_func(do_it), filename='jotaro.png'))
+
+    @command(ignore_extra=True, aliases=['jotaro4'])
+    @cooldown(2, 5, BucketType.guild)
+    async def jotaro_photo2(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'jotaro_photo2.png'))
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (305, 440), can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True)
+
+            img = img.rotate(5, Image.BICUBIC, expand=True)
+            bg = Image.new('RGBA', template.size)
+
+            bg.paste(img, (460, 841), img)
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='jotaro_photo.png'))
 
     @command(aliases=['tbc'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)

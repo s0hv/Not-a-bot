@@ -351,7 +351,7 @@ class Utilities(Cog):
         emojis = ctx.bot.emojis
         new_text = ''
         for s in text.split(' '):
-            new_text += str(self.find_emoji(emojis, s)) + ' '
+            new_text += str(self.find_emoji(emojis, s.lower())) + ' '
 
         await ctx.send(new_text)
 

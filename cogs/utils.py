@@ -338,6 +338,23 @@ class Utilities(Cog):
         """Pls vote thx"""
         await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
 
+    def find_emoji(self, emojis, name):
+        for e in emojis:
+            if e.name.lower() == name:
+                return e
+
+        return name
+
+    @command()
+    @cooldown(1, 5, BucketType.user)
+    async def emojify(self, ctx, *, text):
+        emojis = ctx.bot.emojis
+        new_text = ''
+        for s in text.split(' '):
+            new_text += str(self.find_emoji(emojis, s)) + ' '
+
+        await ctx.send(new_text)
+
     @command(name='pip')
     @cooldown(1, 5, BucketType.channel)
     @bot_has_permissions(embed_links=True)

@@ -617,6 +617,21 @@ class Moderator(Cog):
                 logger.exception('Could not autounmute user %s' % user.id)
         await self.remove_timeout(user.id, guild.id)
 
+    @command(no_pm=True)
+    @bot_has_permissions(manage_channels=True)
+    @has_permissions(manage_channels=True)
+    async def slowmode(self, ctx, time: int):
+        try:
+            await ctx.channel.edit(slowmode_delay=time)
+        except discord.HTTPException as e:
+            await ctx.send('Failed to set slowmode because of an error\n%s' % e)
+        except:
+            logger.exception('Failed to set slowmode')
+            await ctx.send('Failed to set slowmode because of an unknown error')
+
+        else:
+            await ctx.send('Slowmode set to %ss' % time)
+
     @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)

@@ -218,6 +218,9 @@ class BotAdmin(Cog):
         context['code_block'] = code_block
         context['no_format'] = no_pformat
 
+        if code.startswith('```py'):
+            code = code[6:-4]
+
         code = textwrap.indent(code, '  ')
         lines = list(filter(bool, code.split('\n')))
         last = lines[-1]

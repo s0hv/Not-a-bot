@@ -9,12 +9,12 @@ from discord.user import BaseUser
 from validators import url as is_url
 
 from bot.bot import command, has_permissions, cooldown
-from bot.converters import PossibleUser
+from bot.converters import PossibleUser, GuildEmoji
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
                              basic_check,
-                             create_custom_emoji)
+                             create_custom_emoji, wait_for_yes)
 
 logger = logging.getLogger('debug')
 
@@ -134,6 +134,26 @@ class Server(Cog):
             await ctx.send('Link is not a direct link to an image')
         else:
             return data, mime_type
+
+    @command(no_pm=True, aliases=['delete_emoji', 'delete_emtoe', 'del_emote'])
+    @cooldown(2, 6, BucketType.guild)
+    @has_permissions(manage_emojis=True)
+    @bot_has_permissions(manage_emojis=True)
+    async def delete_emote(self, ctx, *, emote: GuildEmoji):
+        await ctx.send('Do you want to delete the emoji {0} {0.name} `{0.id}`'.format(emote))
+        if not await wait_for_yes(ctx, 60):
+            return
+
+        try:
+            await emote.delete()
+        except discord.HTTPException as e:
+            await ctx.send('Failed to delete emote because of an error\n%s' % e)
+        except:
+            logger.exception('Failed to delete emote')
+            await ctx.send('Failed to delete emote because of an error')
+
+        else:
+            await ctx.send(f'Deleted emote {emote.name} `{emote.id}`')
 
     @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji', 'add_emtoe'])
     @cooldown(2, 6, BucketType.guild)

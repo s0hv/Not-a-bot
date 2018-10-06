@@ -135,3 +135,30 @@ class FuzzyRole(converter.RoleConverter):
             raise BadArgument('Role not found with "{}"'.format(argument))
 
         return result
+
+
+class GuildEmoji(converter.EmojiConverter):
+    """Same as EmojiConverter except it doesn't check local cache"""
+    async def convert(self, ctx, argument):
+        match = self._get_id_match(argument) or re.match(r'<a?:[a-zA-Z0-9\_]+:([0-9]+)>$', argument)
+        result = None
+        guild = ctx.guild
+
+        if match is None:
+            # Try to get the emoji by name. Try local guild first.
+            if guild:
+                result = discord.utils.get(guild.emojis, name=argument)
+
+        else:
+            emoji_id = int(match.group(1))
+
+            # Try to look up emoji by id.
+            if guild:
+                result = discord.utils.get(guild.emojis, id=emoji_id)
+
+        if result is None:
+            raise BadArgument('Emoji "{}" not found.'.format(argument))
+
+        return result
+
+

@@ -298,7 +298,7 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, commands.errors.CommandOnCooldown):
             error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
-        if isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument):
+        if isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument) or isinstance(exception, commands.BadUnionArgument):
             error_msg = str(exception)
 
         if isinstance(exception, exceptions.BotException):

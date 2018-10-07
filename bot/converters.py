@@ -162,3 +162,12 @@ class GuildEmoji(converter.EmojiConverter):
         return result
 
 
+class CommandConverter(converter.Converter):
+    async def convert(self, ctx, argument):
+        bot = ctx.bot
+
+        cmd = bot.get_command(argument)
+        if not cmd:
+            raise BadArgument('Command "%s" not found' % argument)
+
+        return cmd

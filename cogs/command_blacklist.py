@@ -27,7 +27,7 @@ class CommandBlacklist(Cog):
     @group(ignore_extra=True, no_pm=True, invoke_without_command=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def blacklist(self, ctx, commands: commands.Greedy[CommandConverter], mention: typing.Union[discord.TextChannel, discord.Role, discord.User]=None):
+    async def blacklist(self, ctx, commands: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]=None):
         """Blacklist a command for a user, role or channel
         To blacklist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -154,7 +154,7 @@ class CommandBlacklist(Cog):
     @command(ignore_extra=True, no_pm=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def whitelist(self, ctx, commands: commands.Greedy[CommandConverter], mention: typing.Union[discord.TextChannel, discord.Role, discord.User]):
+    async def whitelist(self, ctx, commands: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]):
         """Whitelist a command for a user, role or channel
         To whitelist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -180,13 +180,13 @@ class CommandBlacklist(Cog):
                 return f"Due to safety reasons commands from {_command.cog_name} module can't be whitelisted"
 
             elif isinstance(mention, discord.User):
-                await self._add_user_whitelist(ctx, name, mention, guild)
+                return await self._add_user_whitelist(ctx, name, mention, guild)
 
             elif isinstance(mention, discord.Role):
-                await self._add_role_whitelist(ctx, name, mention, guild)
+                return await self._add_role_whitelist(ctx, name, mention, guild)
 
             elif isinstance(mention, discord.TextChannel):
-                await self._add_channel_whitelist(ctx, name, mention, guild)
+                return await self._add_channel_whitelist(ctx, name, mention, guild)
 
         s = ''
         for command in commands:

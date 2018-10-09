@@ -228,7 +228,10 @@ class Server(Cog):
             if not url:
                 continue
 
-            animated, name = get_emote_name(e)
+            if url == e:
+                name = url.split('/')[-1].split('.')[0]
+            else:
+                _, name = get_emote_name(e)
 
             if not name:
                 continue

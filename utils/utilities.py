@@ -302,6 +302,9 @@ def check_negative(n):
 
 
 def get_emote_url(emote):
+    if re.match(r'https://cdn.discordapp.com/emojis/\d+.(gif|png)(\?v=1)?', emote):
+        return emote
+
     animated, emote_id = get_emote_id(emote)
     if emote_id is None:
         return

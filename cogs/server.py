@@ -228,7 +228,7 @@ class Server(Cog):
             if not url:
                 continue
 
-            if url == e:
+            if e.startswith(url):
                 name = url.split('/')[-1].split('.')[0]
             else:
                 _, name = get_emote_name(e)
@@ -268,7 +268,10 @@ class Server(Cog):
                 logger.exception('Failed to create emote')
                 errors += 1
 
-        await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), emotes))))
+        if emotes:
+            await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), emotes))))
+        else:
+            await ctx.send("Didn't steal anything")
 
 
 def setup(bot):

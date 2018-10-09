@@ -302,7 +302,7 @@ def check_negative(n):
 
 
 def get_emote_url(emote):
-    match = re.findall(r'(https://cdn.discordapp.com/emojis/\d+.(gif|png))(?:\?v=1)?', emote)
+    match = re.findall(r'(https://cdn.discordapp.com/emojis/\d+.(?:gif|png))(?:\?v=1)?', emote)
     if match:
         return match[0]
 

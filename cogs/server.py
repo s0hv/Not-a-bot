@@ -258,6 +258,7 @@ class Server(Cog):
             except discord.HTTPException as e:
                 if e.code == 400:
                     return await ctx.send('Emote capacity reached\n{}'.format(e))
+                await ctx.send('Error while uploading emote\n%s' % e)
                 errors += 1
             except discord.DiscordException as e:
                 await ctx.send('Failed to create emote because of an error\n%s' % e)

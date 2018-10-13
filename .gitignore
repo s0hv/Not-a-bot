@@ -34,6 +34,7 @@ data/temp/
 __pycache__/
 data/pokefusion/sprPKMType_*
 data/votes.txt
+data/playlists/gachi.txt
 
 # Hidden files
 .*/

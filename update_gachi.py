@@ -17,18 +17,7 @@ def add_to_list(new_vids):
 
 def delete_from_list(deleted_vids):
     songs = set(read_lines(gachilist))
-    changed = False
-    for song in deleted_vids:
-        try:
-            songs.remove(song)
-            changed = True
-
-        except KeyError:
-            pass
-
-    if not changed:
-        return
-
+    songs = songs - set(deleted_vids)
     write_playlist(gachilist, songs)
 
 

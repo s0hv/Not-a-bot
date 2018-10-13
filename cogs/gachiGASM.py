@@ -83,7 +83,7 @@ class gachiGASM(Cog):
 
     @dailygachi.command()
     @cooldown(1, 5)
-    @has_permissions(manage_server=True)
+    @has_permissions(manage_guild=True)
     async def subscribe(self, ctx, *, channel: discord.TextChannel=None):
         if channel:
             await self.bot.guild_cache.set_dailygachi(ctx.guild.id, channel.id)
@@ -99,7 +99,7 @@ class gachiGASM(Cog):
 
     @dailygachi.command(ignore_extra=True)
     @cooldown(1, 5)
-    @has_permissions(manage_server=True)
+    @has_permissions(manage_guild=True)
     async def unsubscribe(self, ctx):
         await self.bot.guild_cache.set_dailygachi(ctx.guild.id, None)
         await ctx.send('Dailygachi channel no longer set')

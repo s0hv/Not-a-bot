@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import shlex
 from io import BytesIO
 from math import ceil, sqrt
@@ -13,16 +14,16 @@ from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from discord.errors import InvalidArgument
-from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument)
+from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument,
+                                  clean_content)
 from numpy.random import choice
-import textwrap
 from sqlalchemy.exc import SQLAlchemyError
-from bot.globals import WORKING_DIR
+
 from bot.bot import command, has_permissions, cooldown
+from bot.globals import WORKING_DIR
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
                              Snowflake, check_botperm)
-import re
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -406,7 +407,7 @@ class Colors(Cog):
 
     @command(aliases=['c'], name='get_color')
     @cooldown(1, 5, BucketType.channel)
-    async def get_color_image(self, ctx, *, color_list):
+    async def get_color_image(self, ctx, *, color_list: clean_content):
         """
         Post a picture of a color or multiple colors
         when specifying multiple colors make sure colors that have a space in them

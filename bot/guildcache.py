@@ -237,6 +237,12 @@ class GuildCache:
     async def set_on_delete_embed(self, guild_id, boolean):
         return await self.set_value(guild_id, 'on_delete_embed', boolean)
 
+    def dailygachi(self, guild_id):
+        return self.get_settings(guild_id).get('dailygachi')
+
+    async def set_dailygachi(self, guild_id, channel):
+        return await self.set_value(guild_id, 'dailygachi', channel)
+
     def get_settings(self, guild_id):
         settings = self[guild_id]
         if not settings:

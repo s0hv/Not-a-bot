@@ -902,6 +902,30 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='josuke_binoculars.png'))
 
+    @command(ignore_extra=True, aliases=['02'])
+    @cooldown(2, 5, BucketType.guild)
+    async def zerotwo(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'zerotwo.png')).convert('RGBA')
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (840, 615), can_be_bigger=False,
+                                           resample=Image.BICUBIC, crop_to_size=True,
+                                           center_cropped=True)
+
+            img = img.rotate(4, Image.BICUBIC, expand=True)
+
+            template.alpha_composite(img, (192, 29))
+            return self.save_image(template)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='02.png'))
+
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):

@@ -24,9 +24,6 @@ class Logger(Cog):
         self._q = Queue()
         self._logging = asyncio.ensure_future(tasks._wrap_awaitable(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop)), loop=self.bot.loop)
         self._stop_log = asyncio.Event(loop=self.bot.loop)
-        asyncio.ensure_future()
-        import inspect
-        inspect.isawaitable()
 
     def __unload(self):
         self.bot.loop.call_soon_threadsafe(self._stop_log.set)

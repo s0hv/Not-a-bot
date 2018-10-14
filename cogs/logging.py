@@ -2,9 +2,8 @@ import asyncio
 import logging
 from queue import Queue
 
-from asyncio import tasks
-
 import discord
+from asyncio import tasks
 from discord.abc import PrivateChannel
 from discord.embeds import EmptyEmbed
 from sqlalchemy import exc
@@ -22,14 +21,14 @@ class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._q = Queue()
-        self._logging = asyncio.ensure_future(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop), loop=self.bot.loop)
+        self._logging = asyncio.run_coroutine_threadsafe(tasks._wrap_awaitable(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop)), loop=self.bot.loop)
         self._stop_log = asyncio.Event(loop=self.bot.loop)
 
     def __unload(self):
         self.bot.loop.call_soon_threadsafe(self._stop_log.set)
         self._q.put_nowait(1)  # Cause TypeError inside the loop
         try:
-            self._logging.result()
+            self._logging.result(timeout=10)
         except asyncio.TimeoutError:
             self._logging.cancel()
 

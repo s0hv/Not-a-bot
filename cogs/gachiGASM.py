@@ -76,7 +76,7 @@ class gachiGASM(Cog):
         """An alternative way of gachifying"""
         return await ctx.send('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
 
-    @command(ignore_extra=True)
+    @command(ignore_extra=True, aliases=['rg'])
     @cooldown(1, 5, BucketType.channel)
     async def randomgachi(self, ctx):
         await ctx.send(choice(self.gachilist))

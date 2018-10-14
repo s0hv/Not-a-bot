@@ -20,7 +20,7 @@ class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._q = Queue()
-        self._logging = asyncio.ensure_future(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop), loop=self.bot.loop)
+        self._logging = asyncio.run_coroutine_threadsafe(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop), loop=self.bot.loop)
         self._stop_log = asyncio.Event(loop=self.bot.loop)
 
     def __unload(self):

@@ -346,6 +346,7 @@ class BotAdmin(Cog):
             await self.bot.loop.run_in_executor(self.bot.threadpool,
                                                 self.bot.load_extension, cog_name)
         except Exception as e:
+            logger.exception('Failed to load')
             return await ctx.send('Could not load %s because of an error\n%s' % (cog_name, e))
 
         await ctx.send('Loaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))

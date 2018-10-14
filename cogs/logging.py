@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from queue import Queue
+import time
 
 import discord
 from asyncio import tasks
@@ -21,11 +22,12 @@ class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._q = Queue()
-        self._logging = asyncio.run_coroutine_threadsafe(tasks._wrap_awaitable(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop)), loop=self.bot.loop)
         self._stop_log = asyncio.Event(loop=self.bot.loop)
+        self._logging = asyncio.run_coroutine_threadsafe(tasks._wrap_awaitable(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop)), loop=self.bot.loop)
 
     def __unload(self):
         self.bot.loop.call_soon_threadsafe(self._stop_log.set)
+        time.sleep(1)
         self._q.put_nowait(1)  # Cause TypeError inside the loop
         try:
             self._logging.result(timeout=10)
@@ -33,7 +35,7 @@ class Logger(Cog):
             self._logging.cancel()
 
     def _logging_loop(self):
-        while hasattr(self, '_stop_log') and not self._stop_log.is_set():
+        while not self._stop_log.is_set():
             try:
                 sql, params = self._q.get()
             except (ValueError, TypeError):

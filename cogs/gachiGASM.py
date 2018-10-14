@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from random import Random
+from random import Random, choice
 
 from discord.ext.commands import BucketType
 
@@ -75,6 +75,11 @@ class gachiGASM(Cog):
     async def gachify2(self, ctx, *, words):
         """An alternative way of gachifying"""
         return await ctx.send('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
+
+    @command(ignore_extra=True)
+    @cooldown(1, 5, BucketType.channel)
+    async def randomgachi(self, ctx):
+        await ctx.send(choice(self.gachilist))
 
     @group(ignore_extra=True, invoke_without_command=True)
     @cooldown(1, 5, BucketType.channel)

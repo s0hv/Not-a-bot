@@ -140,7 +140,7 @@ class Logger(Cog):
     async def on_member_join(self, member):
         guild = member.guild
         sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
-              "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1"
+              "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1, at=CURRENT_TIMESTAMP"
 
         self._q.put_nowait((sql, {'user_id': member.id,
                                   'guild': guild.id,
@@ -169,7 +169,7 @@ class Logger(Cog):
     async def on_member_remove(self, member):
         guild = member.guild
         sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
-              "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1"
+              "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1, at=CURRENT_TIMESTAMP"
 
         self._q.put_nowait((sql, {'user_id': member.id,
                                   'guild': guild.id,

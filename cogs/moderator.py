@@ -388,7 +388,7 @@ class Moderator(Cog):
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
-            await ctx.send('No mute role set')
+            await ctx.send(f'No mute role set. You can set it with {ctx.prefix}settings mute_role role name')
             return False
 
         mute_role = guild.get_role(mute_role)
@@ -742,7 +742,7 @@ class Moderator(Cog):
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
-            return await ctx.send('No mute role set')
+            return await ctx.send(f'No mute role set. You can set it with {ctx.prefix}settings mute_role role name')
 
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
             return await ctx.send("Not today kiddo. I'm too powerful for you")
@@ -772,7 +772,7 @@ class Moderator(Cog):
             return await ctx.send('User %s not found' % ' '.join(user))
         muted_role = self.bot.guild_cache.mute_role(guild.id)
         if not muted_role:
-            return await ctx.send('No mute role set on this server')
+            return await ctx.send(f'No mute role set on this server. You can set it with {ctx.prefix}settings mute_role role name')
 
         if not list(filter(lambda r: r.id == muted_role, member.roles)):
             return await ctx.send('%s is not muted' % member)

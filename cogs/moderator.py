@@ -987,6 +987,40 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
                 await self.send_to_modlog(guild, embed=embed)
 
+    @purge.command(name='until', no_pm=True, ignore_extra=True)
+    @cooldown(2, 4, BucketType.guild)
+    @bot_has_permissions(manage_messages=True)
+    @has_permissions(manage_messages=True)
+    async def purge_until(self, ctx, message_id: int, limit: int=100):
+        """Purges messages until the specified message is reached or the limit is exceeded
+        limit the max limit is 500 is the specified message is under 2 weeks old
+        otherwise the limit is 100"""
+        channel = ctx.channel
+        try:
+            message = await channel.get_message(message_id)
+        except discord.NotFound:
+            return await ctx.send(f'Message {message_id} not found in this channel')
+
+        days = (datetime.utcnow() - message.created_at).days
+
+        max_limit = 100 if days >= 14 else 500
+
+        if limit >= max_limit:
+            return await ctx.send(f'Maximum limit is {max_limit}')
+
+        def check(msg):
+            if msg.id <= message_id:
+                return False
+
+            return True
+
+        try:
+            deleted = await channel.purge(limit=limit, check=check, before=ctx.message)
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to delete messages because of an error\n{e}')
+        else:
+            await ctx.send(f'Deleted {len(deleted)} messages')
+
     @command(no_pm=True, ignore_extra=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)

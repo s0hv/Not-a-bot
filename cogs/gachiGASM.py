@@ -2,14 +2,14 @@ import os
 from datetime import datetime, timedelta
 from random import Random, choice
 
+import discord
 from discord.ext.commands import BucketType
 
 from bot.bot import command, cooldown, group, has_permissions
 from bot.globals import PLAYLISTS
 from cogs.cog import Cog
-from utils.utilities import read_lines
 from utils.utilities import call_later
-import discord
+from utils.utilities import read_lines
 
 
 class gachiGASM(Cog):
@@ -24,9 +24,9 @@ class gachiGASM(Cog):
 
     async def _reload_and_post(self):
         self.reload_gachilist()
-        vid = Random(self.get_day()).choice(self.gachilist)
 
         for guild in self.bot.guilds:
+            vid = Random(self.get_day()+guild.id).choice(self.gachilist)
             channel = self.bot.guild_cache.dailygachi(guild.id)
             if not channel:
                 continue
@@ -84,7 +84,7 @@ class gachiGASM(Cog):
     @group(ignore_extra=True, invoke_without_command=True)
     @cooldown(1, 5, BucketType.channel)
     async def dailygachi(self, ctx):
-        await ctx.send(Random(self.get_day()).choice(self.gachilist))
+        await ctx.send(Random(self.get_day()+ctx.guild.id).choice(self.gachilist))
 
     @dailygachi.command()
     @cooldown(1, 5)

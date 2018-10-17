@@ -23,16 +23,16 @@ SOFTWARE.
 """
 
 import asyncio
-import aioredis
 import logging
 import time
-from bot.server import WebhookServer
 
+import aioredis
 import discord
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
+from bot.server import WebhookServer
 from utils.utilities import (split_string, slots2dict, retry, random_color)
 
 logger = logging.getLogger('debug')
@@ -50,6 +50,7 @@ class NotABot(BotBase):
         self.polls = {}
         self.timeouts = {}
         self.temproles = {}
+        self.gachilist = []
         self.hi_new = {ord(c): '' for c in ", '"}
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol

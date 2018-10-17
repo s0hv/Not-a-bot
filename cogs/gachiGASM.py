@@ -15,8 +15,10 @@ from utils.utilities import read_lines
 class gachiGASM(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.gachilist = []
-        self.reload_gachilist()
+        self.gachilist = self.bot.gachilist
+        if not self.gachilist:
+            self.reload_gachilist()
+
         self.reload_call = call_later(self._reload_and_post, self.bot.loop, self.time2tomorrow())
 
     def __unload(self):
@@ -44,7 +46,8 @@ class gachiGASM(Cog):
                                       self.time2tomorrow())
 
     def reload_gachilist(self):
-        self.gachilist = read_lines(os.path.join(PLAYLISTS, 'gachi.txt'))
+        self.bot.gachilist = read_lines(os.path.join(PLAYLISTS, 'gachi.txt'))
+        self.gachilist = self.bot.gachilist
 
     @staticmethod
     def time2tomorrow():

@@ -379,7 +379,11 @@ class ServerSpecific(Cog):
             invalid = True
             emoji_check = emoji
             if len(emoji) > 1:
-                emojis = self.extract_emojis(emoji)
+                try:
+                    emojis = self.extract_emojis(emoji)
+                except ValueError:
+                    return await ctx.send('Invalid emoji')
+
                 if len(emojis) == 1:
                     emoji_check = emojis[0]
 

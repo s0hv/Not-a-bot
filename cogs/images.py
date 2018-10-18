@@ -6,6 +6,7 @@ from asyncio import Lock
 from functools import partial
 from io import BytesIO
 from random import randint
+from typing import Optional
 
 from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops, \
     GifImagePlugin
@@ -921,6 +922,38 @@ class Images(Cog):
 
             template.alpha_composite(img, (192, 29))
             return self.save_image(template)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='02.png'))
+
+    @command(ignore_extra=True, aliases=['greatview'])
+    @cooldown(2, 5, BucketType.guild)
+    async def giorno(self, ctx, stretch: Optional[bool]=True, image=None):
+        """
+        If stretch is set off the image will not be stretched to size
+        """
+        img = await self._get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'whatagreatview.png'))
+            img = img.convert('RGBA')
+            size = (868, 607)
+            if stretch:
+                img = img.resize(size, resample=Image.BICUBIC)
+            else:
+                img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                               resample=Image.BICUBIC,
+                                               crop_to_size=True,
+                                               center_cropped=True)
+
+            bg = Image.new('RGBA', template.size, 'white')
+            bg.paste(img, (212, 608), img)
+            bg.alpha_composite(template)
+            return self.save_image(bg)
 
         async with ctx.typing():
             file = await self.image_func(do_it)

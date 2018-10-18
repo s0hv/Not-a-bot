@@ -510,14 +510,12 @@ class Images(Cog):
             im = Image.open(os.path.join(TEMPLATES, 'jotaro_smile.png'))
             img = img.convert('RGBA')
             i = Image.new('RGBA', im.size, 'black')
-            size = (max(img.size), max(img.size))
+            size = (337, 350)
             img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
-                                           crop_to_size=True, center_cropped=True)
-            coeffs = find_coeffs([(0, 68), (358, 0), (410, 335), (80, 435)],
-                                 [(0, 0), (img.width, 0), size, (0, img.height)])
-            img = img.transform((410, 435), Image.PERSPECTIVE, coeffs,
-                                Image.BICUBIC)
-            x, y = (178, 479)
+                                           crop_to_size=True, center_cropped=True,
+                                           resample=Image.BICUBIC)
+            img = img.rotate(13.7, Image.BICUBIC, expand=True)
+            x, y = (207, 490)
             i.paste(img, (x, y), mask=img)
             i.paste(im, mask=im)
 

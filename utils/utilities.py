@@ -346,7 +346,7 @@ def slots2dict(obj, d: dict=None, replace=True):
     # Turns slots and @properties to a dict
 
     if d is None:
-        d = {k: getattr(obj, k, None) for k in obj.__slots__}
+        d = {k: getattr(obj, k, None) for k in obj.__slots__ if not k.startswith('_')}
     else:
         for k in obj.__slots__:
             if not replace and k in d:
@@ -737,7 +737,7 @@ def format_on_edit(before, after, message, check_equal=True):
 
     user = before.author
 
-    d = slots2dict(user)
+    d = format_member(user)
     d = slots2dict(after, d)
     for e in ['name', 'before', 'after']:
         d.pop(e, None)
@@ -749,18 +749,54 @@ def format_on_edit(before, after, message, check_equal=True):
     return message
 
 
-def format_join_leave(member, message):
+def remove_everyone(s):
+    return re.sub(r'@(everyone|here)', '@\u200b\\1', s)
+
+
+def format_activity(activity):
+    # Maybe put more advanced formatting here in future
+    return activity.name
+
+
+def format_member(member):
     d = slots2dict(member)
-    d.pop('user', None)
-    message = message.format(user=str(member), **d)
-    return message
+    d['user'] = str(member)
+    d.pop('roles')
+
+    for k in d:
+        v = d[k]
+        if isinstance(v, discord.Activity):
+            d[k] = format_activity(v)
+
+        elif isinstance(v, discord.Permissions):
+            d[k] = str(v.value)
+
+        else:
+            d[k] = str(v)
+
+    return d
+
+
+def format_join_leave(member, message):
+    d = format_member(member)
+    message = message.format(**d)
+    return remove_everyone(message)
+
+
+def test_join_format(member):
+    d = format_member(member)
+    s = ''
+    for k, v in d.items():
+        s += '{%s}: %s\n' % (k, v)
+
+    return remove_everyone(s)
 
 
 def format_on_delete(msg, message):
     content = msg.content
     user = msg.author
 
-    d = slots2dict(user)
+    d = format_member(user)
     d = slots2dict(msg, d)
     for e in ['name', 'message']:
         d.pop(e, None)

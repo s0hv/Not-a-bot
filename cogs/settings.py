@@ -6,12 +6,12 @@ import discord
 from discord.ext.commands import (BucketType, bot_has_permissions)
 
 from bot import exceptions
-from bot.bot import group, has_permissions, cooldown
+from bot.bot import group, has_permissions, cooldown, command
 from bot.converters import TimeDelta
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
                              format_join_leave, timedelta2sql, seconds2str,
-                             sql2timedelta)
+                             sql2timedelta, test_join_format)
 
 
 class Settings(Cog):
@@ -517,6 +517,21 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def join_format(self, ctx):
+        s = test_join_format(ctx.author)
+        await ctx.send(s)
+
+    @command(aliases=['test_join'])
+    @cooldown(2, 5, BucketType.guild)
+    async def test_join_format(self, ctx, *, join_message):
+        formatted = format_join_leave(ctx.author, join_message)
+        if len(formatted) > 1000:
+            return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
+
+        await ctx.send(formatted)
+
     @group(invoke_without_command=True, aliases=['on_join', 'welcome_message'])
     @cooldown(2, 10, BucketType.guild)
     async def join_message(self, ctx):
@@ -553,7 +568,7 @@ class Settings(Cog):
     @has_permissions(manage_guild=True, manage_channels=True)
     async def join_set(self, ctx, *, message):
         """Set the welcome message on this server
-        See {prefix}formatting for help on formatting the message"""
+        See {prefix}join_format for help on formatting the message"""
         guild = ctx.guild
         try:
             formatted = format_join_leave(ctx.author, message)

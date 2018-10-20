@@ -11,7 +11,7 @@ from bot.converters import TimeDelta
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
                              format_join_leave, timedelta2sql, seconds2str,
-                             sql2timedelta, test_join_format)
+                             sql2timedelta, test_member, test_message)
 
 
 class Settings(Cog):
@@ -519,8 +519,32 @@ class Settings(Cog):
 
     @command(ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)
+    async def delete_format(self, ctx):
+        s = test_message(ctx.message)
+        await ctx.send(s)
+
+    @command(ignore_extra=True, aliases=['test_delete'])
+    @cooldown(1, 10, BucketType.guild)
+    async def test_delete_format(self, ctx, *, delete_message):
+        s = format_on_delete(ctx.message, delete_message)
+        await ctx.send(s)
+
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def edit_format(self, ctx):
+        s = test_message(ctx.message, True)
+        await ctx.send(s)
+
+    @command(ignore_extra=True, aliases=['test_edit'])
+    @cooldown(1, 10, BucketType.guild)
+    async def test_edit_format(self, ctx, *, edit_message):
+        s = format_on_edit(ctx.message, ctx.message, edit_message, check_equal=False)
+        await ctx.send(s)
+
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
     async def join_format(self, ctx):
-        s = test_join_format(ctx.author)
+        s = test_member(ctx.author)
         await ctx.send(s)
 
     @command(aliases=['test_join'])
@@ -638,7 +662,7 @@ class Settings(Cog):
     @has_permissions(manage_guild=True, manage_channels=True)
     async def leave_set(self, ctx, *, message):
         """Set the leave message on this server
-        See {prefix}formatting for help on formatting the message"""
+        See {prefix}join_format for help on formatting the message"""
         guild = ctx.guild
         try:
             formatted = format_join_leave(ctx.author, message)

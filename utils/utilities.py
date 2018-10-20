@@ -60,6 +60,9 @@ timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(
                            re.DOTALL)
 timedelta_regex = re.compile(r'((?P<days>\d+?) )?(?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
 seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
+FORMAT_BLACKLIST = ['mentions', 'channel_mentions', 'reactions', 'call',
+                    'embeds', 'attachments', 'role_mentions', 'application',
+                    'raw_channel_mentions', 'raw_role_mentions', 'raw_mentions']
 
 
 class Object:
@@ -349,6 +352,9 @@ def slots2dict(obj, d: dict=None, replace=True):
         d = {k: getattr(obj, k, None) for k in obj.__slots__ if not k.startswith('_')}
     else:
         for k in obj.__slots__:
+            if k.startswith('_'):
+                continue
+
             if not replace and k in d:
                 continue
 
@@ -728,6 +734,24 @@ def msg2dict(msg):
     return d
 
 
+def format_message(d):
+    for k in FORMAT_BLACKLIST:
+        d.pop(k, None)
+
+    for k in d:
+        v = d[k]
+        if isinstance(v, str):
+            continue
+
+        if isinstance(v, discord.MessageType):
+            d[k] = str(v.name)
+
+        else:
+            d[k] = str(v)
+
+    return d
+
+
 def format_on_edit(before, after, message, check_equal=True):
     bef_content = before.content
     aft_content = after.content
@@ -738,7 +762,10 @@ def format_on_edit(before, after, message, check_equal=True):
     user = before.author
 
     d = format_member(user)
+    d['user_id'] = d['id']
     d = slots2dict(after, d)
+    d['channel_id'] = d.pop('id', None)
+    d = format_message(d)
     for e in ['name', 'before', 'after']:
         d.pop(e, None)
 
@@ -747,6 +774,31 @@ def format_on_edit(before, after, message, check_equal=True):
                              before=bef_content, after=aft_content)
 
     return message
+
+
+def test_message(msg, is_edit=False):
+    d = format_member(msg.author)
+    d = slots2dict(msg, d)
+    d = format_message(d)
+    removed = ['name', 'before', 'after'] if is_edit else ['name', 'message']
+    for e in removed:
+        d.pop(e, None)
+
+    d['channel'] = msg.channel.mention
+    d['name'] = str(msg.author)
+    d['system_content'] = d['system_content'][:10]
+    d['clean_content'] = d['clean_content'][:10]
+    if is_edit:
+        d['before'] = msg.content[:10]
+        d['after'] = msg.content[:10]
+    else:
+        d['message'] = msg.content[:10]
+
+    s = ''
+    for k, v in d.items():
+        s += '{%s}: %s\n' % (k, v)
+
+    return remove_everyone(s)
 
 
 def remove_everyone(s):
@@ -762,6 +814,8 @@ def format_member(member):
     d = slots2dict(member)
     d['user'] = str(member)
     d.pop('roles')
+    d.pop('voice')
+    d.pop('dm_channel')
 
     for k in d:
         v = d[k]
@@ -783,7 +837,7 @@ def format_join_leave(member, message):
     return remove_everyone(message)
 
 
-def test_join_format(member):
+def test_member(member):
     d = format_member(member)
     s = ''
     for k, v in d.items():
@@ -797,7 +851,10 @@ def format_on_delete(msg, message):
     user = msg.author
 
     d = format_member(user)
+    d['user_id'] = d['id']
     d = slots2dict(msg, d)
+    d['channel_id'] = d.pop('id', None)
+    d = format_message(d)
     for e in ['name', 'message']:
         d.pop(e, None)
 

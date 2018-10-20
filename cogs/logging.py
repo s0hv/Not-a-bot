@@ -1,10 +1,9 @@
 import asyncio
 import logging
-from queue import Queue
 import time
+from queue import Queue
 
 import discord
-from asyncio import tasks
 from discord.abc import PrivateChannel
 from discord.embeds import EmptyEmbed
 from sqlalchemy import exc
@@ -27,7 +26,8 @@ class Logger(Cog):
 
     def __unload(self):
         self.bot.loop.call_soon_threadsafe(self._stop_log.set)
-        self._q.put_nowait(1)  # Cause TypeError inside the loop
+        self._q.put_nowait((1, 1))
+        time.sleep(0.1)
         for _ in range(10):
             try:
                 self._logging.result()
@@ -40,6 +40,8 @@ class Logger(Cog):
         while not self._stop_log.is_set():
             try:
                 sql, params = self._q.get()
+                if sql == 1:
+                    return
             except (ValueError, TypeError):
                 continue
 

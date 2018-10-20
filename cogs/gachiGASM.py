@@ -42,7 +42,7 @@ class gachiGASM(Cog):
             except:
                 pass
 
-        self.reload_call = call_later(self._reload_and_post(), self.bot.loop,
+        self.reload_call = call_later(self._reload_and_post, self.bot.loop,
                                       self.time2tomorrow())
 
     def reload_gachilist(self):

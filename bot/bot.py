@@ -39,8 +39,8 @@ from discord.ext.commands.errors import CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.http import HTTPClient
 
-from bot.formatter import Formatter
 from bot.cooldowns import Cooldown, CooldownMapping
+from bot.formatter import Formatter
 from bot.globals import Auth
 from utils.utilities import is_owner, check_blacklist, no_dm, seconds2str
 
@@ -265,6 +265,9 @@ class Bot(commands.Bot, Client):
             return
         if hasattr(context.command, "on_error"):
             return
+
+        if hasattr(exception, 'original'):
+            exception = exception.original
 
         if isinstance(exception, commands.errors.CommandNotFound):
             return

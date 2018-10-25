@@ -16,6 +16,7 @@ import psutil
 from discord.ext.commands import (BucketType, bot_has_permissions, Group,
                                   clean_content)
 from discord.ext.commands.errors import BadArgument
+
 from bot.converters import FuzzyRole
 
 try:
@@ -42,6 +43,32 @@ terminal = logging.getLogger('terminal')
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+
+    @command(ignore_extra=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def changelog(self, ctx, page: int=1):
+        sql = 'SELECT * FROM changelog ORDER BY `time` DESC'
+        rows = list(await self.bot.dbutil.execute(sql))
+
+        def create_embed(row):
+            embed = discord.Embed(title='Changelog', description=row['changes'],
+                                  timestamp=row['time'])
+            return embed
+
+        def get_page(page, idx):
+            if not isinstance(page, discord.Embed):
+                page = create_embed(page)
+                page.set_footer(text=f'Page {idx+1}/{len(rows)}')
+                rows[idx] = page
+
+            return page
+
+        if page > 0:
+            page -= 1
+        elif page == 0:
+            page = 1
+
+        await send_paged_message(self.bot, ctx, rows, True, page, get_page)
 
     @command(ignore_extra=True, aliases=['pong'])
     @cooldown(1, 5, BucketType.guild)

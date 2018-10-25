@@ -488,6 +488,11 @@ class DatabaseUtils:
         except SQLAlchemyError:
             logger.exception('Failed to remove temprole')
 
+    async def add_changes(self, changes):
+        sql = 'INSERT INTO `changelog` (`changes`) VALUES (:changes)'
+        rowid = (await self.execute(sql, {'changes': changes}, commit=True)).lastrowid
+        return rowid
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

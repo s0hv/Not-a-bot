@@ -317,6 +317,14 @@ CREATE TABLE `temproles` (
     PRIMARY KEY (`role`, `user`)
 ) ENGINE=InnoDB;
 
+
+CREATE TABLE `changelog` (
+    `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `changes` TEXT COLLATE utf8mb4_unicode_ci,
+    `time` TIMESTAMP DEFAULT UTC_TIMESTAMP,
+
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ------------------------
 -- UNDER CONSTRUCTION --
 ------------------------

@@ -731,6 +731,16 @@ class BotAdmin(Cog):
         except:
             await ctx.send('Failed to send message')
 
+    @command(owner_only=True, aliases=['add_changelog'])
+    async def add_changes(self, ctx, *, changes):
+        try:
+            rowid = await self.bot.dbutil.add_changes(changes)
+        except SQLAlchemyError:
+            logger.exception('Failed to add changes')
+            return await ctx.send('Failed to add to todo')
+
+        await ctx.send(f'Added changes with id {rowid}')
+
 
 def setup(bot):
     bot.add_cog(BotAdmin(bot))

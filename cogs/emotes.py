@@ -53,7 +53,7 @@ class Emotes(Cog):
             global_emotes, local_emotes, animated_emotes = self.get_emotes(guild)
 
             if global_emotes:
-                s = 'Global emotes:\n' + self._format_emotes(global_emotes, 'global')
+                s = 'Global emotes:\n' + self._format_emotes(global_emotes)
             elif local_emotes:
                 s = 'Local emotes:\n' + self._format_emotes(local_emotes, 'local')
             elif animated_emotes:
@@ -73,7 +73,7 @@ class Emotes(Cog):
         guild = ctx.guild
 
         global_, _, _ = self.get_emotes(guild)
-        s = self._format_emotes(global_, 'global', include_name)
+        s = self._format_emotes(global_, include_name=include_name)
         s = s if s else 'No global emotes'
         for s in split_string(s, maxlen=2000, splitter='\n'):
             await ctx.send(s)

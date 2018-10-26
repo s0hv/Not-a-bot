@@ -438,8 +438,9 @@ class JoJo:
 
                 try:
                     im = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(remove_background, im, **kwargs))
-                except Exception as e:
-                    await ctx.send('`{}` Could not remove background because of an error {}'.format(name, e),
+                except Exception:
+                    logger.exception('Failed to remove bg from image')
+                    await ctx.send('`{}` Could not remove background because of an error'.format(name),
                                        delete_after=30)
 
             box = (500, 600)

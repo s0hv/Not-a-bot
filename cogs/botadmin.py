@@ -122,9 +122,10 @@ class BotAdmin(Cog):
             try:
                 self.bot.unload_extension(name)
                 self.load_extension(name, lib=lib)
-            except Exception as e:
+            except Exception:
                 logger.exception('Failed to reload extension %s' % name)
-                return 'Could not reload %s because of an error\n%s' % (name, e)
+                terminal.exception('Failed to reload extension %s' % name)
+                return 'Could not reload %s because of an error' % name
 
             return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter()-t)*1000)
 
@@ -162,8 +163,9 @@ class BotAdmin(Cog):
                 try:
                     self.bot.unload_extension(name)
                     self.load_extension(name, lib=lib)
-                except Exception as e:
-                    messages.append('Could not reload %s because of an error\n%s' % (name, e))
+                except Exception:
+                    logger.exception('Failed to reload extension %s' % name)
+                    messages.append('Could not reload %s because of an error' % name)
                     continue
 
                 t = time.perf_counter() - t
@@ -272,7 +274,7 @@ class BotAdmin(Cog):
 
         except Exception as e:
             logger.exception('Failed to eval')
-            retval = 'Exception\n%s' % e
+            retval = 'Exception\n%s' % e.__name__
 
         if not isinstance(retval, str):
             retval = str(retval)
@@ -347,7 +349,7 @@ class BotAdmin(Cog):
                                                 self.bot.load_extension, cog_name)
         except Exception as e:
             logger.exception('Failed to load')
-            return await ctx.send('Could not load %s because of an error\n%s' % (cog_name, e))
+            return await ctx.send('Could not load %s because of %s' % (cog_name, e.__name__))
 
         await ctx.send('Loaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
@@ -359,7 +361,7 @@ class BotAdmin(Cog):
             await self.bot.loop.run_in_executor(self.bot.threadpool,
                                                 self.bot.unload_extension, cog_name)
         except Exception as e:
-            return await ctx.send('Could not unload %s because of an error\n%s' % (cog_name, e))
+            return await ctx.send('Could not unload %s because of %s' % (cog_name, e.__name__))
 
         await ctx.send('Unloaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
@@ -473,7 +475,7 @@ class BotAdmin(Cog):
         try:
             reload(import_module(module_name))
         except Exception as e:
-            return await ctx.send('Failed to reload module %s because of an error\n```%s```' % (module_name, e))
+            return await ctx.send('Failed to reload module %s because of %s' % (module_name, e.__name__))
         await ctx.send('Reloaded module %s' % module_name)
 
     @command(owner_only=True)

@@ -508,7 +508,7 @@ class Colors(Cog):
         roles.add(id)
         try:
             await ctx.author.edit(roles=[Snowflake(r) for r in roles])
-        except discord.DiscordException as e:
+        except discord.HTTPException as e:
             return await ctx.send('Failed to set color because of an error\n\n```\n%s```' % e)
 
         await ctx.send('Color set to %s' % color.name)
@@ -678,7 +678,7 @@ class Colors(Cog):
             d_color = discord.Colour(value)
             color_role = await guild.create_role(name=name, permissions=default_perms,
                                                  colour=d_color, reason=f'{ctx.author} created a new color')
-        except discord.DiscordException as e:
+        except discord.HTTPException as e:
             logger.exception('guild {0.id} rolename: {1} perms: {2} color: {3} {4}'.format(guild, name, default_perms.value, str(rgb), value))
             return await ctx.send('Failed to add color because of an error\n```%s```' % e)
         except:
@@ -776,7 +776,7 @@ class Colors(Cog):
         try:
             await role.delete(reason=f'{ctx.author} deleted this color')
             await self._delete_color(guild.id, role_id)
-        except discord.DiscordException as e:
+        except discord.HTTPException as e:
             return await ctx.send(f'Failed to remove color because of an error\n```{e}```')
         except:
             logger.exception('Failed to remove color')

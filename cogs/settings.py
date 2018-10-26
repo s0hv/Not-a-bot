@@ -391,7 +391,7 @@ class Settings(Cog):
         message = ctx.message
         try:
             formatted = format_on_delete(message, message_format)
-        except Exception as e:
+        except (AttributeError, KeyError) as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         if len(formatted) > 250:
@@ -485,7 +485,7 @@ class Settings(Cog):
         message = ctx.message
         try:
             formatted = format_on_edit(message, message, message_format, check_equal=False)
-        except Exception as e:
+        except (AttributeError, KeyError) as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         if len(formatted) > 250:
@@ -596,7 +596,7 @@ class Settings(Cog):
         guild = ctx.guild
         try:
             formatted = format_join_leave(ctx.author, message)
-        except Exception as e:
+        except (AttributeError, KeyError) as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         if len(formatted) > 1000:
@@ -666,7 +666,7 @@ class Settings(Cog):
         guild = ctx.guild
         try:
             formatted = format_join_leave(ctx.author, message)
-        except Exception as e:
+        except (AttributeError, KeyError) as e:
             return await ctx.send('Failed to use format because it returned an error.```py\n{}```'.format(e))
 
         splitted = split_string(formatted, splitter='\n')

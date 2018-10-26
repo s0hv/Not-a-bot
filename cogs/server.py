@@ -199,7 +199,7 @@ class Server(Cog):
         try:
             await create_custom_emoji(guild=guild, name=name, image=img, already_b64=already_b64,
                                       reason=f'{ctx.author} created emote')
-        except discord.DiscordException as e:
+        except discord.HTTPException as e:
             await ctx.send('Failed to create emote because of an error\n%s\nDId you check if the image is under 256kb in size' % e)
         except:
             await ctx.send('Failed to create emote because of an error')
@@ -259,9 +259,6 @@ class Server(Cog):
                 if e.code == 400:
                     return await ctx.send('Emote capacity reached\n{}'.format(e))
                 await ctx.send('Error while uploading emote\n%s' % e)
-                errors += 1
-            except discord.DiscordException as e:
-                await ctx.send('Failed to create emote because of an error\n%s' % e)
                 errors += 1
             except:
                 await ctx.send('Failed to create emote because of an error')

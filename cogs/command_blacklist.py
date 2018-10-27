@@ -1,20 +1,18 @@
 import logging
+import typing
 from functools import partial
 
 import discord
+from discord.ext import commands
 from discord.ext.commands import BucketType, has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group, cooldown
+from bot.converters import CommandConverter
 from bot.formatter import Paginator
 from bot.globals import BlacklistTypes, PermValues
-import typing
-from discord.ext import commands
-from bot.converters import CommandConverter
 from cogs.cog import Cog
-from utils.utilities import (check_channel_mention, check_role_mention,
-                             check_user_mention,
-                             split_string, get_role, send_paged_message)
+from utils.utilities import (split_string, get_role, send_paged_message)
 
 logger = logging.getLogger('debug')
 perms = discord.Permissions(8)
@@ -27,7 +25,7 @@ class CommandBlacklist(Cog):
     @group(ignore_extra=True, no_pm=True, invoke_without_command=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def blacklist(self, ctx, commands: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]=None):
+    async def blacklist(self, ctx, commands: commands.Greedy[CommandConverter]=None, *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]=None):
         """Blacklist a command for a user, role or channel
         To blacklist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -51,6 +49,9 @@ class CommandBlacklist(Cog):
         For dangers of whitelisting see `{prefix}help whitelist`"""
         guild = ctx.guild
 
+        if not commands and mention is None:
+            return await ctx.send('No parameters given')
+
         async def _blacklist(name):
             if mention is None:
                 whereclause = 'guild=%s AND type IN (%s, %s) AND command="%s" AND channel IS NULL AND role IS NULL AND user IS NULL' % (
@@ -71,14 +72,19 @@ class CommandBlacklist(Cog):
                 return await self._add_channel_blacklist(ctx, name, mention, guild)
 
         s = ''
-        for command in commands:
-            if command.name == 'privacy':
-                await ctx.send("Cannot blacklist privacy command as it's required that anyone can see it")
-                continue
-
-            val = await _blacklist(command.name)
+        if commands is None:
+            val = await self._set_all_commands(ctx, mention)
             if isinstance(val, str):
-                s += val + '\n'
+                s += val
+        else:
+            for command in commands:
+                if command.name == 'privacy':
+                    await ctx.send("Cannot blacklist privacy command as it's required that anyone can see it")
+                    continue
+
+                val = await _blacklist(command.name)
+                if isinstance(val, str):
+                    s += val + '\n'
 
         if not s:
             return
@@ -109,47 +115,40 @@ class CommandBlacklist(Cog):
 
         await ctx.send(msg)
 
-    async def _set_all_commands(self, ctx, guild, msg, mention, type=BlacklistTypes.BLACKLIST):
+    async def _set_all_commands(self, ctx, scope, type=BlacklistTypes.BLACKLIST):
+        guild = ctx.guild
         values = {'command': None, 'guild': guild.id, 'type': type}
-        role = check_role_mention(msg, mention, guild)
         where = 'guild=%s AND command IS NULL AND NOT type=%s AND ' % (guild.id, BlacklistTypes.GLOBAL)
         type_string = 'Blacklisted' if type == BlacklistTypes.BLACKLIST else 'Whitelisted'
         type_string2 = 'blacklist' if type == BlacklistTypes.BLACKLIST else 'whitelist'
         message = None
-        if check_user_mention(msg, mention):
-            userid = msg.mentions[0].id
+        if isinstance(scope, discord.User):
+            userid = scope.id
             success = await self._set_blacklist(ctx, where + 'user=%s' % userid, user=userid, **values)
             if success:
-                message = '%s all commands for user %s' % (type_string, msg.mentions[0])
+                message = f'{type_string} all commands for user {scope} `{userid}`'
             elif success is None:
-                message = 'removed %s from user %s' % (type_string2, msg.mentions[0])
+                message = f'removed {type_string2} from user {scope}, `{userid}`'
 
-        elif role:
-            success = await self._set_blacklist(ctx, where + 'role=%s' % role.id, role=role.id, **values)
+        elif isinstance(scope, discord.Role):
+            success = await self._set_blacklist(ctx, where + 'role=%s' % scope.id, role=scope.id, **values)
             if success:
-                message = '{0} all commands from role {1} `{1.id}`'.format(type_string, role)
+                message = '{0} all commands from role {1} `{1.id}`'.format(type_string, scope)
             elif success is None:
-                message = 'Removed {0} from role {1} `{1.id}`'.format(type_string2, role)
+                message = 'Removed {0} from role {1} `{1.id}`'.format(type_string2, scope)
 
-        elif check_channel_mention(msg, mention):
-            channel = msg.channel_mentions[0]
-            success = await self._set_blacklist(ctx, where + 'channel=%s' % channel.id,
-                                                channel=channel.id, **values)
+        elif isinstance(scope, discord.TextChannel):
+            success = await self._set_blacklist(ctx, where + 'channel=%s' % scope.id,
+                                                channel=scope.id, **values)
             if success:
-                message = '{0} all commands from channel {1} `{1.id}`'.format(type_string, channel)
+                message = '{0} all commands from channel {1} `{1.id}`'.format(type_string, scope)
             elif success is None:
-                message = 'Removed {0} from channel {1} `{1.id}`'.format(type_string2, channel)
+                message = 'Removed {0} from channel {1} `{1.id}`'.format(type_string2, scope)
 
         else:
-            return False
+            return 'No valid mentions'
 
-        try:
-            if message:
-                await msg.channel.send(message)
-        except discord.HTTPException:
-            pass
-
-        return True
+        return message
 
     @command(ignore_extra=True, no_pm=True)
     @has_permissions(administrator=True)
@@ -214,6 +213,7 @@ class CommandBlacklist(Cog):
         except SQLAlchemyError:
             logger.exception('Failed to remove blacklist')
             await ctx.send('Failed to remove %s' % type_string)
+            return
 
         if row:
             if row['type'] == type_:

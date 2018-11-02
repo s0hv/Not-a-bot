@@ -608,6 +608,7 @@ class Colors(Cog):
                                           encoding='utf-8', size=17)
 
             images = []
+            reverse = False
             for i in range(0, len(colors), side):
                 color_range = colors[i:i+side]
                 ims = []
@@ -616,6 +617,16 @@ class Colors(Cog):
 
                 if not ims:
                     continue
+
+                if reverse:
+                    while len(ims) < side:
+                        ims.append(Image.new('RGBA', size, (0,0,0,0)))
+
+                    ims.reverse()
+                    reverse = False
+                else:
+                    reverse = True
+
                 images.append(self.concatenate_colors(ims, width=size[0]))
 
             stack = self.stack_colors(images, size[1])

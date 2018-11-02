@@ -966,17 +966,19 @@ class Images(Cog):
 
         def do_it():
             nonlocal text
-            font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 15)
+            fontsize = int(round(30.7916 - 0.0157952 * len(text)))
+            fontsize = min(max(fontsize, 15), 35)
+            font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), fontsize)
             im = Image.open(os.path.join(TEMPLATES, 'narancia.png'))
             shadow = Image.open(os.path.join(TEMPLATES, 'narancia_shadow.png'))
             draw = ImageDraw.Draw(im)
-            size = (250, 446)  # Size of the page
+            size = (250, 346)  # Size of the page
             spot = (400, 770)  # Pasting spot for first page
             text = text.replace('\n', ' ')
             text_size = font.getsize(text)
             spacing = 3
             # We add 2 extra to compensate for measuring inaccuracies
-            line_height = text_size[1] + 2
+            line_height = text_size[1]
             spot_changed = False
 
             all_lines = []

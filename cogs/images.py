@@ -966,7 +966,7 @@ class Images(Cog):
 
         def do_it():
             nonlocal text
-            fontsize = int(round(30.7916 - 0.0157952 * len(text)))
+            fontsize = int(round(45.7916 - 0.0607952 * len(text)))
             fontsize = min(max(fontsize, 15), 45)
             font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), fontsize)
             im = Image.open(os.path.join(TEMPLATES, 'narancia.png'))

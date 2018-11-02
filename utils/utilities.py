@@ -94,22 +94,54 @@ class Snowflake(abc.Snowflake):
         return discord.utils.snowflake_time(self.id)
 
 
-def split_string(to_split, list_join='', maxlen=2000, splitter=' '):
+def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: int=None):
+    """
+
+    Args:
+        to_split: str, dict or iterable to be split
+        list_join: the character that's used in joins
+        maxlen: maximum line length
+        splitter: what character are the lines split by
+        max_word: if set will split words longer than this that go over the max
+            line length. Currently only supported in str mode
+
+
+    Returns:
+        list of strings or list of dicts
+    """
     if isinstance(to_split, str):
         if len(to_split) < maxlen:
             return [to_split]
 
         to_split = [s + splitter for s in to_split.split(splitter)]
-        to_split[-1] = to_split[-1][:-1]
+        to_split[-1] = to_split[-1][:-len(splitter)]
         length = 0
         split = ''
         splits = []
         for s in to_split:
             l = len(s)
             if length + l > maxlen:
-                splits += [split]
-                split = s
-                length = l
+                if max_word and l > max_word:
+                        delta = maxlen - length
+                        if delta > 3:
+                            split += s[:delta]
+                            splits.append(split)
+                            s = s[delta:]
+
+                        l = len(s)
+
+                        while l > maxlen:
+                            splits.append(s[:maxlen])
+                            s = s[maxlen:]
+                            l = len(s)
+
+                        split = s
+                        length = l
+
+                else:
+                    splits.append(split)
+                    split = s
+                    length = l
             else:
                 split += s
                 length += l

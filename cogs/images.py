@@ -8,11 +8,12 @@ from io import BytesIO
 from random import randint
 from typing import Optional
 
-from PIL import Image, ImageSequence, ImageFont, ImageDraw, ImageChops, \
-    GifImagePlugin
+from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
+                 GifImagePlugin)
 from bs4 import BeautifulSoup
 from discord import File
-from discord.ext.commands import BucketType, BotMissingPermissions
+from discord.ext.commands import BucketType, BotMissingPermissions, \
+    clean_content
 from discord.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
@@ -25,7 +26,8 @@ from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
                               gradient_flash, sepia, optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
-from utils.utilities import get_image_from_message, find_coeffs, check_botperm
+from utils.utilities import (get_image_from_message, find_coeffs, check_botperm,
+                             split_string)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -956,6 +958,65 @@ class Images(Cog):
         async with ctx.typing():
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='02.png'))
+
+    @command()
+    @cooldown(2, 5, BucketType.guild)
+    async def narancia(self, ctx, *, text: clean_content):
+        text = text.strip('\u200b \n\r\t')
+
+        def do_it():
+            nonlocal text
+            font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 15)
+            im = Image.open(os.path.join(TEMPLATES, 'narancia.png'))
+            shadow = Image.open(os.path.join(TEMPLATES, 'narancia_shadow.png'))
+            draw = ImageDraw.Draw(im)
+            size = (250, 446)  # Size of the page
+            spot = (400, 770)  # Pasting spot for first page
+            text = text.replace('\n', ' ')
+            text_size = font.getsize(text)
+            spacing = 3
+            # We add 2 extra to compensate for measuring inaccuracies
+            line_height = text_size[1] + 2
+            spot_changed = False
+
+            all_lines = []
+            # Split lines based on average width
+            lines = split_string(text, maxlen=int(len(text) // (text_size[0] / size[0])), max_word=30)
+            total_y = 0
+
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+
+                total_y += line_height
+                if total_y > size[1]:
+                    draw.multiline_text(spot, '\n'.join(all_lines), font=font,
+                                        fill='black', spacing=spacing)
+                    all_lines = []
+                    if spot_changed:
+                        # We are already on second page. Let's stop here
+                        break
+
+                    spot_changed = True
+                    # Pasting spot and size for second page
+                    spot = (678, 758)
+                    size = (250, 445)
+                    total_y = line_height
+
+                total_y += spacing
+
+                all_lines.append(line)
+
+            draw.multiline_text(spot, '\n'.join(all_lines), font=font,
+                                fill='black', spacing=spacing)
+
+            im.alpha_composite(shadow)
+            return self.save_image(im, 'PNG')
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='narancia.png'))
 
     @command(ignore_extra=True, aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)

@@ -43,7 +43,7 @@ discord_logger.addHandler(handler)
 logger = logging.getLogger('debug')
 logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler(filename='debug.log', encoding='utf-8', mode='a')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+handler.setFormatter(logging.Formatter('[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
 logger.addHandler(handler)
 
 terminal = logging.getLogger('terminal')
@@ -74,7 +74,6 @@ if not discord.opus.is_loaded():
     discord.opus.load_opus('opus')
 
 initial_cogs = [
-    'activity_log',
     'admin',
     'autoresponds',
     'autoroles',

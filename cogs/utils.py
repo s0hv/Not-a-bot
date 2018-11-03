@@ -24,7 +24,7 @@ try:
 except ImportError:
     try:
         from pip._internal.commands.search import SearchCommand
-    except ImportError:
+    except (ImportError, TypeError):
         SearchCommand = None
 
 from sqlalchemy.exc import SQLAlchemyError

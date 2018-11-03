@@ -169,7 +169,10 @@ class NotABot(BotBase):
         channel = message.channel
         if oshit and oshit.trigger(False) and message.content.lower().strip() == 'o shit':
             msg = 'waddup'
-            await channel.send(msg)
+            try:
+                await channel.send(msg)
+            except discord.HTTPException:
+                return
 
             try:
                 await self.wait_for('message', timeout=12, check=lambda m: m.author == message.author and m.content == 'here come')

@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from bot.bot import command, cooldown
 from bot.converters import AnyUser
 from cogs.cog import Cog
+from utils.utilities import send_paged_message
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -129,6 +130,48 @@ class Stats(Cog):
             msg += 'Last seen elsewhere {} UTC'.format(global_['last_seen'])
 
         await ctx.send(msg)
+
+    @command(aliases=['cmdstats'])
+    @cooldown(1, 5, BucketType.guild)
+    async def command_stats(self, ctx, *cmd):
+        """
+        Get command usage statistics. If command is provided only get the stats
+        for that command
+        """
+        if cmd:
+            parent = cmd[0]
+            name = ' '.join(cmd[1:])
+        else:
+            parent = None
+            name = None
+
+        cmds = await self.bot.dbutil.get_command_stats(parent, name)
+        if not cmds:
+            return await ctx.send('Failed to get command stats')
+
+        pages = list(cmds)
+        size = 15
+        pages = [pages[i:i+size] for i in range(0, len(pages), size)]
+
+        def get_page(page, idx):
+            if isinstance(page, discord.Embed):
+                return page
+
+            desc = ''
+            for r in page:
+                desc += f'`{r["parent"]}'
+                name = r['cmd']
+                if name:
+                    desc += f' {name}'
+
+                desc += f'` {r["uses"]} uses\n'
+
+            embed = discord.Embed(title='Command usage stats', description=desc)
+            embed.set_footer(text=f'{idx+1}/{len(pages)}')
+            pages[idx] = embed
+            return embed
+
+        await send_paged_message(ctx, pages, embed=True, page_method=get_page)
 
 
 def setup(bot):

@@ -58,7 +58,8 @@ class Server(Cog):
             s += '```'
             return s
 
-        await send_paged_message(self.bot, ctx, pages, starting_idx=page-1, page_method=get_msg)
+        await send_paged_message(ctx, pages, starting_idx=page - 1,
+                                 page_method=get_msg)
 
     @command(no_dm=True, aliases=['mr_top', 'mr_stats'])
     @cooldown(2, 5, BucketType.channel)
@@ -122,7 +123,7 @@ class Server(Cog):
             return await ctx.send(f"Didn't find user {user} on the leaderboards.\n"
                                   "Are you sure they have played mute roll")
 
-        await send_paged_message(self.bot, ctx, pages, embed=True, page_method=get_page)
+        await send_paged_message(ctx, pages, embed=True, page_method=get_page)
 
     async def _dl(self, ctx, url):
         try:

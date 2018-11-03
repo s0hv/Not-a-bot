@@ -91,7 +91,10 @@ class Search:
                     for item in json['items']:
                         items.append(SearchItem(**item))
 
-                    return await send_paged_message(self.bot, ctx, items, page_method=lambda p, i: str(p))
+                    return await send_paged_message(ctx, items,
+                                                    page_method=lambda p,
+                                                                       i: str(
+                                                        p))
             else:
                 return await ctx.send('Http error {}'.format(r.status))
 

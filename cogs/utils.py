@@ -68,7 +68,7 @@ class Utilities(Cog):
         elif page == 0:
             page = 1
 
-        await send_paged_message(self.bot, ctx, rows, True, page, get_page)
+        await send_paged_message(ctx, rows, True, page, get_page)
 
     @command(ignore_extra=True, aliases=['pong'])
     @cooldown(1, 5, BucketType.guild)
@@ -287,7 +287,8 @@ class Utilities(Cog):
             roles += '{}: {}\n'.format(role.name, role.mention)
 
         roles = split_string(roles, splitter='\n', maxlen=1000)
-        await send_paged_message(self.bot, ctx, roles, starting_idx=idx, page_method=lambda p, i: '```{}```'.format(p))
+        await send_paged_message(ctx, roles, starting_idx=idx,
+                                 page_method=lambda p, i: '```{}```'.format(p))
 
     @command(aliases=['created_at', 'snowflake', 'snoflake'], ignore_extra=True)
     @cooldown(1, 5, type=BucketType.guild)

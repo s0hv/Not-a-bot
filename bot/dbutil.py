@@ -353,6 +353,19 @@ class DatabaseUtils:
 
         return True
 
+    async def get_command_stats(self, parent=None, name=""):
+        sql = 'SELECT * FROM command_stats'
+        if parent:
+            sql += ' WHERE parent=:parent AND cmd=:name'
+
+        sql += ' ORDER BY uses DESC'
+
+        try:
+            return (await self.execute(sql, params={'parent': parent, 'name': name})).fetchall()
+        except SQLAlchemyError:
+            logger.exception('Failed to get command stats')
+            return False
+
     async def increment_mute_roll(self, guild: int, user: int, win: bool):
         if win:
             sql = 'INSERT INTO `mute_roll_stats`  (`guild`, `user`, `wins`, `current_streak`, `biggest_streak`) VALUES (:guild, :user, 1, 1, 1)'

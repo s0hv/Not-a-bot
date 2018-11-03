@@ -1483,7 +1483,8 @@ class Audio:
 
             return response
 
-        await send_paged_message(self.bot, ctx, pages, starting_idx=page_index, page_method=get_page)
+        await send_paged_message(ctx, pages, starting_idx=page_index,
+                                 page_method=get_page)
 
     @cooldown(1, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['len'])

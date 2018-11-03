@@ -240,7 +240,7 @@ class ServerSpecific(Cog):
                 paginator.add_to_field(f'<@&{role}> `{role}`\n')
 
         paginator.finalize()
-        await send_paged_message(self.bot, ctx, paginator.pages, embed=True)
+        await send_paged_message(ctx, paginator.pages, embed=True)
 
     @command(no_pm=True, aliases=['get_grants', 'grants'])
     @cooldown(1, 4)

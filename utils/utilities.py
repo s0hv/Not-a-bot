@@ -946,7 +946,8 @@ def is_superset(ctx):
     return True
 
 
-async def send_paged_message(bot, ctx, pages, embed=False, starting_idx=0, page_method=None):
+async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_method=None):
+    bot = ctx.bot
     try:
         if callable(page_method):
             page = page_method(pages[starting_idx], starting_idx)
@@ -1090,7 +1091,7 @@ async def search(s, ctx, site, downloader, on_error=None):
             return page.get('url')
         return url % id
 
-    await send_paged_message(ctx.bot, ctx, info['entries'], page_method=get_page)
+    await send_paged_message(ctx, info['entries'], page_method=get_page)
 
 
 def basic_check(author=None, channel=None):

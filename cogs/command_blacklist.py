@@ -422,7 +422,7 @@ class CommandBlacklist(Cog):
         for idx, page in enumerate(pages):
             page.set_footer(text='Page {}/{}'.format(idx + 1, len(pages)))
 
-        await send_paged_message(self.bot, ctx, pages, embed=True)
+        await send_paged_message(ctx, pages, embed=True)
 
     @command(name='commands', no_pm=True)
     @cooldown(1, 30, type=BucketType.user)

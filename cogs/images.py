@@ -961,29 +961,43 @@ class Images(Cog):
 
     @command()
     @cooldown(2, 5, BucketType.guild)
-    async def narancia(self, ctx, *, text: clean_content):
+    async def narancia(self, ctx, *, text: clean_content(escape_markdown=True, fix_channel_mentions=True)):
         text = text.strip('\u200b \n\r\t')
 
         def do_it():
             nonlocal text
-            fontsize = int(round(45.7916 - 0.0607952 * len(text)))
+            # Linearly decreasing fontsize
+            fontsize = int(round(45.0 - 0.08 * len(text)))
             fontsize = min(max(fontsize, 15), 45)
             font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), fontsize)
             im = Image.open(os.path.join(TEMPLATES, 'narancia.png'))
             shadow = Image.open(os.path.join(TEMPLATES, 'narancia_shadow.png'))
             draw = ImageDraw.Draw(im)
-            size = (250, 346)  # Size of the page
+            size = (250, 350)  # Size of the page
             spot = (400, 770)  # Pasting spot for first page
             text = text.replace('\n', ' ')
+
+            # We need to replace the height of the text with the height of A
+            # Since that what draw.text uses in it's text drawing methods but not
+            # in the text size methods. Nice design I know. It makes textsize inaccurate
+            # so don't use that method
             text_size = font.getsize(text)
-            spacing = 3
+            text_size = (text_size[0], font.getsize('A')[1])
+
+            # Linearly growing spacing
+            spacing = int(round(0.5 + 0.167 * fontsize))
+            spacing = min(max(spacing, 3), 6)
+
             # We add 2 extra to compensate for measuring inaccuracies
             line_height = text_size[1]
             spot_changed = False
 
             all_lines = []
             # Split lines based on average width
-            lines = split_string(text, maxlen=int(len(text) // (text_size[0] / size[0])), max_word=30)
+            # If max characters per line is less than the given max word
+            # use max line width as max word width
+            max_line = int(len(text) // (text_size[0] / size[0]))
+            lines = split_string(text, maxlen=max_line, max_word=min(max_line, 30))
             total_y = 0
 
             for line in lines:

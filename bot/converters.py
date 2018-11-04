@@ -171,3 +171,102 @@ class CommandConverter(converter.Converter):
             raise BadArgument('Command "%s" not found' % argument)
 
         return cmd
+
+
+class CleanContent(converter.Converter):
+    """Converts the argument to mention scrubbed version of
+    said content.
+
+    This behaves similarly to :attr:`.Message.clean_content`.
+
+    Attributes
+    ------------
+    fix_channel_mentions: :obj:`bool`
+        Whether to clean channel mentions.
+    use_nicknames: :obj:`bool`
+        Whether to use nicknames when transforming mentions.
+    escape_markdown: :obj:`bool`
+        Whether to also escape special markdown characters.
+    remove_everyone: :obj:`bool`
+        Whether to remove everyone mentions by inserting a zero width space in front of @
+    fix_emotes: :obj:`bool`
+        Whether to turn emotes to their names only
+    """
+    def __init__(self, *, fix_channel_mentions=False, use_nicknames=True, escape_markdown=False,
+                 remove_everyone=True, fix_emotes=False):
+        self.fix_channel_mentions = fix_channel_mentions
+        self.use_nicknames = use_nicknames
+        self.escape_markdown = escape_markdown
+        self.remove_everyone = remove_everyone
+        self.fix_emotes = fix_emotes
+
+    async def convert(self, ctx, argument):
+        message = ctx.message
+        transformations = {}
+
+        if self.fix_channel_mentions and ctx.guild:
+            def resolve_channel(id, *, _get=ctx.guild.get_channel):
+                ch = _get(id)
+                return ('<#%s>' % id), ('#' + ch.name if ch else '#deleted-channel')
+
+            transformations.update(resolve_channel(channel) for channel in message.raw_channel_mentions)
+
+        if self.use_nicknames and ctx.guild:
+            def resolve_member(id, *, _get=ctx.guild.get_member):
+                m = _get(id)
+                return '@' + m.display_name if m else '@deleted-user'
+        else:
+            def resolve_member(id, *, _get=ctx.bot.get_user):
+                m = _get(id)
+                return '@' + m.name if m else '@deleted-user'
+
+        transformations.update(
+            ('<@%s>' % member_id, resolve_member(member_id))
+            for member_id in message.raw_mentions
+        )
+
+        transformations.update(
+            ('<@!%s>' % member_id, resolve_member(member_id))
+            for member_id in message.raw_mentions
+        )
+
+        if ctx.guild:
+            def resolve_role(_id, *, _find=ctx.guild.get_role):
+                r = _find(_id)
+                return '@' + r.name if r else '@deleted-role'
+
+            transformations.update(
+                ('<@&%s>' % role_id, resolve_role(role_id))
+                for role_id in message.raw_role_mentions
+            )
+
+        def repl(obj):
+            return transformations.get(obj.group(0), '')
+
+        pattern = re.compile('|'.join(transformations.keys()))
+        result = pattern.sub(repl, argument)
+
+        if self.escape_markdown:
+            transformations = {
+                re.escape(c): '\\' + c
+                for c in ('*', '`', '_', '~', '\\')
+            }
+
+            def replace(obj):
+                return transformations.get(re.escape(obj.group(0)), '')
+
+            pattern = re.compile('|'.join(transformations.keys()))
+            result = pattern.sub(replace, result)
+
+        if self.fix_emotes:
+            def repl(obj):
+                return obj.groups()[0]
+
+            pattern = re.compile('<:(\w+):[0-9]{17,21}>')
+            result = pattern.sub(repl, result)
+
+        # Completely ensure no mentions escape:
+        if self.remove_everyone:
+            return re.sub(r'@(everyone|here|[!&]?[0-9]{17,21})', '@\u200b\\1', result)
+        else:
+            return result

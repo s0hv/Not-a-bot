@@ -12,8 +12,7 @@ from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
 from bs4 import BeautifulSoup
 from discord import File
-from discord.ext.commands import BucketType, BotMissingPermissions, \
-    clean_content
+from discord.ext.commands import BucketType, BotMissingPermissions
 from discord.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
@@ -21,6 +20,7 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
 from bot.bot import command, cooldown
+from bot.converters import CleanContent
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
@@ -961,7 +961,8 @@ class Images(Cog):
 
     @command()
     @cooldown(2, 5, BucketType.guild)
-    async def narancia(self, ctx, *, text: clean_content(escape_markdown=True, fix_channel_mentions=True)):
+    async def narancia(self, ctx, *, text: CleanContent(escape_markdown=True, fix_channel_mentions=True,
+                                                        remove_everyone=False, fix_emotes=True)):
         text = text.strip('\u200b \n\r\t')
 
         def do_it():
@@ -1017,7 +1018,7 @@ class Images(Cog):
                     spot_changed = True
                     # Pasting spot and size for second page
                     spot = (678, 758)
-                    size = (250, 445)
+                    size = (250, 350)
                     total_y = line_height
 
                 total_y += spacing

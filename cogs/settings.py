@@ -129,10 +129,10 @@ class Settings(Cog):
             modlog = self.bot.get_channel(modlog)
             if modlog:
                 await ctx.send(f'Current modlog channel is {modlog.mention}\n'
-                               f'Use `{ctx.prefix}{ctx.invoked_with} channel_name` to change it')
+                               f'Use `{ctx.prefix}settings {ctx.invoked_with} channel_name` to change it')
             else:
                 await ctx.send('No modlog channel set\n'
-                               f'Use `{ctx.prefix}{ctx.invoked_with} channel_name` to set one')
+                               f'Use `{ctx.prefix}settings {ctx.invoked_with} channel_name` to set one')
 
             ctx.command.reset_cooldown(ctx)
             return

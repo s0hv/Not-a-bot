@@ -94,6 +94,7 @@ class Playlist:
     async def clear(self, indexes=None, channel=None):
         if indexes is None:
             self.playlist.clear()
+            return True
         else:
             if delete_by_indices is not None:
                 songs_left = delete_by_indices(list(self.playlist), indexes)
@@ -103,8 +104,26 @@ class Playlist:
             else:
                 terminal.warning('Numpy is not installed. Cannot delete songs by index')
                 await channel.send('Clearing by indices is not supported')
+                return False
             if channel:
                 await channel.send('Playlist cleared')
+                return True
+
+    def clear_by_predicate(self, predicate):
+        """Clears songs from queue that match a predicate.
+        Returns the amount of songs removed"""
+        remove = []
+        for song in self.playlist:
+            if predicate(song):
+                remove.append(song)
+
+        for song in remove:
+            try:
+                self.playlist.remove(song)
+            except ValueError:
+                pass
+
+        return len(remove)
 
     async def search(self, name, ctx, site='yt', priority=False, in_vc=True):
         search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}

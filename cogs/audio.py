@@ -41,7 +41,7 @@ from discord.ext.commands.cooldowns import BucketType
 from discord.player import PCMVolumeTransformer
 
 from bot import player
-from bot.bot import command, cooldown
+from bot.bot import command, cooldown, group
 from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
@@ -914,7 +914,7 @@ class Audio:
 
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
 
-        maxlen = -1 if ctx.author.id == self.bot.owner_id else 10
+        maxlen = -1 if ctx.author.id == self.bot.owner_id else 20
         await musicplayer.playlist.add_song(song_name, maxlen=maxlen,
                                             channel=ctx.message.channel,
                                             priority=priority, **metadata)
@@ -968,12 +968,13 @@ class Audio:
         e.g. {prefix}{name} -sc a cool song"""
         await self._search(ctx, name)
 
-    async def _summon(self, ctx, create_task=True):
+    async def _summon(self, ctx, create_task=True, change_channel=False, channel=None):
         if not ctx.author.voice:
             await ctx.send("You aren't connected to a voice channel")
             return False
 
-        channel = ctx.author.voice.channel
+        if not channel:
+            channel = ctx.author.voice.channel
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
@@ -995,7 +996,10 @@ class Audio:
         else:
             try:
                 if channel.id != musicplayer.voice.channel.id:
-                    await musicplayer.voice.move_to(channel)
+                    if change_channel:
+                        await musicplayer.voice.move_to(channel)
+                    else:
+                        await ctx.send("You aren't allowed to change channels")
                 elif not musicplayer.voice.is_connected():
                     await musicplayer.voice.channel.connect()
             except (discord.HTTPException, asyncio.TimeoutError) as e:
@@ -1010,9 +1014,16 @@ class Audio:
         """Summons the bot to join your voice channel."""
         return await self._summon(ctx)
 
+    @command(no_pm=True, ignore_extra=True)
+    @cooldown(1, 3, type=BucketType.guild)
+    async def move(self, ctx, channel: discord.VoiceChannel=None):
+        """Moves the bot to your current voice channel or the specified voice channel"""
+        return await self._summon(ctx, change_channel=True, channel=channel)
+
     @cooldown(2, 5, BucketType.guild)
     @command(ignore_extra=True, no_pm=True)
     async def repeat(self, ctx, value: bool=None):
+        """If set on the current song will repeat until this is set off"""
         if not await self.check_voice(ctx):
             return
         musicplayer = await self.check_player(ctx)
@@ -1126,7 +1137,7 @@ class Audio:
         current.options = options
         await self._seek(musicplayer, current, seek, options=options)
 
-    @command(no_pm=True)
+    @group(no_pm=True)
     @cooldown(1, 4, type=BucketType.guild)
     async def clear(self, ctx, *, items):
         """
@@ -1155,6 +1166,29 @@ class Audio:
             index = None
 
         await musicplayer.playlist.clear(index, ctx.channel)
+
+    @clear.command(no_pm=True, name='from')
+    @cooldown(2, 5)
+    async def from_(self, ctx, user: discord.Member):
+        """Clears all songs from the specified user"""
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
+        def pred(song):
+            if song.requested_by and song.requested_by.id == user.id:
+                return True
+
+            return False
+
+        cleared = musicplayer.playlist.clear_by_predicate(pred)
+        await ctx.send(f'Cleared {cleared} songs from user {user}')
+
+    @clear.command(no_pm=True, aliases=['dur', 'duration'], enabled=False)
+    @cooldown(2, 5)
+    async def longer_than(self, ctx):
+        # TODO
+        pass
 
     @cooldown(2, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['vol'])

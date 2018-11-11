@@ -157,7 +157,7 @@ class ServerSpecific(Cog):
     @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def add_grant(self, ctx, role_user: Union[discord.Role, discord.Member], target_role: discord.Role):
+    async def add_grant(self, ctx, role_user: Union[discord.Role, discord.Member], *, target_role: discord.Role):
         """Make the given role able to grant the target role"""
         guild = ctx.guild
 
@@ -186,7 +186,7 @@ class ServerSpecific(Cog):
     @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def remove_grant(self, ctx, role_user: Union[discord.Role, discord.Member], target_role: discord.Role):
+    async def remove_grant(self, ctx, role_user: Union[discord.Role, discord.Member], *, target_role: discord.Role):
         """Remove a grantable role from the target role"""
         guild = ctx.guild
 

@@ -192,9 +192,10 @@ CREATE TABLE `join_leave`(
 
 CREATE TABLE `role_granting` (
     `user_role` BIGINT NOT NULL,
+    `user` BIGINT NOT NULL,
     `role` BIGINT NOT NULL,
     `guild` BIGINT NOT NULL,
-    PRIMARY KEY (`user_role`, `role`),
+    PRIMARY KEY (`user_role`, `role`, `user`),
     KEY (`guild`),
 
     FOREIGN KEY (`user_role`) REFERENCES `roles`(`id`)

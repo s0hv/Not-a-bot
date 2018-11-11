@@ -6,6 +6,7 @@ import subprocess
 import unicodedata
 from datetime import datetime
 from datetime import timedelta
+from typing import Union
 
 import discord
 import emoji
@@ -79,13 +80,9 @@ class ServerSpecific(Cog):
         return self.bot.dbutil
 
     async def _check_role_grant(self, ctx, user, role_id, guild_id):
-        length = len(user.roles)
-        if length == 1:
-            user_role = 'user_role=%s' % role_id
-        else:
-            user_role = 'user_role IN (%s)' % ', '.join((str(r.id) for r in user.roles))
+        where = 'user=%s OR user_role IN (%s)' % (ctx.author.id, ', '.join((str(r.id) for r in user.roles)))
 
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND %s LIMIT 1' % (guild_id, role_id, user_role)
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND %s LIMIT 1' % (guild_id, role_id, where)
         try:
             row = (await self.bot.dbutil.execute(sql)).first()
             if not row:
@@ -112,11 +109,7 @@ class ServerSpecific(Cog):
         if author.id in no and user.id in no and user.id != author.id:
             return await ctx.send('no')
 
-        # artx - smartx crew
-        if guild.id == 217677285442977792 and ctx.author.id == 129446563847077889 and role.id == 330308713502081036:
-            can_grant = True
-        else:
-            can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
+        can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
 
         if can_grant is None:
             return
@@ -146,11 +139,7 @@ class ServerSpecific(Cog):
         if author.id in no and user.id in no and user.id != author.id:
             return await ctx.send('no')
 
-        # artx - smartx crew
-        if guild.id == 217677285442977792 and ctx.author.id == 129446563847077889 and role.id == 330308713502081036:
-            can_grant = True
-        else:
-            can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
+        can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
         if can_grant is None:
             return
         elif can_grant is False:
@@ -168,74 +157,110 @@ class ServerSpecific(Cog):
     @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def add_grant(self, ctx, role: discord.Role, target_role: discord.Role):
+    async def add_grant(self, ctx, role_user: Union[discord.Role, discord.Member], target_role: discord.Role):
         """Make the given role able to grant the target role"""
         guild = ctx.guild
 
-        if not await self.dbutil.add_roles(guild.id, target_role.id, role.id):
+        if isinstance(role_user, discord.Role):
+            values = (role_user.id, target_role.id, guild.id, 0)
+            roles = (role_user.id, target_role.id)
+        else:
+            values = (0, target_role.id, guild.id, role_user.id)
+            roles = (target_role.id, 0)
+
+        if not await self.dbutil.add_roles(guild.id, *roles):
             return await ctx.send('Could not add roles to database')
 
-        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role`, `guild`) VALUES ' \
-              '(%s, %s, %s)' % (role.id, target_role.id, guild.id)
-        session = self.bot.get_session
+        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role`, `guild`, `user`) VALUES ' \
+              '(%s, %s, %s, %s)' % values
         try:
-            session.execute(sql)
-            session.commit()
+            await self.dbutil.execute(sql, commit=True)
         except SQLAlchemyError:
-            session.rollback()
             logger.exception('Failed to add grant role')
             return await ctx.send('Failed to add perms. Exception logged')
 
-        await ctx.send(f'{role} 👌 {target_role}')
+        await ctx.send(f'{role_user} 👌 {target_role}')
 
     @command(no_pm=True, ignore_extra=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def remove_grant(self, ctx, role: discord.Role, target_role: discord.Role):
+    async def remove_grant(self, ctx, role_user: Union[discord.Role, discord.Member], target_role: discord.Role):
         """Remove a grantable role from the target role"""
         guild = ctx.guild
 
-        sql = 'DELETE FROM `role_granting` WHERE user_role=%s AND role=%s AND guild=%s' % (role.id, target_role.id, guild.id)
+        if isinstance(role_user, discord.Role):
+            where = 'user_role=%s' % role_user.id
+        else:
+            where = 'user=%s' % role_user.id
+
+        sql = 'DELETE FROM `role_granting` WHERE role=%s AND guild=%s AND %s' % (target_role.id, guild.id, where)
         try:
             await self.dbutil.execute(sql, commit=True)
         except SQLAlchemyError:
-            logger.exception('Failed to remove grant role')
+            logger.exception('Failed to remove role grant')
             return await ctx.send('Failed to remove perms. Exception logged')
 
-        await ctx.send(f'{role} 👌 {target_role}')
+        await ctx.send(f'{role_user} 👌 {target_role}')
 
     @command(no_pm=True)
     @cooldown(2, 5)
-    async def all_grants(self, ctx, role: discord.Role=None):
-        sql = f'SELECT `role`, `user_role` FROM `role_granting` WHERE guild={ctx.guild.id}'
-        if role:
-            sql += f' AND user_role={role.id}'
+    async def all_grants(self, ctx, role_user: Union[discord.Role, discord.User]=None):
+        """Shows all grants on the server.
+        If user or role provided will get all grants specific to that."""
+        sql = f'SELECT `role`, `user_role`, `user` FROM `role_granting` WHERE guild={ctx.guild.id}'
+        if isinstance(role_user, discord.Role):
+            sql += f' AND user_role={role_user.id}'
+        elif isinstance(role_user, discord.User):
+            sql += f' AND user={role_user.id}'
 
         try:
             rows = await self.bot.dbutil.execute(sql)
         except SQLAlchemyError:
-            logger.exception(f'Failed to get grants for role {role}')
+            logger.exception(f'Failed to get grants for {role_user}')
             return await ctx.send('Failed to get grants')
 
         role_grants = {}
+        user_grants = {}
+        # Add user grants and role grants to their respective dicts
         for row in rows:
             role_id = row['user_role']
             target_role = row['role']
-            if role_id not in role_grants:
-                role_grants[role_id] = [target_role]
-            else:
-                role_grants[role_id].append(target_role)
 
-        if not role_grants:
+            # Add user grants
+            if not role_id:
+                user = row['user']
+                if user in user_grants:
+                    user_grants[user].append(target_role)
+                else:
+                    user_grants[user] = [target_role]
+
+            # Add role grants
+            else:
+                if role_id not in role_grants:
+                    role_grants[role_id] = [target_role]
+                else:
+                    role_grants[role_id].append(target_role)
+
+        if not role_grants and not user_grants:
             return await ctx.send('No role grants found')
 
+        # Paginate role grants first then user grants
         paginator = Paginator('Role grants')
         for role_id, roles in role_grants.items():
             role = ctx.guild.get_role(role_id)
             role_name = role.name if role else '*Deleted role*'
             paginator.add_field(f'{role_name} `{role_id}`')
+            for role in roles:
+                paginator.add_to_field(f'<@&{role}> `{role}`\n')
+
+        for user_id, roles in user_grants.items():
+            user = self.bot.get_user(user_id)
+            if not user:
+                user = f'<@{user}>'
+
+            paginator.add_field(f'{user} `{user_id}`')
             for role in roles:
                 paginator.add_to_field(f'<@&{role}> `{role}`\n')
 
@@ -251,17 +276,12 @@ class ServerSpecific(Cog):
         if not user:
             user = ctx.author
 
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND user_role IN (%s)' % (guild.id, ', '.join((str(r.id) for r in user.roles)))
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND (user=%s OR user_role IN (%s))' % (guild.id, ctx.author.id, ', '.join((str(r.id) for r in user.roles)))
         try:
             rows = (await self.dbutil.execute(sql)).fetchall()
         except SQLAlchemyError:
             logger.exception('Failed to get role grants')
             return await ctx.send('Failed execute sql')
-
-        # artx - smartx crew
-        if guild.id == 217677285442977792 and ctx.author.id == 129446563847077889:
-            rows = list(rows)
-            rows.append({'role': 330308713502081036})
 
         if not rows:
             return await ctx.send("{} can't grant any roles".format(user))

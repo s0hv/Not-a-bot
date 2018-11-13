@@ -80,9 +80,9 @@ class ServerSpecific(Cog):
         return self.bot.dbutil
 
     async def _check_role_grant(self, ctx, user, role_id, guild_id):
-        where = 'user=%s OR user_role IN (%s)' % (ctx.author.id, ', '.join((str(r.id) for r in user.roles)))
+        where = 'user=%s OR user_role IN (%s)' % (user.id, ', '.join((str(r.id) for r in user.roles)))
 
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND %s LIMIT 1' % (guild_id, role_id, where)
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND (%s) LIMIT 1' % (guild_id, role_id, where)
         try:
             row = (await self.bot.dbutil.execute(sql)).first()
             if not row:
@@ -101,9 +101,6 @@ class ServerSpecific(Cog):
         """Give a role to the specified user if you have the perms to do it"""
         guild = ctx.guild
         author = ctx.author
-        length = len(author.roles)
-        if length == 0:
-            return
 
         no = (117256618617339905, 189458911886049281)
         if author.id in no and user.id in no and user.id != author.id:

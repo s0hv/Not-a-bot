@@ -167,7 +167,7 @@ class Utilities(Cog):
             cmd = cmnd
 
         if not cmd:
-            await ctx.send('You can find the source code for this bot here https://github.com/s0hvaperuna/Not-a-bot')
+            await ctx.send('You can find the source code for this bot here https://github.com/s0hv/Not-a-bot')
             return
 
         source = inspect.getsource(cmd.callback)
@@ -358,7 +358,7 @@ class Utilities(Cog):
     @cooldown(1, 10, BucketType.user)
     async def bugreport(self, ctx):
         """For reporting bugs"""
-        await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hvaperuna/Not-a-bot/issues')
+        await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hv/Not-a-bot/issues')
 
     @command(ingore_extra=True)
     @cooldown(1, 10, BucketType.guild)
@@ -374,20 +374,39 @@ class Utilities(Cog):
 
     @command()
     @cooldown(1, 5, BucketType.user)
-    async def emojify(self, ctx, *, text):
-        """Turns your text without emotes to text with discord custom emotes"""
+    async def emojify(self, ctx, *, text: str):
+        """Turns your text without emotes to text with discord custom emotes
+        To blacklist words from emoji search use a quoted string at the
+        beginning of the command denoting those words
+        e.g. emojify "blacklisted words here" rest of the sentence"""
         emojis = ctx.bot.emojis
         new_text = ''
+        word_blacklist = None
+
+        # Very simple method to parse word blacklist
+        if text.startswith('"'):
+            idx = text.find('"', 1)  # Find second quote idx
+            word_blacklist = text[1:idx]
+            if word_blacklist:
+                text = text[idx+1:]
+                word_blacklist = [s.lower().strip(',.') for s in word_blacklist.split(' ')]
+
         emoji_cache = {}
         for s in text.split(' '):
-            e = emoji_cache.get(s.lower())
+            es = s.lower().strip(',.')
+            # We don't want to look for emotes that are only a couple characters long
+            if len(s) < 3 or (word_blacklist and es in word_blacklist):
+                new_text += s + ' '
+                continue
+
+            e = emoji_cache.get(es)
             if not e:
-                e = self.find_emoji(emojis, s.lower())
+                e = self.find_emoji(emojis, es)
                 if e is None:
                     e = s
                 else:
                     e = str(e)
-                    emoji_cache[s.lower()] = e
+                    emoji_cache[es] = e
 
             new_text += e + ' '
 

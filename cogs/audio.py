@@ -155,16 +155,22 @@ class MusicPlayer:
 
     def _get_volume_from_db(self, db):
         rms = pow(10, db / 20) * 32767
-        return 1 / rms * self.volume_multiplier
+        # vol = volm/rms
+        return rms, self.volume_multiplier/rms
 
     async def set_mean_volume(self, file):
         try:
+            # Don't want mean volume from livestreams
+            if self.current.is_live:
+                return
+
             db = await asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool,
                                         duration=self.current.duration), timeout=20, loop=self.bot.loop)
             if db is not None and abs(db) >= 0.1:
-                volume = self._get_volume_from_db(db)
+                rms, volume = self._get_volume_from_db(db)
                 logger.debug(f'parsed volume {volume}')
                 self.current_volume = volume
+                self.current.rms = rms
 
         except asyncio.TimeoutError:
             logger.debug('Mean volume timed out')
@@ -268,7 +274,10 @@ class MusicPlayer:
             else:
                 volume_task = None
 
-            source.volume = self.current.volume or self.volume
+            if not self.current.volume:
+                self.current_volume = self.volume
+            else:
+                source.volume = self.current.volume
 
             dur = get_track_pos(self.current.duration, 0)
             s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, source.volume)
@@ -1617,6 +1626,35 @@ class Audio:
             await ctx.send(f'Volume multiplier set to {value}')
         except ValueError:
             await ctx.send('Value is not a number', delete_after=60)
+
+    @command(no_pm=True, aliases=['avolm'])
+    @cooldown(2, 4, type=BucketType.guild)
+    async def auto_volm(self, ctx):
+        """Automagically set the volm value based on current volume"""
+        musicplayer = await self.check_player(ctx)
+        if not musicplayer:
+            return
+
+        if not await self.check_voice(ctx):
+            return
+
+        current = musicplayer.current
+        if not current:
+            return await ctx.send('Not playing anything right now')
+
+        old = musicplayer.volume_multiplier
+        if not current.rms:
+            for h in musicplayer.history:
+                if not h.rms:
+                    continue
+
+                new = round(h.rms * h.volume, 1)
+                await ctx.send("Current song hadn't been processed yet so used song history to determine volm\n"
+                               f"{old} -> {new}")
+                return
+
+        new = round(current.rms * musicplayer.current_volume, 1)
+        await ctx.send(f'volm changed automagically {old} -> {new}')
 
     @command(no_pm=True)
     @cooldown(1, 10, type=BucketType.guild)

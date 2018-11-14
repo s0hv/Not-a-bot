@@ -35,7 +35,8 @@ class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
                  'options', 'dl_folder', '_downloading', 'on_ready', 'volume',
-                 'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live']
+                 'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live',
+                 'rms']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')
@@ -66,6 +67,7 @@ class Song:
         self.bpm = None
         self.last_update = 0
         self.volume = None
+        self.rms = kwargs.pop('rms', None)
 
     @classmethod
     def from_song(cls, song, **kwargs):
@@ -187,7 +189,7 @@ class Song:
 
         except Exception as e:
             logger.debug('Download error: {}'.format(e))
-            await self.playlist.channel.send('Failed to download {0}\n{1}'.format(self.title, e))
+            await self.playlist.channel.send('Failed to download {0}\nlink: {1}'.format(self.title, self.webpage_url))
 
         finally:
             self._downloading = False

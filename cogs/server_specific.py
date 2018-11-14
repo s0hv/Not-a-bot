@@ -737,6 +737,18 @@ class ServerSpecific(Cog):
 
         await self.redis.set(key, f'{score}:{repeats}:{msg}', expire=old_ttl)
 
+    @command(ignore_extra=True)
+    @check(lambda ctx: ctx.author.id==302276390403702785)  # Check if chad
+    async def rt2_lock(self, ctx):
+        if ctx.channel.id != 341610158755020820:
+            return await ctx.send("This isn't rt2")
+
+        mod = self.bot.get_cog('Moderator')
+        if not mod:
+            return await ctx.send("This bot doesn't support locking")
+
+        await mod._set_channel_lock(ctx, True)
+
 
 def setup(bot):
     bot.add_cog(ServerSpecific(bot))

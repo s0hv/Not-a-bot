@@ -69,5 +69,5 @@ initial_cogs = [
 terminal.info('Main bot starting up')
 logger.info('Starting bot')
 bot = AudioBot(prefix=sorted(['alexa ', 'ä', 'a', 'pls', 'as'], reverse=True), conf=config, pm_help=False, max_messages=100, cogs=initial_cogs)
-bot.run(config.audio_token)
+bot.run(config.test_token)
 

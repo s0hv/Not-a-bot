@@ -42,6 +42,7 @@ from discord.player import PCMVolumeTransformer
 
 from bot import player
 from bot.bot import command, cooldown, group
+from bot.converters import TimeDelta
 from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
@@ -772,6 +773,14 @@ class Audio:
 
         return True
 
+    async def get_player_and_check(self, ctx, user_connected=True):
+        if not await self.check_player(ctx):
+            return
+
+        musicplayer = await self.check_player(ctx)
+
+        return musicplayer
+
     @command(no_pm=True, aliases=['a'], ignore_extra=True)
     @cooldown(1, 4, type=BucketType.guild)
     async def again(self, ctx):
@@ -1146,7 +1155,7 @@ class Audio:
         current.options = options
         await self._seek(musicplayer, current, seek, options=options)
 
-    @group(no_pm=True)
+    @group(no_pm=True, invoke_without_command=True)
     @cooldown(1, 4, type=BucketType.guild)
     async def clear(self, ctx, *, items):
         """
@@ -1178,9 +1187,9 @@ class Audio:
 
     @clear.command(no_pm=True, name='from')
     @cooldown(2, 5)
-    async def from_(self, ctx, user: discord.Member):
+    async def from_(self, ctx, *, user: discord.Member):
         """Clears all songs from the specified user"""
-        musicplayer = self.get_musicplayer(ctx.guild.id)
+        musicplayer = await self.get_player_and_check(ctx)
         if not musicplayer:
             return
 
@@ -1193,11 +1202,64 @@ class Audio:
         cleared = musicplayer.playlist.clear_by_predicate(pred)
         await ctx.send(f'Cleared {cleared} songs from user {user}')
 
-    @clear.command(no_pm=True, aliases=['dur', 'duration'], enabled=False)
+    @clear.command(no_pm=True, aliases=['dur', 'duration', 'lt'])
     @cooldown(2, 5)
-    async def longer_than(self, ctx):
-        # TODO
-        pass
+    async def longer_than(self, ctx, *, duration: TimeDelta):
+        """Delete all songs from queue longer than specified duration
+        Duration is a time strin in the format of 1d 1h 1m 1s"""
+        musicplayer = await self.get_player_and_check(ctx)
+        if not musicplayer:
+            return
+
+        sec = duration.total_seconds()
+
+        def pred(song):
+            if song.duration > sec:
+                return True
+            return False
+
+        cleared = musicplayer.playlist.clear_by_predicate(pred)
+        await ctx.send(f'Cleared {cleared} songs longer than {duration}')
+
+    @clear.command(no_pm=True, name='name')
+    @cooldown(2, 4)
+    async def by_name(self, ctx, *, song_name):
+        """Clear queue by song name. Regex can be used for this"""
+        musicplayer = await self.get_player_and_check(ctx)
+        if not musicplayer:
+            return
+
+        matches = set()
+
+        try:
+            r = re.compile(song_name, re.IGNORECASE)
+        except re.error as e:
+            await ctx.send('Failed to compile regex\n' + str(e))
+            return
+
+        # This needs to be run in executor in case someone decides to use
+        # an evil regex
+        def get_matches():
+            for song in musicplayer.playlist.playlist:
+                if not song.title:
+                    continue
+
+                if r.search(song.title):
+                    matches.add(song.title)
+
+        try:
+            await asyncio.wait_for(self.bot.loop.run_in_executor(self.bot.threadpool, get_matches),
+                             timeout=1, loop=self.bot.loop)
+        except asyncio.TimeoutError:
+            logger.warning(f'{ctx.author} {ctx.author.id} timeouted regex. Used regex was {song_name}')
+            await ctx.send('Search timed out')
+            return
+
+        def pred(song):
+            return song.title in matches
+
+        cleared = musicplayer.playlist.clear_by_predicate(pred)
+        await ctx.send(f'Cleared {cleared} songs matching {song_name}')
 
     @cooldown(2, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['vol'])

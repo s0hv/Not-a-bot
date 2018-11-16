@@ -372,10 +372,10 @@ class Bot(commands.Bot, Client):
                         await destination.send(bot.command_not_found.format(key))
                         return
                 except AttributeError:
-                    await destination.send( bot.command_has_no_subcommands.format(command, key))
+                    await destination.send(bot.command_has_no_subcommands.format(command, key))
                     return
 
-            pages = await self.formatter.format_help_for(ctx, commands, is_owner=is_owner, type=type)
+            pages = await self.formatter.format_help_for(ctx, command, is_owner=is_owner, type=type)
 
         for page in pages:
             await destination.send(embed=page)

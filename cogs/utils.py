@@ -358,13 +358,23 @@ class Utilities(Cog):
     @cooldown(1, 10, BucketType.user)
     async def bugreport(self, ctx):
         """For reporting bugs"""
-        await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hv/Not-a-bot/issues')
+        await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hv/Not-a-bot/issues\n'
+                       f"If you don't have a github account or are just too lazy you can use {ctx.prefix}feedback for reporting as well")
 
     @command(ingore_extra=True)
     @cooldown(1, 10, BucketType.guild)
     async def vote(self, ctx):
         """Pls vote thx"""
         await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
+
+    @command(aliases=['sellout'], ignore_extra=True)
+    @cooldown(1, 10)
+    async def donate(self, ctx):
+        """
+        Bot is not free to host. Donations go straight to server costs
+        """
+        await ctx.send('If you want to support bot in server costs donate to https://www.paypal.me/s0hvaperuna\n'
+                       'Alternatively you can use my DigitalOcean referral link https://m.do.co/c/84da65db5e5b')
 
     @staticmethod
     def find_emoji(emojis, name):

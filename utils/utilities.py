@@ -1020,14 +1020,14 @@ async def get_all_reaction_users(reaction, limit=100):
     return users
 
 
-async def create_custom_emoji(guild, name, image, already_b64=False, reason=None):
+async def create_custom_emoji(guild, name, image, already_b64=False, reason=None, **kwargs):
     """Same as the base method but supports giving your own b64 encoded data"""
     if not already_b64:
         img = discord.utils._bytes_to_base64_data(image)
     else:
         img = image
 
-    data = await guild._state.http.create_custom_emoji(guild.id, name, img, reason=reason)
+    data = await guild._state.http.create_custom_emoji(guild.id, name, img, reason=reason, **kwargs)
     return guild._state.store_emoji(guild, data)
 
 

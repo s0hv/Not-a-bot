@@ -268,7 +268,7 @@ class Playlist:
 
                     while progress <= size:
                         try:
-                            await asyncio.sleep(3)
+                            await asyncio.sleep(2)
                             t2 = time.time() - t
                             eta = progress/t2
                             if eta == 0:
@@ -277,10 +277,11 @@ class Playlist:
                                 eta = seconds2str(max(size/eta - t2, 0))
 
                             s = 'Loading playlist. Progress {}/{}\nETA {}'.format(progress, size, eta)
-                            message = await message.edit(s)
+                            await message.edit(content=s)
                         except asyncio.CancelledError:
-                            await self.bot.delete_message(message)
+                            await message.delete()
                         except:
+                            logger.exception('Failed to post progress')
                             return
 
                     await message.delete()
@@ -290,7 +291,7 @@ class Playlist:
                 async def _on_error(e):
                     try:
                         if not no_message:
-                            await channel.send('Failed to process {}\n{}'.format(entry.get('title', entry.get['id']), e))
+                            await channel.send('Failed to process {}'.format(entry.get('id')))
                     except discord.HTTPException:
                         pass
 
@@ -301,13 +302,13 @@ class Playlist:
 
                     info = await self.downloader.extract_info(self.bot.loop, url=url % entry['id'], download=False,
                                                               on_error=_on_error)
-                    if info is False:
+                    if info is False or info is None:
                         continue
 
-                    if info is None:
+                    if not info:
                         try:
                             if not no_message:
-                                await channel.send('Failed to process {}'.format(entry.get('title', entry['id'])))
+                                await channel.send('Failed to process {}'.format(entry.get('id')))
                         except discord.HTTPException:
                             pass
                         continue

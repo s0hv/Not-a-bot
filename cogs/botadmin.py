@@ -434,7 +434,8 @@ class BotAdmin(Cog):
         finally:
             # We have systemctl set up in a way that different exit codes
             # have different effects on restarting behavior
-            exit(int(exit_code))
+
+            sys.exit(int(exit_code))
 
     @command(owner_only=True)
     async def notice_me(self, ctx):

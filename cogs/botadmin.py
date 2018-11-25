@@ -411,14 +411,6 @@ class BotAdmin(Cog):
                 await audio.shutdown()
 
             try:
-                logger.info('Logging out')
-                await self.bot.logout()
-                logger.info('Logged out')
-            except:
-                pass
-
-
-            try:
                 session = self.bot._Session
                 engine = self.bot._engine
 
@@ -428,13 +420,19 @@ class BotAdmin(Cog):
                 logger.exception('Failed to shut db down gracefully')
             logger.info('Closed db connection')
 
+            try:
+                logger.info('Logging out')
+                await self.bot.logout()
+                logger.info('Logged out')
+            except:
+                pass
+
         except Exception:
             logger.exception('Bot shutdown error')
 
         finally:
             # We have systemctl set up in a way that different exit codes
             # have different effects on restarting behavior
-
             sys.exit(int(exit_code))
 
     @command(owner_only=True)

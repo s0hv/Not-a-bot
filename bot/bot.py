@@ -177,6 +177,7 @@ class ConnectionState(state.ConnectionState):
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
         self.ws = None
+        self._exit_code = 0
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self._listeners = {}
         self.shard_id = options.get('shard_id')

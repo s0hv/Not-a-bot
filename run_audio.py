@@ -71,3 +71,8 @@ logger.info('Starting bot')
 bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True), conf=config, pm_help=False, max_messages=100, cogs=initial_cogs)
 bot.run(config.audio_token)
 
+# We have systemctl set up in a way that different exit codes
+# have different effects on restarting behavior
+import sys
+sys.exit(bot._exit_code)
+

@@ -107,3 +107,8 @@ logger.info('Starting bots')
 #bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
 bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs)
 bot.run(config.test_token)
+
+# We have systemctl set up in a way that different exit codes
+# have different effects on restarting behavior
+import sys
+sys.exit(bot._exit_code)

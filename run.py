@@ -77,3 +77,7 @@ logger.info('Starting bot')
 bot = NotABot(prefix='!', conf=config, pm_help=False, max_messages=10000, cogs=initial_cogs)
 bot.run(config.token)
 
+# We have systemctl set up in a way that different exit codes
+# have different effects on restarting behavior
+import sys
+sys.exit(bot._exit_code)

@@ -11,6 +11,7 @@ import sys
 import textwrap
 import time
 import traceback
+from enum import IntEnum
 from importlib import reload, import_module
 from io import BytesIO, StringIO
 from pprint import PrettyPrinter
@@ -35,6 +36,12 @@ from utils.utilities import (y_n_check, basic_check, y_check, check_import,
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
+
+
+class ExitStatus(IntEnum):
+    PreventRestart = 2
+    ForceRestart = 3
+    RestartNormally = 0
 
 
 class NoStringWrappingPrettyPrinter(PrettyPrinter):
@@ -367,6 +374,13 @@ class BotAdmin(Cog):
 
     @command(owner_only=True)
     async def shutdown(self, ctx):
+        await self._shutdown(ctx, ExitStatus.PreventRestart)
+
+    @command(owner_only=True)
+    async def restart(self, ctx):
+        await self._shutdown(ctx, ExitStatus.ForceRestart)
+
+    async def _shutdown(self, ctx, exit_code):
         try:
             await ctx.send('Beep boop :wave:')
         except HTTPException:
@@ -418,7 +432,9 @@ class BotAdmin(Cog):
             logger.exception('Bot shutdown error')
 
         finally:
-            exit(0)
+            # We have systemctl set up in a way that different exit codes
+            # have different effects on restarting behavior
+            exit(exit_code)
 
     @command(owner_only=True)
     async def notice_me(self, ctx):

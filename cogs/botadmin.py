@@ -387,6 +387,7 @@ class BotAdmin(Cog):
             pass
 
         logger.info('Unloading extensions')
+        self.bot._exit_code = int(exit_code)
 
         def unload_all():
             for ext in list(self.bot.extensions.keys()):

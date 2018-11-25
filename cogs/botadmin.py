@@ -380,7 +380,7 @@ class BotAdmin(Cog):
     async def restart(self, ctx):
         await self._shutdown(ctx, ExitStatus.ForceRestart)
 
-    async def _shutdown(self, ctx, exit_code):
+    async def _shutdown(self, ctx, exit_code: ExitStatus):
         try:
             await ctx.send('Beep boop :wave:')
         except HTTPException:
@@ -434,7 +434,7 @@ class BotAdmin(Cog):
         finally:
             # We have systemctl set up in a way that different exit codes
             # have different effects on restarting behavior
-            exit(exit_code)
+            exit(int(exit_code))
 
     @command(owner_only=True)
     async def notice_me(self, ctx):

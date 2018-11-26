@@ -273,7 +273,7 @@ class ServerSpecific(Cog):
         if not user:
             user = ctx.author
 
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND (user=%s OR user_role IN (%s))' % (guild.id, ctx.author.id, ', '.join((str(r.id) for r in user.roles)))
+        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND (user=%s OR user_role IN (%s))' % (guild.id, user.id, ', '.join((str(r.id) for r in user.roles)))
         try:
             rows = (await self.dbutil.execute(sql)).fetchall()
         except SQLAlchemyError:

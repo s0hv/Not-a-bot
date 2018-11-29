@@ -303,8 +303,14 @@ class ServerSpecific(Cog):
     @command(disabled=True)
     @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
-    async def text(self, ctx, prime='', n=100, sample: int=1):
+    async def text(self, ctx, prime='', n: int=100, sample: int=1):
         """Generate text"""
+        if not 10 <= n <= 200:
+            return await ctx.send('n has to be between 10 and 200')
+
+        if not 0 <= sample <= 2:
+            return await ctx.send('sample hs to be 0, 1 or 2')
+
         if not self.bot.tf_model:
             return await ctx.send('Not supported')
 

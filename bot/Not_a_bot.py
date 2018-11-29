@@ -33,6 +33,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
 from bot.server import WebhookServer
+from utils.init_tf import LoadedModel
 from utils.utilities import (split_string, slots2dict, retry, random_color)
 
 logger = logging.getLogger('debug')
@@ -40,13 +41,14 @@ terminal = logging.getLogger('terminal')
 
 
 class NotABot(BotBase):
-    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, **options):
+    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, model: LoadedModel=None, **options):
         super().__init__(prefix, conf, aiohttp=aiohttp, test_mode=test_mode, cogs=cogs, **options)
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
         self.cdm = cdm
         
         self._random_color = None
+        self._tf_model = model
         self.polls = {}
         self.timeouts = {}
         self.temproles = {}
@@ -61,6 +63,10 @@ class NotABot(BotBase):
     @property
     def server(self):
         return self._server
+
+    @property
+    def tf_model(self):
+        return self._tf_model
 
     async def cache_guilds(self):
         import time

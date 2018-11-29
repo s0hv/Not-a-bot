@@ -26,8 +26,6 @@ import asyncio
 import inspect
 import itertools
 import logging
-import sys
-import traceback
 
 import discord
 from aiohttp import ClientSession
@@ -317,8 +315,7 @@ class Bot(commands.Bot, Client):
             return
 
         terminal.warning('Ignoring exception in command {}'.format(context.command))
-        traceback.print_exception(type(exception), exception,
-                                  exception.__traceback__, file=sys.stderr)
+        terminal.exception('', exc_info=exception)
 
     @staticmethod
     def get_role_members(role, guild):

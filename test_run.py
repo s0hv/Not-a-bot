@@ -33,6 +33,7 @@ import discord
 from bot.Not_a_bot import NotABot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
+from utils import init_tf
 
 discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.INFO)
@@ -104,8 +105,16 @@ initial_cogs = [
 
 terminal.info('Main bot starting up')
 logger.info('Starting bots')
+
+# Initialize tensorflow for text cmd
+try:
+    model = init_tf.init_tf()
+except:
+    terminal.exception('Failed to initialize tensorflow')
+    model = None
+
 #bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
-bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs)
+bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs, model=model)
 bot.run(config.test_token)
 
 # We have systemctl set up in a way that different exit codes

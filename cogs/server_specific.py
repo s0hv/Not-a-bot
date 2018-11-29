@@ -1,8 +1,6 @@
 import asyncio
 import logging
 import random
-import shlex
-import subprocess
 import unicodedata
 from datetime import datetime
 from datetime import timedelta
@@ -305,26 +303,15 @@ class ServerSpecific(Cog):
     @command(disabled=True)
     @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
-    async def text(self, ctx):
+    async def text(self, ctx, prime='', n=100, sample: int=1):
         """Generate text"""
-        if self.bot.test_mode:
-            return
+        if not self.bot.tf_model:
+            return await ctx.send('Not supported')
 
-        p = '/home/pi/neural_networks/torch-rnn/cv/checkpoint_pi.t7'
-        script = '/home/pi/neural_networks/torch-rnn/sample.lua'
-        cmd = '/home/pi/torch/install/bin/th %s -checkpoint %s -length 200 -gpu -1' % (script, p)
-        try:
-            p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd='/home/pi/neural_networks/torch-rnn/')
-        except:
-            await ctx.send('Not supported')
-            return
+        async with ctx.typing():
+            s = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot.tf_model.sample, prime, n, sample)
 
-        await ctx.trigger_typing()
-        while p.poll() is None:
-            await asyncio.sleep(0.2)
-
-        out, err = p.communicate()
-        await ctx.send(out.decode('utf-8'))
+        await ctx.send(s)
 
     @command(owner_only=True, aliases=['flip'])
     @check(main_check)

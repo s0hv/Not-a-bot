@@ -1,4 +1,8 @@
 # Ignore everything in this directory
-model.ckpt-361000.meta
+chars_vocab.pkl
+checkpoint
+config.pkl
+model.ckpt*
+
 # Except this file
 !.gitignore

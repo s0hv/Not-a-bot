@@ -14,6 +14,7 @@ from utils.utilities import (get_emote_name_id, parse_time, datetime2sql,
                              get_avatar)
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Poll:
@@ -118,10 +119,13 @@ class Poll:
 
         if self.giveaway:
             users = list(votes.keys())
-            self.max_winners = min(len(users), self.max_winners)
-            winners = numpy.random.choice(users, self.max_winners, False)
-            winners = ', '.join(map(lambda u: f'<@{u}>', winners))
-            await chn.send(f'Winners of {self.title} `{self.message}` are\n{winners}')
+            if not users:
+                await chn.send(f'No winners for {self.title} `{self.message}`')
+            else:
+                self.max_winners = min(len(users), self.max_winners)
+                winners = numpy.random.choice(users, self.max_winners, False)
+                winners = ', '.join(map(lambda u: f'<@{u}>', winners))
+                await chn.send(f'Winners of {self.title} `{self.message}` are\n{winners}')
 
         else:
 
@@ -195,7 +199,7 @@ class VoteManager:
 
     def load_polls(self):
         session = self.bot.get_session
-        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
+        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, polls.giveaway, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
         poll_rows = session.execute(sql)
         polls = {}
         for row in poll_rows:
@@ -354,8 +358,8 @@ class VoteManager:
                 emotes = [emote]
             else:
                 emote = emotes[0]
-                emote = '{}{}:{}'.format(*emote) if isinstance(emote, tuple) else emote
                 emotes = [emote]
+                emote = '<{}{}:{}>'.format(*emote) if isinstance(emote, tuple) else emote
 
         if parsed.description:
             description = ' '.join(parsed.description)
@@ -430,7 +434,9 @@ class VoteManager:
                             emotes_list.append(id)
                             guild = None
                         else:
-                            name, id = emote
+                            # Prefix is the animated emoji prefix a: or empty str
+                            prefix, name, id = emote
+                            name = prefix + name
                             emotes_list.append(id)
                             guild = ctx.guild.id
                         values.append({'name': name, 'emote': str(id), 'guild': guild})
@@ -453,7 +459,13 @@ class VoteManager:
                 logger.exception('Failed sql query')
                 return 'Failed to save poll. Exception has been logged'
 
-        emotes_list = await self.bot.loop.run_in_executor(self.bot.threadpool, do_sql)
+        try:
+            emotes_list = await self.bot.loop.run_in_executor(self.bot.threadpool, do_sql)
+        except:
+            logger.exception('Failed to save poll')
+            terminal.exception('Failed to save poll')
+            return await ctx.send('Failed to save poll to db')
+
         if isinstance(emotes_list, str):
             # Error happened when this is a string. Otherwise it's a list
             return await ctx.send(emotes_list)

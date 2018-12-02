@@ -236,7 +236,7 @@ class MusicPlayer:
             logger.debug(f'Opening file with the name "{file}" and options "{self.current.before_options}" "{self.current.options}"')
             source = player.FFmpegPCMAudio(file, before_options=self.current.before_options,
                                                  options=self.current.options)
-            source = PCMVolumeTransformer(source)
+            source = PCMVolumeTransformer(source, volume=self.volume)
             if self.current.volume is None and self.bot.config.auto_volume and isinstance(file, str) and not self.current.is_live:
                 volume_task = asyncio.ensure_future(self.set_mean_volume(file))
             else:

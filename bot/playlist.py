@@ -153,7 +153,7 @@ class Playlist:
 
         def get_page(entry, idx):
             new_url = get_url(entry)
-            return f'Send `Y` to confirm or `STOP` to stop\n{new_url} {idx+1}/{length}'
+            return f'{new_url} {idx+1}/{length}'
 
         entry = entries[0]
         message = await ctx.channel.send(get_page(entry, 0))
@@ -177,11 +177,12 @@ class Playlist:
                 if in_vc:
                     await message.delete()
                     await self._add_url(get_url(entry), priority=priority,
-                                        channel=channel)
+                                        channel=channel, requested_by=ctx.author)
 
                 return
 
             if reaction.emoji == '❌':
+                await message.delete()
                 return
 
             entry = paged.reaction_changed(*result)

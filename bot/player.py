@@ -67,7 +67,12 @@ class MusicPlayer:
         self._speed_mod = 1
         self._skip_votes = set()
 
+        # Used for checking if bot is going crazy
+        self._last_song = 0
+        self._streak = 0  # How many songs played in quick succession
+
     def __del__(self):
+        self.close_tasks()
         if self.voice:
             asyncio.ensure_future(self.voice.disconnect(), loop=self.bot.loop)
 
@@ -75,9 +80,28 @@ class MusicPlayer:
         self.channel = channel
         self.playlist.channel = channel
 
+    def close_tasks(self):
+        """Kills the running tasks"""
+        if self.audio_player:
+            self.audio_player.cancel()
+        if self.activity_check:
+            self.activity_check.cancel()
+
     def start_playlist(self):
+        self.close_tasks()
+
         self.audio_player = self.bot.loop.create_task(self._play_audio())
         self.activity_check = self.bot.loop.create_task(self._activity_check())
+
+    def selfdestruct(self):
+        self.repeat = False
+        self.autoplay = False
+        self.stop()
+        if self.voice:
+            asyncio.ensure_future(self.voice.disconnect(), loop=self.bot.loop)
+        self.close_tasks()
+        self.voice = None
+        self.playlist.playlist.clear()
 
     @property
     def history(self):
@@ -147,12 +171,17 @@ class MusicPlayer:
 
     async def _activity_check(self):
         async def stop():
-            await self._disconnect(self)
-            self.voice = None
+            try:
+                if self.audio_player:
+                    self.audio_player.cancel()
+                await self._disconnect(self)
+                self.voice = None
+            except:
+                pass
 
         while True:
             await asyncio.sleep(60)
-            if self.voice is None:
+            if self.voice is None or self.audio_player is None or self.audio_player.done():
                 return await stop()
 
             users = self.voice.channel.members
@@ -208,6 +237,25 @@ class MusicPlayer:
 
             logger.debug(f'Next song is {self.current}')
             logger.debug('Waiting for dl')
+            if time.time() - self._last_song < 2:
+                self._streak += 1
+                if self._streak > 7:
+                    try:
+                        await self.send('Bot seems to be malfunctioning or someone is just spamming skip. Trying to disconnect')
+                    except:
+                        pass
+
+                    try:
+                        await self._disconnect(self)
+                    except:
+                        pass
+
+                    await self.voice.disconnect()
+                    return
+
+            else:
+                self._streak = 0
+            self._last_song = time.time()
 
             try:
                 await asyncio.wait_for(self.current.on_ready.wait(), timeout=15,

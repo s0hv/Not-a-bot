@@ -349,10 +349,30 @@ class Audio:
         self.musicplayers = self.bot.playlists
         self.downloader = Downloader()
 
-    def get_musicplayer(self, guild_id):
+    def get_musicplayer(self, guild_id: int, is_on: bool=True):
+        """
+        Gets the musicplayer for the guild if it exists
+        Args:
+            guild_id (int): id the the guild
+            is_on (bool):
+                If set on will only accept a musicplayer which has been initialized
+                and is ready to play without work. If it finds unsuitable target
+                it will destroy it and recursively call this function again
+
+        Returns:
+            MusicPlayer: If musicplayer was found
+                         else None
+        """
         musicplayer = self.musicplayers.get(guild_id)
         if musicplayer is None:
             musicplayer = self.find_musicplayer_from_garbage(guild_id)
+
+        if is_on and musicplayer and (musicplayer.audio_player is None or musicplayer.audio_player.done()):
+            musicplayer.selfdestruct()
+            MusicPlayer.__instances__.discard(musicplayer)
+            del musicplayer
+            self.get_musicplayer(guild_id)
+
         return musicplayer
 
     def find_musicplayer_from_garbage(self, guild_id):
@@ -685,7 +705,7 @@ class Audio:
         if not channel:
             channel = ctx.author.voice.channel
 
-        musicplayer = self.get_musicplayer(ctx.guild.id)
+        musicplayer = self.get_musicplayer(ctx.guild.id, is_on=False)
         if musicplayer is None:
             musicplayer = MusicPlayer(self.bot, self.disconnect_voice, channel=ctx.channel,
                                       downloader=self.downloader)
@@ -997,7 +1017,7 @@ class Audio:
     async def playing(self, ctx):
         """Gets the currently playing song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
-        if not musicplayer or musicplayer.player is None:
+        if not musicplayer or musicplayer.player is None or musicplayer.current is None:
             await ctx.send('No songs currently in queue')
         else:
             tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
@@ -1171,12 +1191,27 @@ class Audio:
     async def force_stop(self, ctx):
         """
         Forces voice to be stopped no matter what state the bot is in
-        as long as it's connected to voice and the internal state is in sync
+        as long as it's connected to voice and the internal state is in sync.
+        Not meant to be used for normal disconnecting
         """
         try:
             res = await self.stop.callback(ctx)
         except Exception:
             res = False
+
+        # Just to be sure, delete every single musicplayer related to this server
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        while musicplayer is not None:
+            MusicPlayer.__instances__.discard(musicplayer)
+            musicplayer.selfdestruct()
+            del musicplayer
+
+            musicplayer = self.get_musicplayer(ctx.guild.id)
+
+        del musicplayer
+
+        import gc
+        gc.collect()
 
         if res is False:
             if not ctx.voice_client:

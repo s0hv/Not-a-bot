@@ -103,11 +103,10 @@ class Playlist:
                     self.playlist.append(song)
             else:
                 terminal.warning('Numpy is not installed. Cannot delete songs by index')
-                await channel.send('Clearing by indices is not supported')
-                return False
-            if channel:
-                await channel.send('Playlist cleared')
-                return True
+                await self.send('Clearing by indices is not supported', channel)
+
+            await self.send('Playlist cleared', channel)
+            return True
 
     def clear_by_predicate(self, predicate):
         """Clears songs from queue that match a predicate.
@@ -135,7 +134,7 @@ class Playlist:
 
         info = await self.downloader.extract_info(self.bot.loop, url=query, on_error=self.failed_info, download=False)
         if info is None or 'entries' not in info:
-            return await channel.send('Search gave no results', delete_after=60)
+            return await self.send('Search gave no results', delete_after=60, channel=channel)
 
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
         entries = info['entries']
@@ -156,7 +155,11 @@ class Playlist:
             return f'{new_url} {idx+1}/{length}'
 
         entry = entries[0]
-        message = await ctx.channel.send(get_page(entry, 0))
+        try:
+            message = await ctx.channel.send(get_page(entry, 0))
+        except discord.HTTPException:
+            return
+
         await message.add_reaction('◀')
         await message.add_reaction('▶')
         await message.add_reaction('✅')
@@ -198,8 +201,6 @@ class Playlist:
 
     async def _add_from_info(self, channel=None, priority=False, no_message=False, metadata=None, **info):
         try:
-            if not channel:
-                channel = self.channel
             if metadata is None:
                 metadata = {}
 
@@ -209,16 +210,13 @@ class Playlist:
             await self._append_song(song, priority)
 
             if not no_message:
-                await channel.send(f'Enqueued {song.title}', delete_after=20)
+                await self.send(f'Enqueued {song.title}', delete_after=20, channel=channel)
 
         except Exception as e:
             logger.exception('Could not add song')
-            return await channel.send(f'Error\n{e}')
+            return await self.send(f'Error\n{e}', channel=channel)
 
     async def _add_url(self, url, channel=None, no_message=False, priority=False, **metadata):
-        if not channel:
-            channel = self.channel
-
         on_error = functools.partial(self.failed_info, channel=channel)
         info = await self.downloader.extract_info(self.bot.loop, url=url, download=False, on_error=on_error)
         if info is None:
@@ -239,26 +237,26 @@ class Playlist:
                 info = await self._search(name, on_error=on_error)
             if info is None:
                 if not no_message:
-                    return await channel.send('No songs found or a problem with YoutbeDL that I cannot fix :(')
+                    return await self.send('No songs found or a problem with YoutbeDL that I cannot fix :(', channel=channel)
                 return
 
             if 'entries' in info:
                 entries = info['entries']
                 size = len(entries)
                 if size > maxlen >= 0:  # Max playlist size
-                    await channel.send(f'Playlist is too big. Max size is {maxlen}')
+                    await self.send(f'Playlist is too big. Max size is {maxlen}', channel=channel)
                     return
 
                 if entries[0]['ie_key'].lower() != 'youtube':
-                    await channel.send('Only youtube playlists are currently supported')
+                    await self.send('Only youtube playlists are currently supported', channel=channel)
                     return
 
                 url = 'https://www.youtube.com/watch?v=%s'
                 title = info['title']
                 if priority:
-                    await channel.send('Playlists queued with playnow will be reversed except for the first song', delete_after=60)
+                    await self.send('Playlists queued with playnow will be reversed except for the first song', delete_after=60, channel=channel)
 
-                message = await channel.send(f'Processing {size} songs')
+                message = await self.send(f'Processing {size} songs', channel=channel)
                 t = time.time()
                 songs = deque()
                 first = True
@@ -339,7 +337,7 @@ class Playlist:
                         msg = 'Enqueued playlist %s to the top' % title
                     else:
                         msg = 'Enqueued playlist %s' % title
-                    return await channel.send(msg, delete_after=60)
+                    return await self.send(msg, delete_after=60, channel=channel)
 
             else:
                 await self._add_from_info(priority=priority, channel=channel,
@@ -351,9 +349,9 @@ class Playlist:
     async def add_from_song(self, song, priority=False, channel=None):
         await self._append_song(song, priority)
         if priority:
-            await channel.send('Enqueued {} to the top of the queue'.format(song))
+            await self.send('Enqueued {} to the top of the queue'.format(song), channel=channel)
         else:
-            await channel.send('Enqueued {}'.format(song))
+            await self.send('Enqueued {}'.format(song), channel=channel)
 
     async def add_from_playlist(self, name, channel=None):
         if channel is None:
@@ -361,30 +359,27 @@ class Playlist:
 
         lines = read_lines(os.path.join(self.playlist_path, name))
         if lines is None:
-            return await channel.send('Invalid playlist name')
+            return await self.send('Invalid playlist name', channel=channel)
 
-        await channel.send('Processing {} songs'.format(len(lines)), delete_after=60)
+        await self.send('Processing {} songs'.format(len(lines)), delete_after=60, channel=channel)
         for line in lines:
             await self._add_url(line, no_message=True)
 
-        await channel.send('Enqueued %s' % name)
+        await self.send('Enqueued %s' % name, channel=channel)
 
     async def current_to_file(self, name=None, channel=None):
-        if channel is None:
-            channel = self.channel
-
         if name == 'autoplaylist.txt':
-            return await channel.send('autoplaylist.txt is not a valid name')
+            return await self.send('autoplaylist.txt is not a valid name', channel=channel)
 
         if not self.playlist:
-            return await channel.send('Empty playlist', delete_after=60)
+            return await self.send('Empty playlist', delete_after=60, channel=channel)
         lines = [song.webpage_url for song in self.playlist]
 
         if not name:
             name = 'playlist-{}'.format(timestamp())
         file = os.path.join(self.playlist_path, name)
         write_playlist(file, lines)
-        await channel.send(f'Playlist {name} created')
+        await self.send(f'Playlist {name} created', channel=channel)
 
     async def _search(self, name, **kwargs):
         info = await self.downloader.extract_info(self.bot.loop, extract_flat=False, url=name, download=False, **kwargs)
@@ -400,14 +395,12 @@ class Playlist:
     async def extract_info(self, name, on_error=None):
         return await self.downloader.extract_info(self.bot.loop, url=name, download=False, on_error=on_error)
 
-    @staticmethod
-    async def process_playlist(info, channel=None):
+    async def process_playlist(self, info, channel=None):
         if 'entries' in info:
             entries = info['entries']
 
             if entries[0]['ie_key'].lower() != 'youtube':
-                if channel:
-                    await channel.send('Only youtube playlists are currently supported')
+                await self.send('Only youtube playlists are currently supported', channel=channel)
                 return
 
             links = []
@@ -418,9 +411,7 @@ class Playlist:
             return links
 
     async def failed_info(self, e, channel=None):
-        if channel is None:
-            channel = self.channel
-        await channel.send(f"Couldn't get the requested video\n{e}")
+        await self.send(f"Couldn't get the requested video\n{e}", channel=channel)
 
     async def _append_song(self, song, priority=False):
         if not self.playlist or priority:
@@ -481,3 +472,12 @@ class Playlist:
                 terminal.exception('Error while checking playlist')
 
         return False
+
+    async def send(self, message, channel=None, **kwargs):
+        if channel is None:
+            channel = self.channel
+
+        try:
+            await channel.send(message, **kwargs)
+        except discord.HTTPException:
+            pass

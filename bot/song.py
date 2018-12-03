@@ -27,6 +27,8 @@ import logging
 import os
 import time
 
+import discord
+
 logger = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')
 
@@ -189,7 +191,10 @@ class Song:
 
         except Exception as e:
             logger.debug('Download error: {}'.format(e))
-            await self.playlist.channel.send('Failed to download {0}\nlink: {1}'.format(self.title, self.webpage_url))
+            try:
+                await self.playlist.channel.send('Failed to download {0}\nlink: {1}'.format(self.title, self.webpage_url))
+            except discord.HTTPException:
+                pass
 
         finally:
             self._downloading = False

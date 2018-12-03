@@ -367,7 +367,7 @@ class Audio:
         if musicplayer is None:
             musicplayer = self.find_musicplayer_from_garbage(guild_id)
 
-        if is_on and musicplayer and (musicplayer.audio_player is None or musicplayer.audio_player.done()):
+        if is_on and musicplayer is not None and (musicplayer.audio_player is None or musicplayer.audio_player.done()):
             musicplayer.selfdestruct()
             MusicPlayer.__instances__.discard(musicplayer)
             del musicplayer
@@ -876,7 +876,7 @@ class Audio:
             {prefix}{name} 1-4 7-9 5
             would delete songs at positions 1 to 4, 5 and 7 to 9
         """
-        musicplayer = self.get_musicplayer(ctx.guild.id)
+        musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
             return
 
@@ -1195,18 +1195,24 @@ class Audio:
         Not meant to be used for normal disconnecting
         """
         try:
-            res = await self.stop.callback(ctx)
-        except Exception:
+            res = await self.stop.callback(self, ctx)
+        except Exception as e:
+            print(e)
             res = False
 
         # Just to be sure, delete every single musicplayer related to this server
-        musicplayer = self.get_musicplayer(ctx.guild.id)
+        musicplayer = self.get_musicplayer(ctx.guild.id, False)
         while musicplayer is not None:
+            try:
+                self.musicplayers.pop(ctx.guild.id)
+            except KeyError:
+                pass
+
             MusicPlayer.__instances__.discard(musicplayer)
             musicplayer.selfdestruct()
             del musicplayer
 
-            musicplayer = self.get_musicplayer(ctx.guild.id)
+            musicplayer = self.get_musicplayer(ctx.guild.id, False)
 
         del musicplayer
 
@@ -1228,7 +1234,7 @@ class Audio:
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
         """
-        musicplayer = self.get_musicplayer(ctx.guild.id)
+        musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
             if ctx.guild.me.voice:
                 for client in self.bot.voice_clients:

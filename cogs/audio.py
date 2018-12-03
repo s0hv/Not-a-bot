@@ -367,7 +367,7 @@ class Audio:
         if musicplayer is None:
             musicplayer = self.find_musicplayer_from_garbage(guild_id)
 
-        if is_on and musicplayer is not None and (musicplayer.audio_player is None or musicplayer.audio_player.done()):
+        if is_on and musicplayer is not None and musicplayer.audio_player and musicplayer.audio_player.done():
             musicplayer.selfdestruct()
             MusicPlayer.__instances__.discard(musicplayer)
             del musicplayer
@@ -1159,7 +1159,7 @@ class Audio:
         if musicplayer is None:
             return
 
-        if musicplayer.voice:
+        if musicplayer.player:
             musicplayer.player.after = None
 
         if musicplayer.is_playing():

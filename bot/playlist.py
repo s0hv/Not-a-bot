@@ -383,7 +383,7 @@ class Playlist:
 
     async def _search(self, name, **kwargs):
         info = await self.downloader.extract_info(self.bot.loop, extract_flat=False, url=name, download=False, **kwargs)
-        if 'entries' in info:
+        if info and 'entries' in info:
             return info['entries'][0]
 
     def on_stop(self):

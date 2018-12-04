@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import discord
 from discord.ext.commands import BucketType, bot_has_permissions
@@ -7,7 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from bot.bot import command, cooldown
 from bot.converters import AnyUser
 from cogs.cog import Cog
-from utils.utilities import send_paged_message
+from utils.utilities import send_paged_message, format_timedelta
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -67,7 +68,7 @@ class Stats(Cog):
 
     @command(aliases=['seen'])
     @cooldown(1, 5, BucketType.user)
-    async def last_seen(self, ctx, user: AnyUser):
+    async def last_seen(self, ctx, *, user: AnyUser):
         """Get when a user was last seen on this server and elsewhere
         User can be a mention, user id, or full discord username with discrim Username#0001"""
 
@@ -125,9 +126,13 @@ class Stats(Cog):
 
         msg = 'User {} `{}`\n'.format(username, user_id)
         if local:
-            msg += 'Last seen on this server {} UTC\n'.format(local['last_seen'])
+            time = local['last_seen']
+            fmt = format_timedelta(datetime.utcnow() - time, accuracy=2)
+            msg += 'Last seen on this server `{} UTC` {} ago\n'.format(time, fmt)
         if global_:
-            msg += 'Last seen elsewhere {} UTC'.format(global_['last_seen'])
+            time = global_['last_seen']
+            fmt = format_timedelta(datetime.utcnow() - time, accuracy=2)
+            msg += 'Last seen elsewhere `{} UTC` {} ago'.format(time, fmt)
 
         await ctx.send(msg)
 

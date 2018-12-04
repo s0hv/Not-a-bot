@@ -682,6 +682,78 @@ def get_channel_id(s):
         return int(match.groups()[0])
 
 
+def check_plural(string, i):
+    if i != 1:
+        return '%s %ss ' % (str(i), string)
+    return '%s %s ' % (str(i), string)
+
+
+def format_timedelta(td, accuracy: int=3, include_weeks=False, long_format=True):
+    """
+    Formats timedelta object to string with support for longer durations
+    Args:
+        td (timedelta):
+            timedelta object to be formatted
+
+        accuracy (int):
+            The accuracy of the function. If set to 1 will give
+            most inaccurate result rounded down. If 7 will give out result
+            with precision to seconds. So the bigger the number, the more
+            verbose the result.
+            e.g. a timedelta of 13 days would give a result looking something like
+            this with an accuracy of 2 and weeks on
+            1 week 6 days
+
+        include_weeks (bool):
+            Whether to include weeks or just count them as days
+
+        long_format (bool):
+            Whether to use long names or shortened names for time definitions
+
+    Returns:
+        str: formatted time
+
+    """
+    sec = int(td.total_seconds())
+    if sec == 0:
+        return '0 seconds' if long_format else '0s'
+
+    min, sec = divmod(sec, 60)
+    hr, min = divmod(min, 60)
+    d, hr = divmod(hr, 24)
+    month, d = divmod(d, 30)
+    year, month = divmod(month, 12)
+
+    if long_format:
+        names = ['year', 'month', 'week', 'day', 'hour', 'minute', 'second']
+    else:
+        names = ['y', 'm', 'w', 'd', 'h', 'min', 's']
+
+    if not include_weeks:
+        times = [year, month, d, hr, min, sec]
+        names.pop(2)
+    else:
+        w, d = divmod(d, 7)
+        times = [year, month, w, d, hr, min, sec]
+
+    for i in range(len(times)):
+        if times[i] == 0:
+            continue
+
+        times = times[i:i+accuracy]
+        names = names[i:i+accuracy]
+        break
+
+    s = ''
+    for i in range(len(times)):
+        if times[i] == 0:
+            continue
+
+        s += check_plural(names[i], times[i])
+
+    return s.strip()
+
+
 def seconds2str(seconds, long_def=True):
     seconds_ = int(round(seconds, 0))
     if not seconds_:
@@ -691,11 +763,6 @@ def seconds2str(seconds, long_def=True):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     d, h = divmod(h, 24)
-
-    def check_plural(string, i):
-        if i != 1:
-            return '%s %ss ' % (str(i), string)
-        return '%s %s ' % (str(i), string)
 
     if long_def:
         d = check_plural('day', d) if d else ''

@@ -33,6 +33,7 @@ import sys
 import time
 from collections import OrderedDict, Iterable
 from datetime import timedelta, datetime
+from enum import Enum
 from random import randint
 
 import discord
@@ -69,6 +70,16 @@ class Object:
     # Empty class to store variables
     def __init__(self):
         pass
+
+
+class DateAccuracy(Enum):
+    Second = 0
+    Minute = 1
+    Hour = 2
+    Day = 3
+    Week = -1  # Special case
+    Month = 4
+    Year = 5
 
 
 class CallLater:
@@ -688,14 +699,14 @@ def check_plural(string, i):
     return '%s %s ' % (str(i), string)
 
 
-def format_timedelta(td, accuracy: int=3, include_weeks=False, long_format=True):
+def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
     """
     Formats timedelta object to string with support for longer durations
     Args:
         td (timedelta):
             timedelta object to be formatted
 
-        accuracy (int):
+        accuracy (int or DateAccuracy):
             The accuracy of the function. If set to 1 will give
             most inaccurate result rounded down. If 7 will give out result
             with precision to seconds. So the bigger the number, the more
@@ -703,6 +714,8 @@ def format_timedelta(td, accuracy: int=3, include_weeks=False, long_format=True)
             e.g. a timedelta of 13 days would give a result looking something like
             this with an accuracy of 2 and weeks on
             1 week 6 days
+
+            If set to DateAccuracy will only provide accuracy in that format
 
         include_weeks (bool):
             Whether to include weeks or just count them as days
@@ -718,38 +731,98 @@ def format_timedelta(td, accuracy: int=3, include_weeks=False, long_format=True)
     if sec == 0:
         return '0 seconds' if long_format else '0s'
 
-    min, sec = divmod(sec, 60)
-    hr, min = divmod(min, 60)
-    d, hr = divmod(hr, 24)
-    month, d = divmod(d, 30)
-    year, month = divmod(month, 12)
-
     if long_format:
         names = ['year', 'month', 'week', 'day', 'hour', 'minute', 'second']
     else:
-        names = ['y', 'm', 'w', 'd', 'h', 'min', 's']
+        names = ['yr', 'mo', 'wk', 'd', 'h', 'min', 's']
+
+    if accuracy == DateAccuracy.Week:
+        include_weeks = True
+
+    elif isinstance(accuracy, DateAccuracy) and accuracy != DateAccuracy.Week:
+        include_weeks = False
 
     if not include_weeks:
-        times = [year, month, d, hr, min, sec]
+        divs = [60, 60, 24, 30, 12]
         names.pop(2)
     else:
-        w, d = divmod(d, 7)
-        times = [year, month, w, d, hr, min, sec]
+        divs = [60, 60, 24, 7, 30, 12]
 
-    for i in range(len(times)):
-        if times[i] == 0:
-            continue
+    last = sec
+    times = []
 
-        times = times[i:i+accuracy]
-        names = names[i:i+accuracy]
-        break
+    if isinstance(accuracy, int):
+        for d in divs:
+            last, val = divmod(last, d)
+            times.insert(0, val)
+
+        # appendleft
+        times.insert(0, last)
+
+        for i in range(len(times)):
+            if times[i] == 0:
+                continue
+
+            times = times[i:i + accuracy]
+            names = names[i:i + accuracy]
+            break
+
+    elif isinstance(accuracy, DateAccuracy):
+        idx = 0
+
+        # Week is an exception and we want to keep it out of calculations
+        # unless it is the requested accuracy. We use day here since we count
+        # weeks using days in the end
+        if include_weeks:
+            accuracy = DateAccuracy.Day
+
+        for d in divs:
+            last, val = divmod(last, d)
+            times.append(val)
+
+            if len(times)-1 >= accuracy.value:
+                last = last*d+val
+                times[-1] = last
+                break
+
+            if last == 0:
+                break
+
+            idx += 1
+
+        # Exception. We want to exclude weeks when possible to increase accuracy
+        # of years and months. When using DateAccuracy include_weeks will be
+        # True only when week is the requested format
+        if include_weeks and len(times)-1 >= accuracy.value:
+            val = last//7
+            if val == 0:
+                names.pop(2)  # Index of week
+                val = last
+            else:
+                names.pop(3)  # Index of day
+
+        else:
+            val = last
+
+        # Fallback to the closest non zero value
+        if val == 0:
+            val = times[-1]
+
+        names = [names[len(names)-1-idx]]
+        times = [val]
+
+    else:
+        raise TypeError('Accuracy must be of instance int or DateAccuracy')
 
     s = ''
     for i in range(len(times)):
         if times[i] == 0:
             continue
 
-        s += check_plural(names[i], times[i])
+        if long_format:
+            s += check_plural(names[i], times[i])
+        else:
+            s += f'{times[i]}{names[i]} '
 
     return s.strip()
 
@@ -1013,7 +1086,7 @@ def is_superset(ctx):
     return True
 
 
-async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_method=None):
+async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_method=None, timeout=60):
     bot = ctx.bot
     try:
         if callable(page_method):
@@ -1053,7 +1126,7 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
 
     while True:
         try:
-            result = await bot.wait_for('reaction_changed', check=check, timeout=60)
+            result = await bot.wait_for('reaction_changed', check=check, timeout=timeout)
         except asyncio.TimeoutError:
             return
 

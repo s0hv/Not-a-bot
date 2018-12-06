@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+from datetime import datetime
 from math import ceil
 
 import discord
@@ -8,12 +9,12 @@ from discord.ext.commands import BucketType, bot_has_permissions
 from discord.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import command, has_permissions, cooldown
+from bot.bot import command, has_permissions, cooldown, group
 from bot.converters import PossibleUser, GuildEmoji
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
-                             basic_check,
+                             basic_check, format_timedelta, DateAccuracy,
                              create_custom_emoji, wait_for_yes)
 
 logger = logging.getLogger('debug')
@@ -23,23 +24,20 @@ class Server(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(no_pm=True)
+    @group(no_pm=True, invoke_without_command=True)
     @cooldown(1, 20, type=BucketType.user)
-    async def top(self, ctx, page: str='1'):
+    async def top(self, ctx, page: int=1):
         """Get the top users on this server based on the most important values"""
-        try:
-            page = int(page)
-            if page <= 0:
-                page = 1
-        except:
-            page = 1
+        if page > 0:
+            page -= 1
 
         guild = ctx.guild
 
         sorted_users = sorted(guild.members, key=lambda u: len(u.roles), reverse=True)
+        # Indexes of all of the pages
         pages = list(range(1, ceil(len(guild.members)/10)+1))
 
-        def get_msg(page, index):
+        def get_msg(page, _):
             s = 'Leaderboards for **{}**\n\n```md\n'.format(guild.name)
             added = 0
             p = page*10
@@ -58,8 +56,67 @@ class Server(Cog):
             s += '```'
             return s
 
-        await send_paged_message(ctx, pages, starting_idx=page - 1,
+        await send_paged_message(ctx, pages, starting_idx=page,
                                  page_method=get_msg)
+
+    async def _date_sort(self, ctx, page, key, dtype='joined'):
+        if page > 0:
+            page -= 1
+
+        guild = ctx.guild
+        sorted_users = list(sorted(guild.members, key=key))
+        # Indexes of all of the pages
+        pages = list(range(1, ceil(len(guild.members)/10)+1))
+
+        own_rank = ''
+
+        try:
+            idx = sorted_users.index(ctx.author) + 1
+            t = datetime.utcnow() - key(ctx.author)
+            t = format_timedelta(t, DateAccuracy.Day)
+            own_rank = f'\nYour rank is {idx}. You {dtype} {t} ago at {key(ctx.author).strftime("%a, %d %b %Y %H:%M:%S GMT")}\n'
+        except:
+            pass
+
+        def get_page(pg, _):
+            s = 'Leaderboards for **{}**\n\n```md\n'.format(guild.name)
+            index = pg*10
+            page = sorted_users[index-10:index]
+            max_s = max(map(lambda u: len(str(u)), page))
+
+            if not page:
+                return 'Page out of range'
+
+            for idx, u in enumerate(page):
+                t = datetime.utcnow() - key(u)
+                t = format_timedelta(t, DateAccuracy.Day)
+
+                join_date = key(u).strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+                # We try to align everything but due to non monospace fonts
+                # it will never be perfect
+                tabs, spaces = divmod(max_s-len(str(u)), 4)
+                padding = '\t'*tabs + ' '*spaces
+
+                s += f'{idx+index-9}. {u} {padding}{dtype} {t} ago at {join_date}\n'
+
+            s += own_rank
+            s += '```'
+            return s
+
+        await send_paged_message(ctx, pages, starting_idx=page, page_method=get_page)
+
+    @top.command(np_pm=True)
+    @cooldown(1, 10)
+    async def join(self, ctx, page: int=1):
+        """Sort users by join date"""
+        await self._date_sort(ctx, page, lambda u: u.joined_at, 'joined')
+
+    @top.command(np_pm=True)
+    @cooldown(1, 10)
+    async def created(self, ctx, page: int=1):
+        """Sort users by join date"""
+        await self._date_sort(ctx, page, lambda u: u.created_at, 'created')
 
     @command(no_dm=True, aliases=['mr_top', 'mr_stats'])
     @cooldown(2, 5, BucketType.channel)

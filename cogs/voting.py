@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 import operator
+import re
 from datetime import datetime
 
 import discord
@@ -15,6 +16,91 @@ from utils.utilities import (get_emote_name_id, parse_time, datetime2sql,
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
+
+
+def parse_emote(emote, only_id=False):
+    if not emote.strip():
+        return
+
+    animated, name, emote_id = get_emote_name_id(emote)
+    if name is None:
+        if len(emote) > 2:
+            # If length is more than 2 it's most likely not an unicode char
+            return
+
+        return emote
+
+    if only_id:
+        return int(emote_id)
+
+    elif animated:
+        return 'a:', name, emote_id
+    else:
+        return '', name, emote_id
+
+
+class ProxyArgs:
+    def __init__(self, strict=False, emotes=None, no_duplicate_votes=False,
+                 multiple_votes=False, max_winners=1, giveaway: bool=False):
+
+        self.strict = strict
+        self.emotes = emotes or []
+        self.ignore_on_dupe = no_duplicate_votes
+        self.multiple_votes = multiple_votes
+        self.max_winners = max_winners
+        self.giveaway = giveaway
+
+    def parse_giveaway(self, s):
+        if not s.startswith('-g'):
+            return
+
+        self.giveaway = True
+        match = re.findall('React with (.+?) to participate', s)
+        if not match:
+            self.emotes = ['🎉']
+            return
+
+        emote = parse_emote(match[0], True)
+        self.emotes = [emote or '🎉']
+
+    def parse_strict(self, s):
+        if not s.startswith('-s'):
+            return
+
+        self.strict = True
+        if self.emotes:
+            return
+
+        for emote in s[54:].split(' '):
+            emote = parse_emote(emote, True)
+            if emote:
+                self.emotes.append(emote)
+
+    def parse_winners(self, s):
+        match = re.findall(r'of winners (\d+) \(might be', s)
+        if match:
+            self.max_winners = int(match[0])
+
+    def sanity_check(self):
+        if not self.giveaway:
+            if self.strict and not self.emotes:
+                raise ValueError('Strict mode without emotes')
+
+            if self.ignore_on_dupe and self.multiple_votes:
+                raise ValueError('No multiple votes and allow multiple votes on at the same time')
+
+        if self.max_winners < 1:
+            raise ValueError('Max winners less than 1')
+
+        if self.max_winners > 30:
+            raise ValueError('Maximum amount of winners is 30')
+
+    def __dict__(self):
+        return {'strict': self.strict, 'emotes': self.emotes,
+                'no_duplicate_votes': self.ignore_on_dupe,
+                'multiple_votes': self.multiple_votes,
+                'max_winners': self.max_winners,
+                'giveaway': self.giveaway}
 
 
 class Poll:
@@ -68,16 +154,20 @@ class Poll:
 
     async def _wait(self):
         try:
-            time_ = self.expires_at - datetime.utcnow()
-            time_ = time_.total_seconds()
-            if time_ > 0:
-                await asyncio.wait_for(self._stopper.wait(), timeout=time_, loop=self.bot.loop)
+            if self.expires_at is not None:
+                time_ = self.expires_at - datetime.utcnow()
+                time_ = time_.total_seconds()
+                if time_ > 0:
+                    await asyncio.wait_for(self._stopper.wait(), timeout=time_, loop=self.bot.loop)
         except asyncio.TimeoutError:
             pass
         except asyncio.CancelledError:
             return
 
-        await self.count_votes()
+        try:
+            await self.count_votes()
+        except:
+            logger.exception('Failed to count votes')
 
     async def count_votes(self):
         if isinstance(self.message, discord.Message):
@@ -85,6 +175,9 @@ class Poll:
 
         try:
             chn = self.bot.get_channel(self.channel)
+            if chn is None:
+                return
+
             msg = await chn.get_message(self.message)
         except discord.DiscordException:
             logger.exception('Failed to end poll')
@@ -120,12 +213,30 @@ class Poll:
         if self.giveaway:
             users = list(votes.keys())
             if not users:
-                await chn.send(f'No winners for {self.title} `{self.message}`')
+                s = f'No winners for {self.title} `{self.message}`'
+                winners = 'None'
             else:
                 self.max_winners = min(len(users), self.max_winners)
                 winners = numpy.random.choice(users, self.max_winners, False)
                 winners = ', '.join(map(lambda u: f'<@{u}>', winners))
-                await chn.send(f'Winners of {self.title} `{self.message}` are\n{winners}')
+                s = f'Winners of {self.title} `{self.message}` are\n{winners}'
+
+            if msg.author.id == self.bot.user.id:
+                try:
+                    embed = msg.embeds[0]
+                    field = None
+                    for idx, f in enumerate(embed.fields):
+                        if f.name == 'Winners':
+                            field = True
+                            embed.set_field_at(idx, name='Winners', value=winners)
+                            break
+
+                    if not field:
+                        embed.add_field(name='Winners', value=winners)
+
+                    await msg.edit(embed=embed)
+                except discord.HTTPException:
+                    pass
 
         else:
 
@@ -167,7 +278,11 @@ class Poll:
                 end = ' with no winners'
 
             s = 'Poll ``{}`` ended{}'.format(self.title, end)
+
+        try:
             await chn.send(s)
+        except discord.HTTPException:
+            pass
 
         sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
         try:
@@ -277,6 +392,70 @@ class VoteManager:
         await poll.count_votes()
 
     @command(no_pm=True)
+    @has_permissions(manage_messages=True, manage_guild=True)
+    @cooldown(1, 5, BucketType.guild)
+    async def reroll(self, ctx, message_id: int):
+        """
+        Reroll a poll or giveaway based on the message_id. Message doesn't have
+        to be from this bot as long as the format is the same
+        """
+
+        try:
+            msg = await ctx.channel.get_message(message_id)
+        except discord.HTTPException:
+            return await ctx.send('Message not found')
+
+        if not msg.embeds:
+            return await ctx.send('Embed not found')
+
+        embed = None
+        for e in msg.embeds:
+            if isinstance(e, discord.Embed):
+                embed = e
+                break
+
+        if not embed:
+            return await ctx.send('Embed not found')
+
+        title = embed.title if isinstance(embed.title, str) else 'No title'
+        modifiers = None
+
+        for field in embed.fields:
+            if field.name == 'Modifiers':
+                modifiers = field.value
+                break
+
+        if not modifiers:
+            await ctx.send('Modifiers field not found')
+
+        modifiers = modifiers.split('\n')
+        args = ProxyArgs()
+
+        for mod in modifiers:
+            if mod.startswith('-s '):
+                args.parse_strict(mod)
+
+            elif mod.startswith('-n '):
+                args.ignore_on_dupe = True
+
+            elif mod.startswith('-a '):
+                args.multiple_votes = True
+
+            elif mod.startswith('-m '):
+                args.parse_winners(mod)
+
+            elif mod.startswith('-g '):
+                args.parse_giveaway(mod)
+
+        try:
+            args.sanity_check()
+        except ValueError as e:
+            return await ctx.send(f'Sanity check failed\n{e}')
+
+        poll = Poll(self.bot, msg.id, ctx.channel.id, title, **args.__dict__())
+        poll.start()
+
+    @command(no_pm=True)
     @bot_has_permissions(embed_links=True)
     @has_permissions(manage_messages=True, manage_channels=True, manage_guild=True)
     @cooldown(1, 20, BucketType.guild)
@@ -316,7 +495,7 @@ class VoteManager:
             return await ctx.send(
                 'Max winners needs to be an integer bigger than 0')
 
-        if parsed.max_winners > 20:
+        if parsed.max_winners > 30:
             return await ctx.send('Max winners cannot be bigger than 20')
 
         title = ' '.join(parsed.header)
@@ -337,20 +516,9 @@ class VoteManager:
         failed = []
         if parsed.emotes:
             for emote in parsed.emotes:
-                if not emote.strip():
-                    continue
-
-                animated, name, emote_id = get_emote_name_id(emote)
-                if name is None:
-                    if len(emote) > 2:
-                        # If length is more than 2 it's most likely not an unicode char
-                        continue
-
+                emote = parse_emote(emote)
+                if emote:
                     emotes.append(emote)
-                elif animated:
-                    emotes.append(('a:', name, emote_id))
-                else:
-                    emotes.append(('', name, emote_id))
 
         if parsed.giveaway:
             if not emotes:
@@ -374,21 +542,22 @@ class VoteManager:
 
         options = ''
         if parsed.giveaway:
-            options += f'Giveaway mode. React with {emote} to participate\n'
+            options += f'-g Giveaway mode. React with {emote} to participate\n'
         else:
             if parsed.strict:
-                options += 'Strict mode on. Only specified emotes are counted\n'
+                fmt_emotes = ['<{}{}:{}>'.format(*emote) if isinstance(emote, tuple) else emote for emote in emotes]
+                options += f'-s Strict mode on. Only specified emotes are counted. {" ".join(fmt_emotes)}\n'
 
             if parsed.no_duplicate_votes:
-                options += 'Voting for more than one valid option will invalidate your vote\n'
+                options += '-n Voting for more than one valid option will invalidate your vote\n'
             elif not parsed.allow_multiple_entries:
                 options += 'If user votes multiple times only 1 reaction is counted'
 
             if parsed.allow_multiple_entries:
-                options += 'All all valid votes are counted from a user\n'
+                options += '-a All all valid votes are counted from a user\n'
 
         if parsed.max_winners > 1:
-            options += 'Max amount of winners %s (might be more in case of a tie)' % parsed.max_winners
+            options += '-m Max amount of winners %s (might be more in case of a tie)' % parsed.max_winners
 
         if options:
             embed.add_field(name='Modifiers', value=options)

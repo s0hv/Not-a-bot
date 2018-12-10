@@ -217,11 +217,17 @@ class Colors(Cog):
         closest_match = None
         similarity = 0
         for c in colors:
-            d = 100 - delta_e_cie2000(lab, c.lab)
+            if isinstance(color, Color):
+                clab = color.lab
+            else:
+                clab = color
+
+            d = 100 - delta_e_cie2000(lab, cclab)
             if d > similarity:
                 similarity = d
                 closest_match = c
 
+        round(similarity, 2)
         return closest_match, similarity
 
     def closest_match(self, color, guild):

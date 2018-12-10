@@ -222,7 +222,7 @@ class Colors(Cog):
             else:
                 clab = color
 
-            d = 100 - delta_e_cie2000(lab, cclab)
+            d = 100 - delta_e_cie2000(lab, clab)
             if d > similarity:
                 similarity = d
                 closest_match = c

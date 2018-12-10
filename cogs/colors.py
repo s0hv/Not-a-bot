@@ -217,7 +217,7 @@ class Colors(Cog):
         closest_match = None
         similarity = 0
         for c in colors:
-            d = 100 - delta_e_cie2000(c.lab, lab)
+            d = 100 - delta_e_cie2000(lab, c.lab)
             if d > similarity:
                 similarity = d
                 closest_match = c

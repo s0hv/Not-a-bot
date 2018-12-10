@@ -1457,6 +1457,7 @@ class Audio:
                 return
 
         new = round(current.rms * musicplayer.current_volume, 1)
+        musicplayer.volume_multiplier = new
         await ctx.send(f'volm changed automagically {old} -> {new}')
 
     @command(no_pm=True)

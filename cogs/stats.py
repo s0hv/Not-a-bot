@@ -6,7 +6,7 @@ from discord.ext.commands import BucketType, bot_has_permissions
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, cooldown
-from bot.converters import AnyUser
+from bot.converters import AnyUser, CommandConverter
 from cogs.cog import Cog
 from utils.utilities import send_paged_message, format_timedelta
 
@@ -138,12 +138,13 @@ class Stats(Cog):
 
     @command(aliases=['cmdstats'])
     @cooldown(1, 5, BucketType.guild)
-    async def command_stats(self, ctx, *cmd):
+    async def command_stats(self, ctx, cmd: CommandConverter=None):
         """
         Get command usage statistics. If command is provided only get the stats
         for that command
         """
         if cmd:
+            cmd = cmd.qualified_name.split(' ')
             parent = cmd[0]
             name = ' '.join(cmd[1:])
         else:

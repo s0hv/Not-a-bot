@@ -29,13 +29,10 @@ class Formatter(HelpFormatter):
         self.context = context
         self.command = command_or_bot
         self.type = type
-        self.context.skip_check = True
-        if self.type not in (self.ExtendedFilter, self.Filtered):
-            self.show_check_failure = True  # Don't check command checks if no filters are on
-        else:
-            self.show_check_failure = False
 
-        return await self.format(is_owner=is_owner)
+        retval = await self.format(is_owner=is_owner)
+        context.skip_check = False  # Just in case
+        return retval
 
     async def format(self, is_owner=False):
         """Handles the actual behaviour involved with formatting.
@@ -54,7 +51,6 @@ class Formatter(HelpFormatter):
         ctx = self.context
         user = ctx.message.author
         channel = ctx.message.channel
-        ctx.skip_check = True
         if isinstance(user, discord.Member) and user.roles:
             roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
@@ -68,23 +64,13 @@ class Formatter(HelpFormatter):
             elif self.type == self.Filtered or self.type == self.ExtendedFilter:
                 try:
                     can_run = await self.command.can_run(ctx) and await ctx.bot.can_run(ctx)
-                except CommandError:
-                    can_run = False
-
-                if self.type == self.ExtendedFilter:
-                    sql = 'SELECT `type`, `role`, `user`, `channel`  FROM `command_blacklist` WHERE guild=:guild AND (command=:command OR command IS NULL) ' \
-                          'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
-
-                    try:
-                        rows = (await ctx.bot.dbutil.execute(sql, params={'guild': user.guild.id, 'command': self.command.name, 'user': user.id, 'channel': channel.id})).fetchall()
-                        if rows:
-                            can_run = check_perms(rows)
-                    except SQLAlchemyError:
-                        logger.exception('Failed to use extended filter in help')
-                        can_run = True
+                except CommandError as e:
+                    signature = str(e) + '\n\n' + signature
+                    # Workaround to get past the next if
+                    can_run = True
 
                 if not can_run:
-                    signature = "You don't have the required perms to use this command or it's blacklisted for you\n" + signature
+                    signature = "This command is blacklisted for you\n\n" + signature
 
             signature = description + '\n' + signature
 
@@ -104,10 +90,12 @@ class Formatter(HelpFormatter):
             return cog if cog is not None else 'No Category'
 
         if self.is_bot():
-            if self.type == self.ExtendedFilter:
+            guild_owner = False if not ctx.guild else user.id == ctx.guild.owner.id
+            command_blacklist = {}
+            if self.type == self.ExtendedFilter and not guild_owner:
                 sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
                       'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
-                command_blacklist = {}
+
                 try:
                     rows = await ctx.bot.dbutil.execute(sql, {'guild': user.guild.id,
                                                               'user': user.id,
@@ -123,9 +111,15 @@ class Formatter(HelpFormatter):
                 except SQLAlchemyError:
                     logger.exception('Failed to get role blacklist for help command')
 
+            # We dont wanna check perms again for each individual command
+            ctx.skip_check = True
+
             data = sorted(await self.filter_command_list(), key=category)
 
-            if self.type == self.ExtendedFilter:
+            # We also dont wanna leave it on
+            ctx.skip_check = False
+
+            if self.type == self.ExtendedFilter and command_blacklist:
                 def check(command):
                     rows = command_blacklist.get(command.name, None)
                     if not rows:
@@ -146,6 +140,7 @@ class Formatter(HelpFormatter):
 
                 self._add_subcommands_and_page(category_, commands, is_owner=is_owner, inline=inline, predicate=check)
         else:
+            # TODO same kind of check as in general help command
             self._add_subcommands_and_page('Commands:', await self.filter_command_list(), is_owner=is_owner)
 
         # add the ending note
@@ -153,6 +148,12 @@ class Formatter(HelpFormatter):
         self._paginator.add_field('Note', ending_note)
         self._paginator.finalize()
         return self._paginator.pages
+
+    def get_ending_note(self):
+        command_name = self.context.invoked_with
+        return "Type `{0}{1} command` for more info on a command.\n" \
+               "You can also type `{0}{1} Category` for more info on a category.\n" \
+               "This list is filtered based on your and the bots permissions. To get a list of all commands use `{0}{1} all`".format(self.clean_prefix, command_name)
 
     def _add_subcommands_and_page(self, page, commands, is_owner=False, inline=None, predicate=None):
         # Like _add_subcommands_to_page but doesn't leave empty fields in the embed

@@ -214,7 +214,7 @@ class Bot(commands.Bot, Client):
 
         @self.group(invoke_without_command=True)
         @bot_has_permissions(embed_links=True)
-        @cooldown(1, 10, commands.BucketType.guild)
+        @cooldown(2, 10, commands.BucketType.guild)
         async def help(ctx, *commands_: str):
             """Shows all commands you can use on this server.
             Use {prefix}{name} all to see all commands"""
@@ -351,6 +351,7 @@ class Bot(commands.Bot, Client):
             else:
                 command = bot.all_commands.get(name)
                 if command is None:
+                    ctx.command.undo_use(ctx)
                     await destination.send(bot.command_not_found.format(name))
                     return
 
@@ -359,6 +360,7 @@ class Bot(commands.Bot, Client):
             name = _mention_pattern.sub(repl, commands[0])
             command = bot.all_commands.get(name)
             if command is None:
+                ctx.command.undo_use(ctx)
                 await destination.send(bot.command_not_found.format(name))
                 return
 
@@ -367,9 +369,11 @@ class Bot(commands.Bot, Client):
                     key = _mention_pattern.sub(repl, key)
                     command = command.all_commands.get(key)
                     if command is None:
+                        ctx.command.undo_use(ctx)
                         await destination.send(bot.command_not_found.format(key))
                         return
                 except AttributeError:
+                    ctx.command.undo_use(ctx)
                     await destination.send(bot.command_has_no_subcommands.format(command, key))
                     return
 

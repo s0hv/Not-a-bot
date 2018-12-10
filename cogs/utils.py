@@ -184,7 +184,7 @@ class Utilities(Cog):
     @cooldown(1, 10, BucketType.user)
     async def invite(self, ctx):
         """This bots invite link"""
-        await ctx.send('https://discordapp.com/api/oauth2/authorize?client_id=214724376669585409&permissions=1342557248&scope=bot')
+        await ctx.send(f'https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=1342557248&scope=bot')
 
     @staticmethod
     def _unpad_zero(value):

@@ -87,14 +87,23 @@ class Colors(Cog):
         if update:
             sql += ' ON DUPLICATE KEY UPDATE name=:name, value=:value, lab_l=:lab_l, lab_a=:lab_a, lab_b=:lab_b'
 
+        if isinstance(color, list):
+            params = [{'id': c.role_id,
+                      'name': c.name,
+                      'value': c.value,
+                      'lab_l': c.lab.lab_l,
+                      'lab_a': c.lab.lab_a,
+                      'lab_b': c.lab.lab_b} for c in color]
+        else:
+            params = {'id': color.role_id,
+                      'name': color.name,
+                      'value': color.value,
+                      'lab_l': color.lab.lab_l,
+                      'lab_a': color.lab.lab_a,
+                      'lab_b': color.lab.lab_b}
+
         try:
-            await self.bot.dbutil.execute(sql, params={'id': color.role_id,
-                                                       'name': color.name,
-                                                       'value': color.value,
-                                                       'lab_l': color.lab.lab_l,
-                                                       'lab_a': color.lab.lab_a,
-                                                       'lab_b': color.lab.lab_b},
-                                          commit=True)
+            await self.bot.dbutil.execute(sql, params=params, commit=True)
         except SQLAlchemyError:
             logger.exception('Failed to add color to db')
             return False
@@ -123,9 +132,11 @@ class Colors(Cog):
         rgb = self.check_rgb(rgb, to_role=to_role)
         return convert_color(sRGBColor(*rgb), LabColor)
 
-    async def _update_color(self, color, role, to_role=True):
-        r, g, b = role.color.to_rgb()
-        lab = self.rgb2lab((r/255, g/255, b/255), to_role=to_role)
+    async def _update_color(self, color, role, to_role=True, lab: LabColor=None):
+        if not lab:
+            r, g, b = role.color.to_rgb()
+            lab = self.rgb2lab((r/255, g/255, b/255), to_role=to_role)
+
         color.value = role.color.value
         color.lab = lab
         await self._add_color2db(color, update=True)
@@ -152,6 +163,10 @@ class Colors(Cog):
 
         if role.color.value != value:
             await self._update_color(color, role)
+        else:
+            lab = self.rgb2lab(tuple(map(lambda x: x/255, role.color.to_rgb())))
+            if not lab_l==lab.lab_l and lab_a==lab.lab_a and lab_b==lab.lab_b:
+                await self._update_color(color, role, lab=lab)
 
         return color
 
@@ -227,7 +242,7 @@ class Colors(Cog):
                 similarity = d
                 closest_match = c
 
-        round(similarity, 2)
+        similarity = round(similarity, 2)
         return closest_match, similarity
 
     def closest_match(self, color, guild):

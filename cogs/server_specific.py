@@ -845,7 +845,7 @@ class ServerSpecific(Cog):
                 await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.avatar_url)
                 continue
 
-            await wh.send(f'Nice {ctx.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.avatar_url)
+            await wh.send(f'Nice {msg.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.avatar_url)
             return
 
 

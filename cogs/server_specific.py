@@ -37,6 +37,43 @@ grant_whitelist = {486834412651151361, 279016719916204032}
 grant_whitelist.update(whitelist)
 grant_check = create_check(grant_whitelist)
 
+# waifus to add
+"""
+ram
+emilia
+chiaki nanami
+nagito komaeda
+ochako uraraka 
+tsuyu asui
+kyouka jirou
+momo yaoyorozu
+rias gremory
+himiko toga
+akeno himejima
+xenovia quarta 
+ushikai musume
+Koneko toujou
+asuna yuuki
+kanna kamui
+ann takamaki
+yousei yunde
+yorha 2-gou b-gata"""
+
+waifus = [('Billy Herrington', 1, ['https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/RxxYp62.png']),
+          ("Aqua", 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=7B4dkxZXrniNxKaJFq0XFVO86alUbsoiQNXbaxFmhwqyCd2KfYqkUpW5YHaZhuAh&tea=FvLvedTFWlgNSavX', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=stWZ5xmBZkDH8bHyhVpG9Y4iae8Cqf3ajoY0lD7r3Sdysa4IilA6aZSUHznVbQWG&tea=TPiTxOZcgmMieAnO']),
+          ('Zero Two', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=5YJ%2FlstHJTPWWcZ0RfBsOuoHlK48mDUK5Dd596ED%2BonGAIJcACI9xwoVreZSM0WI&tea=iBvsVVWHNcdsvaOK', 'https://cdn.discordapp.com/attachments/477293401054642177/477319994259275796/055fb45a-e8d7-4084-b61d-eea31b0fd235.jpg']),
+          ('Shalltear Bloodfallen', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=QZXjFYY%2BKrSOKMP7FXg1vTkHZLtBgIczQJEJWP3THtgsEIz7VhhE2menxbFv1VS9&tea=qckYylIRjoKUbjzG', 'https://cdn.discordapp.com/attachments/477293401054642177/477317853389783042/2b513572-a239-4bb7-a58a-bb48a23e4379.jpg']),
+          ('Esdeath', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=oxQ4Hy%2Bhh4EuSfBwMzxGP%2BJgVhga0OQ3d%2BFdV4mxMcTABwPfyjO7Ai86D5mijMxq&tea=zCbXylfXYsArnJuq', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=P%2BS2ZekqqFZ8xzXqKgipdQLzckmAwRK%2FUkvsnMCxcHFDyyRet4lgcGRqvbF1Y4Vq&tea=ulrKjZyNCLDhktvW']),
+          ('Megumin', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=3TvoZWcwlI3WlJXUyNLeloFBNV6oF2qq8NYfukqNk0ht0zqKhP7%2FrEGz0frs6Wq5&tea=wfDsVgPNOOTkwMhz', ]),
+          ('Albedo', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=6mFvoz3jJ%2BwhW9lOWR49KTbLIiKjuYFhittUwcQhMc%2B0JstX%2FkkXyXVPZxWiiEkr&tea=VyKIujqwVbHiWTUz']),
+          ('Rem', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=bUUxHLQv6IzKqWZnxrO8nUw723nFGHALSm9ZM8Ly3VU1%2B0DyE8qL1yRaNtnQe7wj&tea=AFfSbWSfwXFONvvV']),
+          ]
+
+chances = [t[1] for t in waifus]
+_s = sum(chances)
+chances = [p/_s for p in chances]
+del _s
+
 
 class ServerSpecific(Cog):
     def __init__(self, bot):
@@ -741,6 +778,75 @@ class ServerSpecific(Cog):
             return await ctx.send("This bot doesn't support locking")
 
         await mod._set_channel_lock(ctx, True)
+
+    @command(ignore_extra=True)
+    @cooldown(1, 60, BucketType.channel)
+    @check(main_check)
+    async def zeta(self, ctx):
+        try:
+            await ctx.message.delete()
+        except discord.HTTPException:
+            pass
+
+        waifu = choice(len(waifus), p=chances)
+        waifu = waifus[waifu]
+
+        def get_inits(s):
+            inits = ''
+
+            for c in s.split(' '):
+                inits += f'{c[0].upper()}. '
+
+            return inits
+
+        initials = get_inits(waifu[0])
+        link = choice(waifu[2])
+
+        e = discord.Embed(title='Character', color=16745712, description="""A waifu/husbando appeared!
+        Try guessing their name with `.claim <name>` to claim them!
+
+        Hints:
+        This character's initials are '{}'
+        Use `.lookup <name>` if you can't remember the full name.
+
+        (If the image is missing, click [here]({}).""".format(initials, link))
+        e.set_image(url=link)
+        wb = self.bot.get_user(472141928578940958)
+        wh = await ctx.channel.webhooks()
+        if not wh:
+            return
+
+        wh = wh[0]
+
+        await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
+
+        guessed = False
+
+        def check(msg):
+            if msg.channel != ctx.channel:
+                return False
+
+            content = msg.content.lower()
+            if content.startswith('.claim '):
+                return True
+
+            return False
+
+        name = waifu[0]
+
+        while not guessed:
+            try:
+                msg = await self.bot.wait_for('message', check=check, timeout=360)
+            except asyncio.TimeoutError:
+                return
+
+            guess = ' '.join(msg.content.split(' ')[1:]).replace('-', ' ').lower()
+            if guess != name.lower():
+                await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.avatar_url)
+                continue
+
+            await wh.send(f'Nice {ctx.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.avatar_url)
+            return
 
 
 def setup(bot):

@@ -787,6 +787,15 @@ class ServerSpecific(Cog):
         except discord.HTTPException:
             pass
 
+        try:
+            wh = await ctx.channel.webhooks()
+            if not wh:
+                return
+
+            wh = wh[0]
+        except discord.HTTPException:
+            return
+
         waifu = choice(len(waifus), p=chances)
         waifu = waifus[waifu]
 
@@ -811,17 +820,12 @@ class ServerSpecific(Cog):
         (If the image is missing, click [here]({}).""".format(initials, link))
         e.set_image(url=link)
         wb = self.bot.get_user(472141928578940958)
-        wh = await ctx.channel.webhooks()
-        if not wh:
-            return
-
-        wh = wh[0]
 
         await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
 
         guessed = False
 
-        def check(msg):
+        def check_(msg):
             if msg.channel != ctx.channel:
                 return False
 
@@ -835,7 +839,7 @@ class ServerSpecific(Cog):
 
         while not guessed:
             try:
-                msg = await self.bot.wait_for('message', check=check, timeout=360)
+                msg = await self.bot.wait_for('message', check=check_, timeout=360)
             except asyncio.TimeoutError:
                 return
 

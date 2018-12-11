@@ -779,7 +779,7 @@ class ServerSpecific(Cog):
 
         await mod._set_channel_lock(ctx, True)
 
-    @command(ignore_extra=True)
+    @command(ignore_extra=True, hidden=True)
     @cooldown(1, 60, BucketType.channel)
     @check(main_check)
     async def zeta(self, ctx):

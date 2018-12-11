@@ -781,7 +781,6 @@ class ServerSpecific(Cog):
 
     @command(ignore_extra=True, hidden=True)
     @cooldown(1, 60, BucketType.channel)
-    @check(main_check)
     async def zeta(self, ctx):
         try:
             await ctx.message.delete()

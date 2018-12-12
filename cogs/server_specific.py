@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import textwrap
 import unicodedata
 from datetime import datetime
 from datetime import timedelta
@@ -810,14 +811,18 @@ class ServerSpecific(Cog):
         initials = get_inits(waifu[0])
         link = choice(waifu[2])
 
-        e = discord.Embed(title='Character', color=16745712, description="""A waifu/husbando appeared!
+        desc = """
+        A waifu/husbando appeared!
         Try guessing their name with `.claim <name>` to claim them!
 
         Hints:
         This character's initials are '{}'
         Use `.lookup <name>` if you can't remember the full name.
 
-        (If the image is missing, click [here]({}).""".format(initials, link))
+        (If the image is missing, click [here]({})."""
+
+        desc = textwrap.dedent(desc).format(initials, link).strip()
+        e = discord.Embed(title='Character', color=16745712, description=desc)
         e.set_image(url=link)
         wb = self.bot.get_user(472141928578940958)
 

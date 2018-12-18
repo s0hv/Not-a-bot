@@ -673,7 +673,7 @@ class Colors(Cog):
 
     @colors.command(no_pm=True)
     @bot_has_permissions(attach_files=True)
-    @cooldown(1, 10, type=BucketType.guild)
+    @cooldown(1, 60, type=BucketType.guild)
     async def roles(self, ctx):
         colors = []
         for role in ctx.guild.roles:

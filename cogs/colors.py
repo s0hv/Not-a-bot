@@ -675,6 +675,10 @@ class Colors(Cog):
     @bot_has_permissions(attach_files=True)
     @cooldown(1, 60, type=BucketType.guild)
     async def roles(self, ctx):
+        """
+        Sorts all roles in the server by color and puts them in one file.
+        Every role gets a square with it's color and name on it
+        """
         colors = []
         for role in ctx.guild.roles:
             rgb = role.color.to_rgb()
@@ -685,7 +689,9 @@ class Colors(Cog):
             value = (((value << 8) + rgb[1]) << 8) + rgb[2]
             colors.append(Color(None, role.name, value, None, lab))
 
-        data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, colors)
+        async with ctx.typing():
+            data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, colors)
+
         await ctx.send(file=discord.File(data, 'colors.png'))
 
     @command(aliases=['search_colour'])

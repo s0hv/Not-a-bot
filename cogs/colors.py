@@ -19,7 +19,7 @@ from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument,
 from numpy.random import choice
 from sqlalchemy.exc import SQLAlchemyError
 
-from bot.bot import command, has_permissions, cooldown
+from bot.bot import command, has_permissions, cooldown, group
 from bot.globals import WORKING_DIR
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
@@ -129,7 +129,19 @@ class Colors(Cog):
         return rgb
 
     def rgb2lab(self, rgb, to_role=True):
-        rgb = self.check_rgb(rgb, to_role=to_role)
+        """
+        Args:
+            rgb (list or tuple):
+                not upscaled rgb tuple
+            to_role (bool or none):
+                Bool if check_rgb is used.
+                None if skip using check_rgb
+
+        Returns:
+            LabColor: lab color
+        """
+        if to_role is not None:
+            rgb = self.check_rgb(rgb, to_role=to_role)
         return convert_color(sRGBColor(*rgb), LabColor)
 
     async def _update_color(self, color, role, to_role=True, lab: LabColor=None):
@@ -548,7 +560,7 @@ class Colors(Cog):
         return s
 
     def sort_by_color(self, colors):
-        start = self.rgb2lab((0,0,0))
+        start = self.rgb2lab((0,0,0), to_role=None)
         color, _ = self.closest_color_match(start, colors)
         sorted_colors = [color]
         colors.remove(color)
@@ -604,7 +616,44 @@ class Colors(Cog):
             draw.text((x, y), name, font=font, fill=text_color)
         return im
 
-    @command(no_pm=True, aliases=['colours'])
+    def _sorted_color_image(self, colors):
+        size = (100, 100)
+        colors = self.sort_by_color(colors)
+        side = ceil(sqrt(len(colors)))
+        font = ImageFont.truetype(
+            os.path.join(WORKING_DIR, 'M-1c', 'mplus-1c-bold.ttf'),
+            encoding='utf-8', size=17)
+
+        images = []
+        reverse = False
+        for i in range(0, len(colors), side):
+            color_range = colors[i:i + side]
+            ims = []
+            for color in color_range:
+                ims.append(self.draw_text(color, size, font))
+
+            if not ims:
+                continue
+
+            if reverse:
+                while len(ims) < side:
+                    ims.append(Image.new('RGBA', size, (0, 0, 0, 0)))
+
+                ims.reverse()
+                reverse = False
+            else:
+                reverse = True
+
+            images.append(self.concatenate_colors(ims, width=size[0]))
+
+        stack = self.stack_colors(images, size[1])
+
+        data = BytesIO()
+        stack.save(data, 'PNG')
+        data.seek(0)
+        return data
+
+    @group(no_pm=True, aliases=['colours'], invoke_without_command=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def colors(self, ctx):
         """Shows the colors on this guild"""
@@ -619,45 +668,24 @@ class Colors(Cog):
 
             return
 
-        def do_the_thing():
-            nonlocal colors
-            size = (100, 100)
-            colors = list(colors.values())
-            colors = self.sort_by_color(colors)
-            side = ceil(sqrt(len(colors)))
-            font = ImageFont.truetype(os.path.join(WORKING_DIR, 'M-1c', 'mplus-1c-bold.ttf'),
-                                          encoding='utf-8', size=17)
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, list(colors.values()))
+        await ctx.send(file=discord.File(data, 'colors.png'))
 
-            images = []
-            reverse = False
-            for i in range(0, len(colors), side):
-                color_range = colors[i:i+side]
-                ims = []
-                for color in color_range:
-                    ims.append(self.draw_text(color, size, font))
+    @colors.command(no_pm=True)
+    @bot_has_permissions(attach_files=True)
+    @cooldown(1, 10, type=BucketType.guild)
+    async def roles(self, ctx):
+        colors = []
+        for role in ctx.guild.roles:
+            rgb = role.color.to_rgb()
+            rgb = self.check_rgb(tuple(v/255 for v in rgb), to_role=False)
+            lab = convert_color(sRGBColor(*rgb), LabColor)
+            rgb = tuple(round(v*255) for v in rgb)
+            value = rgb[0]
+            value = (((value << 8) + rgb[1]) << 8) + rgb[2]
+            colors.append(Color(None, role.name, value, None, lab))
 
-                if not ims:
-                    continue
-
-                if reverse:
-                    while len(ims) < side:
-                        ims.append(Image.new('RGBA', size, (0,0,0,0)))
-
-                    ims.reverse()
-                    reverse = False
-                else:
-                    reverse = True
-
-                images.append(self.concatenate_colors(ims, width=size[0]))
-
-            stack = self.stack_colors(images, size[1])
-
-            data = BytesIO()
-            stack.save(data, 'PNG')
-            data.seek(0)
-            return data
-
-        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, colors)
         await ctx.send(file=discord.File(data, 'colors.png'))
 
     @command(aliases=['search_colour'])

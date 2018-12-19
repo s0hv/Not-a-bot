@@ -409,6 +409,9 @@ class Pokemon(Cog):
     @command(ignore_extra=True, aliases=['gp'])
     @cooldown(1, 5, BucketType.guild)
     async def guess_pokemon(self, ctx, url=None):
+        if not self.bot.poke_model:
+            return await ctx.send('Not supported atm')
+
         if not url:
             url = self.poke_spawns.get(ctx.guild.id)
             if not url:

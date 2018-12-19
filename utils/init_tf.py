@@ -118,9 +118,9 @@ class PokeModel:
 
     def process_image(self, im: Image.Image):
         images = []
-        bg = Image.new(im.mode, im.size, 'black')
-        bg.paste(im)
-        bg = bg.resize((self.image_size, self.image_size), Image.LINEAR)
+        bg = Image.new('RGBA', im.size, 'black')
+        bg.paste(im.convert('RGBA'))
+        bg = bg.resize((self.image_size, self.image_size), Image.LINEAR).convert('RGB')
         image = np.array(bg)[:, :, :3]  # Leave out alpha channel if it exists
         images.append(image)
         images = np.array(images, dtype=np.float32)

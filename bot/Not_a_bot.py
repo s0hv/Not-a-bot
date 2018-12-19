@@ -41,7 +41,7 @@ terminal = logging.getLogger('terminal')
 
 
 class NotABot(BotBase):
-    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, model: LoadedModel=None, **options):
+    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, model: LoadedModel=None, poke_model=None, **options):
         super().__init__(prefix, conf, aiohttp=aiohttp, test_mode=test_mode, cogs=cogs, **options)
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
@@ -49,6 +49,7 @@ class NotABot(BotBase):
         
         self._random_color = None
         self._tf_model = model
+        self._poke_model = poke_model
         self.polls = {}
         self.timeouts = {}
         self.temproles = {}
@@ -67,6 +68,10 @@ class NotABot(BotBase):
     @property
     def tf_model(self):
         return self._tf_model
+
+    @property
+    def poke_model(self):
+        return self._poke_model
 
     async def cache_guilds(self):
         import time

@@ -15,7 +15,8 @@ from PIL import Image
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
-from discord.ext.commands import BucketType, has_permissions, bot_has_permissions
+from discord.ext.commands import BucketType, has_permissions, \
+    bot_has_permissions
 from discord.ext.commands.converter import UserConverter
 from discord.ext.commands.errors import BadArgument, UserInputError
 
@@ -224,10 +225,7 @@ def from_max_stat(min: int, max: int, value: int) -> tuple:
 class Pokemon(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        with open(os.path.join(os.getcwd(), 'data', 'pokestats', 'pokemon_hashes.json'), 'r', encoding='utf-8') as f:
-            self.poke_hashes = json.load(f)
-            self.poke_names = list(self.poke_hashes.values())
-            self.only_hash = numpy.array(list(map(lambda h: imagehash.hex_to_hash(h).hash.flatten(), self.poke_hashes.keys())))
+        self.poke_spawns = {}
 
     @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3, BucketType.user)
@@ -410,14 +408,28 @@ class Pokemon(Cog):
 
     @command(ignore_extra=True, aliases=['gp'])
     @cooldown(1, 5, BucketType.guild)
-    async def guess_pokemon(self, ctx, url):
+    async def guess_pokemon(self, ctx, url=None):
+        if not url:
+            url = self.poke_spawns.get(ctx.guild.id)
+            if not url:
+                async for msg in ctx.channel.history(limit=10):
+                    if self._is_spawn(msg):
+                        url = msg.embeds[0].image.url
+                        break
+
+        if not url:
+            ctx.command.undo_use(ctx)
+            return await ctx.send('No image specified')
+
         img = await image_from_url(url, self.bot.aiohttp_client)
         if not img:
+            ctx.command.undo_use(ctx)
             return await ctx.send(f'No image found from {url}')
 
-        guess = await self.bot.loop.run_in_executor(self.bot.threadpool, self.get_match, img)
-        await ctx.send(f'That pokemon might be `{guess}`.\n'
-                       f'Expected accuracy for this is command is max 80% so expect mistakes')
+        img = self.bot.poke_model.process_image(img)
+        guess, accuracy = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot.poke_model.sample, img)
+
+        await ctx.send(f"That pokemon is `{guess}` I'm {accuracy*100:.01f}% sure of that")
 
     @staticmethod
     async def create_pokelog(ctx):
@@ -540,6 +552,14 @@ class Pokemon(Cog):
 
         await channel.send(embed=embed)
 
+    @staticmethod
+    def _is_spawn(msg):
+        if msg.embeds:
+            embed = msg.embeds[0]
+            return isinstance(embed.title, str) and 'wild' in embed.title.lower()
+
+        return False
+
     async def on_message(self, message):
         # Ignore others than pokecord
         if message.author.id != 365975655608745985:
@@ -548,20 +568,11 @@ class Pokemon(Cog):
         if message.content:
             return await self._post2pokelog(message)
 
-        if message.embeds and message.guild.id in (217677285442977792, 353927534439825429):
-            embed = message.embeds[0]
-            if isinstance(embed.title, str) and 'wild' in embed.title.lower():
-                poke_name = await self.match_pokemon(embed.image.url)
-                if poke_name is None:
-                    terminal.error(f'Pokemon not found from url {embed.image.url}')
-                    logger.error(f'Pokemon not found from url {embed.image.url}'
-                                 f'{embed.title}\n{embed.description}\n'
-                                 f'{repr(embed.url)}')
-                    return
-
-                await self.bot.dbutil.log_pokespawn(poke_name, message.guild.id)
+        if self._is_spawn(message):
+            self.poke_spawns[message.guild.id] = message.embeds[0].image.url
 
     def get_match(self, img):
+        raise NotImplementedError('Now uses a cnn instead of phash')
         binarydiff = self.only_hash != imagehash.phash(img,
                                                        hash_size=16,
                                                        highfreq_factor=6).hash.reshape(1, -1)

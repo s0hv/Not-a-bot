@@ -108,13 +108,15 @@ logger.info('Starting bots')
 
 # Initialize tensorflow for text cmd
 try:
+    poke_model = init_tf.init_poke_tf()  # Will increase ram usage by around 100mb
     model = init_tf.init_tf()
 except:
     terminal.exception('Failed to initialize tensorflow')
     model = None
+    poke_model = None
 
 #bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
-bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs, model=model)
+bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs, model=model, poke_model=poke_model)
 bot.run(config.test_token)
 
 # We have systemctl set up in a way that different exit codes

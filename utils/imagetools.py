@@ -41,7 +41,7 @@ from geopatterns.utils import promap
 from numpy import sqrt
 
 from bot.exceptions import (ImageSizeException, ImageResizeException,
-                            TooManyFrames)
+                            TooManyFrames, ImageDownloadError)
 
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
@@ -349,12 +349,12 @@ async def raw_image_from_url(url, client, get_mime=False):
         async with client.get(url) as r:
             terminal.debug('Downloading image url {}'.format(url))
             if not r.headers.get('Content-Type', '').startswith('image'):
-                raise TypeError
+                raise ImageDownloadError('url isnt an image', url)
 
             max_size = 8000000
             size = int(r.headers.get('Content-Length', 0))
             if size > max_size:
-                raise OverflowError
+                raise ImageDownloadError('image too big', url)
 
             data = BytesIO()
             chunk = 4096
@@ -364,19 +364,20 @@ async def raw_image_from_url(url, client, get_mime=False):
                     mime_type = magic.from_buffer(d, mime=True)
                     total += chunk
                     if not mime_type.startswith('image') and mime_type != 'application/octet-stream':
-                        raise TypeError
+                        raise ImageDownloadError('url isnt an image', url)
 
                 total += chunk
                 if total > max_size:
-                    raise OverflowError
+                    raise ImageDownloadError('image is too big', url)
 
                 data.write(d)
         data.seek(0)
     except aiohttp.ClientError:
         logger.exception('Could not download image %s' % url)
-        if get_mime:
-            return None, None
-        return None
+        raise ImageDownloadError('unknown error', url)
+
+    if data is None:
+        raise ImageDownloadError('unknown error', url)
 
     if get_mime:
         return data, mime_type

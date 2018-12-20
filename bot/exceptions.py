@@ -101,6 +101,16 @@ class ImageResizeException(BotException):
                "Usually this is because of extremely wide/tall pictures"
 
 
+class ImageDownloadError(BotException):
+    def __init__(self, message, url):
+        super().__init__(message)
+        self.url = url
+
+    @property
+    def message(self):
+        return f"Failed to download image {self.url} because {self._message}"
+
+
 class TooManyFrames(BotException):
     def __init__(self, max_frames, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -1279,7 +1279,7 @@ def check_import(module_name):
     return out
 
 
-def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None):
+def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None, raise_error=None):
     if not perms:
         return True
 
@@ -1297,6 +1297,9 @@ def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None):
 
     if not missing:
         return True
+
+    if raise_error:
+        raise raise_error(missing)
 
     return False
 

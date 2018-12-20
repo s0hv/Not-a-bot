@@ -342,6 +342,7 @@ async def image_from_url(url, client):
 
 
 async def raw_image_from_url(url, client, get_mime=False):
+    url = url.strip('\u200b \n')
     data = None
     mime_type = None
     try:

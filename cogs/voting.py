@@ -457,7 +457,7 @@ class VoteManager:
 
     @command(no_pm=True)
     @bot_has_permissions(embed_links=True)
-    @has_permissions(manage_messages=True, manage_channels=True, manage_guild=True)
+    @has_permissions(manage_messages=True, manage_guild=True)
     @cooldown(1, 20, BucketType.guild)
     async def poll(self, ctx, *, message):
         """

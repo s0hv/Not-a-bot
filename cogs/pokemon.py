@@ -15,17 +15,18 @@ from PIL import Image
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
-from discord.ext.commands import BucketType, has_permissions, \
-    bot_has_permissions
+from discord.ext.commands import BucketType
 from discord.ext.commands.converter import UserConverter
-from discord.ext.commands.errors import BadArgument, UserInputError
+from discord.ext.commands.errors import BadArgument, UserInputError, \
+    BotMissingPermissions
 
 from bot.bot import command, cooldown
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
 from utils.imagetools import image_from_url
-from utils.utilities import basic_check, random_color, wait_for_yes
+from utils.utilities import basic_check, random_color, wait_for_yes, \
+    check_botperm
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -452,8 +453,6 @@ class Pokemon(Cog):
         await ctx.send(f'Pokelog created in {channel.mention}')
 
     @command(ignore_extra=True)
-    @has_permissions(manage_channels=True)
-    @bot_has_permissions(manage_channels=True, manage_roles=True)
     @cooldown(1, 5, BucketType.guild)
     async def pokelog(self, ctx):
         """
@@ -480,7 +479,12 @@ class Pokemon(Cog):
         """
         channel = utils.get(ctx.guild.channels, name='pokelog')
         if not channel:
-            await ctx.send('Pokelog channel not present. Do you want to crete one (Y/N)')
+            if not check_botperm('manage_channels', ctx=ctx, me=ctx.author):
+                return await ctx.send('Pokelog channel not present')
+
+            check_botperm('manage_channels', ctx=ctx, raise_error=BotMissingPermissions)
+
+            await ctx.send('Pokelog channel not present. Do you want to create one (Y/N)')
             msg = await wait_for_yes(ctx, 30)
             if not msg:
                 return

@@ -32,7 +32,7 @@ from cogs.cog import Cog
 from utils.utilities import split_string
 from utils.utilities import (y_n_check, basic_check, y_check, check_import,
                              parse_timeout,
-                             call_later, seconds2str)
+                             call_later, seconds2str, test_url)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -544,15 +544,23 @@ class BotAdmin(Cog):
         client = self.bot.aiohttp_client
         if file and name:
             url = file
-        else:
+        elif not file:
             if not ctx.message.attachments:
                 return await ctx.send('No files found')
 
-            if not file:
-                return await ctx.send('No filename specified')
-
             url = ctx.message.attachments[0].url
-            name = file
+            name = url.split('/')[-1]
+
+        else:
+            if not test_url(file):
+                if not ctx.message.attachments:
+                    return await ctx.send('No files found')
+
+                url = ctx.message.attachments[0].url
+                name = file
+            else:
+                url = file
+                name = url.split('/')[-1]
 
         p = os.path.join(SFX_FOLDER, name)
         if os.path.exists(p):

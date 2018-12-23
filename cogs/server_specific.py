@@ -520,8 +520,8 @@ class ServerSpecific(Cog):
         if winners < 1:
             return await ctx.send('There must be more than 1 winner')
 
-        if winners > 30:
-            return await ctx.send('Maximum amount of winners is 30')
+        if winners > 100:
+            return await ctx.send('Maximum amount of winners is 100')
 
         await self._toggle_every(ctx.channel, winners, expires_in)
 

@@ -51,7 +51,7 @@ class Search:
         self.key = bot.config.google_api_key
         self.cx = self.bot.config.custom_search
 
-    @command()
+    @command(aliases=['im', 'img'])
     @cooldown(2, 5)
     async def image(self, ctx, *, query):
         """Google search an image"""

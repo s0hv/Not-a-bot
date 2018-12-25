@@ -346,13 +346,32 @@ class Utilities(Cog):
         if not webhook:
             return await ctx.send('This command is unavailable atm')
 
-        json = {'content': feedback,
-                'avatar_url': ctx.author.avatar_url,
-                'username': ctx.author.name}
-        headers = {'Content-type': 'application/json'}
+        e = discord.Embed(title='Feedback', description=feedback)
+        author = ctx.author
+        e.set_thumbnail(url=author.avatar_url or author.default_avatar_url)
+        e.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+        e.add_field(name='Guild', value=f'{ctx.guild.id}\n{ctx.guild.name}')
 
-        await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
-        await ctx.send('Feedback sent')
+        json = {'embeds': [e.to_dict()],
+                'avatar_url': ctx.author.avatar_url,
+                'username': ctx.author.name,
+                'wait': True}
+        headers = {'Content-type': 'application/json'}
+        success = False
+        try:
+            r = await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
+        except:
+            pass
+        else:
+            status = str(r.status)
+            # Accept 2xx status codes
+            if status.startswith('2'):
+                success = True
+
+        if success:
+            await ctx.send('Feedback sent')
+        else:
+            await ctx.send('Failed to send feedback')
 
     @command(aliases=['bug'], ignore_extra=True)
     @cooldown(1, 10, BucketType.user)

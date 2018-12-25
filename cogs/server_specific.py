@@ -822,7 +822,7 @@ class ServerSpecific(Cog):
         This character's initials are '{}'
         Use `.lookup <name>` if you can't remember the full name.
 
-        (If the image is missing, click [here]({})."""
+        (If the image is missing, click [here]({}))."""
 
         desc = textwrap.dedent(desc).format(initials, link).strip()
         e = discord.Embed(title='Character', color=16745712, description=desc)

@@ -786,14 +786,17 @@ class ServerSpecific(Cog):
 
     @command(ignore_extra=True, hidden=True)
     @cooldown(1, 60, BucketType.channel)
-    async def zeta(self, ctx):
+    async def zeta(self, ctx, channel: discord.TextChannel=None):
         try:
             await ctx.message.delete()
         except discord.HTTPException:
             pass
 
+        if not channel:
+            channel = ctx.channel
+
         try:
-            wh = await ctx.channel.webhooks()
+            wh = await channel.webhooks()
             if not wh:
                 return
 
@@ -835,7 +838,7 @@ class ServerSpecific(Cog):
         guessed = False
 
         def check_(msg):
-            if msg.channel != ctx.channel:
+            if msg.channel != channel:
                 return False
 
             content = msg.content.lower()

@@ -60,7 +60,8 @@ ann takamaki
 yousei yunde
 yorha 2-gou b-gata"""
 
-waifus = [('Billy Herrington', 1, ['https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/RxxYp62.png']),
+waifus = [('Billy Herrington', 3, ['https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/RxxYp62.png']),
+          ('Sans', 3, ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
           ("Aqua", 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=7B4dkxZXrniNxKaJFq0XFVO86alUbsoiQNXbaxFmhwqyCd2KfYqkUpW5YHaZhuAh&tea=FvLvedTFWlgNSavX', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=stWZ5xmBZkDH8bHyhVpG9Y4iae8Cqf3ajoY0lD7r3Sdysa4IilA6aZSUHznVbQWG&tea=TPiTxOZcgmMieAnO']),
           ('Zero Two', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=5YJ%2FlstHJTPWWcZ0RfBsOuoHlK48mDUK5Dd596ED%2BonGAIJcACI9xwoVreZSM0WI&tea=iBvsVVWHNcdsvaOK', 'https://cdn.discordapp.com/attachments/477293401054642177/477319994259275796/055fb45a-e8d7-4084-b61d-eea31b0fd235.jpg']),
           ('Shalltear Bloodfallen', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=QZXjFYY%2BKrSOKMP7FXg1vTkHZLtBgIczQJEJWP3THtgsEIz7VhhE2menxbFv1VS9&tea=qckYylIRjoKUbjzG', 'https://cdn.discordapp.com/attachments/477293401054642177/477317853389783042/2b513572-a239-4bb7-a58a-bb48a23e4379.jpg']),

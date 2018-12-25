@@ -69,6 +69,7 @@ waifus = [('Billy Herrington', 3, ['https://i.imgur.com/V9X7Rbm.png', 'https://i
           ('Megumin', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=3TvoZWcwlI3WlJXUyNLeloFBNV6oF2qq8NYfukqNk0ht0zqKhP7%2FrEGz0frs6Wq5&tea=wfDsVgPNOOTkwMhz', ]),
           ('Albedo', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=6mFvoz3jJ%2BwhW9lOWR49KTbLIiKjuYFhittUwcQhMc%2B0JstX%2FkkXyXVPZxWiiEkr&tea=VyKIujqwVbHiWTUz']),
           ('Rem', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=bUUxHLQv6IzKqWZnxrO8nUw723nFGHALSm9ZM8Ly3VU1%2B0DyE8qL1yRaNtnQe7wj&tea=AFfSbWSfwXFONvvV']),
+          ('Diego Brando', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=Nbs7aqPzWrDwa840C1176Twp0%2BUyHLLCOdT%2BeWCwgifCwqahUPMkL%2BaxiRwRBRKQ&tea=pFRfsLjEOQsslUUH', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=Lg2jU0NTaywjMfTknBSPDbB12eO4ntiYKtp1sELGRlmKmkifZCQ%2FvFUA0DnKYXfN&tea=NSegbKFrxcrMGodh', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=xvdUezdjgRSgF%2FWtG56r9oIeIBpgzGEAqjpe8Ep%2Bymul%2FP%2Bmaw5I%2B8LQahC9IrHV&tea=yCbcZxVMIMMjOmNB', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=aHoAgV%2ByDmwuZyEA4VOrFDMkzdINa9VAKU%2FQTYmz2KrV5YyC3pnkEjlmnNhOLYBE&tea=YxnsMKNWTiriokwC']),
           ]
 
 chances = [t[1] for t in waifus]

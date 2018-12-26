@@ -60,16 +60,17 @@ ann takamaki
 yousei yunde
 yorha 2-gou b-gata"""
 
-waifus = [('Billy Herrington', 3, ['https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/RxxYp62.png']),
-          ('Sans', 3, ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
-          ("Aqua", 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=7B4dkxZXrniNxKaJFq0XFVO86alUbsoiQNXbaxFmhwqyCd2KfYqkUpW5YHaZhuAh&tea=FvLvedTFWlgNSavX', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=stWZ5xmBZkDH8bHyhVpG9Y4iae8Cqf3ajoY0lD7r3Sdysa4IilA6aZSUHznVbQWG&tea=TPiTxOZcgmMieAnO']),
-          ('Zero Two', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=5YJ%2FlstHJTPWWcZ0RfBsOuoHlK48mDUK5Dd596ED%2BonGAIJcACI9xwoVreZSM0WI&tea=iBvsVVWHNcdsvaOK', 'https://cdn.discordapp.com/attachments/477293401054642177/477319994259275796/055fb45a-e8d7-4084-b61d-eea31b0fd235.jpg']),
-          ('Shalltear Bloodfallen', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=QZXjFYY%2BKrSOKMP7FXg1vTkHZLtBgIczQJEJWP3THtgsEIz7VhhE2menxbFv1VS9&tea=qckYylIRjoKUbjzG', 'https://cdn.discordapp.com/attachments/477293401054642177/477317853389783042/2b513572-a239-4bb7-a58a-bb48a23e4379.jpg']),
-          ('Esdeath', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=oxQ4Hy%2Bhh4EuSfBwMzxGP%2BJgVhga0OQ3d%2BFdV4mxMcTABwPfyjO7Ai86D5mijMxq&tea=zCbXylfXYsArnJuq', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=P%2BS2ZekqqFZ8xzXqKgipdQLzckmAwRK%2FUkvsnMCxcHFDyyRet4lgcGRqvbF1Y4Vq&tea=ulrKjZyNCLDhktvW']),
-          ('Megumin', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=3TvoZWcwlI3WlJXUyNLeloFBNV6oF2qq8NYfukqNk0ht0zqKhP7%2FrEGz0frs6Wq5&tea=wfDsVgPNOOTkwMhz', ]),
-          ('Albedo', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=6mFvoz3jJ%2BwhW9lOWR49KTbLIiKjuYFhittUwcQhMc%2B0JstX%2FkkXyXVPZxWiiEkr&tea=VyKIujqwVbHiWTUz']),
-          ('Rem', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=bUUxHLQv6IzKqWZnxrO8nUw723nFGHALSm9ZM8Ly3VU1%2B0DyE8qL1yRaNtnQe7wj&tea=AFfSbWSfwXFONvvV']),
-          ('Diego Brando', 10, ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=Nbs7aqPzWrDwa840C1176Twp0%2BUyHLLCOdT%2BeWCwgifCwqahUPMkL%2BaxiRwRBRKQ&tea=pFRfsLjEOQsslUUH', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=Lg2jU0NTaywjMfTknBSPDbB12eO4ntiYKtp1sELGRlmKmkifZCQ%2FvFUA0DnKYXfN&tea=NSegbKFrxcrMGodh', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=xvdUezdjgRSgF%2FWtG56r9oIeIBpgzGEAqjpe8Ep%2Bymul%2FP%2Bmaw5I%2B8LQahC9IrHV&tea=yCbcZxVMIMMjOmNB', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=aHoAgV%2ByDmwuZyEA4VOrFDMkzdINa9VAKU%2FQTYmz2KrV5YyC3pnkEjlmnNhOLYBE&tea=YxnsMKNWTiriokwC']),
+# Name, chance of spawning, character id, japanese name, spawn images in a list
+waifus = [('Billy Herrington', 3, 1000006, 'ビリー・ヘリントン', ['https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/RxxYp62.png']),
+          ('Sans', 3, 1000007, 'オイラ', ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
+          ("Aqua", 10, 117223, 'アクア', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=7B4dkxZXrniNxKaJFq0XFVO86alUbsoiQNXbaxFmhwqyCd2KfYqkUpW5YHaZhuAh&tea=FvLvedTFWlgNSavX', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=stWZ5xmBZkDH8bHyhVpG9Y4iae8Cqf3ajoY0lD7r3Sdysa4IilA6aZSUHznVbQWG&tea=TPiTxOZcgmMieAnO']),
+          ('Zero Two', 10, 155679, 'ゼロツー', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=5YJ%2FlstHJTPWWcZ0RfBsOuoHlK48mDUK5Dd596ED%2BonGAIJcACI9xwoVreZSM0WI&tea=iBvsVVWHNcdsvaOK', 'https://cdn.discordapp.com/attachments/477293401054642177/477319994259275796/055fb45a-e8d7-4084-b61d-eea31b0fd235.jpg']),
+          ('Shalltear Bloodfallen', 10, 116319, 'シャルティア・ブラッドフォールン', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=QZXjFYY%2BKrSOKMP7FXg1vTkHZLtBgIczQJEJWP3THtgsEIz7VhhE2menxbFv1VS9&tea=qckYylIRjoKUbjzG', 'https://cdn.discordapp.com/attachments/477293401054642177/477317853389783042/2b513572-a239-4bb7-a58a-bb48a23e4379.jpg']),
+          ('Esdeath', 10, 65239, 'エスデス', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=oxQ4Hy%2Bhh4EuSfBwMzxGP%2BJgVhga0OQ3d%2BFdV4mxMcTABwPfyjO7Ai86D5mijMxq&tea=zCbXylfXYsArnJuq', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=P%2BS2ZekqqFZ8xzXqKgipdQLzckmAwRK%2FUkvsnMCxcHFDyyRet4lgcGRqvbF1Y4Vq&tea=ulrKjZyNCLDhktvW']),
+          ('Megumin', 10, 117225, 'めぐみん', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=3TvoZWcwlI3WlJXUyNLeloFBNV6oF2qq8NYfukqNk0ht0zqKhP7%2FrEGz0frs6Wq5&tea=wfDsVgPNOOTkwMhz', ]),
+          ('Albedo', 10, 116275, 'アルベド', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=6mFvoz3jJ%2BwhW9lOWR49KTbLIiKjuYFhittUwcQhMc%2B0JstX%2FkkXyXVPZxWiiEkr&tea=VyKIujqwVbHiWTUz']),
+          ('Rem', 10, 118763, 'レム', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=bUUxHLQv6IzKqWZnxrO8nUw723nFGHALSm9ZM8Ly3VU1%2B0DyE8qL1yRaNtnQe7wj&tea=AFfSbWSfwXFONvvV']),
+          ('Diego Brando', 10, 20148, 'ディエゴ・ブランド', ['https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=Nbs7aqPzWrDwa840C1176Twp0%2BUyHLLCOdT%2BeWCwgifCwqahUPMkL%2BaxiRwRBRKQ&tea=pFRfsLjEOQsslUUH', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=Lg2jU0NTaywjMfTknBSPDbB12eO4ntiYKtp1sELGRlmKmkifZCQ%2FvFUA0DnKYXfN&tea=NSegbKFrxcrMGodh', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=xvdUezdjgRSgF%2FWtG56r9oIeIBpgzGEAqjpe8Ep%2Bymul%2FP%2Bmaw5I%2B8LQahC9IrHV&tea=yCbcZxVMIMMjOmNB', 'https://remilia.cirno.pw/teahouse/teapot.jpg?biscuit=aHoAgV%2ByDmwuZyEA4VOrFDMkzdINa9VAKU%2FQTYmz2KrV5YyC3pnkEjlmnNhOLYBE&tea=YxnsMKNWTiriokwC']),
           ]
 
 chances = [t[1] for t in waifus]
@@ -86,6 +87,7 @@ class ServerSpecific(Cog):
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
         self.redis = self.bot.redis
+        self._zetas = {}
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
@@ -816,7 +818,7 @@ class ServerSpecific(Cog):
             return inits
 
         initials = get_inits(waifu[0])
-        link = choice(waifu[2])
+        link = choice(waifu[4])
 
         desc = """
         A waifu/husbando appeared!
@@ -848,11 +850,17 @@ class ServerSpecific(Cog):
             return False
 
         name = waifu[0]
+        claimer = None
+        self._zetas[ctx.guild.id] = ctx.message.id
 
-        while not guessed:
+        while guessed is False:
             try:
                 msg = await self.bot.wait_for('message', check=check_, timeout=360)
             except asyncio.TimeoutError:
+                guessed = None
+                continue
+
+            if ctx.guild.id in self._zetas and ctx.message.id != self._zetas[ctx.guild.id]:
                 return
 
             guess = ' '.join(msg.content.split(' ')[1:]).replace('-', ' ').lower()
@@ -861,7 +869,82 @@ class ServerSpecific(Cog):
                 continue
 
             await wh.send(f'Nice {msg.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.avatar_url)
+            claimer = msg.author
+            guessed = True
+
+        try:
+            self._zetas.pop(ctx.guild.id)
+        except KeyError:
+            pass
+
+        def get_stat():
+            if name == 'Billy Herrington':
+                return 999
+
+            return random.randint(0, 100)
+
+        stats = [get_stat() for _ in range(4)]
+        character_id = waifu[2]
+
+        desc = f"""
+        Claimed by {claimer.mention}
+        Local ID: {random.randint(500, 3000)}
+        Global ID: {random.randint(2247321, 2847321)}
+        Character ID: {character_id}
+        Type: Zeta (ζ)
+        
+        Strength: {stats[0]}
+        Agility: {stats[1]}
+        Defense: {stats[2]}
+        Endurance: {stats[3]}
+        
+        Cumulative Stats Index (CSI): {sum(stats)//len(stats)}
+        
+        Affection: 0
+        Affection Cooldown: None
+        """
+
+        desc = textwrap.dedent(desc).strip()
+
+        def check_(msg):
+            if msg.channel != channel:
+                return False
+
+            content = msg.content.lower()
+            if content.startswith('.latest') and msg.author == claimer:
+                return True
+
+            return False
+
+        async def delete_wb_msg():
+            def wb_check(msg):
+                if msg.embeds:
+                    embed = msg.embeds[0]
+                    if f'{claimer.id}>' in embed.description:
+                        return True
+
+                return False
+
+            try:
+                msg = await self.bot.wait_for('message', check=wb_check, timeout=10)
+            except asyncio.TimeoutError:
+                return
+
+            await msg.delete()
+
+        try:
+            await self.bot.wait_for('message', check=check_, timeout=120)
+        except asyncio.TimeoutError:
             return
+
+        asyncio.ensure_future(delete_wb_msg(), loop=self.bot.loop)
+
+        e = discord.Embed(title=f'{name} ({waifu[3]})', color=16745712, description=desc)
+
+        link = f'https://remilia.cirno.pw/portrait/{character_id}.jpg?v=1' if character_id < 1000006 else waifu[4][0]
+        e.set_image(url=link)
+
+        await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
 
 
 def setup(bot):

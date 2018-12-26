@@ -74,6 +74,8 @@ class Context(commands.context.Context):
 class Command(commands.Command):
     def __init__(self, name, callback, **kwargs):
         super(Command, self).__init__(name=name, callback=callback, **kwargs)
+        del self._buckets
+        self._buckets = CooldownMapping(kwargs.get('cooldown'))
         self.level = kwargs.pop('level', 0)
         self.owner_only = kwargs.pop('owner_only', False)
         self.auth = kwargs.pop('auth', Auth.NONE)

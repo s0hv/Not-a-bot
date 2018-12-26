@@ -38,3 +38,8 @@ if not discord.opus.is_loaded():
 terminal.info('SFX bot starting up')
 bot = Ganypepe(prefix='!!', conf=config, pm_help=False, max_messages=100)
 bot.run(config.sfx_token)
+
+# We have systemctl set up in a way that different exit codes
+# have different effects on restarting behavior
+import sys
+sys.exit(bot._exit_code)

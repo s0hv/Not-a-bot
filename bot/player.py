@@ -87,6 +87,9 @@ class MusicPlayer:
         if self.activity_check:
             self.activity_check.cancel()
 
+    def is_alive(self):
+        return self.is_playing() or self.voice is not None or (self.audio_player and not self.audio_player.done())
+
     def start_playlist(self):
         self.close_tasks()
 
@@ -171,6 +174,7 @@ class MusicPlayer:
 
     async def _activity_check(self):
         async def stop():
+            self.__instances__.discard(self)
             try:
                 if self.audio_player:
                     self.audio_player.cancel()

@@ -918,6 +918,9 @@ class ServerSpecific(Cog):
 
         async def delete_wb_msg():
             def wb_check(msg):
+                if msg.author != wb:
+                    return False
+
                 if msg.embeds:
                     embed = msg.embeds[0]
                     if f'{claimer.id}>' in embed.description:
@@ -930,7 +933,10 @@ class ServerSpecific(Cog):
             except asyncio.TimeoutError:
                 return
 
-            await msg.delete()
+            try:
+                await msg.delete()
+            except discord.HTTPException:
+                return
 
         try:
             await self.bot.wait_for('message', check=check_, timeout=120)

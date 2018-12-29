@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+import os
 from datetime import datetime
 from math import ceil
 
@@ -327,6 +328,13 @@ class Server(Cog):
             await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), emotes))))
         else:
             await ctx.send("Didn't steal anything")
+
+    @command(no_pm=True)
+    @has_permissions(administrator=True)
+    @cooldown(1, 10)
+    async def delete_server(self, ctx):
+        p = os.path.join('data', 'templates', 'loading.gif')
+        await ctx.send('Please wait. Server deletion in progress', file=discord.File(p, filename='loading.gif'))
 
 
 def setup(bot):

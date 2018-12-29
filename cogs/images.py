@@ -669,7 +669,7 @@ class Images(Cog):
             bg.alpha_composite(im)
             return self.save_image(bg)
 
-        await ctx.send(file=File(await self.image_func(do_it), filename='pucci_reset.png'))
+        await ctx.send(file=File(await self.image_func(do_it), filename='epitaph.png'))
 
     @command(ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)

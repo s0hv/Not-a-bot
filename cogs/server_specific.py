@@ -877,6 +877,9 @@ class ServerSpecific(Cog):
         except KeyError:
             pass
 
+        if not guessed:
+            return
+
         def get_stat():
             if name == 'Billy Herrington':
                 return 999

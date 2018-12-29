@@ -446,6 +446,27 @@ def create_shadow(img, percent, opacity, x, y):
     return img
 
 
+def crop_to_square(img, crop_to_center=True):
+    if img.width == img.height:
+        return img
+
+    side = min(img.size)
+    size = (side, side)
+    if crop_to_center:
+        w, h = img.size
+        x = 0
+        y = 0
+        if side == w:
+            y = (h-side)//2
+        else:
+            x = (w-side)//2
+        img = img.crop((x, y, *size))
+    else:
+        img = img.crop((0, 0, *size))
+
+    return img
+
+
 def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=True,
                              center_cropped=False, background_color=None,
                              resample=Image.NEAREST, max_pixels=8294400):
@@ -471,9 +492,18 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
     if 0 < max_pixels < x * y:  # More pixels than in a 4k pic is a max by default
         raise ImageSizeException(x * y, max_pixels)
 
-    x_m = x / new_size[0]
-    y_m = y / new_size[1]
-    check = y_m <= x_m if can_be_bigger else y_m >= x_m
+    new_x = new_size[0]
+    new_y = new_size[1]
+
+    if new_x is not None and new_y is not None:
+        x_m = x / new_x
+        y_m = y / new_y
+        check = y_m <= x_m if can_be_bigger else y_m >= x_m
+    elif new_x is None:
+        check = True
+    elif new_y is None:
+        check = False
+
     if check:
         m = new_size[1] / y
     else:
@@ -496,6 +526,7 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
             img = img.crop((x_, y_, new_size[0] + x_, new_size[1] + y_))
         else:
             img = img.crop((0, 0, *new_size))
+
     if background_color is not None:
         im = Image.new(img.mode, img.size, background_color)
         im.paste(img, mask=img)

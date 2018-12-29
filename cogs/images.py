@@ -643,6 +643,7 @@ class Images(Cog):
     @command(aliases=['epitaph'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def doppio(self, ctx, image=None):
+        """image of doppio"""
         img = await self._get_image(ctx, image)
         if not img:
             return
@@ -653,11 +654,17 @@ class Images(Cog):
             img = img.convert('RGBA')
             im = Image.open(os.path.join(TEMPLATES, 'doppio.png'))
             bg = Image.new('RGBA', im.size, 'black')
-            width = 500
-            height = int(img.height * (width/img.width))
-            # Resize width and keep aspect ration
-            img = img.resize((width, height), resample=Image.BICUBIC)
+
             x, y = (135, 196)
+            width = 500
+            height = 408
+            if img.width > img.height:
+                img = resize_keep_aspect_ratio(img, (None, height), resample=Image.BICUBIC)
+                x = x + (width - img.width)//2
+            else:
+                img = resize_keep_aspect_ratio(img, (width, None), resample=Image.BICUBIC)
+                y = y + (height - img.height)//2
+
             bg.paste(img, (x, y), mask=img)
             bg.alpha_composite(im)
             return self.save_image(bg)
@@ -716,7 +723,7 @@ class Images(Cog):
             file = File(*await self.image_func(do_it))
         await ctx.send(file=file)
 
-    @command(ignore_extra=True, aliases=['gspd', 'gif_spd'])
+    @command(ignore_extra=True, aliases=['gspd', 'gif_spd', 'speedup'])
     @cooldown(2, 5)
     async def gif_speed(self, ctx, image, speed=None):
         """

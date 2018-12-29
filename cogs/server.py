@@ -333,6 +333,9 @@ class Server(Cog):
     @has_permissions(administrator=True)
     @cooldown(1, 10)
     async def delete_server(self, ctx):
+        """
+        Deletes server
+        """
         p = os.path.join('data', 'templates', 'loading.gif')
         await ctx.send('Please wait. Server deletion in progress', file=discord.File(p, filename='loading.gif'))
 

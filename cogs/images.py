@@ -640,6 +640,30 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='pucci_reset.png'))
 
+    @command(aliases=['epitaph'], ignore_extra=True)
+    @cooldown(2, 5, BucketType.guild)
+    async def doppio(self, ctx, image=None):
+        img = await self._get_image(ctx, image)
+        if not img:
+            return
+        await ctx.trigger_typing()
+
+        def do_it():
+            nonlocal img
+            img = img.convert('RGBA')
+            im = Image.open(os.path.join(TEMPLATES, 'doppio.png'))
+            bg = Image.new('RGBA', im.size, 'black')
+            width = 500
+            height = int(img.height * (width/img.width))
+            # Resize width and keep aspect ration
+            img = img.resize((width, height), resample=Image.BICUBIC)
+            x, y = (135, 196)
+            bg.paste(img, (x, y), mask=img)
+            bg.alpha_composite(im)
+            return self.save_image(bg)
+
+        await ctx.send(file=File(await self.image_func(do_it), filename='pucci_reset.png'))
+
     @command(ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)
     async def party(self, ctx, image=None):

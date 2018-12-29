@@ -454,7 +454,9 @@ def resize_keep_aspect_ratio(img, new_size, crop_to_size=False, can_be_bigger=Tr
         img: Image to be cropped
         new_size: Size of the new image
         crop_to_size: after resizing crop image so it's exactly the specified size
-        can_be_bigger: Tells if the image can be bigger than the requested size
+        can_be_bigger:
+            Tells if the image can be bigger than the requested size
+            When true image will be as big or bigger in one dimension than requested size
         center_cropped: Center the image. Used in combination with crop_to_size
                         since otherwise the added or removed space will only be in the
                         bottom right corner

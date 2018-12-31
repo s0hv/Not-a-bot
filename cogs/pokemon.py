@@ -61,7 +61,8 @@ legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'suicune', 'tapu bulu', 'tapu fini', 'tapu koko', 'tapu lele',
                'terrakion', 'thundurus', 'tornadus', 'type: null', 'uxie',
                'victini', 'virizion', 'volcanion', 'xerneas', 'xurkitree',
-               'yveltal', 'zapdos', 'zekrom', 'zeraora', 'zygarde']
+               'yveltal', 'zapdos', 'zekrom', 'zeraora', 'zygarde',
+               'meltan', 'melmetal']
 
 
 # Stats taken from https://www.kaggle.com/mylesoneill/pokemon-sun-and-moon-gen-7-stats
@@ -548,13 +549,36 @@ class Pokemon(Cog):
         # that's the only unown in pokecord
         if 'unown' in poke_fmt:
             poke_fmt = 'unown-f'
-            poke = 'unown-f'
+            poke = 'Unown-f'
 
-        url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)
-        embed = Embed(description=f'{mention} caught a {"Shiny " if shiny else ""}**{poke}**', colour=random_color())
+        if 'alolan' in poke_fmt:
+            poke_fmt = poke_fmt.replace('alolan', '').strip() + '-alola'
+            icon_fmt = ' '.join(poke.split(' ')[1:]) + '-alola'
+        else:
+            icon_fmt = poke
+
+        # Temp fix until pokemon showdown adds sprites
+        if 'meltan' in poke_fmt:
+            icon = 'https://cdn.bulbagarden.net/upload/3/34/808MS.png'
+            if shiny:
+                url = 'https://i.imgur.com/m2YsdDT.png'
+            else:
+                url = 'https://i.imgur.com/fdrf77L.png'
+
+        elif 'melmetal' in poke_fmt:
+            icon = 'https://cdn.bulbagarden.net/upload/f/f1/809MS.png'
+            if shiny:
+                url = 'https://i.imgur.com/F1N9TQm.png'
+            else:
+                url = 'https://i.imgur.com/1M3QklX.png'
+
+        else:
+            url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)
+            icon_fmt = re.sub(' |: ', '-', icon_fmt).lower().replace('♂', '-m').replace('♀', '-f').replace('.', '')
+            icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{icon_fmt}.png'
+
+        embed = Embed(description=f'{mention} caught a **{"Shiny " if shiny else ""}{poke}**', colour=random_color())
         embed.set_image(url=url)
-        poke_fmt = re.sub(' |: ', '-', poke).lower().replace('♂', '-m').replace('♀', '-f').replace('.', '')
-        icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{poke_fmt}.png'
         embed.set_thumbnail(url=icon)
 
         await channel.send(embed=embed)
@@ -569,7 +593,7 @@ class Pokemon(Cog):
 
     async def on_message(self, message):
         # Ignore others than pokecord
-        if message.author.id != 365975655608745985:
+        if message.author.id == 365975655608745985:
             return
 
         if message.content:

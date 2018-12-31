@@ -593,7 +593,7 @@ class Pokemon(Cog):
 
     async def on_message(self, message):
         # Ignore others than pokecord
-        if message.author.id == 365975655608745985:
+        if message.author.id != 365975655608745985:
             return
 
         if message.content:

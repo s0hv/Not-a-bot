@@ -33,8 +33,8 @@ from bot.bot import command, cooldown
 from cogs.cog import Cog
 from utils.unzalgo import unzalgo, is_zalgo
 from utils.utilities import (random_color, get_avatar, split_string,
-                             get_emote_url,
-                             send_paged_message)
+                             get_emote_url, send_paged_message, format_timedelta,
+                             parse_time, DateAccuracy)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -483,6 +483,41 @@ class Utilities(Cog):
         embed.add_field(name='License', value=info['license'])
 
         await ctx.send(embed=embed)
+
+    @command(name='timedelta')
+    @cooldown(1, 3, BucketType.user)
+    async def timedelta_(self, ctx, *, duration):
+        """
+        Get a date that is in the amount of duration given.
+        To get past dates start your duration with `-`
+        Time format is `1d 1h 1m 1s` where each one is optional but
+        at least one is required
+        """
+        addition = True
+        if duration.startswith('-'):
+            addition = False
+            duration = duration[1:]
+
+        duration = parse_time(duration)
+        if not duration:
+            return await ctx.send('Failed to parse time')
+
+        try:
+            if addition:
+                then = datetime.utcnow() + duration
+            else:
+                then = datetime.utcnow() - duration
+        except OverflowError:
+            return await ctx.send('Failed to get new date because of an Overflow error. Try giving a smaller duration')
+
+        td = format_timedelta(duration, accuracy=DateAccuracy.Day)
+        s = f'Your requested date is `{then.strftime("%Y-%m-%d %H:%M")}` UTC which '
+        if addition:
+            s += f'is in {td}'
+        else:
+            s += f'was {td} ago'
+
+        await ctx.send(s)
 
 
 def setup(bot):

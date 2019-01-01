@@ -751,6 +751,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
     last = sec
     times = []
 
+    # TODO support slices
     if isinstance(accuracy, int):
         for d in divs:
             last, val = divmod(last, d)

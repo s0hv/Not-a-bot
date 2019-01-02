@@ -1,3 +1,4 @@
+import discord
 from discord.ext.commands import BucketType
 
 from bot.bot import command, cooldown
@@ -27,6 +28,11 @@ class Misc(Cog):
     async def twitchquote(self, ctx, tts: bool=None):
         """Random twitch quote from twitchquotes.com"""
         await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=tts)
+
+    @command()
+    @cooldown(1, 60)
+    async def rep(self, ctx, user: discord.Member):
+        await ctx.send(f'{ctx.author.mention} ~~repped~~ raped {user.mention}')
 
 
 def setup(bot):

@@ -32,7 +32,7 @@ class Misc(Cog):
     @command()
     @cooldown(1, 60)
     async def rep(self, ctx, user: discord.Member):
-        await ctx.send(f'{ctx.author.mention} ~~repped~~ raped {user.mention}')
+        await ctx.send(f'{ctx.author} ~~repped~~ raped {user.mention}')
 
 
 def setup(bot):

@@ -30,7 +30,7 @@ class Misc(Cog):
         await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=tts)
 
     @command()
-    @cooldown(1, 60)
+    @cooldown(1, 60, BucketType.user)
     async def rep(self, ctx, user: discord.Member):
         await ctx.send(f'{ctx.author} ~~repped~~ raped {user.mention}')
 

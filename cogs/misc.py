@@ -32,7 +32,10 @@ class Misc(Cog):
     @command()
     @cooldown(1, 60, BucketType.user)
     async def rep(self, ctx, user: discord.Member):
-        await ctx.send(f'{ctx.author} ~~repped~~ raped {user.mention}')
+        if ctx.author == user:
+            await ctx.send(f'{ctx.author} ~~repped~~ raped ... himself <:peepoWeird:423445885180051467>')
+        else:
+            await ctx.send(f'{ctx.author} ~~repped~~ raped {user.mention}')
 
 
 def setup(bot):

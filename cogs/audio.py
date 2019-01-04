@@ -391,7 +391,8 @@ class Audio:
 
     @staticmethod
     def parse_seek(string: str):
-        t = re.compile(r'(?P<days>\d+)*?(?:-)?(?P<hours>\d\d)?:?(?P<minutes>\d\d):(?P<seconds>\d\d)')
+        """Kept for archival purposes"""
+        raise NotImplementedError('Use utils.utilities.parse_seek instead')
         hours = '00'
         minutes = '00'
         seconds = '00'

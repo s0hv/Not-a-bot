@@ -12,6 +12,7 @@ from validators import url as is_url
 
 from bot.bot import command, has_permissions, cooldown, group
 from bot.converters import PossibleUser, GuildEmoji
+from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
@@ -328,6 +329,57 @@ class Server(Cog):
             await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), emotes))))
         else:
             await ctx.send("Didn't steal anything")
+
+    @command(no_pm=True)
+    @bot_has_permissions(embed_links=True)
+    @cooldown(1, 20, BucketType.guild)
+    async def channels(self, ctx):
+        """
+        Lists all channels in the server in an embed
+        """
+
+        channel_categories = {}
+
+        for chn in sorted(ctx.guild.channels, key=lambda c: c.position):
+            if isinstance(chn, discord.CategoryChannel) and chn not in channel_categories:
+                channel_categories[chn] = []
+            else:
+                category = chn.category_id
+                if category not in channel_categories:
+                    channel_categories[category] = []
+
+                channel_categories[category].append(chn)
+
+        description = None
+
+        def make_category(channels):
+            val = ''
+            for chn in sorted(channels, key=lambda c: isinstance(c, discord.VoiceChannel)):
+                if isinstance(chn, discord.VoiceChannel):
+                    val += '\\🔊 '
+                else:
+                    val += '# '
+
+                val += f'{chn.name}\n'
+
+            return val
+
+        if None in channel_categories:
+            description = make_category(channel_categories.pop(None))
+
+        paginator = Paginator(title='Channels', description=description)
+
+        for category_id in sorted(channel_categories.keys(), key=lambda k: ctx.guild.get_channel(k).position):
+            category = ctx.guild.get_channel(category_id)
+
+            val = make_category(channel_categories[category_id])
+
+            paginator.add_field(name=category.name, value=val, inline=False)
+
+        paginator.finalize()
+
+        for page in paginator.pages:
+            await ctx.send(embed=page)
 
     @command(no_pm=True)
     @has_permissions(administrator=True)

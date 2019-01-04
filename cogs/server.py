@@ -342,7 +342,7 @@ class Server(Cog):
 
         for chn in sorted(ctx.guild.channels, key=lambda c: c.position):
             if isinstance(chn, discord.CategoryChannel) and chn not in channel_categories:
-                channel_categories[chn] = []
+                channel_categories[chn.id] = []
             else:
                 category = chn.category_id
                 if category not in channel_categories:
@@ -374,7 +374,7 @@ class Server(Cog):
 
             val = make_category(channel_categories[category_id])
 
-            paginator.add_field(name=category.name, value=val, inline=False)
+            paginator.add_field(name=category.name.upper(), value=val, inline=False)
 
         paginator.finalize()
 

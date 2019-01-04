@@ -155,7 +155,7 @@ class Formatter(HelpFormatter):
         s = "Type `{0}{1} command` for more info on a command.\n"\
             "You can also type `{0}{1} Category` for more info on a category.\n".format(self.clean_prefix, command_name)
 
-        if self.command.name != 'all':
+        if self.context.command.name != 'all':
             s += "This list is filtered based on your and the bots permissions. To get a list of all commands use `{0}{1} all`".format(self.clean_prefix, command_name)
         return s
 

@@ -151,7 +151,7 @@ class Formatter(HelpFormatter):
         return self._paginator.pages
 
     def get_ending_note(self):
-        command_name = self.command.root_parent or self.context.invoked_with
+        command_name = self.context.command.root_parent or self.context.invoked_with
         s = "Type `{0}{1} command` for more info on a command.\n"\
             "You can also type `{0}{1} Category` for more info on a category.\n".format(self.clean_prefix, command_name)
 

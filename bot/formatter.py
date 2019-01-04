@@ -273,6 +273,7 @@ class Paginator:
             self._add_field()
 
         name = name[:Limits.Title]
+        leftovers = value[Limits.Field:]
         value = value[:Limits.Field]
         length = len(name) + len(value)
 
@@ -291,6 +292,9 @@ class Paginator:
             self._char_count = len(self.title)
 
         self._current_field = {'name': name, 'value': value, 'inline': inline}
+
+        if leftovers:
+            self.add_field(name, leftovers, inline=inline)
 
     def add_to_field(self, value):
         v = self._current_field['value']

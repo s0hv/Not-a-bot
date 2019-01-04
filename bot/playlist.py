@@ -108,21 +108,28 @@ class Playlist:
             await self.send('Playlist cleared', channel)
             return True
 
+    def select_by_predicate(self, predicate):
+        """
+        Selects all songs that match the given predicate
+        """
+        selected = []
+        for song in self.playlist:
+            if predicate(song):
+                selected.append(song)
+
+        return selected
+
     def clear_by_predicate(self, predicate):
         """Clears songs from queue that match a predicate.
         Returns the amount of songs removed"""
-        remove = []
-        for song in self.playlist:
-            if predicate(song):
-                remove.append(song)
-
-        for song in remove:
+        removed = self.select_by_predicate(predicate)
+        for song in removed:
             try:
                 self.playlist.remove(song)
             except ValueError:
                 pass
 
-        return len(remove)
+        return len(removed)
 
     async def search(self, name, ctx, site='yt', priority=False, in_vc=True):
         search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
@@ -264,10 +271,12 @@ class Playlist:
 
                 async def progress_info():
                     nonlocal message
+                    if message is None:
+                        return
 
                     while progress <= size:
                         try:
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(3)
                             t2 = time.time() - t
                             eta = progress/t2
                             if eta == 0:
@@ -478,6 +487,6 @@ class Playlist:
             channel = self.channel
 
         try:
-            await channel.send(message, **kwargs)
+            return await channel.send(message, **kwargs)
         except discord.HTTPException:
             pass

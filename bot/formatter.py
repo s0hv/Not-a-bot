@@ -76,7 +76,8 @@ class Formatter(HelpFormatter):
 
             # <long doc> section
             if self.command.help:
-                self._paginator.edit_page(self.command.name, self.command.help.format(prefix=self.context.prefix, name=self.command.name))
+                cmd_name = ctx.command.full_parent_name + ' ' + ctx.invoked_with
+                self._paginator.edit_page(self.command.name, self.command.help.format(prefix=self.context.prefix, name=cmd_name.strip()))
 
             self._paginator.add_field('Usage', signature)
 
@@ -150,10 +151,13 @@ class Formatter(HelpFormatter):
         return self._paginator.pages
 
     def get_ending_note(self):
-        command_name = self.context.invoked_with
-        return "Type `{0}{1} command` for more info on a command.\n" \
-               "You can also type `{0}{1} Category` for more info on a category.\n" \
-               "This list is filtered based on your and the bots permissions. To get a list of all commands use `{0}{1} all`".format(self.clean_prefix, command_name)
+        command_name = self.command.root_parent or self.context.invoked_with
+        s = "Type `{0}{1} command` for more info on a command.\n"\
+            "You can also type `{0}{1} Category` for more info on a category.\n".format(self.clean_prefix, command_name)
+
+        if self.command.name != 'all':
+            s += "This list is filtered based on your and the bots permissions. To get a list of all commands use `{0}{1} all`".format(self.clean_prefix, command_name)
+        return s
 
     def _add_subcommands_and_page(self, page, commands, is_owner=False, inline=None, predicate=None):
         # Like _add_subcommands_to_page but doesn't leave empty fields in the embed

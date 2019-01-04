@@ -701,10 +701,10 @@ def check_plural(string, i):
 
 def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
     """
-    Formats timedelta object to string with support for longer durations
+    Formats timedelta object or int to string with support for longer durations
     Args:
-        td (timedelta):
-            timedelta object to be formatted
+        td (timedelta or int):
+            timedelta object to be formatted or seconds as integer
 
         accuracy (int or DateAccuracy):
             The accuracy of the function. If set to 1 will give
@@ -727,7 +727,11 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         str: formatted time
 
     """
-    sec = int(td.total_seconds())
+    if isinstance(td, int):
+        sec = td
+    else:
+        sec = int(td.total_seconds())
+
     if sec == 0:
         return '0 seconds' if long_format else '0s'
 

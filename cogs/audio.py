@@ -30,6 +30,7 @@ import re
 from collections import deque
 from functools import partial
 from math import floor
+from typing import Optional
 
 import discord
 from discord.ext import commands
@@ -44,7 +45,9 @@ from bot.globals import Auth
 from bot.player import get_track_pos, MusicPlayer
 from bot.playlist import Playlist
 from bot.song import Song
-from utils.utilities import mean_volume, search, parse_seek, send_paged_message
+from utils.utilities import (mean_volume, search, parse_seek,
+                             send_paged_message,
+                             format_timedelta)
 
 try:
     import aubio
@@ -54,6 +57,44 @@ except ImportError:
 
 logger = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')
+
+
+def check_who_queued(user):
+    """
+    Returns a function that checks if the song was requested by user
+    """
+    def pred(song):
+        if song.requested_by and song.requested_by.id == user.id:
+            return True
+
+        return False
+
+    return pred
+
+
+def check_duration(sec, larger=True):
+    """
+    Creates a function you can use to check songs
+    Args:
+        sec:
+            duration that we compare to in seconds
+        larger:
+            determines if we do a larger than operation
+
+    Returns:
+        Function that can be used to check songs
+    """
+    def pred(song):
+        if larger:
+            if song.duration > sec:
+                return True
+        else:
+            if song.duration < sec:
+                return True
+
+        return False
+
+    return pred
 
 
 class MusicPlayder:
@@ -899,19 +940,13 @@ class Audio:
 
     @clear.command(no_pm=True, name='from')
     @cooldown(2, 5)
-    async def from_(self, ctx, *, user: discord.Member):
+    async def from_(self, ctx, *, user: discord.User):
         """Clears all songs from the specified user"""
         musicplayer = await self.get_player_and_check(ctx)
         if not musicplayer:
             return
 
-        def pred(song):
-            if song.requested_by and song.requested_by.id == user.id:
-                return True
-
-            return False
-
-        cleared = musicplayer.playlist.clear_by_predicate(pred)
+        cleared = musicplayer.playlist.clear_by_predicate(check_who_queued(user))
         await ctx.send(f'Cleared {cleared} songs from user {user}')
 
     @clear.command(no_pm=True, aliases=['dur', 'duration', 'lt'])
@@ -924,30 +959,20 @@ class Audio:
             return
 
         sec = duration.total_seconds()
-
-        def pred(song):
-            if song.duration > sec:
-                return True
-            return False
-
-        cleared = musicplayer.playlist.clear_by_predicate(pred)
+        cleared = musicplayer.playlist.clear_by_predicate(check_duration(sec))
         await ctx.send(f'Cleared {cleared} songs longer than {duration}')
 
-    @clear.command(no_pm=True, name='name')
-    @cooldown(2, 4)
-    async def by_name(self, ctx, *, song_name):
-        """Clear queue by song name. Regex can be used for this"""
-        musicplayer = await self.get_player_and_check(ctx)
-        if not musicplayer:
-            return
-
+    async def prepare_regex_search(self, ctx, musicplayer, song_name):
+        """
+        Prepare regex for use in playlist filtering
+        """
         matches = set()
 
         try:
             r = re.compile(song_name, re.IGNORECASE)
         except re.error as e:
             await ctx.send('Failed to compile regex\n' + str(e))
-            return
+            return False
 
         # This needs to be run in executor in case someone decides to use
         # an evil regex
@@ -961,10 +986,25 @@ class Audio:
 
         try:
             await asyncio.wait_for(self.bot.loop.run_in_executor(self.bot.threadpool, get_matches),
-                             timeout=1, loop=self.bot.loop)
+                             timeout=1.5, loop=self.bot.loop)
         except asyncio.TimeoutError:
             logger.warning(f'{ctx.author} {ctx.author.id} timeouted regex. Used regex was {song_name}')
             await ctx.send('Search timed out')
+            return False
+
+        return matches
+
+    @clear.command(no_pm=True, name='name')
+    @cooldown(2, 4)
+    async def by_name(self, ctx, *, song_name):
+        """Clear queue by song name. Regex can be used for this.
+        Trying to kill the bot with regex will get u botbanned tho"""
+        musicplayer = await self.get_player_and_check(ctx)
+        if not musicplayer:
+            return
+
+        matches = await self.prepare_regex_search(ctx, musicplayer, song_name)
+        if matches is False:
             return
 
         def pred(song):
@@ -1286,11 +1326,84 @@ class Audio:
 
         await musicplayer.skip(None, ctx.channel)
 
+    async def send_playlist(self, ctx, playlist, musicplayer, page_index=0, accurate_indices=True):
+        """
+        Sends a paged message containing all playlist songs.
+        When accurate_indices is set to True we will check the index of each
+        song manually by checking it's position in the guilds playlist.
+        When false will use values based on page index
+        """
+        pages = []
+        for i in range(0, len(playlist), 10):
+            pages.append(playlist[i:i + 10])
+
+        if not pages:
+            pages.append([])
+
+        def add_song(song, idx, dur):
+            title = song.title.replace('*', '\\*')
+            return f'\n{idx}. **{title}** {song.requested_by} (ETA: {format_timedelta(dur, 3, long_format=False)})'
+
+        def get_page(page, idx):
+            full_playlist = list(musicplayer.playlist.playlist)  # good variable naming
+            if not full_playlist and musicplayer.current is None:
+                return 'Nothing playing atm'
+
+            dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
+            response = f'Currently playing **{musicplayer.current.title}** {dur}'
+            if musicplayer.current.requested_by:
+                response += f' enqueued by {musicplayer.current.requested_by}\n'
+
+            if accurate_indices:
+                songs = []
+                indices = []
+                redo_pages = False
+                for song in page:
+                    try:
+                        idx = full_playlist.index(song)
+                    except ValueError:
+                        redo_pages = True
+                        playlist.remove(song)
+                        continue
+
+                    songs.append(song)
+                    indices.append(idx)
+
+                if not songs:
+                    return 'Nothing playing atm'
+
+                if redo_pages:
+                    # If these songs have been cleared or otherwise passed by we remove them
+                    # and recreate the list
+                    pages.clear()
+                    for i in range(0, len(playlist), 10):
+                        pages[i] = playlist[i:i + 10]
+
+                durations = self.song_durations(musicplayer, until=max(indices) + 1)
+
+                for song, idx in zip(songs, indices):
+                    dur = int(durations[idx])
+                    response += add_song(song, idx + 1, dur)
+
+                return response
+
+            else:
+                durations = self.song_durations(musicplayer, until=idx * 10 + 10)
+                durations = durations[-10:]
+                for _idx, song_dur in enumerate(zip(page, durations)):
+                    song, dur = song_dur
+                    dur = int(dur)
+                    response += add_song(song, _idx + 1 + 10 * idx, dur)
+
+                return response
+
+        await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page)
+
     @cooldown(1, 5, type=BucketType.guild)
-    @command(name='queue', no_pm=True, aliases=['playlist'])
+    @group(name='queue', no_pm=True, aliases=['playlist'], invoke_without_command=True)
     async def playlist(self, ctx, page_index: int=0):
         """Get a list of the current queue in 10 song chunks
-        To skip to a certain page set the page_index arg"""
+        To skip to a certain page set the page_index argument"""
 
         if not await self.check_voice(ctx, user_connected=False):
             return
@@ -1303,35 +1416,79 @@ class Audio:
         if not playlist and musicplayer.current is None:
             return await ctx.send('Nothing playing atm')
 
-        pages = []
-        for i in range(0, len(playlist), 10):
-            pages.append(playlist[i:i+10])
+        await self.send_playlist(ctx, playlist, musicplayer, page_index, accurate_indices=False)
 
-        if not pages:
-            pages.append([])
+    @playlist.command(no_pm=True, name='from', aliases=['user', 'u', 'by'])
+    @cooldown(1, 5)
+    async def playlist_by_user(self, ctx, user: discord.User, page_index: int=0):
+        """Filters playlist to the songs queued by user"""
+        if not await self.check_voice(ctx, user_connected=False):
+            return
 
-        def get_page(page, idx):
-            playlist = list(musicplayer.playlist.playlist)  # good variable naming
-            if not playlist and musicplayer.current is None:
-                return 'Nothing playing atm'
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
 
-            dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
-            response = f'Currently playing **{musicplayer.current.title}** {dur}'
-            if musicplayer.current.requested_by:
-                response += f' enqueued by {musicplayer.current.requested_by}\n'
+        selected = musicplayer.playlist.select_by_predicate(check_who_queued(user))
+        if not selected:
+            await ctx.send(f'No songs enqueued by {user}')
+            return
 
-            durations = self.song_durations(musicplayer, until=idx*10+10)
-            durations = durations[-10:]
-            for _idx, song_dur in enumerate(zip(page, durations)):
-                song, dur = song_dur
-                dur = int(dur)
-                response += '\n{0}. **{1.title}** {1.requested_by}'.format(_idx + 1 + 10*idx, song)
-                response += ' (ETA: {0[0]}m {0[1]}s)'.format(divmod(dur, 60))
+        await self.send_playlist(ctx, selected, musicplayer, page_index)
 
-            return response
+    @playlist.command(no_pm=True, name='length', aliases=['time', 'duration', 'dur'])
+    @cooldown(1, 5)
+    async def playlist_by_time(self, ctx, longer_than: Optional[bool], *, duration: TimeDelta):
+        """Filters playlist by song duration.
+        Longer than param is optional.
+        Usage:
+        `{prefix}{name} no 10m` will select all songs under 10min and
+        `{prefix}{name} 10m` will select songs over 10min"""
+        if not await self.check_voice(ctx, user_connected=False):
+            return
 
-        await send_paged_message(ctx, pages, starting_idx=page_index,
-                                 page_method=get_page)
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
+        longer_than = True if longer_than is None else longer_than
+
+        selected = musicplayer.playlist.select_by_predicate(check_duration(duration.total_seconds(), longer_than))
+        if not selected:
+            await ctx.send(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
+            return
+
+        await self.send_playlist(ctx, selected, musicplayer)
+
+    @playlist.command(no_pm=True, name='name')
+    @cooldown(1, 5)
+    async def playlist_by_name(self, ctx, *, song_name):
+        """Filter playlist by song name. Regex can be used for this.
+        Trying to kill the bot with regex will get u botbanned tho"""
+        if not await self.check_voice(ctx, user_connected=False):
+            return
+
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
+        matches = await self.prepare_regex_search(ctx, musicplayer, song_name)
+        if matches is False:
+            return
+
+        if not matches:
+            return await ctx.send(f'No songs found with `{song_name}`')
+
+        def pred(song):
+            return song.title in matches
+
+        selected = musicplayer.playlist.select_by_predicate(pred)
+        if not selected:
+            # We have this 2 times in case the playlist changes while we are checking
+            await ctx.send(f'No songs found with `{song_name}`')
+            return
+
+        await self.send_playlist(ctx, selected, musicplayer)
 
     @cooldown(1, 3, type=BucketType.guild)
     @command(no_pm=True, aliases=['len'])

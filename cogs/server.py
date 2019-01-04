@@ -341,7 +341,7 @@ class Server(Cog):
         channel_categories = {}
 
         for chn in sorted(ctx.guild.channels, key=lambda c: c.position):
-            if isinstance(chn, discord.CategoryChannel) and chn not in channel_categories:
+            if isinstance(chn, discord.CategoryChannel) and chn.id not in channel_categories:
                 channel_categories[chn.id] = []
             else:
                 category = chn.category_id

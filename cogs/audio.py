@@ -43,11 +43,11 @@ from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
 from bot.player import get_track_pos, MusicPlayer
-from bot.playlist import Playlist
+from bot.playlist import Playlist, validate_playlist_name
 from bot.song import Song
 from utils.utilities import (mean_volume, search, parse_seek,
-                             send_paged_message,
-                             format_timedelta)
+                             send_paged_message, basic_check,
+                             format_timedelta, test_url)
 
 try:
     import aubio
@@ -692,13 +692,115 @@ class Audio:
         if success:
             musicplayer.start_playlist()
 
-    @command(no_pm=True, enabled=False, hidden=True)
-    async def play_playlist(self, ctx, *, musicplayer):
+    @command(no_pm=True)
+    @cooldown(1, 10, BucketType.user)
+    async def play_playlist(self, ctx, user: Optional[discord.User], *, name):
         """Queue a saved playlist"""
+        if not ctx.author.voice:
+            return await ctx.send('Not connected to a voice channel')
+
+        if ctx.voice_client and ctx.voice_client.channel.id != ctx.author.voice.channel.id:
+            return await ctx.send('Not connected to the same channel as the bot')
+
+        success = False
+        if ctx.voice_client is None:
+            success = await self._summon(ctx, create_task=False)
+            if not success:
+                terminal.debug('Failed to join vc')
+                return
+
         musicplayer = await self.check_player(ctx)
         if not musicplayer:
             return
-        await musicplayer.playlist.add_from_playlist(musicplayer, ctx.message.channel)
+
+        user = user if user else ctx.author
+        if not await musicplayer.playlist.add_from_playlist(user.id, name, ctx.channel):
+            await ctx.send(f'Failed to queue playlist {name} of user {user}')
+
+        if success:
+            musicplayer.start_playlist()
+
+    @command(no_pm=True, aliases=['cr_pl'])
+    @cooldown(1, 20, BucketType.user)
+    async def create_playlist(self, ctx, *, name):
+        if not validate_playlist_name(name):
+            ctx.command.reset_cooldown(ctx)
+            return await ctx.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
+
+        await ctx.send('What would you like the contents of the playlist to be\nFor current queue say `yes` otherwise post all the links you want in your playlist. Max amount of self posted links is 30')
+
+        try:
+            msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=60)
+        except asyncio.TimeoutError:
+            return await ctx.send('Took too long.')
+
+        if msg.content.lower() == 'yes':
+            musicplayer = self.get_musicplayer(ctx.guild.id)
+            if not musicplayer or musicplayer.player is None or musicplayer.current is None:
+                await ctx.send('No songs currently in queue')
+
+            songs = list(musicplayer.playlist.playlist)
+            songs.append(musicplayer.channel)
+            await musicplayer.playlist.create_playlist(songs, ctx.author, name, channel=ctx.channel)
+
+        else:
+            max_size = 30 if ctx.author.id != self.bot.owner_id else 999
+            songs = msg.content.replace('\n', ' ').split(' ')
+            failed = []
+            new_songs = []
+            song = None
+
+            def on_error(_):
+                nonlocal song
+                failed.append(song.replace('@', '@\u200b'))
+
+            for song in songs:
+                if len(new_songs) >= max_size:
+                    await ctx.send(f'Playlist filled before all songs could be processed. Latest processed song was {new_songs[-1].webpage_url}')
+                    break
+
+                if not test_url(song):
+                    failed.append(song.replace('@', '@\u200b'))
+                    continue
+
+                info = await self.downloader.extract_info(self.bot.loop,
+                                                          url=song,
+                                                          download=False,
+                                                          on_error=on_error)
+                if 'entries' in info:
+                    entries = await Playlist.process_playlist(info, channel=ctx.channel)
+                    if not entries:
+                        failed.append(song.replace('@', '@\u200b'))
+                        continue
+
+                    def error(_):
+                        nonlocal entry
+                        failed.append(entry)
+
+                    infos = []
+                    for entry in entries:
+                        info = await self.downloader.extract_info(self.bot.loop,
+                                                                  url=entry,
+                                                                  download=False,
+                                                                  on_error=error)
+                        if info is None:
+                            continue
+
+                        infos.append(info)
+
+                        if len(new_songs) + len(infos) >= max_size:
+                            break
+
+                else:
+                    infos = [info]
+
+                for info in infos:
+                    new_songs.append(Song(webpage_url=info['webpage_url'], title=info.get('title'), duration=info.get('duration')))
+
+            await Playlist.create_playlist(new_songs, ctx.author, name, ctx.channel)
+
+            if failed:
+                await ctx.send('Failed to add %s' % ', '.join(failed))
 
     async def _search(self, ctx, name):
         vc = True if ctx.author.voice else False
@@ -1349,10 +1451,12 @@ class Audio:
             if not full_playlist and musicplayer.current is None:
                 return 'Nothing playing atm'
 
-            dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
-            response = f'Currently playing **{musicplayer.current.title}** {dur}'
-            if musicplayer.current.requested_by:
-                response += f' enqueued by {musicplayer.current.requested_by}\n'
+            response = ''
+            if musicplayer.current is not None:
+                dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
+                response = f'Currently playing **{musicplayer.current.title}** {dur}'
+                if musicplayer.current.requested_by:
+                    response += f' enqueued by {musicplayer.current.requested_by}\n'
 
             if accurate_indices:
                 songs = []

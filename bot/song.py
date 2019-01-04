@@ -63,7 +63,7 @@ class Song:
         if '-vn -b:a' not in self.options:
             self.options = ' '.join((self.options, '-vn -b:a 128k -bufsize 256K')).strip()
 
-        self.dl_folder = self.playlist.downloader.dl_folder
+        self.dl_folder = self.playlist.downloader.dl_folder if self.playlist else None
         self._downloading = False
         self.on_ready = asyncio.Event()
         self.bpm = None
@@ -119,8 +119,8 @@ class Song:
         return self._downloading
 
     async def validate_url(self, session):
-        if time.time() - self.last_update <= 7200:
-            return True  # If link is under 2h old it probably still works
+        if time.time() - self.last_update <= 1800:
+            return True  # If link is under 30min old it probably still works
 
         try:
             async with session.get(self.url) as r:
@@ -132,12 +132,28 @@ class Song:
             logger.exception('Failed to validate url')
             return False
 
-    async def download(self):
-        if time.time() - self.last_update <= 7200 or self._downloading or self.success:
+    async def download(self, return_if_downloading=True):
+        """
+        Args:
+            return_if_downloading:
+                Tells whether to wait for an ongoing download to finish
+                if one exists
+        """
+        if self.downloading:
+            if not return_if_downloading:
+                await self.on_ready.wait()
+            return
+
+        if time.time() - self.last_update <= 1800:
             self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
             return
 
+        # To check the status of url use
+        # self.bot.aiohttp_client.head(self.url).status
+        # if it's working normally status is 200
+
         self._downloading = True
+        self.on_ready.clear()
         logger.debug(f'Started downloading {self.long_str}')
         try:
             dl = self.config.download

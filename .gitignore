@@ -5,6 +5,7 @@ data/permissions/
 # Autoplaylist setup
 data/playlists/autoplaylist.txt
 data/playlists/delete_autoplaylist.txt
+data/playlists/*/
 data/playlists/add_autoplaylist.txt
 data/playlists/AutoIT/
 data/playlists/k/

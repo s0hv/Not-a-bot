@@ -362,6 +362,7 @@ class Playlist:
                     await message.edit(content=s)
                 except asyncio.CancelledError:
                     await message.delete()
+                    return
                 except:
                     logger.exception('Failed to post progress')
                     return

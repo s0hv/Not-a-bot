@@ -286,7 +286,7 @@ class MusicPlayer:
                 continue
 
             logger.debug(f'Opening file with the name "{file}" and options "{self.current.before_options}" "{self.current.options}"')
-            source = player.FFmpegPCMAudio(file, before_options=self.current.before_options,
+            source = FFmpegPCMAudio(file, before_options=self.current.before_options,
                                                  options=self.current.options)
             source = PCMVolumeTransformer(source, volume=self.volume)
             if self.current.volume is None and self.bot.config.auto_volume and isinstance(file, str) and not self.current.is_live:
@@ -434,7 +434,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         stdin = None if not pipe else source
         args = [executable]
         if reconnect:
-            args.extend(('-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_at_eof', '1', '-reconnect_delay_max', '60'))
+            args.extend(('-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5'))
 
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
@@ -454,7 +454,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
 
         self._process = None
         try:
-            self._process = subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self._process = subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
             self._stdout = self._process.stdout
         except FileNotFoundError:
             raise ClientException(executable + ' was not found.') from None
@@ -477,7 +477,6 @@ class AudioPlayer(player.AudioPlayer):
         self.frameskip = frameskip
         self._speed_mod = speed_mod
         self.sfx_source = None
-        self._stderr = None
 
         self.bitrate = OpusEncoder.FRAME_SIZE / self.DELAY
 
@@ -537,16 +536,9 @@ class AudioPlayer(player.AudioPlayer):
                 continue
             time.sleep(delay)
 
-        if isinstance(self.source, PCMVolumeTransformer):
-            self._stderr = self.source.original._process.stderr.read()
-        else:
-            self._stderr = self.source._process.stderr.read()
-
     def _call_after(self):
         if self.after is not None:
             try:
-                if not self._current_error:
-                    self._current_error = self._stderr
                 self.after(self._current_error)
             except Exception:
                 log.exception('Calling the after function failed.')

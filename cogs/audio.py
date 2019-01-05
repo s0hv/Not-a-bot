@@ -49,6 +49,7 @@ from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
                           PLAYLISTS)
 from bot.song import Song, PartialSong
 from utils.utilities import (mean_volume, search, parse_seek,
+                             seek_from_timestamp,
                              send_paged_message, basic_check,
                              format_timedelta, test_url, wait_for_words)
 
@@ -473,17 +474,6 @@ class Audio:
 
         return '-ss {0}:{1}:{2}.{3}'.format(hours.zfill(2), minutes.zfill(2),
                                             seconds.zfill(2), ms)
-
-    @staticmethod
-    def _seek_from_timestamp(timestamp):
-        m, s = divmod(timestamp, 60)
-        h, m = divmod(m, 60)
-        s, ms = divmod(s, 1)
-
-        h, m, s = str(int(h)), str(int(m)), str(int(s))
-        ms = str(round(ms, 3))[2:]
-
-        return {'h': h, 'm': m, 's': s, 'ms': ms}
 
     @staticmethod
     def _parse_filters(options: str, filter_name: str, value: str, remove=False):
@@ -1196,7 +1186,7 @@ class Audio:
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
-        seek = self._seek_from_timestamp(sec)
+        seek = seek_from_timestamp(sec)
         options = self._parse_filters(current.options, 'atempo', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
         current.options = options
@@ -1224,7 +1214,7 @@ class Audio:
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
-        seek = self._seek_from_timestamp(sec)
+        seek = seek_from_timestamp(sec)
         value = 'g=%s' % value
         options = self._parse_filters(current.options, 'bass', value)
         logger.debug('Filters parsed. Returned: {}'.format(options))
@@ -1258,7 +1248,7 @@ class Audio:
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
-        seek = self._seek_from_timestamp(sec)
+        seek = seek_from_timestamp(sec)
         if mode in ('left', 'right'):
             mode = 'FL-FR' if mode == 'right' else 'FR-FL'
             options = self._parse_filters(current.options, 'channelmap', 'map={}'.format(mode))
@@ -1465,7 +1455,7 @@ class Audio:
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
             return
-        musicplayer.resume()
+        await musicplayer.resume()
 
     @command(name='bpm', no_pm=True, ignore_extra=True)
     @cooldown(1, 8, BucketType.guild)

@@ -17,7 +17,7 @@ from discord.player import PCMVolumeTransformer
 from bot.playlist import Playlist
 from bot.youtube import url2id, get_related_vids, id2url
 from utils.utilities import mean_volume
-from utils.utilities import seek_to_sec
+from utils.utilities import seek_to_sec, seek_from_timestamp
 
 log = logging.getLogger('discord')
 logger = logging.getLogger('audio')
@@ -350,8 +350,17 @@ class MusicPlayer:
         if self.is_playing():
             self.voice.pause()
 
-    def resume(self):
-        if self.is_playing():
+    async def resume(self):
+        if self.is_playing() and self.voice.is_paused():
+            url = self.current.url
+            await self.current.validate_url(self.bot.aiohttp_client)
+            if url != self.current.url:
+                # If url changed during validation reconnect
+                seek = seek_from_timestamp(self.duration)
+                self.player.seek(self.current.filename, seek,
+                                 before_options=self.current.before_options,
+                                 options=self.current.options)
+
             self.voice.resume()
 
     async def skip(self, author, messageable=None):
@@ -445,7 +454,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
 
         self._process = None
         try:
-            self._process = subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
+            self._process = subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             self._stdout = self._process.stdout
         except FileNotFoundError:
             raise ClientException(executable + ' was not found.') from None
@@ -468,6 +477,7 @@ class AudioPlayer(player.AudioPlayer):
         self.frameskip = frameskip
         self._speed_mod = speed_mod
         self.sfx_source = None
+        self._stderr = None
 
         self.bitrate = OpusEncoder.FRAME_SIZE / self.DELAY
 
@@ -526,6 +536,20 @@ class AudioPlayer(player.AudioPlayer):
                 frameskip = min(self.frameskip, abs(int(delay/self.DELAY)))
                 continue
             time.sleep(delay)
+
+        if isinstance(self.source, PCMVolumeTransformer):
+            self._stderr = self.source.original._process.stderr.read()
+        else:
+            self._stderr = self.source._process.stderr.read()
+
+    def _call_after(self):
+        if self.after is not None:
+            try:
+                if not self._current_error:
+                    self._current_error = self._stderr
+                self.after(self._current_error)
+            except Exception:
+                log.exception('Calling the after function failed.')
 
     @property
     def run_loops(self):

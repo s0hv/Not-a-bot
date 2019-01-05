@@ -1351,3 +1351,14 @@ async def wait_for_words(ctx, words, timeout=60):
         return
 
     return msg
+
+
+def seek_from_timestamp(timestamp):
+    m, s = divmod(timestamp, 60)
+    h, m = divmod(m, 60)
+    s, ms = divmod(s, 1)
+
+    h, m, s = str(int(h)), str(int(m)), str(int(s))
+    ms = str(round(ms, 3))[2:]
+
+    return {'h': h, 'm': m, 's': s, 'ms': ms}

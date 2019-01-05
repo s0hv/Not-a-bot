@@ -40,6 +40,12 @@ logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
 
+async def tz_convert(ctx, argument):
+    pass
+    # TODO
+
+
+
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
@@ -484,6 +490,7 @@ class Utilities(Cog):
 
         await ctx.send(embed=embed)
 
+    # TODO Timezone support with pytz
     @command(name='timedelta')
     @cooldown(1, 3, BucketType.user)
     async def timedelta_(self, ctx, *, duration):

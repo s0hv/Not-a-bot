@@ -333,7 +333,7 @@ def bool_check(s):
 
 
 def is_true(s):
-    return s in ['y', 'yes', 'true', 'on']
+    return s in ['y', 'yes', 'true']
 
 
 def is_false(s):
@@ -1320,6 +1320,25 @@ async def wait_for_yes(ctx, timeout=60):
 
     def check(msg):
         return _check(msg) and bool_check(msg.content)
+
+    try:
+        msg = await ctx.bot.wait_for('message', check=check, timeout=timeout)
+    except asyncio.TimeoutError:
+        await ctx.send('Took too long')
+        return
+
+    if not y_check(msg.content):
+        await ctx.send('Cancelling')
+        return
+
+    return msg
+
+
+async def wait_for_words(ctx, words, timeout=60):
+    _check = basic_check(ctx.author, ctx.channel)
+
+    def check(msg):
+        return _check(msg) and msg.content.strip('\n ').lower() in words
 
     try:
         msg = await ctx.bot.wait_for('message', check=check, timeout=timeout)

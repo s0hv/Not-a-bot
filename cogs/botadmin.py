@@ -495,7 +495,7 @@ class BotAdmin(Cog):
         await ctx.send('Reloaded module %s' % module_name)
 
     @command(owner_only=True)
-    async def runas(self, ctx, user: discord.User=None):
+    async def runas(self, ctx, *, user: discord.User=None):
         self.bot._runas = user
         await ctx.send(f'Now running as {user}')
 

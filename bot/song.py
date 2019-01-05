@@ -33,6 +33,20 @@ logger = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')
 
 
+class PartialSong:
+    """For use with playlists"""
+    __slots__ = ['title', 'webpage_url', 'duration']
+
+    def __init__(self, title, webpage_url, duration):
+        self.title = title
+        self.webpage_url = webpage_url
+        self.duration = duration
+
+    def __dict__(self):
+        return {'webpage_url': self.webpage_url, 'title': self.title,
+                'duration': self.duration}
+
+
 class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',

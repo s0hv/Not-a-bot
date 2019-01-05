@@ -27,6 +27,7 @@ import logging
 import os
 import random
 import re
+import shutil
 from collections import deque
 from functools import partial
 from math import floor
@@ -43,11 +44,13 @@ from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
 from bot.player import get_track_pos, MusicPlayer
-from bot.playlist import Playlist, validate_playlist_name
-from bot.song import Song
+from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
+                          create_playlist, validate_playlist, write_playlist,
+                          PLAYLISTS)
+from bot.song import Song, PartialSong
 from utils.utilities import (mean_volume, search, parse_seek,
                              send_paged_message, basic_check,
-                             format_timedelta, test_url)
+                             format_timedelta, test_url, wait_for_words)
 
 try:
     import aubio
@@ -95,6 +98,19 @@ def check_duration(sec, larger=True):
         return False
 
     return pred
+
+
+def select_by_predicate(songs, pred):
+    selected = []
+    for song in songs:
+        if pred(song):
+            selected.append(song)
+
+    return selected
+
+
+def playlist2partialsong(songs):
+    return [PartialSong(**song) for song in songs]
 
 
 class MusicPlayder:
@@ -692,7 +708,7 @@ class Audio:
         if success:
             musicplayer.start_playlist()
 
-    @command(no_pm=True)
+    @command(no_pm=True, aliases=['play_p'])
     @cooldown(1, 10, BucketType.user)
     async def play_playlist(self, ctx, user: Optional[discord.User], *, name):
         """Queue a saved playlist"""
@@ -715,19 +731,133 @@ class Audio:
 
         user = user if user else ctx.author
         if not await musicplayer.playlist.add_from_playlist(user.id, name, ctx.channel):
-            await ctx.send(f'Failed to queue playlist {name} of user {user}')
+            await ctx.send(f"Couldn't find playlist {name} of user {user} or playlist was empty")
 
         if success:
             musicplayer.start_playlist()
 
-    @command(no_pm=True, aliases=['cr_pl'])
+    async def _process_links(self, ctx, links, max_size=30):
+        max_size = max_size if ctx.author.id != self.bot.owner_id else 999
+        songs = links
+        failed = []
+        new_songs = []
+        song = None
+
+        def on_error(_):
+            nonlocal song
+            failed.append(song.replace('@', '@\u200b'))
+
+        for song in songs:
+            if len(new_songs) >= max_size:
+                await ctx.send(f'Playlist filled (max size {max_size}) before all songs could be processed. Latest processed song was {new_songs[-1].webpage_url}')
+                break
+
+            if not test_url(song):
+                failed.append(song.replace('@', '@\u200b'))
+                continue
+
+            info = await self.downloader.extract_info(self.bot.loop,
+                                                      url=song,
+                                                      download=False,
+                                                      on_error=on_error)
+            if 'entries' in info:
+                # Link was a playlist so we process it as one
+                entries = await Playlist.process_playlist(info, channel=ctx.channel)
+                if not entries:
+                    failed.append(song.replace('@', '@\u200b'))
+                    continue
+
+                def error(_):
+                    nonlocal entry
+                    failed.append(entry)
+
+                infos = []
+                for entry in entries:
+                    info = await self.downloader.extract_info(self.bot.loop,
+                                                              url=entry,
+                                                              download=False,
+                                                              on_error=error)
+                    if info is None:
+                        continue
+
+                    infos.append(info)
+
+                    # If total amount of songs after adding this is more
+                    # than max we stop adding them. This is because you could
+                    # bypass max_size by using playlists.
+                    if len(new_songs) + len(infos) >= max_size:
+                        break
+
+            else:
+                infos = [info]
+
+            for info in infos:
+                new_songs.append(Song(webpage_url=info['webpage_url'],
+                                      title=info.get('title'),
+                                      duration=info.get('duration')))
+
+        return new_songs, failed
+
+    # TODO Add subcommands to add from queue but with a filter
+    @command(no_pm=True, aliases=['atp'])
+    @cooldown(1, 20, BucketType.user)
+    async def add_to_playlist(self, ctx, playlist_name, *, song_links):
+        songs = load_playlist(playlist_name, ctx.author.id)
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {playlist_name}")
+            return
+
+        if song_links.lower().strip(' \n') == 'queue':
+            musicplayer = self.get_musicplayer(ctx.guild.id)
+            if not musicplayer or musicplayer.player is None or musicplayer.current is None:
+                await ctx.send('No songs currently in queue')
+
+            new_songs = list(musicplayer.playlist.playlist)
+            if musicplayer.current:
+                new_songs.append(musicplayer.current)
+
+            await ctx.send('Getting song infos for playlist')
+            added = 0
+            for song in new_songs:
+                if not song.duration:
+                    await song.download(return_if_downloading=False)
+
+                if not song.success:
+                    continue
+
+                added += 1
+                songs.append({'webpage_url': song.webpage_url, 'title': song.title,
+                              'duration': song.duration})
+
+        else:
+            new_songs, failed = await self._process_links(ctx, song_links.replace('\n', ' ').split(' '))
+
+            if failed:
+                await ctx.send('Failed to add %s' % ', '.join(failed))
+
+            if not new_songs:
+                return
+
+            added = len(new_songs)
+            for song in new_songs:
+                songs.append({'webpage_url': song.webpage_url, 'title': song.title,
+                              'duration': song.duration})
+
+        s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
+        await ctx.send(f'{s}\nAdded {added} songs')
+
+    @command(no_pm=True, aliases=['crp'])
     @cooldown(1, 20, BucketType.user)
     async def create_playlist(self, ctx, *, name):
+        """
+        Create a playlist from the current queue or from links you pass after the prompt.
+        When creating a playlist from current queue there is no limit to song amount
+        """
         if not validate_playlist_name(name):
             ctx.command.reset_cooldown(ctx)
             return await ctx.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
 
-        await ctx.send('What would you like the contents of the playlist to be\nFor current queue say `yes` otherwise post all the links you want in your playlist. Max amount of self posted links is 30')
+        await ctx.send('What would you like the contents of the playlist to be\nFor current music queue say `yes` otherwise post all the links you want in your playlist. Max amount of self posted links is 30')
 
         try:
             msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=60)
@@ -740,67 +870,194 @@ class Audio:
                 await ctx.send('No songs currently in queue')
 
             songs = list(musicplayer.playlist.playlist)
-            songs.append(musicplayer.channel)
-            await musicplayer.playlist.create_playlist(songs, ctx.author, name, channel=ctx.channel)
+            if musicplayer.current:
+                songs.append(musicplayer.current)
+            await create_playlist(songs, ctx.author, name, channel=ctx.channel)
 
         else:
-            max_size = 30 if ctx.author.id != self.bot.owner_id else 999
-            songs = msg.content.replace('\n', ' ').split(' ')
-            failed = []
-            new_songs = []
-            song = None
+            new_songs, failed = await self._process_links(ctx, msg.content.replace('\n', ' ').split(' '))
 
-            def on_error(_):
-                nonlocal song
-                failed.append(song.replace('@', '@\u200b'))
-
-            for song in songs:
-                if len(new_songs) >= max_size:
-                    await ctx.send(f'Playlist filled before all songs could be processed. Latest processed song was {new_songs[-1].webpage_url}')
-                    break
-
-                if not test_url(song):
-                    failed.append(song.replace('@', '@\u200b'))
-                    continue
-
-                info = await self.downloader.extract_info(self.bot.loop,
-                                                          url=song,
-                                                          download=False,
-                                                          on_error=on_error)
-                if 'entries' in info:
-                    entries = await Playlist.process_playlist(info, channel=ctx.channel)
-                    if not entries:
-                        failed.append(song.replace('@', '@\u200b'))
-                        continue
-
-                    def error(_):
-                        nonlocal entry
-                        failed.append(entry)
-
-                    infos = []
-                    for entry in entries:
-                        info = await self.downloader.extract_info(self.bot.loop,
-                                                                  url=entry,
-                                                                  download=False,
-                                                                  on_error=error)
-                        if info is None:
-                            continue
-
-                        infos.append(info)
-
-                        if len(new_songs) + len(infos) >= max_size:
-                            break
-
-                else:
-                    infos = [info]
-
-                for info in infos:
-                    new_songs.append(Song(webpage_url=info['webpage_url'], title=info.get('title'), duration=info.get('duration')))
-
-            await Playlist.create_playlist(new_songs, ctx.author, name, ctx.channel)
+            if new_songs:
+                await create_playlist(new_songs, ctx.author, name, ctx.channel)
 
             if failed:
                 await ctx.send('Failed to add %s' % ', '.join(failed))
+
+    @command(no_pm=True, aliases=['cop'])
+    @cooldown(1, 20, BucketType.user)
+    async def copy_playlist(self, ctx, user: Optional[discord.User], name, *, new_name):
+        """
+        Copy a playlist to your own playlists with a name
+        Usage:
+        `{prefix}{name} User#1234 "name of playlist" name of new playlist`
+        """
+
+        user = user if user else ctx.author
+        src = validate_playlist(name, user.id)
+        if src is False:
+            await ctx.send(f"Couldn't find playlist {name} of user {user}")
+            return
+
+        if not validate_playlist_name(new_name):
+            return await ctx.send(f"{new_name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
+
+        dst = os.path.join(PLAYLISTS, str(user.id))
+        if not os.path.exists(dst):
+            os.mkdir(dst)
+        dst = os.path.join(dst, new_name)
+
+        if os.path.exists(dst):
+            await ctx.send(f'Filename {name} is already in use')
+            return
+
+        try:
+            shutil.copyfile(src, dst)
+        except OSError:
+            logger.exception('failed to copy playlist')
+            await ctx.send('Failed to copy playlist')
+            return
+
+        await ctx.send(f'Successfully copied playlist {name} to {new_name}')
+
+    @group(no_pm=True, aliases=['vp'], invoke_without_command=True)
+    @cooldown(1, 5, BucketType.user)
+    async def view_playlist(self, ctx, user: Optional[discord.User], *, name):
+        user = user if user else ctx.author
+        songs = load_playlist(name, user.id)
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {name} of user {user}")
+            return
+
+        await self.send_playlist(ctx, playlist2partialsong(songs), None, partial=True, accurate_indices=False)
+
+    @view_playlist.group(no_pm=True, name='length', aliases=['time', 'duration', 'dur'], invoke_without_command=True)
+    @cooldown(1, 5, BucketType.user)
+    async def playlist_by_time(self, ctx, user: Optional[discord.User], name, longer_than: Optional[bool], *, duration: TimeDelta):
+        """Filters playlist by song duration.
+        Longer than param is optional.
+        Usage:
+        `{prefix}{name} [User#1234] "playlist name" no 10m` will select all songs under 10min and
+        `{prefix}{name} [User#1234] "playlist name" 10m` will select songs over 10min"""
+        user = user if user else ctx.author
+        songs = load_playlist(name, user.id)
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {name} of user {user}")
+            return
+
+        longer_than = True if longer_than is None else longer_than
+
+        selected = select_by_predicate(playlist2partialsong(songs), check_duration(duration.total_seconds(), longer_than))
+        if not selected:
+            await ctx.send(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
+            return
+
+        await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
+
+    @staticmethod
+    @playlist_by_time.command(name='clear', pass_context=True)
+    @cooldown(1, 5, BucketType.user)
+    async def clear_playlist_time(ctx, name, longer_than: Optional[bool], *, duration: TimeDelta):
+        user = ctx.author
+        songs = load_playlist(name, user.id)
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {name} of user {user}")
+            return
+
+        longer_than = True if longer_than is None else longer_than
+
+        selected = select_by_predicate(playlist2partialsong(songs), check_duration(duration.total_seconds(), not longer_than))
+        if not selected:
+            await ctx.send(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
+            return
+
+        length = len(songs)
+
+        s = write_playlist([song.__dict__() for song in selected], name, user.id, overwrite=True)
+        s += f'\n{length-len(selected)} songs deleted'
+        await ctx.send(s)
+
+    @view_playlist.group(no_pm=True, name='name', invoke_without_command=True)
+    @cooldown(1, 5, BucketType.user)
+    async def playlist_by_name(self, ctx, user: Optional[discord.User], playlist_name, *, song_name):
+        """Filter playlist by song name. Regex can be used for this.
+        Trying to kill the bot with regex will get u botbanned tho"""
+        user = user if user else ctx.author
+        songs = load_playlist(playlist_name, user.id)
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {playlist_name} of user {user}")
+            return
+
+        songs = playlist2partialsong(songs)
+        matches = await self.prepare_regex_search(ctx, songs, song_name)
+        if matches is False:
+            return
+
+        if not matches:
+            return await ctx.send(f'No songs found with `{song_name}`')
+
+        def pred(song):
+            return song.title in matches
+
+        selected = select_by_predicate(songs, pred)
+        if not selected:
+            # We have this 2 times in case the playlist changes while we are checking
+            await ctx.send(f'No songs found with `{song_name}`')
+            return
+
+        await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
+
+    @playlist_by_name.command(name='clear')
+    @cooldown(1, 5, BucketType.user)
+    async def clear_playlist_time(self, ctx, name, *, song_name):
+        user = ctx.author
+        songs = load_playlist(name, user.id)
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {name} of user {user}")
+            return
+
+        songs = playlist2partialsong(songs)
+        matches = await self.prepare_regex_search(ctx, songs, song_name)
+        if matches is False:
+            return
+
+        if not matches:
+            return await ctx.send(f'No songs found with `{song_name}`')
+
+        def pred(song):
+            return song.title not in matches
+
+        selected = select_by_predicate(songs, pred)
+
+        if not selected:
+            await ctx.send(f'No songs found with `{song_name}`')
+            return
+
+        length = len(songs)
+
+        s = write_playlist([song.__dict__() for song in selected], name, user.id, overwrite=True)
+        s += f'\n{length-len(selected)} songs deleted'
+        await ctx.send(s)
+
+    @command(no_pm=True)
+    @cooldown(1, 10, BucketType.user)
+    async def delete_playlist(self, ctx, *, name):
+        src = validate_playlist(name, ctx.author.id)
+        if not src:
+            await ctx.send(f"Couldn't find playlist with name {name}")
+            return
+
+        await ctx.send(f"You're about to delete your playlist \"{name}\". Type `confirm` for confirmation")
+        if not await wait_for_words(ctx, ['confirm'], timeout=60):
+            return
+
+        try:
+            os.remove(src)
+        except OSError:
+            logger.exception(f'Failed to remove playlist {src}')
+            await ctx.send('Failed to delete playlist because of an error')
+            return
+
+        await ctx.send(f'Successfully deleted playlist {name}')
 
     async def _search(self, ctx, name):
         vc = True if ctx.author.voice else False
@@ -1064,7 +1321,7 @@ class Audio:
         cleared = musicplayer.playlist.clear_by_predicate(check_duration(sec))
         await ctx.send(f'Cleared {cleared} songs longer than {duration}')
 
-    async def prepare_regex_search(self, ctx, musicplayer, song_name):
+    async def prepare_regex_search(self, ctx, songs, song_name):
         """
         Prepare regex for use in playlist filtering
         """
@@ -1079,7 +1336,7 @@ class Audio:
         # This needs to be run in executor in case someone decides to use
         # an evil regex
         def get_matches():
-            for song in musicplayer.playlist.playlist:
+            for song in list(songs):
                 if not song.title:
                     continue
 
@@ -1105,7 +1362,7 @@ class Audio:
         if not musicplayer:
             return
 
-        matches = await self.prepare_regex_search(ctx, musicplayer, song_name)
+        matches = await self.prepare_regex_search(ctx, musicplayer.playlist.playlist, song_name)
         if matches is False:
             return
 
@@ -1428,13 +1685,18 @@ class Audio:
 
         await musicplayer.skip(None, ctx.channel)
 
-    async def send_playlist(self, ctx, playlist, musicplayer, page_index=0, accurate_indices=True):
+    async def send_playlist(self, ctx, playlist, musicplayer, page_index=0, accurate_indices=True, partial=False):
         """
         Sends a paged message containing all playlist songs.
         When accurate_indices is set to True we will check the index of each
         song manually by checking it's position in the guilds playlist.
-        When false will use values based on page index
+        When false will use values based on page index.
+
+        If partial is set to true we will assume PartialSong is being used
         """
+        if partial and accurate_indices:
+            raise ValueError('Cant have partial and accurate indices set to True at the same time')
+
         pages = []
         for i in range(0, len(playlist), 10):
             pages.append(playlist[i:i + 10])
@@ -1444,21 +1706,27 @@ class Audio:
 
         def add_song(song, idx, dur):
             title = song.title.replace('*', '\\*')
-            return f'\n{idx}. **{title}** {song.requested_by} (ETA: {format_timedelta(dur, 3, long_format=False)})'
+            if partial:
+                return f'\n{idx}. **{title}** (Duration: {format_timedelta(dur, 3, long_format=False)})'
+            else:
+                return f'\n{idx}. **{title}** {song.requested_by} (ETA: {format_timedelta(dur, 3, long_format=False)})'
 
         def get_page(page, idx):
-            full_playlist = list(musicplayer.playlist.playlist)  # good variable naming
-            if not full_playlist and musicplayer.current is None:
-                return 'Nothing playing atm'
-
             response = ''
-            if musicplayer.current is not None:
-                dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
-                response = f'Currently playing **{musicplayer.current.title}** {dur}'
-                if musicplayer.current.requested_by:
-                    response += f' enqueued by {musicplayer.current.requested_by}\n'
+            if not partial:
+                full_playlist = list(musicplayer.playlist.playlist)  # good variable naming
+                if not full_playlist and musicplayer.current is None:
+                    return 'Nothing playing atm'
+
+                if musicplayer.current is not None:
+                    dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
+                    response = f'Currently playing **{musicplayer.current.title}** {dur}'
+                    if musicplayer.current.requested_by:
+                        response += f' enqueued by {musicplayer.current.requested_by}\n'
 
             if accurate_indices:
+                # This block is never reached if partial is true se we dont have
+                # to worry about variables being undefined
                 songs = []
                 indices = []
                 redo_pages = False
@@ -1489,17 +1757,19 @@ class Audio:
                     dur = int(durations[idx])
                     response += add_song(song, idx + 1, dur)
 
-                return response
-
+            elif partial:
+                for _idx, song in enumerate(page):
+                    response += add_song(song, _idx + 1 + 10 * idx, song.duration)
             else:
                 durations = self.song_durations(musicplayer, until=idx * 10 + 10)
                 durations = durations[-10:]
+
                 for _idx, song_dur in enumerate(zip(page, durations)):
                     song, dur = song_dur
                     dur = int(dur)
                     response += add_song(song, _idx + 1 + 10 * idx, dur)
 
-                return response
+            return response
 
         await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page)
 
@@ -1524,7 +1794,7 @@ class Audio:
 
     @playlist.command(no_pm=True, name='from', aliases=['user', 'u', 'by'])
     @cooldown(1, 5)
-    async def playlist_by_user(self, ctx, user: discord.User, page_index: int=0):
+    async def queue_by_user(self, ctx, user: discord.User, page_index: int=0):
         """Filters playlist to the songs queued by user"""
         if not await self.check_voice(ctx, user_connected=False):
             return
@@ -1542,7 +1812,7 @@ class Audio:
 
     @playlist.command(no_pm=True, name='length', aliases=['time', 'duration', 'dur'])
     @cooldown(1, 5)
-    async def playlist_by_time(self, ctx, longer_than: Optional[bool], *, duration: TimeDelta):
+    async def queue_by_time(self, ctx, longer_than: Optional[bool], *, duration: TimeDelta):
         """Filters playlist by song duration.
         Longer than param is optional.
         Usage:
@@ -1566,7 +1836,7 @@ class Audio:
 
     @playlist.command(no_pm=True, name='name')
     @cooldown(1, 5)
-    async def playlist_by_name(self, ctx, *, song_name):
+    async def queue_by_name(self, ctx, *, song_name):
         """Filter playlist by song name. Regex can be used for this.
         Trying to kill the bot with regex will get u botbanned tho"""
         if not await self.check_voice(ctx, user_connected=False):
@@ -1576,7 +1846,7 @@ class Audio:
         if not musicplayer:
             return
 
-        matches = await self.prepare_regex_search(ctx, musicplayer, song_name)
+        matches = await self.prepare_regex_search(ctx, musicplayer.playlist.playlist, song_name)
         if matches is False:
             return
 

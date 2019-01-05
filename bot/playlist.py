@@ -62,6 +62,70 @@ def validate_playlist_name(name):
     return True
 
 
+def validate_playlist(name, user_id):
+    if not validate_playlist_name(name):
+        return False
+
+    p = os.path.join(PLAYLISTS, str(user_id), name)
+    if not os.path.exists(p):
+        return False
+
+    return p
+
+
+def load_playlist(name, user_id):
+    p = validate_playlist(name, user_id)
+    if not p:
+        return False
+
+    with open(p, 'r', encoding='utf-8') as f:
+        songs = json.load(f)
+
+    return songs
+
+
+def write_playlist(data, name, user_id, overwrite=False):
+    file = os.path.join(PLAYLISTS, str(user_id))
+    if not os.path.exists(file):
+        os.mkdir(file)
+    file = os.path.join(file, name)
+
+    if not overwrite and os.path.exists(file):
+        return f'Filename {name} is already in use'
+
+    with open(file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    if overwrite:
+        return f'Playlist {name} edited'
+
+    return f'Playlist {name} created'
+
+
+async def create_playlist(songs, user, name, channel):
+    if not validate_playlist_name(name):
+        return await channel.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
+
+    if not songs:
+        return await channel.send('Empty playlist', delete_after=60)
+
+    new_songs = []
+    await channel.send('Getting song infos for playlist')
+    added = 0
+    for song in songs:
+        if not song.duration:
+            await song.download(return_if_downloading=False)
+
+        if not song.success:
+            continue
+
+        added += 1
+        new_songs.append({'webpage_url': song.webpage_url, 'title': song.title,
+                          'duration': song.duration})
+
+    await channel.send(write_playlist(new_songs, name, user.id))
+
+
 class Playlist:
     def __init__(self, bot, download=False, channel=None, downloader: Downloader=None):
         self.bot = bot
@@ -402,12 +466,9 @@ class Playlist:
         if channel is None:
             channel = self.channel
 
-        p = os.path.join(self.playlist_path, str(user_id), name)
-        if not os.path.exists(p):
+        songs = load_playlist(name, user_id)
+        if songs is False:
             return False
-
-        with open(p, 'r', encoding='utf-8') as f:
-            songs = json.load(f)
 
         await self.send('Processing {} songs'.format(len(songs)), delete_after=60, channel=channel)
         for song in songs:
@@ -416,33 +477,6 @@ class Playlist:
 
         await self.send(f'Enqueued playlist {name}', channel=channel)
         return True
-
-    @staticmethod
-    async def create_playlist(songs, user, name, channel):
-        if not validate_playlist_name(name):
-            return await channel.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
-
-        if not songs:
-            return await channel.send('Empty playlist', delete_after=60)
-
-        new_songs = []
-        await channel.send('Getting song infos for playlist')
-        for song in songs:
-            if not song.duration:
-                await song.download(return_if_downloading=False)
-
-            new_songs.append({'webpage_url': song.webpage_url, 'title': song.title,
-                              'duration': song.duration})
-
-        file = os.path.join(PLAYLISTS, str(user.id))
-        if not os.path.exists(file):
-            os.mkdir(file)
-        file = os.path.join(file, name)
-
-        with open(file, 'w', encoding='utf-8') as f:
-            json.dump(new_songs, f, ensure_ascii=False, indent=2)
-
-        await channel.send(f'Playlist {name} created')
 
     async def _search(self, name, **kwargs):
         info = await self.downloader.extract_info(self.bot.loop, extract_flat=False, url=name, download=False, **kwargs)

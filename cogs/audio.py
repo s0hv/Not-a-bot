@@ -868,6 +868,7 @@ class Audio:
                               'duration': song.duration})
 
         else:
+            await ctx.send('Getting song infos for playlist')
             new_songs, failed = await self._process_links(ctx, song_links.replace('\n', ' ').split(' '))
 
             if failed:
@@ -910,9 +911,12 @@ class Audio:
             songs = list(musicplayer.playlist.playlist)
             if musicplayer.current:
                 songs.append(musicplayer.current)
+
+            await ctx.send('Getting song infos for playlist')
             await create_playlist(songs, ctx.author, name, channel=ctx.channel)
 
         else:
+            await ctx.send('Getting song infos for playlist')
             new_songs, failed = await self._process_links(ctx, msg.content.replace('\n', ' ').split(' '))
 
             if new_songs:
@@ -1803,6 +1807,9 @@ class Audio:
         """
         if partial and accurate_indices:
             raise ValueError('Cant have partial and accurate indices set to True at the same time')
+
+        if not playlist:
+            return await ctx.send('Empty playlist')
 
         pages = []
         for i in range(0, len(playlist), 10):

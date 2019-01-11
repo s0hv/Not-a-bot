@@ -110,7 +110,6 @@ async def create_playlist(songs, user, name, channel):
         return await channel.send('Empty playlist', delete_after=60)
 
     new_songs = []
-    await channel.send('Getting song infos for playlist')
     added = 0
     for song in songs:
         if not song.duration:

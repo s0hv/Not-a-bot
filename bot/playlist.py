@@ -116,8 +116,8 @@ async def create_playlist(songs, user, name, channel):
         if not song.duration:
             await song.download(return_if_downloading=False)
 
-        if not song.success:
-            continue
+            if not song.success:
+                continue
 
         added += 1
         new_songs.append({'webpage_url': song.webpage_url, 'title': song.title,

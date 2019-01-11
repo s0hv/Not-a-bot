@@ -1346,10 +1346,6 @@ async def wait_for_words(ctx, words, timeout=60):
         await ctx.send('Took too long')
         return
 
-    if not y_check(msg.content):
-        await ctx.send('Cancelling')
-        return
-
     return msg
 
 

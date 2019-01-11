@@ -42,6 +42,7 @@ from discord.ext.commands import BucketType, bot_has_permissions
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon, Circle
 from numpy import pi, random
+from cogs.cog import Cog
 
 from bot.bot import command, cooldown
 from utils.imagetools import (create_shadow, create_text, create_glow,
@@ -90,9 +91,9 @@ class ArgumentParser(argparse.ArgumentParser):
         super(ArgumentParser, self).error(message)
 
 
-class JoJo:
+class JoJo(Cog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         self.stat_lock = Lock()
         self.stats = OrderedDict.fromkeys(POWERS, None)
         self.stat_spread_figure = plt.figure()

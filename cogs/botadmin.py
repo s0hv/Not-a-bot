@@ -376,7 +376,7 @@ class BotAdmin(Cog):
     async def shutdown(self, ctx):
         await self._shutdown(ctx, ExitStatus.PreventRestart)
 
-    @command(owner_only=True)
+    @command(owner_only=True, aliases=['reboot'])
     async def restart(self, ctx):
         await self._shutdown(ctx, ExitStatus.ForceRestart)
 

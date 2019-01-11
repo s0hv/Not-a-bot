@@ -41,7 +41,10 @@ class GuildCache:
         settings[name] = value
         return success
 
-    # Used for setting cached values not present in the database or in a different form e.g. cache a set as a list
+    # Used for setting cached values not present in the database or in a different form
+    # e.g. cache a set as a list. Used only for prefixes as we need them stored in a
+    # sorted list when checking for usable prefixes and a set when adding more
+    # to the list
     def _set_internal_value(self, guild_id, name, value):
         settings = self.get_settings(guild_id)
         internals = settings.get('_internals')
@@ -67,7 +70,8 @@ class GuildCache:
 
         prefixes = self._get_internals(guild_id).get('prefixes')
         if prefixes is None:
-            return tuple(self.bot.default_prefix, )
+            prefixes = list(self.get_settings(guild_id).get('prefixes', [self.bot.default_prefix]))
+            self._set_internal_value(guild_id, 'prefixes', prefixes)
 
         return prefixes
 

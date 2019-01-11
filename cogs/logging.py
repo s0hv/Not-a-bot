@@ -64,10 +64,8 @@ class Logger(Cog):
         # guild_name = message.guild.name if not is_pm else 'DM'
         channel = message.channel.id if not is_pm else None
         # channel_name = message.channel.name if not is_pm else None
-        user = str(message.author)
         user_id = message.author.id
         message_id = message.id
-        message_content = None if not is_pm else message.content  # BOI I need to know if my bot is abused in dms
 
         # Only save image links for later use in image commands
         attachment = message.attachments[0].url if message.attachments else None
@@ -80,9 +78,7 @@ class Logger(Cog):
         return {'shard': shard,
                 'guild': guild,
                 'channel': channel,
-                'user': user,
                 'user_id': user_id,
-                'message': message_content,
                 'message_id': message_id,
                 'attachment': attachment,
                 'time': message.created_at}
@@ -136,8 +132,8 @@ class Logger(Cog):
 
     async def on_message(self, message):
         self.check_mentions(message)
-        sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
-              "VALUES (:shard, :guild, :channel, :user, :user_id, :message, :message_id, :attachment, :time)"
+        sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user_id`, `message_id`, `attachment`, `time`) " \
+              "VALUES (:shard, :guild, :channel, :user_id, :message_id, :attachment, :time)"
 
         d = self.format_for_db(message)
 
@@ -236,8 +232,8 @@ class Logger(Cog):
             if not image:
                 return
 
-            sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user`, `user_id`, `message`, `message_id`, `attachment`, `time`) " \
-                  "VALUES (:shard, :guild, :channel, :user, :user_id, :message, :message_id, :attachment, :time) ON DUPLICATE KEY UPDATE attachment=IFNULL(attachment, :attachment)"
+            sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user_id`, `message_id`, `attachment`, `time`) " \
+                  "VALUES (:shard, :guild, :channel, :user_id, :message_id, :attachment, :time) ON DUPLICATE KEY UPDATE attachment=IFNULL(attachment, :attachment)"
 
             d = self.format_for_db(after)
             self._q.put_nowait((sql, d))

@@ -106,7 +106,7 @@ class NotABot(BotBase):
                 d = {**row}
                 d.pop('guild', None)
                 d['prefixes'] = {d.get('prefix') or self.default_prefix}
-                d.pop('prefix')
+                d.pop('prefix', None)
                 rows[guild_id] = d
 
         for guild_id, row in rows.items():
@@ -228,10 +228,12 @@ class NotABot(BotBase):
 
         name = member.name if not member.nick else member.nick
         if ord(name[0]) <= 46:
-                await retry(member.add_roles, role, break_on=discord.Forbidden, reason="Wants attention")
+            await retry(member.add_roles, role, break_on=discord.Forbidden, reason="Wants attention")
+            return True
 
         elif remove and role in member.roles:
-                await retry(member.remove_roles, role, break_on=discord.Forbidden, reason="Doesn't want attention")
+            await retry(member.remove_roles, role, break_on=discord.Forbidden, reason="Doesn't want attention")
+            return False
 
     @staticmethod
     def _parse_on_delete(msg, conf):

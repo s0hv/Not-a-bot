@@ -444,8 +444,17 @@ class BotAdmin(Cog):
                 await self.bot.request_offline_members(guild)
             except InvalidArgument:
                 pass
+
+            added = 0
+            removed = 0
             for member in list(guild.members):
-                await self.bot._wants_to_be_noticed(member, guild)
+                res = await self.bot._wants_to_be_noticed(member, guild)
+                if res is True:
+                    added += 1
+                elif res is False:
+                    removed += 1
+
+            await ctx.send(f'Added attention whore to {added} members and removed it from {removed} members')
 
     @command(owner_only=True)
     async def reload_dbutil(self, ctx):

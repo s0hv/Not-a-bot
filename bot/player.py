@@ -67,10 +67,6 @@ class MusicPlayer:
         self._speed_mod = 1
         self._skip_votes = set()
 
-        # Used for checking if bot is going crazy
-        self._last_song = 0
-        self._streak = 0  # How many songs played in quick succession
-
     def __del__(self):
         self.close_tasks()
         if self.voice:
@@ -101,7 +97,7 @@ class MusicPlayer:
         self.autoplay = False
         self.stop()
         if self.voice:
-            asyncio.ensure_future(self.voice.disconnect(), loop=self.bot.loop)
+            asyncio.ensure_future(self.voice.disconnect(force=True), loop=self.bot.loop)
         self.close_tasks()
         self.voice = None
         self.playlist.playlist.clear()
@@ -241,39 +237,20 @@ class MusicPlayer:
 
             logger.debug(f'Next song is {self.current}')
             logger.debug('Waiting for dl')
-            if time.time() - self._last_song < 2:
-                self._streak += 1
-                if self._streak > 7:
-                    try:
-                        await self.send('Bot seems to be malfunctioning or someone is just spamming skip. Trying to disconnect')
-                    except:
-                        pass
-
-                    try:
-                        await self._disconnect(self)
-                    except:
-                        pass
-
-                    await self.voice.disconnect()
-                    return
-
-            else:
-                self._streak = 0
-            self._last_song = time.time()
 
             try:
-                await asyncio.wait_for(self.current.on_ready.wait(), timeout=15,
+                await asyncio.wait_for(self.current.on_ready.wait(), timeout=5,
                                        loop=self.bot.loop)
             except asyncio.TimeoutError:
                 logger.debug(f'Song {self.current.webpage_url} download timed out')
-                await self.send(f'Failed to download {self.current}')
+                await self.send(f'Download timed out for {self.current}')
                 self.current = None
                 continue
 
             logger.debug('Done waiting')
             if not self.current.success:
                 terminal.error(f'Download of {self.current.webpage_url} unsuccessful')
-                await self.send(f'Download of {self.current.webpage_url} was unsuccessful')
+                self.current = None
                 continue
 
             if self.current.filename is not None:

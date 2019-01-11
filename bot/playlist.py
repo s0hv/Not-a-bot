@@ -463,20 +463,33 @@ class Playlist:
         else:
             await self.send('Enqueued {}'.format(song), channel=channel)
 
-    async def add_from_playlist(self, user_id, name, channel=None):
+    async def add_from_partials(self, songs, user, channel):
+        await self.send('Processing {} songs'.format(len(songs)), delete_after=60, channel=channel)
+        added = 0
+        for song in songs:
+            song = Song.from_partial(self, self.bot.config, song)
+            song.requested_by = user
+            if await self._append_song(song) is not False:
+                added += 1
+
+        return added
+
+    async def add_from_playlist(self, user, name, channel=None):
         if channel is None:
             channel = self.channel
 
-        songs = load_playlist(name, user_id)
+        songs = load_playlist(name, user.id)
         if songs is False:
             return False
 
         await self.send('Processing {} songs'.format(len(songs)), delete_after=60, channel=channel)
+        added = 0
         for song in songs:
-            song = Song(self, config=self.bot.config, **song)
-            await self._append_song(song)
+            song = Song(self, config=self.bot.config, **song, requested_by=user)
+            if await self._append_song(song) is not False:
+                added += 1
 
-        await self.send(f'Enqueued playlist {name}', channel=channel)
+        await self.send(f'Enqueued {added} songs from playlist {name}', channel=channel)
         return True
 
     async def _search(self, name, **kwargs):
@@ -516,7 +529,9 @@ class Playlist:
     async def _append_song(self, song, priority=False):
         if not self.playlist or priority:
             terminal.debug(f'Downloading {song.webpage_url}')
-            await song.download()
+            success = await song.download()
+            if not success:
+                return False
 
             if priority:
                 self.playlist.appendleft(song)

@@ -31,6 +31,7 @@ import shutil
 from collections import deque
 from functools import partial
 from math import floor
+from random import choice
 from typing import Optional
 
 import discord
@@ -405,6 +406,7 @@ class Audio:
     def __init__(self, bot):
         self.bot = bot
         self.musicplayers = self.bot.playlists
+        self.viewed_playlists = self.bot.viewed_playlists
         self.downloader = Downloader()
 
     def get_musicplayer(self, guild_id: int, is_on: bool=True):
@@ -671,21 +673,30 @@ class Audio:
         if you put keywords it will search youtube for them"""
         return await self.play_song(ctx, song_name)
 
-    async def play_song(self, ctx, song_name, priority=False, **metadata):
+    async def summon_checks(self, ctx):
         if not ctx.author.voice:
-            return await ctx.send('Not connected to a voice channel')
+            await ctx.send('Not connected to a voice channel')
+            return None, None
 
         if ctx.voice_client and ctx.voice_client.channel.id != ctx.author.voice.channel.id:
-            return await ctx.send('Not connected to the same channel as the bot')
+            await ctx.send('Not connected to the same channel as the bot')
+            return None, None
 
         success = False
         if ctx.voice_client is None:
             success = await self._summon(ctx, create_task=False)
             if not success:
                 terminal.debug('Failed to join vc')
-                return
+                return None, None
 
         musicplayer = await self.check_player(ctx)
+        if not musicplayer:
+            return None, None
+
+        return musicplayer, success
+
+    async def play_song(self, ctx, song_name, priority=False, **metadata):
+        musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
 
@@ -698,30 +709,67 @@ class Audio:
         if success:
             musicplayer.start_playlist()
 
-    @command(no_pm=True, aliases=['play_p'])
+    @command(no_pm=True, aliases=['play_p', 'pp'])
     @cooldown(1, 10, BucketType.user)
     async def play_playlist(self, ctx, user: Optional[discord.User], *, name):
         """Queue a saved playlist"""
-        if not ctx.author.voice:
-            return await ctx.send('Not connected to a voice channel')
-
-        if ctx.voice_client and ctx.voice_client.channel.id != ctx.author.voice.channel.id:
-            return await ctx.send('Not connected to the same channel as the bot')
-
-        success = False
-        if ctx.voice_client is None:
-            success = await self._summon(ctx, create_task=False)
-            if not success:
-                terminal.debug('Failed to join vc')
-                return
-
-        musicplayer = await self.check_player(ctx)
+        musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
 
         user = user if user else ctx.author
-        if not await musicplayer.playlist.add_from_playlist(user.id, name, ctx.channel):
+        if not await musicplayer.playlist.add_from_playlist(user, name, ctx.channel):
             await ctx.send(f"Couldn't find playlist {name} of user {user} or playlist was empty")
+
+        if success:
+            musicplayer.start_playlist()
+
+    @command(no_pm=True, aliases=['prp', 'pr'])
+    @cooldown(1, 5, BucketType.user)
+    async def play_random_playlist(self, ctx, user: Optional[discord.User], *, name):
+        """Queue a random song from given playlist"""
+        songs = await self.get_playlist(ctx, user, name)
+        if songs is False:
+            return
+
+        song = choice(songs)
+        musicplayer, success = await self.summon_checks(ctx)
+        if not musicplayer:
+            return
+
+        song = Song(musicplayer.playlist, config=self.bot.config, **song,
+                    requested_by=ctx.author)
+
+        await musicplayer.playlist.add_from_song(song, channel=ctx.channel)
+        if success:
+            musicplayer.start_playlist()
+
+    @command(no_pm=True, aliases=['pvp', 'pv'])
+    @cooldown(1, 5)
+    async def play_viewed_playlist(self, ctx):
+        """
+        Enqueues all the songs from the last playlist you viewed.
+        You can use this to filter playlist and add songs based on that filter
+        """
+        songs = self.viewed_playlists.get(ctx.author.id, None)
+        if not songs:
+            await ctx.send("You haven't viewed any playlists. Use `view_playlist` "
+                           "or any of it's subcommands then use this command to add those songs to the list")
+            return
+
+        musicplayer, success = await self.summon_checks(ctx)
+        if not musicplayer:
+            return
+
+        self.viewed_playlists.pop(ctx.author.id, None)
+
+        songs[1].cancel()
+        name = songs[2]
+        songs = songs[0]
+
+        added = await musicplayer.playlist.add_from_partials(songs, ctx.author, ctx.channel)
+
+        await ctx.send(f'Enqueued {added} songs from {name}')
 
         if success:
             musicplayer.start_playlist()
@@ -909,16 +957,70 @@ class Audio:
 
         await ctx.send(f'Successfully copied playlist {name} to {new_name}')
 
-    @group(no_pm=True, aliases=['vp'], invoke_without_command=True)
-    @cooldown(1, 5, BucketType.user)
-    async def view_playlist(self, ctx, user: Optional[discord.User], *, name):
+    @staticmethod
+    async def get_playlist(ctx, user, name):
         user = user if user else ctx.author
         songs = load_playlist(name, user.id)
         if songs is False:
             await ctx.send(f"Couldn't find playlist {name} of user {user}")
+
+        return songs
+
+    def add_viewed_playlist(self, user, playlist, name):
+        async def pop_list():
+            await asyncio.sleep(60)
+            self.viewed_playlists.pop(user.id, None)
+
+        if user.id in self.viewed_playlists:
+            self.viewed_playlists[user.id][1].cancel()
+
+        task = asyncio.run_coroutine_threadsafe(pop_list(), loop=self.bot.loop)
+        self.viewed_playlists[user.id] = (playlist, task, name)
+
+    @command(no_pm=True, aliases=['lp'])
+    @cooldown(1, 5, BucketType.user)
+    async def list_playlists(self, ctx, *, user: discord.User = None):
+        """
+        List all the names of the playlists a user own.
+        If user is not provided defaults to you
+        """
+        user = user if user else ctx.author
+        p = os.path.join(PLAYLISTS, str(user.id))
+
+        if not os.path.exists(p):
+            return await ctx.send(f"{user} doesn't have any playlists")
+
+        try:
+            playlists = os.listdir(p)
+        except OSError:
+            logger.exception(f'Failed to list playlists of {user.id}')
+            await ctx.send('Failed to get playlists because of an error')
             return
 
-        await self.send_playlist(ctx, playlist2partialsong(songs), None, partial=True, accurate_indices=False)
+        if not playlists:
+            return await ctx.send(f"{user} doesn't have any playlists")
+
+        await ctx.send(f'Playlists of {user}\n\n' + '\n'.join(playlists))
+
+    @group(no_pm=True, aliases=['vp'], invoke_without_command=True)
+    @cooldown(1, 5, BucketType.user)
+    async def view_playlist(self, ctx, user: Optional[discord.User], *, name):
+        """
+        Get the contents of one of your playlists or someone else's playlists
+        Usage
+        `{prefix}{name} [user] name of playlist`
+        where [user] is replaced with the user who owns the playlist.
+        User is an optional parameter and when not given will default to your playlists
+        """
+        # This is needed for add_viewed_playlist to work when no user is provided
+        user = user if user else ctx.author
+        songs = await self.get_playlist(ctx, user, name)
+        if songs is False:
+            return
+
+        songs = playlist2partialsong(songs)
+        self.add_viewed_playlist(user, songs, name)
+        await self.send_playlist(ctx, songs, None, partial=True, accurate_indices=False)
 
     @view_playlist.group(no_pm=True, name='length', aliases=['time', 'duration', 'dur'], invoke_without_command=True)
     @cooldown(1, 5, BucketType.user)
@@ -941,12 +1043,18 @@ class Audio:
             await ctx.send(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
             return
 
+        self.add_viewed_playlist(user, selected, name)
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
     @staticmethod
     @playlist_by_time.command(name='clear', pass_context=True)
     @cooldown(1, 5, BucketType.user)
     async def clear_playlist_time(ctx, name, longer_than: Optional[bool], *, duration: TimeDelta):
+        """
+        See `{prefix}help vp dur` for argument usage.
+        Clears a playlist by song duration.
+        Arguments are the same as the parent commands
+        """
         user = ctx.author
         songs = load_playlist(name, user.id)
         if songs is False:
@@ -994,11 +1102,16 @@ class Audio:
             await ctx.send(f'No songs found with `{song_name}`')
             return
 
+        self.add_viewed_playlist(user, selected, playlist_name)
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
     @playlist_by_name.command(name='clear')
     @cooldown(1, 5, BucketType.user)
-    async def clear_playlist_time(self, ctx, name, *, song_name):
+    async def clear_playlist_name(self, ctx, name, *, song_name):
+        """
+        Clears songs from a playlist based on it's name
+        For parameters see help for `{prefix}vp name`
+        """
         user = ctx.author
         songs = load_playlist(name, user.id)
         if songs is False:
@@ -1031,6 +1144,9 @@ class Audio:
     @command(no_pm=True)
     @cooldown(1, 10, BucketType.user)
     async def delete_playlist(self, ctx, *, name):
+        """
+        Delete a playlist with the given name
+        """
         src = validate_playlist(name, ctx.author.id)
         if not src:
             await ctx.send(f"Couldn't find playlist with name {name}")
@@ -1698,7 +1814,7 @@ class Audio:
         def add_song(song, idx, dur):
             title = song.title.replace('*', '\\*')
             if partial:
-                return f'\n{idx}. **{title}** (Duration: {format_timedelta(dur, 3, long_format=False)})'
+                return f'\n{idx}. **{title}** (Duration: {format_timedelta(dur, 3, long_format=False)}) <{song.webpage_url}>'
             else:
                 return f'\n{idx}. **{title}** {song.requested_by} (ETA: {format_timedelta(dur, 3, long_format=False)})'
 
@@ -2066,20 +2182,16 @@ class Audio:
 
     @command(no_pm=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def autoplaylist(self, ctx, option: str):
+    async def autoplaylist(self, ctx, option: bool):
         """Set the autoplaylist on or off"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
-        option = option.lower().strip()
-        if option != 'on' and option != 'off':
-            await ctx.send('Autoplaylist state needs to be on or off')
-            return
 
-        if option == 'on':
+        if option:
             musicplayer.autoplaylist = True
-        elif option == 'off':
+        else:
             musicplayer.autoplaylist = False
 
-        await ctx.send('Autoplaylist set %s' % option)
+        await ctx.send(f'Autoplaylist set {"on" if option else "off"}')
 
     def clear_cache(self):
         songs = []

@@ -106,6 +106,11 @@ class Song:
             string += ' enqueued by {0.requested_by}'
         return string.format(self)
 
+    @classmethod
+    def from_partial(cls, playlist, config, partial_song: PartialSong):
+        return cls(playlist, config=config, webpage_url=partial_song.webpage_url,
+                   title=partial_song.title, duration=partial_song.duration)
+
     def info_from_dict(self, **kwargs):
         self.title = kwargs.get('title', self.title)
         self.url = kwargs.get('url', self.url)
@@ -173,7 +178,10 @@ class Song:
         self.on_ready.clear()
         logger.debug(f'Started downloading {self.long_str}')
         try:
-            dl = self.config.download
+            if self.config:
+                dl = self.config.download
+            else:
+                dl = False
 
             if dl and self.last_update:
                 logger.debug('Skipping dl')
@@ -220,10 +228,9 @@ class Song:
             terminal.info('Downloaded ' + self.webpage_url)
             logger.debug('Filename set to {}'.format(self.filename))
             self.success = True
-            return
 
         except Exception as e:
-            logger.debug('Download error: {}'.format(e))
+            logger.exception('Download error: {}'.format(e))
             try:
                 await self.playlist.channel.send('Failed to download {0}\nlink: {1}'.format(self.title, self.webpage_url))
             except discord.HTTPException:
@@ -232,6 +239,7 @@ class Song:
         finally:
             self._downloading = False
             self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
+            return self.success
 
     async def delete_file(self):
         for _ in range(0, 2):

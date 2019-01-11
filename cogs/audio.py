@@ -1106,9 +1106,15 @@ class Audio:
 
         if musicplayer.voice is None:
             try:
+                if ctx.voice_client and ctx.voice_client.channel:
+                    await ctx.voice_client.disconnect(force=True)
+
                 musicplayer.voice = await channel.connect()
             except (discord.HTTPException, asyncio.TimeoutError) as e:
                 await ctx.send(f'Failed to join vc because of an error\n{e}')
+                return False
+            except discord.ClientException:
+                await ctx.send(f'Bot is having some difficulties joining voice. You should probably use `{ctx.prefix}force_stop`')
                 return False
 
             if create_task:
@@ -1613,8 +1619,8 @@ class Audio:
             if not ctx.voice_client:
                 return await ctx.send('Not connected to voice')
 
-            await ctx.voice_client.disconnect()
-            await ctx.send('Disconnected')
+            await ctx.voice_client.disconnect(force=True)
+            await ctx.send('Forced disconnect')
         else:
             await ctx.send('Disconnected')
 
@@ -1626,13 +1632,8 @@ class Audio:
         """
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
-            if ctx.guild.me.voice:
-                for client in self.bot.voice_clients:
-                    if client.guild.id == ctx.guild.id:
-                        await client.disconnect()
-                        return
-
-            return False
+            if ctx.voice_client:
+                await ctx.voice_client.disconnect()
 
         await self.disconnect_voice(musicplayer)
 
@@ -1894,7 +1895,11 @@ class Audio:
             return None
 
         durations = []
-        time_left = musicplayer.current.duration - musicplayer.duration
+        if musicplayer.current:
+            time_left = musicplayer.current.duration - musicplayer.duration
+        else:
+            time_left = 0
+
         for song in list(playlist)[:until]:
             durations.append(time_left)
             time_left += song.duration

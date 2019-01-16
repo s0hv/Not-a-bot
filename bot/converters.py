@@ -1,9 +1,11 @@
 import re
 
 import discord
+import pytz
 from discord.ext.commands import converter
 from discord.ext.commands.errors import BadArgument
 
+from utils.tzinfo import fuzzy_tz
 from utils.utilities import parse_time
 
 
@@ -171,6 +173,34 @@ class CommandConverter(converter.Converter):
             raise BadArgument('Command "%s" not found' % argument)
 
         return cmd
+
+
+class TzConverter(converter.Converter):
+    async def convert(self, ctx, argument):
+        try:
+            argument = int(argument)
+            argument *= 60
+
+            try:
+                tz = pytz.FixedOffset(argument)
+            except ValueError:
+                raise BadArgument('Timezone offset over 24h')
+
+            return tz
+
+        except ValueError:
+            pass
+
+        tz = fuzzy_tz.get(argument.lower().replace(' ', '_'))
+        if tz is None:
+            raise BadArgument('Unknown timezone %s' % argument)
+
+        try:
+            tz = await ctx.bot.loop.run_in_executor(ctx.bot.threadpool, pytz.timezone, tz)
+        except pytz.UnknownTimeZoneError:
+            raise BadArgument('Unknown timezone %s' % argument)
+
+        return tz
 
 
 class CleanContent(converter.Converter):

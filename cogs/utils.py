@@ -9,6 +9,7 @@ import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
 from io import StringIO
+from typing import Optional
 from urllib.parse import quote
 
 import discord
@@ -16,8 +17,16 @@ import psutil
 from discord.ext.commands import (BucketType, bot_has_permissions, Group,
                                   clean_content)
 from discord.ext.commands.errors import BadArgument
+from sqlalchemy.exc import SQLAlchemyError
 
-from bot.converters import FuzzyRole
+from bot.bot import command, cooldown
+from bot.converters import FuzzyRole, TzConverter
+from cogs.cog import Cog
+from utils.unzalgo import unzalgo, is_zalgo
+from utils.utilities import (random_color, get_avatar, split_string,
+                             get_emote_url, send_paged_message,
+                             format_timedelta,
+                             parse_time, DateAccuracy)
 
 try:
     from pip.commands import SearchCommand
@@ -26,15 +35,6 @@ except ImportError:
         from pip._internal.commands.search import SearchCommand
     except (ImportError, TypeError):
         SearchCommand = None
-
-from sqlalchemy.exc import SQLAlchemyError
-
-from bot.bot import command, cooldown
-from cogs.cog import Cog
-from utils.unzalgo import unzalgo, is_zalgo
-from utils.utilities import (random_color, get_avatar, split_string,
-                             get_emote_url, send_paged_message, format_timedelta,
-                             parse_time, DateAccuracy)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -493,7 +493,7 @@ class Utilities(Cog):
     # TODO Timezone support with pytz
     @command(name='timedelta')
     @cooldown(1, 3, BucketType.user)
-    async def timedelta_(self, ctx, *, duration):
+    async def timedelta_(self, ctx, target_timezone: Optional[TzConverter], your_timezone: Optional[TzConverter], *, duration):
         """
         Get a date that is in the amount of duration given.
         To get past dates start your duration with `-`
@@ -505,24 +505,47 @@ class Utilities(Cog):
             addition = False
             duration = duration[1:]
 
-        duration = parse_time(duration)
-        if not duration:
-            return await ctx.send('Failed to parse time')
+        duration_ = parse_time(duration)
+        if not duration_:
+            return await ctx.send(f'Failed to parse time from {duration}')
 
-        try:
-            if addition:
-                then = datetime.utcnow() + duration
-            else:
-                then = datetime.utcnow() - duration
-        except OverflowError:
-            return await ctx.send('Failed to get new date because of an Overflow error. Try giving a smaller duration')
+        duration = duration_
 
-        td = format_timedelta(duration, accuracy=DateAccuracy.Day)
-        s = f'Your requested date is `{then.strftime("%Y-%m-%d %H:%M")}` UTC which '
-        if addition:
-            s += f'is in {td}'
+        if target_timezone:
+            now = datetime.now(target_timezone)
         else:
-            s += f'was {td} ago'
+            now = datetime.utcnow()
+
+        async def add_time(dt):
+            try:
+                if addition:
+                    return dt + duration
+                else:
+                    return dt - duration
+
+            except OverflowError:
+                await ctx.send('Failed to get new date because of an Overflow error. Try giving a smaller duration')
+
+        then = await add_time(now)
+        if not then:
+            return
+
+        tzname = 'UTC' if not target_timezone else target_timezone.zone
+        td = format_timedelta(duration, accuracy=DateAccuracy.Day)
+        s = f'`{then.strftime("%Y-%m-%d %H:%M")}` `{tzname}` '
+
+        if your_timezone:
+            then = await add_time(datetime.now(your_timezone))
+            if not then:
+                return
+
+            tzname = 'UTC' if not target_timezone else your_timezone.zone
+            s += f'\n`{then.strftime("%Y-%m-%d %H:%M")}` `{tzname}`\n'
+
+        if addition:
+            s += f'which is in {td}'
+        else:
+            s += f'which was {td} ago'
 
         await ctx.send(s)
 

@@ -490,15 +490,19 @@ class Utilities(Cog):
 
         await ctx.send(embed=embed)
 
-    # TODO Timezone support with pytz
-    @command(name='timedelta')
+    @command(name='timedelta', aliases=['td'])
     @cooldown(1, 3, BucketType.user)
     async def timedelta_(self, ctx, target_timezone: Optional[TzConverter], your_timezone: Optional[TzConverter], *, duration):
         """
         Get a date that is in the amount of duration given.
         To get past dates start your duration with `-`
         Time format is `1d 1h 1m 1s` where each one is optional but
-        at least one is required
+        at least one is required.
+
+        You can also specify which timezone to use and another timezone for comparison if you want
+        Timezones can just an integer determining the offset in hours or
+        a name of a big city like capitals of countries.
+        Remember to use quotes if the city name contains spaces
         """
         addition = True
         if duration.startswith('-'):

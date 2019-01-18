@@ -467,6 +467,9 @@ class JoJo(Cog):
                                    delete_after=15)
 
         try:
+            if not isinstance(color, str):
+                color = color.get_hex_l()
+
             bg_color = Color(color)
         except AttributeError:
             logger.exception(f'Failed to set bg color from {color}')

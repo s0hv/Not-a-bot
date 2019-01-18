@@ -468,7 +468,7 @@ class JoJo(Cog):
 
         try:
             if not isinstance(color, str):
-                color = color.get_hex_l()
+                color = Color(color.get_hex_l())
 
             bg_color = Color(color)
         except AttributeError:

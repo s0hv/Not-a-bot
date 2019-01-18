@@ -647,7 +647,11 @@ class Moderator(Cog):
         if not mute_role:
             return
 
-        time, reason = parse_timeout(timeout)
+        try:
+            time, reason = parse_timeout(timeout)
+        except OverflowError:
+            return await ctx.send('Duration too long')
+
         guild = ctx.guild
         if not time:
             return await ctx.send('Invalid time string')
@@ -884,21 +888,24 @@ class Moderator(Cog):
         return embed
 
     @group(invoke_without_command=True, no_pm=True)
-    @cooldown(2, 4, BucketType.guild)
+    @cooldown(1, 5, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
     @has_permissions(manage_messages=True)
-    async def purge(self, ctx, max_messages: int=10):
+    async def purge(self, ctx, max_messages: int):
         """Purges n amount of messages from a channel.
-        maximum value of max_messages is 500 and the default is 10"""
+        maximum value of max_messages is 300 and the default is 10"""
         channel = ctx.channel
         if max_messages > 1000000:
             return await ctx.send("Either you tried to delete over 1 million messages or just put it there as an accident. "
                                   "Either way that's way too much for me to handle")
 
-        max_messages = min(500, max_messages)
+        max_messages = min(300, max_messages)
 
         # purge doesn't support reasons yet
-        messages = await channel.purge(limit=max_messages)  # , reason=f'{ctx.author} purged messages')
+        try:
+            messages = await channel.purge(limit=max_messages, bulk=True)  # , reason=f'{ctx.author} purged messages')
+        except discord.HTTPException as e:
+            return await ctx.send(f'Failed to purge messages\n{e}')
 
         modlog = self.get_modlog(channel.guild)
         if not modlog:
@@ -1194,8 +1201,11 @@ class Moderator(Cog):
     async def delete_messages(channel, message_ids):
         """Delete messages in bulk and take the message limit into account"""
         step = 100
-        for _ in range(0, len(message_ids), step):
-            await channel.delete_messages(message_ids)
+        for i in range(0, len(message_ids), step):
+            try:
+                await channel.delete_messages(message_ids[i:i+step])
+            except discord.NotFound:
+                pass
 
     def get_modlog(self, guild):
         return guild.get_channel(self.bot.guild_cache.modlog(guild.id))

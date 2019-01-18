@@ -32,9 +32,9 @@ import discord
 from discord.ext import commands
 from numpy import random
 
+from bot.bot import cooldown
 from bot.formatter import Paginator
 from bot.player import FFmpegPCMAudio, play
-from bot.bot import cooldown
 
 try:
     from gtts import gTTS
@@ -480,6 +480,9 @@ class Audio:
             return
 
         if not state.on_join:
+            return
+
+        if not member.guild.me.voice:
             return
 
         channel = member.guild.me.voice.channel

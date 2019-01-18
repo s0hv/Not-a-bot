@@ -33,7 +33,6 @@ import discord
 from bot.Not_a_bot import NotABot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
-from utils import init_tf
 
 discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.INFO)
@@ -108,6 +107,7 @@ logger.info('Starting bots')
 
 # Initialize tensorflow for text cmd
 try:
+    raise Exception('Not loading tensorflow for a speedup')
     poke_model = init_tf.init_poke_tf()  # Will increase ram usage by around 100mb
     model = init_tf.init_tf()
 except:

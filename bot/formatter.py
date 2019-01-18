@@ -76,7 +76,7 @@ class Formatter(HelpFormatter):
 
             # <long doc> section
             if self.command.help:
-                cmd_name = ctx.command.full_parent_name + ' ' + ctx.invoked_with
+                cmd_name = self.command.qualified_name
                 self._paginator.edit_page(self.command.name, self.command.help.format(prefix=self.context.prefix, name=cmd_name.strip()))
 
             self._paginator.add_field('Usage', signature)

@@ -96,6 +96,14 @@ class GeoPattern(geopatterns.GeoPattern):
         'xes'
     ]
 
+    def __init__(self, string, generator=None, color=None, scale=None,
+                 opacity=1.0):
+        if isinstance(color, Color):
+            color = color.get_hex_l()
+
+        super().__init__(string, generator=generator, color=color, scale=scale,
+                         opacity=opacity)
+
     def generate_background(self, base_color, randomize_hue):
         hue_offset = promap(int(self.hash[14:][:3], 16), 0, 4095, 0, 359)
         sat_offset = int(self.hash[17:][:1], 16)
@@ -263,8 +271,8 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
 
 # http://stackoverflow.com/a/29314286/6046713
 # http://stackoverflow.com/a/41048793/6046713
-def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=50,
-                      mask_dilate_iter=5, mask_erode_iter=5):
+def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=200,
+                      mask_dilate_iter=10, mask_erode_iter=10):
     global cv2
     if cv2 is None:
         try:

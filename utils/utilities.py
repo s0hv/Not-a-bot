@@ -46,6 +46,7 @@ from validators import url as test_url
 from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
 from bot.paged_message import PagedMessage
+from utils.imagetools import image_from_url
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -455,6 +456,31 @@ def get_emote_name_id(s):
         return emote.groups()
 
     return None, None, None
+
+
+async def get_image(ctx, image):
+    img = await get_image_from_message(ctx, image)
+    if img is None:
+        if image is not None:
+            await ctx.send(f'No image found from {image}')
+        else:
+            await ctx.send('Please input a mention, emote or an image when using the command')
+
+        return
+
+    img = await dl_image(ctx, img)
+    return img
+
+
+async def dl_image(ctx, url):
+    try:
+        img = await image_from_url(url, ctx.bot.aiohttp_client)
+    except OverflowError:
+        await ctx.send('Failed to download. File is too big')
+    except TypeError:
+        await ctx.send('Link is not a direct link to an image')
+    else:
+        return img
 
 
 async def get_image_from_message(ctx, *messages):

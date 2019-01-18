@@ -40,12 +40,6 @@ logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
 
-async def tz_convert(ctx, argument):
-    pass
-    # TODO
-
-
-
 class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)

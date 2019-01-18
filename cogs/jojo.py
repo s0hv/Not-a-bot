@@ -27,6 +27,7 @@ matplotlib.use('Agg')
 import argparse
 import logging
 import os
+import asyncio
 import sys
 from collections import OrderedDict
 from functools import partial
@@ -45,15 +46,15 @@ from numpy import pi, random
 from cogs.cog import Cog
 
 from bot.bot import command, cooldown
-from utils.imagetools import (create_shadow, create_text, create_glow,
+from utils.imagetools import (create_shadow, create_text,
                               create_geopattern_background, shift_color,
-                              trim_image, remove_background,
+                              remove_background,
                               resize_keep_aspect_ratio, get_color,
                               IMAGES_PATH, image_from_url, GeoPattern,
                               color_distance, MAX_COLOR_DIFF)
 from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text,
-                             get_image_from_message, basic_check)
+                             get_image, basic_check, test_url)
 
 
 logger = logging.getLogger('debug')
@@ -244,218 +245,344 @@ class JoJo(Cog):
         stand = self._standify_text(stand, 2)
         await ctx.send(stand)
 
-    async def subcommand(self, ctx, content, delete_after=60, author=None, channel=None, check=None):
-        m_ = await ctx.send(content, delete_after=delete_after)
+    async def subcommand(self, ctx, content, delete_after=60, author=None, channel=None, check=None, del_msg=True):
+        m = await ctx.send(content, delete_after=delete_after)
         if callable(check):
             def _check(msg):
                 return check(msg) and basic_check(author, channel)
         else:
             _check = basic_check(author, channel)
-        msg = await self.bot.wait_for('message', check=_check, timeout=delete_after)
-        return m_, msg
+        try:
+            msg = await self.bot.wait_for('message', check=_check, timeout=delete_after)
+        except asyncio.TimeoutError:
+            msg = None
 
-    @command(aliases=['stand_generator'], ignore_extra=True)
+        if del_msg:
+            try:
+                await m.delete()
+            except discord.HTTPException:
+                pass
+
+        return msg
+
+    @command(aliases=['stand_generator', 'standgen'], ignore_extra=True)
     @cooldown(1, 10, BucketType.user)
     @bot_has_permissions(attach_files=True)
-    async def stand_gen(self, ctx, stand, user, image=None, advanced=None):
+    async def stand_gen(self, ctx, stand, user, image=None, *, params=None):
         """Generate a stand card. Arguments are stand name, user name and an image
 
         Image can be an attachment or a link. Passing -advanced as the last argument
         will enable advanced mode which gives the ability to tune some numbers.
-        Use quotes for names that have spaces e.g. {prefix}{name} "Star Platinum" "Jotaro Kujo" [image]
+        Use quotes for names that have spaces e.g.
+        `{prefix}{name} "Star Platinum" "Jotaro Kujo" [image]`
+        You can also answer all parameters in one command by adding the parameters on their own line
+        It works something like this
+        ```
+        {prefix}{name} "stand" "user"
+        A A A A A A
+        backround_image.png
+        triangles
+        n
+        ```
+
+        You can make the bot ask you the parameters by setting it just as an empty line. e.g.
+        ```
+        A A A A A A
+
+        triangles
+        ```
+        Would make the bot sak the background from you.
+
+        Here is a tree of the questions being asked.
+        If some answers lead to extra question they are indented to make it clear
+
+        1. Stats from A to E in the order power, speed, range, durability, precision, potential
+
+        2. Link to the background. Leave empty if you want a randomized pattern
+        2.......a) The geopattern and bg color separated by space. If either is left out it will be selected randomly
+
+        3. Do you want automatic background removal. Recommended answer is no. Typing y or yes will use it
         """
         author = ctx.author
-        name = author.name
         channel = ctx.channel
         stand = self._standify_text(stand, 2)
         user = '[STAND MASTER]\n' + user
         stand = '[STAND NAME]\n' + stand
         size = (1100, 700)
         shift = 800
+        advanced = False
 
-        if advanced is None and image == '-advanced':
+        if image is None:
+            pass
+        elif test_url(image):
+            pass
+        else:
+            params = params if params else ''
+            params = image + params
             image = None
-            advanced = True
-        elif advanced is not None:
-            advanced = advanced.strip() == '-advanced'
+
+        if params:
+            params = params.strip().split('\n')
+            advanced = params[-1].strip()
+            if advanced.endswith('-advanced'):
+                advanced = advanced[:-9].strip()
+                if advanced:
+                    params[-1] = advanced
+                else:
+                    params.pop(-1)
+
+                advanced = True
+
+            else:
+                advanced = False
+        else:
+            params = []
 
         if advanced:
-            await ctx.send('`{}` Advanced mode activated'.format(name), delete_after=20)
+            await ctx.send(f'{author} Advanced mode activated', delete_after=20)
 
-        image_ = await get_image_from_message(ctx, image)
-
-        img = await image_from_url(image_, self.bot.aiohttp_client)
-        if img is None:
-            image = image_ if image is None else image
-            return await ctx.send('`{}` Could not extract image from {}. Stopping command'.format(name, image))
-
-        m_, msg = await self.subcommand(ctx,
-            '`{}` Give the stand **stats** in the given order ranging from **A** to **E** '
-            'separated by **spaces**.\nDefault value is E\n`{}`'.format(name, '` `'.join(POWERS)),
-            delete_after=120, author=author, channel=channel)
-
-        await m_.delete()
-        if msg is None:
-            await ctx.send('{} cancelling stand generation'.format(author.name))
+        image = await get_image(ctx, image)
+        if not image:
             return
 
-        stats = msg.content.split(' ')
+        def get_next_param():
+            try:
+                return params.pop(0)
+            except IndexError:
+                return
+
+        stats = get_next_param()
+
+        if not stats:
+            msg = await self.subcommand(ctx,
+                '{} Give the stand **stats** in the given order ranging from **A** to **E** '
+                'separated by **spaces**.\nDefault value is E\n`{}`'.format(author, '` `'.join(POWERS)),
+                delete_after=120, author=author, channel=channel)
+
+            if msg is None:
+                await ctx.send(f'Timed out. {author} cancelling stand generation')
+                return
+
+            stats = msg.content
+
+        stats = stats.split(' ')
         stats = dict(zip_longest(POWERS, stats[:6]))
 
-        m_, msg = await self.subcommand(ctx,
-            '`{}` Use a custom background by uploading a **picture** or using a **link**. '
-            'Posting something other than an image will use the **generated background**'.format(name),
-            delete_after=120, author=author, channel=channel)
+        bg = get_next_param()
 
-        bg = get_picture_from_msg(msg)
-        await m_.delete()
+        if not bg:
+            msg = await self.subcommand(ctx,
+                f'{author}`Use a custom background by uploading a **picture** or using a **link**. '
+                'Posting something other than an image will use the **generated background**',
+                delete_after=120, author=author, channel=channel)
+
+            bg = get_picture_from_msg(msg)
+        else:
+            if not test_url(bg):
+                bg = None
+
+        color = None
+
         if bg is not None:
             try:
                 bg = bg.strip()
                 bg = await image_from_url(bg, self.bot.aiohttp_client)
-                dominant_color = get_color(bg)
-                color = Color(rgb=list(map(lambda c: c/255, dominant_color)))
-                bg = resize_keep_aspect_ratio(bg, size, True)
+
+                def process_bg():
+                    nonlocal bg, color
+                    dominant_color = get_color(bg)
+                    color = Color(rgb=list(map(lambda c: c/255, dominant_color)))
+                    bg = resize_keep_aspect_ratio(bg, size, crop_to_size=True)
+                    return color, bg
+
+                color, bg = await self.bot.loop.run_in_executor(self.bot.threadpool, process_bg)
             except Exception:
                 logger.exception('Failed to get background')
-                await ctx.send('`{}` Failed to use custom background. Using generated one'.format(name),
-                               delete_after=60.0)
+                await ctx.send(f'{author} Failed to use custom background. Using generated one',
+                               delete_after=60)
                 bg = None
 
         if bg is None:
-            color = None
             pattern = random.choice(GeoPattern.available_generators)
-            m_, msg = await self.subcommand(ctx,
-                "`{}` Generating background. Select a **pattern** and **color** separated by space. "
-                "Otherwise they'll will be randomly chosen. Available patterns:\n"
-                '{}'.format(name, '\n'.join(GeoPattern.available_generators)),
-                delete_after=120, channel=channel, author=author)
 
-            await m_.delete()
-            if msg is None:
-                await ctx.send('`{}` Selecting randomly'.format(name), delete_after=20)
-            if msg is not None:
-                msg = msg.content.split(' ')
-                pa, c = None, None
+            msg = get_next_param()
+
+            if not msg:
+                msg = await self.subcommand(ctx,
+                    "{} Generating background. Select a **pattern** and **color** separated by space. "
+                    "Otherwise they'll will be randomly chosen. Available patterns:\n"
+                    '{}'.format(author, '\n'.join(GeoPattern.available_generators)),
+                    delete_after=120, channel=channel, author=author)
+                msg = msg.content if msg else ''
+
+            if not msg:
+                await ctx.send('{} Selecting randomly'.format(author), delete_after=20)
+            else:
+                msg = msg.split(' ')
+                # Temporary containers for pattern and color
+                _pattern, _color = None, None
                 if len(msg) == 1:
-                    pa = msg[0]
+                    _pattern = msg[0]
                 elif len(msg) > 1:
-                    pa, c = msg[:2]
+                    _pattern, _color = msg[:2]
 
-                if pa in GeoPattern.available_generators:
-                    pattern = pa
+                if _pattern in GeoPattern.available_generators:
+                    pattern = _pattern
                 else:
-                    await ctx.send('`{}` Pattern {} not found. Selecting randomly'.format(name, pa),
+                    await ctx.send('{} Pattern {} not found. Selecting randomly'.format(author, _pattern),
                                    delete_after=20)
 
-                try:
-                    color = Color(c)
-                except:
-                    await ctx.send('`{}` {} not an available color'.format(name, c),
-                                   delete_after=20)
+                if _color:
+                    try:
+                        color = Color(_color)
+                    except:
+                        await ctx.send('{} {} not an available color'.format(author, _color),
+                                       delete_after=20)
 
-            bg, color = create_geopattern_background(size, stand + user,
-                                                     generator=pattern, color=color)
+            def do_bg():
+                return create_geopattern_background(size, stand + user,
+                                                    generator=pattern, color=color)
+
+            bg, color = await self.bot.loop.run_in_executor(self.bot.threadpool, do_bg)
 
         if advanced:
-            m_, msg = await self.subcommand(ctx,
-                '`{}` Input color value change as an **integer**. Default is {}. '
-                'You can also input a **color** instead of the change value. '
-                'The resulting color will be used in the stats circle'.format(name, shift),
-                delete_after=120, channel=channel, author=author)
+            msg = get_next_param()
+
+            if not msg:
+                msg = await self.subcommand(ctx,
+                    '{} Input color value change as an **integer**. Default is {}. '
+                    'You can also input a **color** instead of the change value. '
+                    'The resulting color will be used in the stats circle'.format(author, shift),
+                    delete_after=120, channel=channel, author=author)
+                msg = msg.content if msg else ''
 
             try:
-                shift = int(msg.content.split(' ')[0])
+                shift = int(msg.strip())
             except ValueError:
                 try:
-                    color = Color(msg.content.split(' ')[0])
+                    color = Color(msg)
                     shift = 0
                 except:
-                    await ctx.send('`{}` Could not set color or color change int. Using default values'.format(name),
+                    await ctx.send(f'{author} Could not set color or color change int. Using default values',
                                    delete_after=15)
 
-            await m_.delete()
+        try:
+            bg_color = Color(color)
+        except AttributeError:
+            logger.exception(f'Failed to set bg color from {color}')
+            return await ctx.send('Failed to set bg color')
 
-        bg_color = Color(color)
-        shift_color(color, shift)  # Shift color hue and saturation so it's not the same as the bg
+        def do_stuff():
+            # Shift color hue and saturation so it's not the same as the bg
+            shift_color(color, shift)
 
-        fig, _ = self.create_stats_circle(color=color.get_hex_l(), bg_color=bg_color, **stats)
-        path = os.path.join(IMAGES_PATH, 'stats.png')
-        with self.stat_lock:
-            try:
-                fig.savefig(path, transparent=True)
-                stat_img = Image.open(path)
-            except:
-                logger.exception('Could not create image')
-                return await ctx.send('`{}` Could not create picture because of an error.'.format(name))
-        plt.close(fig)
-        stat_img = stat_img.resize((int(stat_img.width * 0.85),
-                                    int(stat_img.height * 0.85)),
-                                   Image.BILINEAR)
+            fig, _ = self.create_stats_circle(color=color.get_hex_l(), bg_color=bg_color, **stats)
+            path = os.path.join(IMAGES_PATH, 'stats.png')
+            with self.stat_lock:
+                try:
+                    fig.savefig(path, transparent=True)
+                    stat_img = Image.open(path)
+                except:
+                    logger.exception('Could not create image')
+                    return '{} Could not create picture because of an error.'.format(author)
 
-        full = Image.new('RGBA', size)
+            plt.close(fig)
+            stat_img = stat_img.resize((int(stat_img.width * 0.85),
+                                        int(stat_img.height * 0.85)),
+                                       Image.BILINEAR)
 
-        x, y = (-60, full.height - stat_img.height)
-        stat_corner = (x + stat_img.width, y + stat_img.height)
-        full.paste(stat_img, (x, y, *stat_corner))
-        font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 40)
+            full = Image.new('RGBA', size)
+            # Coords for stat circle
+            x, y = (-60, full.height - stat_img.height)
+            stat_corner = (x + stat_img.width, y + stat_img.height)
+            full.paste(stat_img, (x, y, *stat_corner))
+            font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 40)
 
-        text = create_glow(create_shadow(create_text(stand, font, '#FFFFFF',
-                                        (int(full.width*0.75), int(y*0.8)), (10, 10)),
-                                         80, 3, 2, 4), 3).convert('RGBA')
-        full.paste(text, (20, 20), text)
-        text2 = create_glow(create_shadow(create_text(user, font, '#FFFFFF',
-                                        (int((full.width - stat_corner[0])*0.8),
-                                         int(full.height*0.7)),
-                                        (10, 10)), 80, 3, 2, 4), 3).convert('RGBA')
-        text2.load()
+            # Small glow blur can be created with create_glow and setting amount to 1 or lower
+            text = create_text(stand, font, '#FFFFFF', (int(full.width*0.75), int(y*0.8)), (10, 10))
+            text = create_shadow(text, 80, 3, 2, 4).convert('RGBA')
+            full.paste(text, (20, 20), text)
 
-        if img is not None:
-            im = trim_image(img)
+            text2 = create_text(user, font, '#FFFFFF', (int((full.width - stat_corner[0])*0.8), int(full.height*0.7)), (10, 10))
+            text2 = create_shadow(text2, 80, 3, 2, 4).convert('RGBA')
+            text2.load()
 
-            m_, msg = await self.subcommand(ctx,
-                '`{}` Try to automatically remove background (y/n)? '
-                'This might fuck the picture up and will take a moment'.format(name),
-                author=author, channel=channel, delete_after=120, check=y_n_check)
-            await m_.delete()
-            if msg and msg.content.lower() in ['y', 'yes']:
+            return full, stat_corner, text2
+
+        res = await self.bot.loop.run_in_executor(self.bot.threadpool, do_stuff)
+        if isinstance(res, str):
+            return await ctx.send(res)
+
+        full, stat_corner, text2 = res
+
+        if image is not None:
+            # No clue what this does so leaving it out
+            #im = trim_image(image)
+            im = image
+
+            msg = get_next_param()
+
+            if not msg:
+                msg = await self.subcommand(ctx,
+                    f'{author} Try to automatically remove background (y/n)? '
+                    'This might fuck the picture up and will take a moment',
+                    author=author, channel=channel, delete_after=120, check=y_n_check)
+
+                msg = msg.content if msg else ''
+
+            if msg and msg.lower() in ['y', 'yes']:
                 kwargs = {}
                 if advanced:
-                    m_, msg = await self.subcommand(ctx,
-                        '`{}` Change the arguments of background removing. Available'
-                        ' arguments are `blur`, `canny_thresh_1`, `canny_thresh_2`, '
-                        '`mask_dilate_iter`, `mask_erode_iter`. '
-                        'Accepted values are integers.\nArguments are added like this '
-                        '`-blur 30 -canny_thresh_2 50`. All arguments are optional'.format(name),
-                        channel=channel, author=author, delete_after=140)
-                    await m_.delete()
+                    msg = get_next_param()
+
+                    if not msg:
+                        msg = await self.subcommand(ctx,
+                            f'{author} Change the arguments of background removing. Available'
+                            ' arguments are `blur`, `canny_thresh_1`, `canny_thresh_2`, '
+                            '`mask_dilate_iter`, `mask_erode_iter`. '
+                            'Accepted values are integers.\nArguments are added like this '
+                            '`-blur 30 -canny_thresh_2 50`. All arguments are optional',
+                            channel=channel, author=author, delete_after=140)
+
+                        msg = msg.content if msg else ''
+
                     await channel.trigger_typing()
                     if msg is not None:
                         try:
-                            kwargs = self.parser.parse_known_args(msg.content.split(' '))[0].__dict__
+                            kwargs = self.parser.parse_known_args(msg.split(' '))[0].__dict__
                         except:
-                            await ctx.send('`{}` Could not get arguments from {}'.format(name, msg.content),
-                                               delete_after=20)
+                            await ctx.send(f'{author} Could not get arguments from {msg}',
+                                           delete_after=20)
 
                 try:
                     im = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(remove_background, im, **kwargs))
                 except Exception:
                     logger.exception('Failed to remove bg from image')
-                    await ctx.send('`{}` Could not remove background because of an error'.format(name),
-                                       delete_after=30)
+                    await ctx.send(f'{author} Could not remove background because of an error',
+                                   delete_after=30)
 
-            box = (500, 600)
-            im = resize_keep_aspect_ratio(im, box, can_be_bigger=False)
-            im = create_shadow(im, 70, 3, -22, -7).convert('RGBA')
-            full.paste(im, (full.width - im.width, int((full.height - im.height)/2)), im)
+            def resize_image():
+                nonlocal im
+                # Size of user pic
+                box = (500, 600)
+                im = resize_keep_aspect_ratio(im, box, can_be_bigger=False, resample=Image.BICUBIC)
+                im = create_shadow(im, 70, 3, -22, -7).convert('RGBA')
+                full.paste(im, (full.width - im.width, int((full.height - im.height)/2)), im)
+
+            await self.bot.loop.run_in_executor(self.bot.threadpool, resize_image)
 
         await channel.trigger_typing()
-        full.paste(text2,(int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)), text2)
-        bg.paste(full, (0, 0), full)
 
-        file = BytesIO()
-        bg.save(file, format='PNG')
-        file.seek(0)
+        def finalize_image():
+            full.paste(text2, (int((full.width - stat_corner[0]) * 0.9), int(full.height * 0.7)), text2)
+            bg.paste(full, (0, 0), full)
+
+            file = BytesIO()
+            bg.save(file, format='PNG')
+            file.seek(0)
+            return file
+
+        file = await self.bot.loop.run_in_executor(self.bot.threadpool, finalize_image)
         await ctx.send(file=discord.File(file, filename='stand_card.png'))
 
 

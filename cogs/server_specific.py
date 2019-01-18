@@ -9,6 +9,7 @@ from typing import Union
 
 import discord
 import emoji
+from aioredis.errors import ConnectionClosedError
 from discord.errors import HTTPException
 from discord.ext.commands import (BucketType, check, bot_has_permissions)
 from numpy import sqrt
@@ -23,6 +24,7 @@ from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
                              check_botperm)
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 def create_check(guild_ids):
@@ -676,7 +678,20 @@ class ServerSpecific(Cog):
             return
 
         key = f'{message.guild.id}:{user.id}'
-        value = await self.redis.get(key)
+        try:
+            value = await self.redis.get(key)
+        except ConnectionClosedError:
+            import aioredis
+            terminal.exception('Conncetion closed. Reconnecting')
+            redis = await aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
+                                        password=self.bot.config.redis_auth,
+                                        loop=self.bot.loop, encoding='utf-8')
+
+            old = self.bot.redis
+            self.bot.redis = redis
+            del old
+            return
+
         if value:
             score, repeats, last_msg = value.split(':', 2)
             score = float(score)

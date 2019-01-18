@@ -23,11 +23,11 @@ from bot.bot import command, cooldown
 from bot.converters import CleanContent
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
-from utils.imagetools import (resize_keep_aspect_ratio, image_from_url,
-                              gradient_flash, sepia, optimize_gif, func_to_gif,
+from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
+                              optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
 from utils.utilities import (get_image_from_message, find_coeffs, check_botperm,
-                             split_string)
+                             split_string, get_image)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -270,35 +270,12 @@ class Images(Cog):
         data.seek(0)
         return data
 
-    async def _get_image(self, ctx, image):
-        img = await get_image_from_message(ctx, image)
-        if img is None:
-            if image is not None:
-                await ctx.send(f'No image found from {image}')
-            else:
-                await ctx.send('Please input a mention, emote or an image when using the command')
-
-            return
-
-        img = await self._dl_image(ctx, img)
-        return img
-
-    async def _dl_image(self, ctx, url):
-        try:
-            img = await image_from_url(url, self.bot.aiohttp_client)
-        except OverflowError:
-            await ctx.send('Failed to download. File is too big')
-        except TypeError:
-            await ctx.send('Link is not a direct link to an image')
-        else:
-            return img
-
     @command(ignore_extra=True)
     @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths(self, ctx, image=None):
         """Generate a top 10 anime deaths image based on provided image"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths.png')
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -329,7 +306,7 @@ class Images(Cog):
     async def anime_deaths2(self, ctx, image=None):
         """same as anime_deaths but with a transparent bg"""
         path = os.path.join(TEMPLATES, 'saddest-anime-deaths2.png')
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -360,7 +337,7 @@ class Images(Cog):
     async def trap(self, ctx, image=None):
         """Is it a trap?
         """
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -395,7 +372,7 @@ class Images(Cog):
     @cooldown(3, 5, BucketType.guild)
     async def jotaro(self, ctx, image=None):
         """Jotaro wasn't pleased"""
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
         await ctx.trigger_typing()
@@ -437,7 +414,7 @@ class Images(Cog):
         # Should be used if it can be embedded since the file size is much smaller
         use_webp = False
 
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -501,7 +478,7 @@ class Images(Cog):
     @command(ignore_extra=True, aliases=['jotaro3'])
     @cooldown(2, 5, BucketType.guild)
     async def jotaro_smile(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
         await ctx.trigger_typing()
@@ -528,7 +505,7 @@ class Images(Cog):
     @command(ignore_extra=True, aliases=['jotaro4'])
     @cooldown(2, 5, BucketType.guild)
     async def jotaro_photo2(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -558,7 +535,7 @@ class Images(Cog):
         Usage: {prefix}{name} `image/emote/mention` `[optional sepia filter off] on/off`
         Sepia filter is on by default
         """
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if not img:
             return
 
@@ -596,7 +573,7 @@ class Images(Cog):
     @command(aliases=['heaven', 'heavens_door'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def overheaven(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if not img:
             return
         await ctx.trigger_typing()
@@ -620,7 +597,7 @@ class Images(Cog):
     @command(aliases=['puccireset'], ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def pucci(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if not img:
             return
         await ctx.trigger_typing()
@@ -644,7 +621,7 @@ class Images(Cog):
     @cooldown(2, 5, BucketType.guild)
     async def doppio(self, ctx, image=None):
         """image of doppio"""
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if not img:
             return
         await ctx.trigger_typing()
@@ -675,7 +652,7 @@ class Images(Cog):
     @cooldown(1, 10, BucketType.guild)
     async def party(self, ctx, image=None):
         """Takes a long ass time to make the gif"""
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -687,7 +664,7 @@ class Images(Cog):
     @command(ignore_extra=True)
     @cooldown(1, 10, BucketType.guild)
     async def party2(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -698,7 +675,7 @@ class Images(Cog):
     @command(ignore_extra=True)
     @cooldown(2, 2, type=BucketType.guild)
     async def blurple(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -735,10 +712,10 @@ class Images(Cog):
         If this happens try making the speed value smaller
         """
         if speed is None:
-            img = await self._get_image(ctx, None)
+            img = await get_image(ctx, None)
             speed = image
         else:
-            img = await self._get_image(ctx, image)
+            img = await get_image(ctx, image)
 
         if img is None:
             return
@@ -793,7 +770,7 @@ class Images(Cog):
     @command(ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def smug(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
 
         if img is None:
             return
@@ -817,7 +794,7 @@ class Images(Cog):
     @command(ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def seeyouagain(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -839,7 +816,7 @@ class Images(Cog):
     @command(ignore_extra=True, aliases=['sha'])
     @cooldown(2, 5, BucketType.guild)
     async def sheer_heart_attack(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -861,7 +838,7 @@ class Images(Cog):
     @command(ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def kira(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -886,7 +863,7 @@ class Images(Cog):
     @command(ignore_extra=True)
     @cooldown(2, 5, BucketType.guild)
     async def josuke(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -911,7 +888,7 @@ class Images(Cog):
     @command(ignore_extra=True, aliases=['josuke2'])
     @cooldown(2, 5, BucketType.guild)
     async def josuke_binoculars(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -937,7 +914,7 @@ class Images(Cog):
     @command(ignore_extra=True, aliases=['02'])
     @cooldown(2, 5, BucketType.guild)
     async def zerotwo(self, ctx, image=None):
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -964,7 +941,7 @@ class Images(Cog):
         """
         If stretch is set off the image will not be stretched to size
         """
-        img = await self._get_image(ctx, image)
+        img = await get_image(ctx, image)
         if img is None:
             return
 
@@ -994,6 +971,9 @@ class Images(Cog):
     @cooldown(2, 5, BucketType.guild)
     async def narancia(self, ctx, *, text: CleanContent(escape_markdown=True, fix_channel_mentions=True,
                                                         remove_everyone=False, fix_emotes=True)):
+        """
+        Make narancia write your choice of text on paper
+        """
         text = text.strip('\u200b \n\r\t')
 
         def do_it():

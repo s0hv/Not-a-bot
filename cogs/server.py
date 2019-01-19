@@ -112,7 +112,7 @@ class Server(Cog):
     @cooldown(1, 10)
     async def join(self, ctx, page: int=1):
         """Sort users by join date"""
-        await self._date_sort(ctx, page, lambda u: u.joined_at, 'joined')
+        await self._date_sort(ctx, page, lambda u: u.joined_at or datetime.utcnow(), 'joined')
 
     @top.command(np_pm=True)
     @cooldown(1, 10)
@@ -122,7 +122,7 @@ class Server(Cog):
 
     @command(no_dm=True, aliases=['mr_top', 'mr_stats'])
     @cooldown(2, 5, BucketType.channel)
-    async def mute_roll_top(self, ctx, user: PossibleUser=None):
+    async def mute_roll_top(self, ctx, *, user: PossibleUser=None):
         stats = await self.bot.dbutil.get_mute_roll(ctx.guild.id)
         if not stats:
             return await ctx.send('No mute roll stats on this server')

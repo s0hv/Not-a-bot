@@ -161,12 +161,15 @@ class Playlist:
             return song
 
     async def cache_songs(self, amount_to_cache=10):
-        for idx, song in enumerate(self.playlist):
+        for idx, song in enumerate(self.playlist.copy()):
             if idx == 0:
                 continue
 
             if idx >= amount_to_cache:
                 break
+
+            if song not in self.playlist:
+                continue
 
             await song.download()
 

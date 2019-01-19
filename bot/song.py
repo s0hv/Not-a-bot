@@ -232,7 +232,7 @@ class Song:
         except Exception as e:
             logger.exception('Download error: {}'.format(e))
             try:
-                await self.playlist.channel.send('Failed to download {0}\nlink: {1}'.format(self.title, self.webpage_url))
+                await self.playlist.channel.send('Failed to download {0}\nlink: <{1}>'.format(self.title, self.webpage_url))
             except discord.HTTPException:
                 pass
 

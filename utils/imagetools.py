@@ -42,13 +42,14 @@ from numpy import sqrt
 
 from bot.exceptions import (ImageSizeException, ImageResizeException,
                             TooManyFrames, ImageDownloadError)
+from bot.globals import IMAGES_PATH
 
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
-IMAGES_PATH = os.path.join(os.getcwd(), 'data', 'images')
+
 MAGICK = 'magick '
 try:
     subprocess.call(['magick'], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -58,8 +59,6 @@ except FileNotFoundError:
 MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
 GLOW_LOCK = Lock()
 TRIMMING_LOCK = Lock()
-if not os.path.exists(IMAGES_PATH):
-    os.mkdir(IMAGES_PATH)
 
 
 def make_shiftable(color):

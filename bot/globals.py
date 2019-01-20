@@ -49,6 +49,7 @@ POKESTATS = join(DATA, 'pokestats')
 PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
 PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
 WORKING_DIR = _wd
+IMAGES_PATH = os.path.join(_wd, 'data', 'images')
 
 PERMISSION_OPTIONS = {'name': None, 'ban_commands': False, 'master_override': False,
                       'playlists': True, 'max_playlist_length': 10, 'edit_autoplaylist': False,
@@ -70,6 +71,8 @@ def create_folders():
     _create_folder(SFX_FOLDER)
 
     _create_folder(PERMISSIONS_FOLDER)
+
+    _create_folder(IMAGES_PATH)
 
 
 create_folders()

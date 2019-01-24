@@ -12,6 +12,34 @@ from utils.utilities import call_later
 from utils.utilities import read_lines
 
 
+class WrestlingGif:
+    def __init__(self, url, text):
+        self.url = url
+        self.text = text
+
+    def build_embed(self, author, recipient):
+        description = self.text.format(author=author, recipient=recipient)
+        embed = discord.Embed(description=description)
+        embed.set_image(url=self.url)
+        return embed
+
+
+wrestling_gifs = [
+    WrestlingGif('https://i.imgur.com/xUi2Vq1.gif', "**{recipient.name}** tries to grab but it fails. **{author.name}** grabs **{recipient.name}**"),
+    WrestlingGif('https://i.imgur.com/osDWTHG.gif', "**{recipient.name}** tries to escape but **{author.name}** pins them down"),
+    WrestlingGif('https://i.imgur.com/HS6R463.gif', "**{author.name}** lifts **{recipient.name}** up. **{recipient.name}** is powerless to do anything"),
+    WrestlingGif('https://i.imgur.com/jbE2XVt.gif', "**{author.name}** challenges **{recipient.name}** to a friendly wrestling match"),
+    WrestlingGif('https://i.imgur.com/XVUjH9x.gif', "**{recipient.name}** tries to attack but **{author.name}** counters"),
+    WrestlingGif('https://i.imgur.com/vTeoYAE.gif', "**{author.name}** and **{recipient.name}** engage in a battle of strength"),
+    WrestlingGif('https://i.imgur.com/iu2kiVy.gif', "**{author.name}** gets a hold of **{recipient.name}**"),
+    WrestlingGif('https://i.imgur.com/BulkVW1.gif', "**{author.name}** gets **{recipient.name}** with a knee strike"),
+    WrestlingGif('https://i.imgur.com/zXaIYLp.gif', "**{author.name}** beats **{recipient.name}** down"),
+    WrestlingGif('https://i.imgur.com/XNOMUcg.gif', "**{author.name}** delivers a low blow to **{recipient.name}**. Nasty strategy"),
+    #WrestlingGif('https://i.imgur.com/oSG0V6a.gif', "to do"),
+    WrestlingGif('https://i.imgur.com/u0H0ZSA.gif', "**{author.name}** grabs **{recipient.name}**s fucking pants <:GWjojoGachiGASM:363025405562585088>")
+]
+
+
 class gachiGASM(Cog):
     def __init__(self, bot):
         super().__init__(bot)
@@ -111,6 +139,17 @@ class gachiGASM(Cog):
     async def unsubscribe(self, ctx):
         await self.bot.guild_cache.set_dailygachi(ctx.guild.id, None)
         await ctx.send('Dailygachi channel no longer set')
+
+    @command(no_pm=True)
+    @cooldown(1, 5, BucketType.member)
+    async def wrestle(self, ctx, *, user: discord.User):
+        if user == ctx.author:
+            await ctx.send('Wrestling against yourself...')
+            return
+
+        wrestling_gif = choice(wrestling_gifs)
+
+        await ctx.send(embed=wrestling_gif.build_embed(ctx.author, user))
 
 
 def setup(bot):

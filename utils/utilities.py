@@ -1384,3 +1384,23 @@ def seek_from_timestamp(timestamp):
     ms = str(round(ms, 3))[2:]
 
     return {'h': h, 'm': m, 's': s, 'ms': ms}
+
+
+async def wants_to_be_noticed(member, guild, remove=True):
+    role = guild.get_role(318762162552045568)
+    if not role:
+        return
+
+    if role in member.roles:
+        return
+
+    name = member.name if not member.nick else member.nick
+    if ord(name[0]) <= 46:
+        await retry(member.add_roles, role, break_on=discord.Forbidden,
+                    reason="Wants attention")
+        return True
+
+    elif remove and role in member.roles:
+        await retry(member.remove_roles, role, break_on=discord.Forbidden,
+                    reason="Doesn't want attention")
+        return False

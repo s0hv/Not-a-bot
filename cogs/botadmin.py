@@ -32,7 +32,8 @@ from cogs.cog import Cog
 from utils.utilities import split_string
 from utils.utilities import (y_n_check, basic_check, y_check, check_import,
                              parse_timeout,
-                             call_later, seconds2str, test_url)
+                             call_later, seconds2str, test_url,
+                             wants_to_be_noticed)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -448,7 +449,7 @@ class BotAdmin(Cog):
             added = 0
             removed = 0
             for member in list(guild.members):
-                res = await self.bot._wants_to_be_noticed(member, guild)
+                res = await wants_to_be_noticed(member, guild)
                 if res is True:
                     added += 1
                 elif res is False:

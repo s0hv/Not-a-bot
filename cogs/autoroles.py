@@ -4,7 +4,7 @@ from random import choice
 import discord
 
 from cogs.cog import Cog
-from utils.utilities import Snowflake
+from utils.utilities import Snowflake, wants_to_be_noticed
 
 logger = logging.getLogger('debug')
 
@@ -39,7 +39,7 @@ class AutoRoles(Cog):
             name = before.name if not before.nick else before.nick
             name2 = after.name if not after.nick else after.nick
             if name != name2:
-                await self.bot._wants_to_be_noticed(after, guild)
+                await wants_to_be_noticed(after, guild)
 
         if self.bot.guild_cache.keeproles(guild.id):
             removed, added = self.compare_roles(before, after)
@@ -115,7 +115,7 @@ class AutoRoles(Cog):
                     logger.exception('Failed to give role on join')
 
         if guild.id == 217677285442977792:
-            await self.bot._wants_to_be_noticed(member, guild)
+            await wants_to_be_noticed(member, guild)
 
     async def on_member_remove(self, member):
         if not self.bot.guild_cache.keeproles(member.guild.id):

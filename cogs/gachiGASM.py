@@ -36,7 +36,15 @@ wrestling_gifs = [
     WrestlingGif('https://i.imgur.com/zXaIYLp.gif', "**{author.name}** beats **{recipient.name}** down"),
     WrestlingGif('https://i.imgur.com/XNOMUcg.gif', "**{author.name}** delivers a low blow to **{recipient.name}**. Nasty strategy"),
     #WrestlingGif('https://i.imgur.com/oSG0V6a.gif', "to do"),
-    WrestlingGif('https://i.imgur.com/u0H0ZSA.gif', "**{author.name}** grabs **{recipient.name}**s fucking pants <:GWjojoGachiGASM:363025405562585088>")
+    WrestlingGif('https://i.imgur.com/u0H0ZSA.gif', "**{author.name}** grabs **{recipient.name}**s fucking pants <:GWjojoGachiGASM:363025405562585088>"),
+    WrestlingGif('https://i.imgur.com/VFruiTR.gif', "**{author.name}** flexes on **{recipient.name}** after kicking their ass. WOO"),
+    WrestlingGif('https://i.imgur.com/YCd1aSo.gif', "**{author.name}** beats **{recipient.name}** up"),
+    WrestlingGif('https://i.imgur.com/M3sAu23.gif', "**{author.name}** chokes **{recipient.name}**"),
+    WrestlingGif('https://i.imgur.com/inEROy3.gif', "**{author.name}** throws **{recipient.name}** on the ground"),
+    WrestlingGif('https://i.imgur.com/8qI8f1M.gif', "**{author.name}** battles **{recipient.name}** in a feat of pure strength"),
+    WrestlingGif('https://i.imgur.com/xhVIjIt.gif', "**{author.name}** lifts **{recipient.name}** up"),
+    WrestlingGif('https://i.imgur.com/RW07zr0.gif', "**{author.name}** escapes the choke of **{recipient.name}**"),
+    WrestlingGif('https://i.imgur.com/g6wVGpG.gif', "**{author.name}** escapes **{recipient.name}**s grab and begins a counter-attack")
 ]
 
 

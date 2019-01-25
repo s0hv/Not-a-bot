@@ -1391,11 +1391,11 @@ async def wants_to_be_noticed(member, guild, remove=True):
     if not role:
         return
 
-    if role in member.roles:
-        return
-
     name = member.name if not member.nick else member.nick
     if ord(name[0]) <= 46:
+        if role in member.roles:
+            return
+
         await retry(member.add_roles, role, break_on=discord.Forbidden,
                     reason="Wants attention")
         return True

@@ -866,13 +866,13 @@ class Moderator(Cog):
 
     @unmute.command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
-    async def when(self, ctx, *, user: PossibleUser=None):
+    async def when(self, ctx, *, user: discord.Member=None):
         """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
     @command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
-    async def unmute_when(self, ctx, *, user: PossibleUser=None):
+    async def unmute_when(self, ctx, *, user: discord.Member=None):
         """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 

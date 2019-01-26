@@ -851,8 +851,8 @@ class Moderator(Cog):
 
         if embed:
             embed = discord.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or discord.Embed.Empty)
-            embed.add_field(name='Who muted', value=author)
-            embed.add_field(name='Reason', value=reason)
+            embed.add_field(name='Who muted', value=author, inline=False)
+            embed.add_field(name='Reason', value=reason, inline=False)
             embed.set_footer(text='Expires at')
 
             if row['embed']:

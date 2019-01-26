@@ -14,7 +14,7 @@ from bot.converters import MentionedMember, PossibleUser, TimeDelta
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
-                             datetime2sql, get_avatar, find_user,
+                             datetime2sql, get_avatar, is_image_url,
                              seconds2str, get_role, get_channel, Snowflake,
                              basic_check, sql2timedelta, check_botperm)
 
@@ -101,7 +101,7 @@ class Moderator(Cog):
                 else:
                     guild_timeouts = self.timeouts.get(guild)
 
-                t = guild_timeouts.get(user)
+                t = guild_timeouts.pop(user, None)
                 if t:
                     t.cancel()
 
@@ -424,6 +424,8 @@ class Moderator(Cog):
             await ctx.send('Could not mute user {}'.format(user))
             return
 
+        await self.add_mute_reason(ctx, user.id, reason)
+
         guild_timeouts = self.timeouts.get(guild.id, {})
         task = guild_timeouts.get(user.id)
         if task:
@@ -571,6 +573,8 @@ class Moderator(Cog):
 
     async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
                           reason='No reason'):
+
+        await self.add_mute_reason(ctx, user_id, reason)
         try:
             await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on, reason)
         except SQLAlchemyError:
@@ -631,6 +635,58 @@ class Moderator(Cog):
 
         else:
             await ctx.send('Slowmode set to %ss' % time)
+
+    def _reason_url(self, ctx, reason):
+        embed = None
+        if ctx.message.attachments:
+            for a in ctx.message.attachments:
+                if a.width:
+                    embed = a.url
+                    break
+
+        else:
+            for s in reason.split(' '):
+                url = s.strip('\n')
+                if is_image_url(url):
+                    embed = url
+                    break
+
+        return embed
+
+    async def add_mute_reason(self, ctx, user_id, reason):
+        embed = self._reason_url(ctx, reason)
+
+        try:
+            sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`) VALUES ' \
+                  '(:guild, :user, :author, :reason, :embed) ON DUPLICATE KEY UPDATE ' \
+                  'reason=:reason, embed=:embed, author=:author'
+            d = {
+                'guild': ctx.guild.id,
+                'user': user_id,
+                'author': ctx.author.id,
+                'reason': reason,
+                'embed': embed
+            }
+            await self.bot.dbutils.execute(sql, params=d, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Fail to log timeout')
+
+    async def edit_mute_reason(self, ctx, user_id, reason):
+        embed = self._reason_url(ctx, reason)
+        sql = 'UPDATE `timeout_logs` SET reason=:reason, embed=:embed ' \
+              'WHERE guild=:guild AND user=:user AND author=:author'
+
+        try:
+            d = {
+                'guild': ctx.guild.id,
+                'user': user_id,
+                'author': ctx.author.id,
+                'reason': reason,
+                'embed': embed
+            }
+            await self.bot.dbutils.execute(sql, params=d, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Fail to edit timeout reason')
 
     @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)
@@ -708,16 +764,6 @@ class Moderator(Cog):
 
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
-            if guild.id == 217677285442977792:
-                try:
-                    sql = 'INSERT INTO `timeout_logs` (`guild`, `user`, `time`, `reason`) VALUES ' \
-                          '(:guild, :user, :time, :reason)'
-                    d = {'guild': guild.id, 'user': ctx.author.id,
-                         'time': time.total_seconds(), 'reason': reason}
-                    await self.bot.dbutils.execute(sql, params=d, commit=True)
-                except SQLAlchemyError:
-                    logger.exception('Fail to log timeout')
-
             await ctx.send('Muted user {} for {}'.format(user, time))
             chn = self.get_modlog(guild)
             if chn:
@@ -767,13 +813,8 @@ class Moderator(Cog):
 
     async def _unmute_when(self, ctx, user, embed=True):
         guild = ctx.guild
-        if user:
-            member = find_user(' '.join(user), guild.members, case_sensitive=True, ctx=ctx)
-        else:
-            member = ctx.author
+        member = user if user else ctx.author
 
-        if not member:
-            return await ctx.send('User %s not found' % ' '.join(user))
         muted_role = self.bot.guild_cache.mute_role(guild.id)
         if not muted_role:
             return await ctx.send(f'No mute role set on this server. You can set it with {ctx.prefix}settings mute_role role name')
@@ -781,7 +822,9 @@ class Moderator(Cog):
         if not list(filter(lambda r: r.id == muted_role, member.roles)):
             return await ctx.send('%s is not muted' % member)
 
-        sql = 'SELECT expires_on, reason FROM `timeouts` WHERE guild=%s AND user=%s' % (guild.id, member.id)
+        sql = 'SELECT t.expires_on, tl.reason, tl.author, tl.embed FROM `timeouts` t ' \
+              'RIGHT JOIN timeout_logs tl ON tl.guild=t.guild AND tl.user=t.user ' \
+              'WHERE tl.guild=%s AND tl.user=%s' % (guild.id, member.id)
 
         try:
             row = (await self.bot.dbutil.execute(sql)).first()
@@ -789,30 +832,47 @@ class Moderator(Cog):
             return await ctx.send('Failed to check mute status')
 
         if not row:
-            return await ctx.send('User %s is permamuted' % str(member))
+            return await ctx.send(f'User {member} is permamuted without a reason')
 
-        delta = row['expires_on'] - datetime.utcnow()
+        td = f'User {member} is permamuted\n'
+        if row['expires_on']:
+            delta = row['expires_on'] - datetime.utcnow()
+            td = seconds2str(delta.total_seconds(), False)
+            td = f'Timeout for {member} expires in {td}\n'
+
         reason = row['reason']
-        s = 'Timeout for %s expires in %s\n' % (member, seconds2str(delta.total_seconds(), False))
-        reason_s = 'Timeout reason: %s' % reason
+        author = row['author']
+        author_user = self.bot.get_user(author)
+
+        if not author_user:
+            author = f'User responsible for timeout: `uid {author}`\n'
+        else:
+            author = f'User responsible for timeout: {author_user} `{author_user.id}`\n'
 
         if embed:
-            embed = discord.Embed(title='Unmute when', description=s, timestamp=row['expires_on'])
-            embed.add_field(name='Reason', value=reason_s)
+            embed = discord.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or discord.Embed.Empty)
+            embed.add_field(name='Who muted', value=author)
+            embed.add_field(name='Reason', value=reason)
             embed.set_footer(text='Expires at')
+
+            if row['embed']:
+                embed.set_image(url=row['embed'])
+
             await ctx.send(embed=embed)
         else:
+            reason = f'Timeout reason: {reason}'
+            s = td + author + reason
             await ctx.send(s)
 
     @unmute.command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
-    async def when(self, ctx, *user):
+    async def when(self, ctx, *, user: PossibleUser=None):
         """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
     @command(no_pm=True)
     @cooldown(1, 3, BucketType.user)
-    async def unmute_when(self, ctx, *user):
+    async def unmute_when(self, ctx, *, user: PossibleUser=None):
         """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
@@ -1190,10 +1250,7 @@ class Moderator(Cog):
         user_id = re.findall(r'(\d+)', msg.embeds[0].description)
         if user_id:
             user_id = int(user_id[-1])
-            try:
-                await self.bot.dbutil.edit_timeout(ctx.guild.id, user_id, reason)
-            except SQLAlchemyError:
-                logger.exception('Failed to change modlog reason')
+            await self.edit_mute_reason(ctx, user_id, reason)
 
         await ctx.send('Reason edited')
 

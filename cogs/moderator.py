@@ -636,10 +636,11 @@ class Moderator(Cog):
         else:
             await ctx.send('Slowmode set to %ss' % time)
 
-    def _reason_url(self, ctx, reason):
+    def _reason_url(self, message, reason):
         embed = None
-        if ctx.message.attachments:
-            for a in ctx.message.attachments:
+
+        if message.attachments:
+            for a in message.attachments:
                 if a.width:
                     embed = a.url
                     break
@@ -654,7 +655,7 @@ class Moderator(Cog):
         return embed
 
     async def add_mute_reason(self, ctx, user_id, reason):
-        embed = self._reason_url(ctx, reason)
+        embed = self._reason_url(ctx if isinstance(ctx, discord.Message) else ctx.message, reason)
 
         try:
             sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`) VALUES ' \
@@ -672,7 +673,7 @@ class Moderator(Cog):
             logger.exception('Fail to log timeout')
 
     async def edit_mute_reason(self, ctx, user_id, reason):
-        embed = self._reason_url(ctx, reason)
+        embed = self._reason_url(ctx if isinstance(ctx, discord.Message) else ctx.message, reason)
         sql = 'UPDATE `timeout_logs` SET reason=:reason, embed=:embed ' \
               'WHERE guild=:guild AND user=:user AND author=:author'
 

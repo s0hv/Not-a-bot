@@ -667,7 +667,7 @@ class Moderator(Cog):
             d = {
                 'guild': ctx.guild.id,
                 'user': user_id,
-                'author': author.id or ctx.author.id,
+                'author': author.id if author else ctx.author.id,
                 'reason': reason,
                 'embed': embed
             }

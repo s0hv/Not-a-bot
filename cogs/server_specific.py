@@ -765,10 +765,14 @@ class ServerSpecific(Cog):
                 await channel.send(f'{user.mention} got muted for spam with score of {score} at {message.created_at}')
 
             time = timedelta(hours=2)
-            await moderator.add_timeout(message.channel, guild.id, user.id,
+            if self.bot.timeouts.get(guild.id, {}).get(user.id):
+                return
+
+            await moderator.add_timeout(await self.bot.get_context(message), guild.id, user.id,
                                         datetime.utcnow() + time,
                                         time.total_seconds(),
-                                        reason='Automuted for spam. Certainty %s' % certainty)
+                                        reason='Automuted for spam. Certainty %s' % certainty,
+                                        author=guild.me)
 
             d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author,
                                                              time)

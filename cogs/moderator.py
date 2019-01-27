@@ -182,9 +182,10 @@ class Moderator(Cog):
                 await msg.delete()
 
                 time = timedelta(days=3)
-                await self.add_timeout(message.channel, guild.id, user.id,
+                await self.add_timeout(await self.bot.get_context(message), guild.id, user.id,
                                        datetime.utcnow() + time, time.total_seconds(),
-                                       reason=f'Automuted for {message.content}')
+                                       reason=f'Automuted for {message.content}',
+                                       author=guild.me)
 
                 await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
                 d = f'Automuted user {user} `{user.id}` for {time}'
@@ -214,8 +215,9 @@ class Moderator(Cog):
                         if time is not None:
                             if isinstance(time, str):
                                 time = sql2timedelta(time)
-                            await self.add_timeout(message.channel, guild.id, user.id, datetime.utcnow() + time, time.total_seconds(),
-                                                   reason='Automuted for too many mentions')
+                            await self.add_timeout(await self.bot.get_context(message), guild.id, user.id, datetime.utcnow() + time, time.total_seconds(),
+                                                   reason='Automuted for too many mentions',
+                                                   author=guild.me)
                             d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, time)
                         else:
                             d = 'Automuted user {0} `{0.id}`'.format(message.author)
@@ -552,7 +554,8 @@ class Moderator(Cog):
 
             choices.remove(loser)
             await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds(),
-                                   reason=f'Lost mute roll to {choices[0]}')
+                                   reason=f'Lost mute roll to {choices[0]}',
+                                   author=ctx.guild.me)
             try:
                 await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
             except discord.DiscordException:
@@ -572,9 +575,9 @@ class Moderator(Cog):
             logger.exception('Could not delete untimeout')
 
     async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
-                          reason='No reason'):
+                          reason='No reason', author=None):
 
-        await self.add_mute_reason(ctx, user_id, reason)
+        await self.add_mute_reason(ctx, user_id, reason, author=author)
         try:
             await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on, reason)
         except SQLAlchemyError:
@@ -636,11 +639,11 @@ class Moderator(Cog):
         else:
             await ctx.send('Slowmode set to %ss' % time)
 
-    def _reason_url(self, message, reason):
+    def _reason_url(self, ctx, reason):
         embed = None
 
-        if message.attachments:
-            for a in message.attachments:
+        if ctx.message.attachments:
+            for a in ctx.message.attachments:
                 if a.width:
                     embed = a.url
                     break
@@ -654,8 +657,8 @@ class Moderator(Cog):
 
         return embed
 
-    async def add_mute_reason(self, ctx, user_id, reason):
-        embed = self._reason_url(ctx if isinstance(ctx, discord.Message) else ctx.message, reason)
+    async def add_mute_reason(self, ctx, user_id, reason, author=None):
+        embed = self._reason_url(ctx, reason)
 
         try:
             sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`) VALUES ' \
@@ -664,7 +667,7 @@ class Moderator(Cog):
             d = {
                 'guild': ctx.guild.id,
                 'user': user_id,
-                'author': ctx.author.id,
+                'author': author.id or ctx.author.id,
                 'reason': reason,
                 'embed': embed
             }

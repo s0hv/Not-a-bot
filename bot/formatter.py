@@ -255,12 +255,13 @@ class Paginator:
         title = title or self.title
         description = description or self.description
         overflow = None
-        if paginate_description:
-            description_ = description[:Limits.Description]
-            overflow = description[Limits.Description:]
-            description = description_
-        else:
-            description = description[:Limits.Description]
+        if description:
+            if paginate_description:
+                description_ = description[:Limits.Description]
+                overflow = description[Limits.Description:]
+                description = description_
+            else:
+                description = description[:Limits.Description]
 
         self._pages.append(Embed(title=title, description=description))
         self._current_page += 1

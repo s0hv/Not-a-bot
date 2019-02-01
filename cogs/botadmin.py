@@ -746,7 +746,7 @@ class BotAdmin(Cog):
     async def complete_todo(self, ctx, id: int):
         sql = 'UPDATE `todo` SET completed_at=CURRENT_TIMESTAMP, completed=TRUE WHERE id=%s AND completed=FALSE' % id
 
-        res = await self.bot.dbutil.execute(sql)
+        res = await self.bot.dbutil.execute(sql, commit=True)
         await ctx.send(f'{res.rowcount} rows updated')
 
     @command(owner_only=True)

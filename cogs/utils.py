@@ -421,25 +421,29 @@ class Utilities(Cog):
                 word_blacklist = [s.lower().strip(',.') for s in word_blacklist.split(' ')]
 
         emoji_cache = {}
-        for s in text.split(' '):
-            es = s.lower().strip(',.')
-            # We don't want to look for emotes that are only a couple characters long
-            if len(s) < 3 or (word_blacklist and es in word_blacklist):
-                new_text += s + ' '
-                continue
+        lines = text.split('\n')
+        for line in lines:
+            for s in line.split(' '):
+                es = s.lower().strip(',.')
+                # We don't want to look for emotes that are only a couple characters long
+                if len(s) < 3 or (word_blacklist and es in word_blacklist):
+                    new_text += s + ' '
+                    continue
 
-            e = emoji_cache.get(es)
-            if not e:
-                e = self.find_emoji(emojis, es)
-                if e is None:
-                    e = s
-                else:
-                    e = str(e)
-                    emoji_cache[es] = e
+                e = emoji_cache.get(es)
+                if not e:
+                    e = self.find_emoji(emojis, es)
+                    if e is None:
+                        e = s
+                    else:
+                        e = str(e)
+                        emoji_cache[es] = e
 
-            new_text += e + ' '
+                new_text += e + ' '
 
-        await ctx.send(new_text)
+            new_text += '\n'
+
+        await ctx.send(new_text[:2000])
 
     @command(name='pip')
     @cooldown(1, 5, BucketType.channel)

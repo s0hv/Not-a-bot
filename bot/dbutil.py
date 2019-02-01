@@ -460,18 +460,11 @@ class DatabaseUtils:
 
         return True
 
-    async def add_timeout(self, guild, user, expires_on, reason):
-        sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`, `reason`) VALUES ' \
-              '(:guild, :user, :expires_on, :reason) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on), reason=VALUES(reason)'
+    async def add_timeout(self, guild, user, expires_on):
+        sql = 'INSERT INTO `timeouts` (`guild`, `user`, `expires_on`) VALUES ' \
+              '(:guild, :user, :expires_on) ON DUPLICATE KEY UPDATE expires_on=VALUES(expires_on)'
 
-        params = {'guild': guild, 'user': user, 'expires_on': expires_on, 'reason': reason}
-        await self.execute(sql, params=params, commit=True)
-
-    async def edit_timeout(self, guild, user, reason):
-        sql = 'UPDATE `timeouts` SET reason=:reason WHERE guild=:guild AND user=:user'
-
-        params = {'reason': reason, 'guild': guild, 'user': user}
-
+        params = {'guild': guild, 'user': user, 'expires_on': expires_on}
         await self.execute(sql, params=params, commit=True)
 
     async def add_todo(self, todo, priority=0):
@@ -505,6 +498,85 @@ class DatabaseUtils:
         sql = 'INSERT INTO `changelog` (`changes`) VALUES (:changes)'
         rowid = (await self.execute(sql, {'changes': changes}, commit=True)).lastrowid
         return rowid
+
+    async def add_timeout_log(self, guild_id, user_id, author_id, reason, embed=None,
+                              timestamp=None, modlog_message_id=None, duration=None):
+        try:
+            sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`, `message`, `time`, `duration`) VALUES ' \
+                  '(:guild, :user, :author, :reason, :embed, :message, :time, :duration) ON DUPLICATE KEY UPDATE ' \
+                  'reason=:reason, embed=:embed, author=:author'
+            d = {
+                'guild': guild_id,
+                'user': user_id,
+                'author': author_id,
+                'reason': reason,
+                'embed': embed,
+                'message': modlog_message_id,
+                'time': timestamp,
+                'duration': duration
+            }
+            await self.bot.dbutils.execute(sql, params=d, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Fail to log timeout')
+            return False
+
+        return True
+
+    async def edit_timeout_log(self, guild_id, user_id, author_id, reason, embed=None):
+        # https://stackoverflow.com/a/21683753/6046713
+        sql = 'UPDATE `timeout_logs` SET reason=:reason, embed=:embed ' \
+              'WHERE id=(SELECT MAX(id) FROM timeout_logs WHERE guild=:guild AND user=:user AND author=:author)'
+
+        try:
+            d = {
+                'guild': guild_id,
+                'user': user_id,
+                'author': author_id,
+                'reason': reason,
+                'embed': embed
+            }
+            await self.execute(sql, params=d, commit=True)
+        except SQLAlchemyError:
+            logger.exception('Fail to edit timeout reason')
+            return False
+
+        return True
+
+    async def get_latest_timeout_log(self, guild_id, user_id):
+        sql = 'SELECT t.expires_on, tl.reason, tl.author, tl.embed, tl.time FROM `timeouts` t ' \
+              'RIGHT JOIN timeout_logs tl ON tl.guild=t.guild AND tl.user=t.user ' \
+              f'WHERE tl.id=(SELECT MAX(id) FROM timeout_logs WHERE guild={guild_id} AND user={user_id})'
+
+        try:
+            row = (await self.execute(sql)).first()
+        except SQLAlchemyError:
+            logger.exception('Failed to get latest timeout log')
+            return False
+
+        return row
+
+    async def get_latest_timeout_log_for(self, guild_id, user_id, author_id):
+        sql = f'SELECT id, message, time FROM timeout_logs WHERE id=(SELECT MAX(id) FROM \
+                timeout_logs WHERE guild={guild_id} AND user={user_id} AND author={author_id})'
+
+        try:
+            row = (await self.execute(sql)).first()
+        except SQLAlchemyError:
+            logger.exception('Failed to get latest timeout log')
+            return False
+
+        return row
+
+    async def get_timeout_logs(self, guild_id, user_id):
+        sql = 'SELECT author, reason, time, duration FROM timeout_logs WHERE ' \
+              'guild=%s AND user=%s ORDER BY id DESC' % (guild_id, user_id)
+
+        try:
+            rows = await self.execute(sql)
+        except SQLAlchemyError:
+            return False
+
+        return rows
 
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """

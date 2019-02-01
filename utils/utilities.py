@@ -82,6 +82,15 @@ class DateAccuracy(Enum):
     Month = 4
     Year = 5
 
+    def __sub__(self, other):
+        # When slicing weeks are off so we can assume we are working
+        # from year (value of 1) to second (value of 6)
+        # that's why slice value = 6-DateAccuracy.value
+        if self.value > other.value:
+            return slice(6-self.value, 6-other.value)
+        else:
+            return slice(6-other.value, 6-self.value)
+
 
 class CallLater:
     def __init__(self, future, runs_at):
@@ -732,14 +741,26 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         td (timedelta or int):
             timedelta object to be formatted or seconds as integer
 
-        accuracy (int or DateAccuracy):
+        accuracy (int or DateAccuracy or slice):
             The accuracy of the function. If set to 1 will give
             most inaccurate result rounded down. If 7 will give out result
             with precision to seconds. So the bigger the number, the more
             verbose the result.
+            1-years
+            2-months
+            (3-weeks if weeks set on all numbers below grow by one)
+            3-days
+            4-hours
+            5-minutes
+            6-seconds
+
             e.g. a timedelta of 13 days would give a result looking something like
             this with an accuracy of 2 and weeks on
             1 week 6 days
+
+            If set to slice will get the specified range. Doesn't support weeks
+            e.g. slice(2,3) would give x months y days or get the next largest result
+            when accuracy doesnt reach days
 
             If set to DateAccuracy will only provide accuracy in that format
 
@@ -770,6 +791,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         include_weeks = True
 
     elif isinstance(accuracy, DateAccuracy) and accuracy != DateAccuracy.Week:
+        # Having weeks one for nothing lowers accuracy
         include_weeks = False
 
     if not include_weeks:
@@ -780,8 +802,10 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
 
     last = sec
     times = []
+    is_slice = isinstance(accuracy, slice)
+    if is_slice and include_weeks:
+        raise NotImplementedError('Weeks dont work with slices')
 
-    # TODO support slices
     if isinstance(accuracy, int):
         for d in divs:
             last, val = divmod(last, d)
@@ -798,8 +822,11 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
             names = names[i:i + accuracy]
             break
 
-    elif isinstance(accuracy, DateAccuracy):
+    elif isinstance(accuracy, DateAccuracy) or is_slice:
         idx = 0
+        if is_slice:
+            old_acc = accuracy
+            accuracy = DateAccuracy(len(names) - accuracy.stop + 1)
 
         # Week is an exception and we want to keep it out of calculations
         # unless it is the requested accuracy. We use day here since we count
@@ -839,8 +866,24 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         if val == 0:
             val = times[-1]
 
-        names = [names[len(names)-1-idx]]
-        times = [val]
+        if is_slice:
+            # Slices are given in the format of from int to int inclusive
+            # when slices from exclusive at the end so we have to recreate the slice
+            old_acc = slice(old_acc.start-1, old_acc.stop)
+            # Extend times so every accuracy has an unit attached to it
+            # This makes it so we can slice the list like normal
+            times.extend([0]*(len(names)-len(times)))
+            times = list(reversed(times))[old_acc]
+
+            # When all times in the slice are 0 fall back to the last value found
+            if max(times) == 0:
+                times = [val]
+                names = [names[len(names) - 1 - idx]]
+            else:
+                names = list(names)[old_acc]
+        else:
+            names = [names[len(names)-1-idx]]
+            times = [val]
 
     else:
         raise TypeError('Accuracy must be of instance int or DateAccuracy')
@@ -1118,6 +1161,18 @@ def is_superset(ctx):
 
 
 async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_method=None, timeout=60):
+    """
+    Send a paged message
+    Args:
+        ctx: Context object to be used
+        pages: List of pages to be sent
+        embed: Determines if the content of the list is Embed or str
+        starting_idx: What page index we starting at
+        page_method:
+            Method that returns the actual page when give an index and
+            the page that corresponds that index
+        timeout: How long to wait before stopping listening to reactions
+    """
     bot = ctx.bot
     try:
         if callable(page_method):

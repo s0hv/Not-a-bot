@@ -4,6 +4,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from random import randint, random
+from typing import Union
 
 import discord
 from discord.ext.commands import (BucketType, bot_has_permissions)
@@ -11,12 +12,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group, has_permissions, cooldown
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
+from bot.formatter import Paginator
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              datetime2sql, get_avatar, is_image_url,
                              seconds2str, get_role, get_channel, Snowflake,
-                             basic_check, sql2timedelta, check_botperm)
+                             basic_check, sql2timedelta, check_botperm,
+                             format_timedelta, DateAccuracy, send_paged_message)
 
 logger = logging.getLogger('debug')
 manage_roles = discord.Permissions(268435456)
@@ -133,7 +136,10 @@ class Moderator(Cog):
         if is_embed and not perms.embed_links:
             return
 
-        await channel.send(*args, **kwargs)
+        try:
+            return await channel.send(*args, **kwargs)
+        except discord.HTTPException:
+            pass
 
     async def on_message(self, message):
         guild = message.guild
@@ -182,11 +188,6 @@ class Moderator(Cog):
                 await msg.delete()
 
                 time = timedelta(days=3)
-                await self.add_timeout(await self.bot.get_context(message), guild.id, user.id,
-                                       datetime.utcnow() + time, time.total_seconds(),
-                                       reason=f'Automuted for {message.content}',
-                                       author=guild.me)
-
                 await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
                 d = f'Automuted user {user} `{user.id}` for {time}'
                 url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
@@ -197,7 +198,12 @@ class Moderator(Cog):
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(self.bot.user),
                                  icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
-                await self.send_to_modlog(guild, embed=embed)
+                msg = await self.send_to_modlog(guild, embed=embed)
+                await self.add_timeout(await self.bot.get_context(message), guild.id, user.id,
+                                       datetime.utcnow() + time, time.total_seconds(),
+                                       reason=f'Automuted for {message.content}',
+                                       author=guild.me,
+                                       modlog_msg=msg.id if msg else None)
                 return
 
             limit = self.bot.guild_cache.automute_limit(guild.id)
@@ -215,21 +221,33 @@ class Moderator(Cog):
                         if time is not None:
                             if isinstance(time, str):
                                 time = sql2timedelta(time)
-                            await self.add_timeout(await self.bot.get_context(message), guild.id, user.id, datetime.utcnow() + time, time.total_seconds(),
-                                                   reason='Automuted for too many mentions',
-                                                   author=guild.me)
                             d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, time)
                         else:
                             d = 'Automuted user {0} `{0.id}`'.format(message.author)
 
                         url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
+                        reason = 'Too many mentions in a message'
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
                         embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
-                        embed.add_field(name='Reason', value='Too many mentions in a message')
+                        embed.add_field(name='Reason', value=reason)
                         embed.add_field(name='link', value=url)
                         embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                         embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
-                        await self.send_to_modlog(guild, embed=embed)
+                        msg = await self.send_to_modlog(guild, embed=embed)
+                        if time:
+                            await self.add_timeout(await self.bot.get_context(message),
+                                                   guild.id, user.id,
+                                                   datetime.utcnow() + time,
+                                                   time.total_seconds(),
+                                                   reason=reason,
+                                                   author=guild.me,
+                                                   modlog_msg=msg.id if msg else None)
+                        else:
+                            await self.add_mute_reason(await self.bot.get_context(message),
+                                                       user.id,
+                                                       reason=reason,
+                                                       author=guild.me,
+                                                       modlog_message_id=msg.id if msg else None)
                         return
 
     @group(invoke_without_command=True, name='automute_whitelist', aliases=['mute_whitelist'], no_pm=True)
@@ -426,8 +444,6 @@ class Moderator(Cog):
             await ctx.send('Could not mute user {}'.format(user))
             return
 
-        await self.add_mute_reason(ctx, user.id, reason)
-
         guild_timeouts = self.timeouts.get(guild.id, {})
         task = guild_timeouts.get(user.id)
         if task:
@@ -436,21 +452,22 @@ class Moderator(Cog):
 
         try:
             await ctx.send('Muted user {} `{}`'.format(user.name, user.id))
-            chn = self.get_modlog(guild)
-            if chn:
-                author = ctx.author
-                description = '{} muted {} {}'.format(author.mention, user, user.id)
-                url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
-                embed = discord.Embed(title='🤐 Moderation action [MUTE]',
-                                      timestamp=datetime.utcnow(),
-                                      description=description)
-                embed.add_field(name='Reason', value=reason)
-                embed.add_field(name='link', value=url)
-                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
-                await self.send_to_modlog(guild, embed=embed)
         except discord.HTTPException:
             pass
+
+        author = ctx.author
+        description = '{} muted {} {}'.format(author.mention, user, user.id)
+        url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
+        embed = discord.Embed(title='🤐 Moderation action [MUTE]',
+                              timestamp=datetime.utcnow(),
+                              description=description)
+        embed.add_field(name='Reason', value=reason)
+        embed.add_field(name='link', value=url)
+        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+        embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+        msg = await self.send_to_modlog(guild, embed=embed)
+        await self.add_mute_reason(ctx, user.id, reason,
+                                   modlog_message_id=msg.id if msg else None)
 
     @command(ignore_extra=True, no_dm=True)
     @cooldown(2, 3, BucketType.guild)
@@ -575,11 +592,13 @@ class Moderator(Cog):
             logger.exception('Could not delete untimeout')
 
     async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
-                          reason='No reason', author=None):
+                          reason='No reason', author=None, modlog_msg=None):
 
-        await self.add_mute_reason(ctx, user_id, reason, author=author)
+        await self.add_mute_reason(ctx, user_id, reason, author=author,
+                                   modlog_message_id=modlog_msg,
+                                   duration=as_seconds)
         try:
-            await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on, reason)
+            await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on)
         except SQLAlchemyError:
             logger.exception('Could not save timeout')
             await ctx.send('Could not save timeout. Canceling action')
@@ -657,44 +676,56 @@ class Moderator(Cog):
 
         return embed
 
-    async def add_mute_reason(self, ctx, user_id, reason, author=None):
+    async def add_mute_reason(self, ctx, user_id, reason, author=None, modlog_message_id=None, duration=None):
         embed = self._reason_url(ctx, reason)
-
-        try:
-            sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`) VALUES ' \
-                  '(:guild, :user, :author, :reason, :embed) ON DUPLICATE KEY UPDATE ' \
-                  'reason=:reason, embed=:embed, author=:author'
-            d = {
-                'guild': ctx.guild.id,
-                'user': user_id,
-                'author': author.id if author else ctx.author.id,
-                'reason': reason,
-                'embed': embed
-            }
-            await self.bot.dbutils.execute(sql, params=d, commit=True)
-        except SQLAlchemyError:
-            logger.exception('Fail to log timeout')
+        await self.bot.dbutil.add_timeout_log(ctx.guild.id, user_id,
+                                              author.id if author else ctx.author.id,
+                                              reason, embed, ctx.message.created_at,
+                                              modlog_message_id,
+                                              duration)
 
     async def edit_mute_reason(self, ctx, user_id, reason):
-        embed = self._reason_url(ctx if isinstance(ctx, discord.Message) else ctx.message, reason)
-        sql = 'UPDATE `timeout_logs` SET reason=:reason, embed=:embed ' \
-              'WHERE guild=:guild AND user=:user AND author=:author'
+        embed = self._reason_url(ctx, reason)
+        await self.bot.dbutil.edit_timeout_log(ctx.guild.id, user_id, ctx.author.id,
+                                               reason, embed)
 
-        try:
-            d = {
-                'guild': ctx.guild.id,
-                'user': user_id,
-                'author': ctx.author.id,
-                'reason': reason,
-                'embed': embed
-            }
-            await self.bot.dbutils.execute(sql, params=d, commit=True)
-        except SQLAlchemyError:
-            logger.exception('Fail to edit timeout reason')
+    @command(aliases=['tlogs'])
+    @bot_has_permissions(embed_links=True)
+    @cooldown(1, 6, BucketType.user)
+    async def timeout_logs(self, ctx, *, user: discord.User=None):
+        user = user or ctx.author
+        rows = await self.bot.dbutil.get_timeout_logs(ctx.guild.id, user.id)
+        if rows is False:
+            return await ctx.send(f'Failed to get timeout logs for user {user}')
+
+        if not rows:
+            return await ctx.send(f'No timeouts for {user}')
+
+        paginator = Paginator(title=f'Timeouts for {user}', init_page=False)
+
+        description = ''
+        s_format = '{time} ago {duration} by {author} for the reason "{reason}"\n'
+        for row in rows:
+            time = format_timedelta(datetime.utcnow() - row['time'], DateAccuracy.Day)
+            if row['duration']:
+                duration = 'for '
+                duration += format_timedelta(timedelta(seconds=row['duration']), DateAccuracy.Day-DateAccuracy.Hour)
+            else:
+                duration = 'permanently'
+            author = self.bot.get_user(row['author'])
+            description += s_format.format(time=time, author=author or row['author'],
+                                           reason=row['reason'], duration=duration)
+
+        paginator.add_page(description=description, paginate_description=True)
+        paginator.finalize()
+        pages = paginator.pages
+
+        await send_paged_message(ctx, pages, embed=True)
 
     @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
+    @cooldown(1, 3, BucketType.user)
     async def timeout(self, ctx, user: MentionedMember, *, timeout):
         """Mute user for a specified amount of time
          `timeout` is the duration of the mute.
@@ -763,30 +794,32 @@ class Moderator(Cog):
 
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         expires_on = datetime2sql(now + time)
-        await self.add_timeout(ctx, guild.id, user.id, expires_on, time.total_seconds(),
-                               reason=reason)
 
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
             await ctx.send('Muted user {} for {}'.format(user, time))
-            chn = self.get_modlog(guild)
-            if chn:
-                author = ctx.message.author
-                description = '{} muted {} `{}` for {}'.format(author.mention,
-                                                               user, user.id, time)
-
-                url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
-                embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
-                                      timestamp=datetime.utcnow() + time,
-                                      description=description)
-                embed.add_field(name='Reason', value=reason)
-                embed.add_field(name='link', value=url)
-                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
-
-                await self.send_to_modlog(guild, embed=embed)
         except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(user))
+            return
+
+        author = ctx.message.author
+        description = '{} muted {} `{}` for {}'.format(author.mention,
+                                                       user, user.id, time)
+
+        url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
+        embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
+                              timestamp=datetime.utcnow() + time,
+                              description=description)
+        embed.add_field(name='Reason', value=reason)
+        embed.add_field(name='link', value=url)
+        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+        embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
+
+        msg = await self.send_to_modlog(guild, embed=embed)
+        await self.add_timeout(ctx, guild.id, user.id, expires_on,
+                               time.total_seconds(),
+                               reason=reason,
+                               modlog_msg=msg.id if msg else None)
 
     @group(invoke_without_command=True, no_pm=True)
     @bot_has_permissions(manage_roles=True)
@@ -826,13 +859,8 @@ class Moderator(Cog):
         if not list(filter(lambda r: r.id == muted_role, member.roles)):
             return await ctx.send('%s is not muted' % member)
 
-        sql = 'SELECT t.expires_on, tl.reason, tl.author, tl.embed FROM `timeouts` t ' \
-              'RIGHT JOIN timeout_logs tl ON tl.guild=t.guild AND tl.user=t.user ' \
-              'WHERE tl.guild=%s AND tl.user=%s' % (guild.id, member.id)
-
-        try:
-            row = (await self.bot.dbutil.execute(sql)).first()
-        except SQLAlchemyError:
+        row = await self.bot.dbutil.get_latest_timeout_log(guild.id, member.id)
+        if row is False:
             return await ctx.send('Failed to check mute status')
 
         if not row:
@@ -852,6 +880,10 @@ class Moderator(Cog):
             author = f'User responsible for timeout: `uid {author}`\n'
         else:
             author = f'User responsible for timeout: {author_user} `{author_user.id}`\n'
+
+        muted_at = row['time']
+        td_at = datetime.utcnow() - muted_at
+        author += f'Muted on `{muted_at.strftime("%Y-%m-%d %H:%M")}` UTC which was {format_timedelta(td_at, DateAccuracy.Day)} ago\n'
 
         if embed:
             embed = discord.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or discord.Embed.Empty)
@@ -1220,43 +1252,89 @@ class Moderator(Cog):
 
     @command(no_pm=True)
     @cooldown(1, 4, BucketType.user)
-    async def reason(self, ctx, message_id: int, *, reason):
+    async def reason(self, ctx, user_or_message: Union[discord.User, int], *, reason):
         modlog = self.get_modlog(ctx.guild)
         if not modlog:
             return await ctx.send('Modlog not found')
 
-        try:
-            msg = await modlog.get_message(message_id)
-        except discord.HTTPException as e:
-            return await ctx.send('Failed to get message\n%s' % e)
+        is_msg = isinstance(user_or_message, int)
+        s = ''
+        row = None
 
-        if msg.author.id != self.bot.user.id:
-            return await ctx.send('Modlog entry not by this bot')
+        if is_msg:
+            message_id = user_or_message
+            try:
+                msg = await modlog.get_message(message_id)
+            except discord.HTTPException as e:
+                return await ctx.send('Failed to get message\n%s' % e)
 
-        if not msg.embeds:
-            return await ctx.send('Embed not found')
+            if msg.author.id != self.bot.user.id:
+                return await ctx.send('Modlog entry not by this bot')
 
-        embed = msg.embeds[0]
-        if not embed.footer or str(ctx.author.id) not in embed.footer.icon_url:
-            return await ctx.send("You aren't responsible for this mod action")
+            if not msg.embeds:
+                return await ctx.send('Embed not found')
 
-        idx = -1
-        for idx, field in enumerate(embed.fields):
-            if field.name == 'Reason':
-                break
+            embed = msg.embeds[0]
+            if not embed.footer or str(ctx.author.id) not in embed.footer.icon_url:
+                return await ctx.send("You aren't responsible for this mod action")
 
-        if idx < 0:
-            return await ctx.send('No reason found')
+            user_id = re.findall(r'(\d+)', msg.embeds[0].description)
+            if user_id:
+                user_id = int(user_id[-1])
 
-        embed.set_field_at(idx, name='Reason', value=reason)
-        await msg.edit(embed=embed)
+        else:
+            user = user_or_message
+            user_id = user.id
+            row = await self.bot.dbutil.get_latest_timeout_log_for(ctx.guild.id, user.id, ctx.author.id)
+            if row is False:
+                return await ctx.send('Failed to get timeout from database')
 
-        user_id = re.findall(r'(\d+)', msg.embeds[0].description)
+            if not row:
+                return await ctx.send(f"You have never muted {user}")
+
+            msg = None
+            embed = None
+            if row['message']:
+                try:
+                    msg = await modlog.get_message(row['message'])
+                except discord.HTTPException:
+                    s += f'Failed to get modlog entry\n'
+                else:
+                    if msg.embeds:
+                        embed = msg.embeds[0]
+
+        if embed:
+            idx = -1
+            for idx, field in enumerate(embed.fields):
+                if field.name == 'Reason':
+                    break
+
+            if idx < 0:
+                if is_msg:
+                    return await ctx.send('No reason found')
+
+                s += 'No modlog reason found\n'
+
+            embed.set_field_at(idx, name='Reason', value=reason)
+
+            if msg:
+                try:
+                    await msg.edit(embed=embed)
+                except discord.HTTPException as e:
+                    s += f'Failed to edit modlog reason because of an error.\n{e}\n'
+
         if user_id:
-            user_id = int(user_id[-1])
             await self.edit_mute_reason(ctx, user_id, reason)
 
-        await ctx.send('Reason edited')
+        if row:
+            td = datetime.utcnow() - row['time']
+            # td formatted from day to hour
+            td = format_timedelta(td, DateAccuracy.Day-DateAccuracy.Hour)
+            s += f'Reason for the mute of {user_or_message} from {td} ago was edited'
+        else:
+            s += 'Reason edited'
+
+        await ctx.send(s)
 
     @staticmethod
     async def delete_messages(channel, message_ids):

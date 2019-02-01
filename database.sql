@@ -165,19 +165,24 @@ CREATE TABLE `giveaways` (
 CREATE TABLE `timeouts`(
     `guild` BIGINT NOT NULL,
     `user` BIGINT NOT NULL,
-    `reason` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
     `expires_on` datetime NOT NULL,
     PRIMARY KEY (`user`, `guild`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 CREATE TABLE `timeout_logs` (
+    `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
     `guild` BIGINT NOT NULL,
     `user` BIGINT NOT NULL,
     `author` BIGINT NOT NULL,
     `embed` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
     `reason` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    PRIMARY KEY (`guild`, `user`),
+    `message` BIGINT DEFAULT NULL,
+    `time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `duration` MEDIUMINT UNSIGNED DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY (`guild`),
+    KEY (`user`),
     KEY (`author`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

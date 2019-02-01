@@ -762,17 +762,11 @@ class ServerSpecific(Cog):
             certainty = str(certainty) + '%'
             channel = self.bot.get_channel(252872751319089153)
             if channel:
-                await channel.send(f'{user.mention} got muted for spam with score of {score} at {message.created_at}')
+                await channel.send(f'{user.mention} got muted for spam with score of {round(score)} at {message.created_at}')
 
             time = timedelta(hours=2)
             if self.bot.timeouts.get(guild.id, {}).get(user.id):
                 return
-
-            await moderator.add_timeout(await self.bot.get_context(message), guild.id, user.id,
-                                        datetime.utcnow() + time,
-                                        time.total_seconds(),
-                                        reason='Automuted for spam. Certainty %s' % certainty,
-                                        author=guild.me)
 
             d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author,
                                                              time)
@@ -786,7 +780,14 @@ class ServerSpecific(Cog):
             embed.add_field(name='link', value=url)
             embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
             embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
-            await moderator.send_to_modlog(guild, embed=embed)
+            msg = await moderator.send_to_modlog(guild, embed=embed)
+
+            await moderator.add_timeout(await self.bot.get_context(message), guild.id, user.id,
+                                        datetime.utcnow() + time,
+                                        time.total_seconds(),
+                                        reason='Automuted for spam. Certainty %s' % certainty,
+                                        author=guild.me,
+                                        modlog_msg=msg.id if msg else None)
 
             score = 0
             msg = ''

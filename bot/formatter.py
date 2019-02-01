@@ -211,7 +211,14 @@ class Limits:
 
 
 class Paginator:
-    def __init__(self, title=None, description=None, page_count=True):
+    def __init__(self, title=None, description=None, page_count=True, init_page=True):
+        """
+        Args:
+            title: title of the embed
+            description: description of the embed
+            page_count: whether to show page count in the footer or not
+            init_page: create a page in the init method
+        """
         self._fields = 0
         self._pages = []
         self.title = title
@@ -220,7 +227,8 @@ class Paginator:
         self._current_page = -1
         self._char_count = 0
         self._current_field = None
-        self.add_page(title, description)
+        if init_page:
+            self.add_page(title, description)
 
     @property
     def pages(self):
@@ -235,9 +243,25 @@ class Paginator:
         for idx, embed in enumerate(self.pages):
             embed.set_footer(text=f'{idx+1}/{total}')
 
-    def add_page(self, title=None, description=None):
+    def add_page(self, title=None, description=None, paginate_description=False):
+        """
+        Args:
+            title:
+            description:
+            paginate_description:
+                If set to true will split description based on max description length
+                into multiple embeds
+        """
         title = title or self.title
         description = description or self.description
+        overflow = None
+        if paginate_description:
+            description_ = description[:Limits.Description]
+            overflow = description[Limits.Description:]
+            description = description_
+        else:
+            description = description[:Limits.Description]
+
         self._pages.append(Embed(title=title, description=description))
         self._current_page += 1
         self._fields = 0
@@ -246,6 +270,9 @@ class Paginator:
         self._char_count += len(description) if description else 0
         self.title = title
         self.description = description
+
+        if overflow:
+            self.add_page(title=title, description=overflow, paginate_description=True)
 
     def edit_page(self, title=None, description=None):
         page = self.pages[self._current_page]

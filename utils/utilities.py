@@ -543,6 +543,9 @@ async def get_image_from_message(ctx, *messages):
             pass
 
     if image is not None:
+        if not isinstance(image, str):
+            return None
+
         image = None if not test_url(image) else image
     return image
 

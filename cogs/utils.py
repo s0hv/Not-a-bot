@@ -426,7 +426,7 @@ class Utilities(Cog):
             for s in line.split(' '):
                 es = s.lower().strip(',.')
                 # We don't want to look for emotes that are only a couple characters long
-                if len(s) < 3 or (word_blacklist and es in word_blacklist):
+                if len(s) <= 3 or (word_blacklist and es in word_blacklist):
                     new_text += s + ' '
                     continue
 

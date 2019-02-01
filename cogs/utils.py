@@ -508,7 +508,7 @@ class Utilities(Cog):
             duration = duration[1:]
 
         duration_ = parse_time(duration)
-        if not duration_:
+        if duration is None:
             return await ctx.send(f'Failed to parse time from {duration}')
 
         duration = duration_

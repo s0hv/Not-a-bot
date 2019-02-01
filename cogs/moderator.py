@@ -698,6 +698,7 @@ class Moderator(Cog):
         if rows is False:
             return await ctx.send(f'Failed to get timeout logs for user {user}')
 
+        rows = rows.fetchall()
         if not rows:
             return await ctx.send(f'No timeouts for {user}')
 

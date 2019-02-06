@@ -36,7 +36,7 @@ def create_check(guild_ids):
 
 whitelist = [217677285442977792, 353927534439825429]
 main_check = create_check(whitelist)
-grant_whitelist = {486834412651151361, 279016719916204032}
+grant_whitelist = {486834412651151361, 279016719916204032, 468227890413174806}  # chef server and artx server
 grant_whitelist.update(whitelist)
 grant_check = create_check(grant_whitelist)
 
@@ -459,6 +459,17 @@ class ServerSpecific(Cog):
             await ctx.send('♻')
 
     async def _toggle_every(self, channel, winners: int, expires_in):
+        """
+        Creates a toggle every giveaway in my server. This is triggered either
+        by the toggle_every command or every n amount of votes in dbl
+        Args:
+            channel (discord.TextChannel): channel where the giveaway will be held
+            winners (int): amount of winners
+            expires_in (timedelta): Timedelta denoting how long the giveaway will last
+
+        Returns:
+            nothing useful
+        """
         guild = channel.guild
         perms = channel.permissions_for(guild.get_member(self.bot.user.id))
         if not perms.manage_roles and not perms.administrator:

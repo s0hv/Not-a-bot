@@ -26,7 +26,7 @@ from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
                               optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
-from utils.utilities import (get_image_from_message, find_coeffs, check_botperm,
+from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
                              split_string, get_image)
 
 logger = logging.getLogger('debug')
@@ -1074,7 +1074,7 @@ class Images(Cog):
         """Get's the latest image in the channel if data is None
         otherwise gets the image based on data. If data is an id, first avatar lookup is done
         then message lookup. If data is an image url this will just return that url"""
-        img = await get_image_from_message(ctx, data)
+        img = await get_image_from_ctx(ctx, data)
         s = img if img else 'No image found'
         return await ctx.send(s)
 

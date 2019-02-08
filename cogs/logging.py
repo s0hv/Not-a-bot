@@ -5,13 +5,14 @@ from queue import Queue
 
 import discord
 from discord.abc import PrivateChannel
-from discord.embeds import EmptyEmbed
 from sqlalchemy import exc
 from sqlalchemy.exc import SQLAlchemyError
 
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_delete, format_on_edit,
-                             format_join_leave, get_avatar)
+                             format_join_leave, get_avatar,
+                             get_image_from_embeds,
+                             is_image_url)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -59,7 +60,6 @@ class Logger(Cog):
 
     def format_for_db(self, message):
         is_pm = isinstance(message.channel, PrivateChannel)
-        shard = self.bot.shard_id
         guild = message.guild.id if not is_pm else None
         # guild_name = message.guild.name if not is_pm else 'DM'
         channel = message.channel.id if not is_pm else None
@@ -73,35 +73,16 @@ class Logger(Cog):
             attachment = None
 
         if attachment is None:
-            attachment = self.get_image_from_embeds(message.embeds)
+            attachment = get_image_from_embeds(message.embeds)
 
-        return {'shard': shard,
-                'guild': guild,
+        if not is_image_url(attachment):
+            attachment = None
+
+        return {'guild': guild,
                 'channel': channel,
                 'user_id': user_id,
                 'message_id': message_id,
-                'attachment': attachment,
-                'time': message.created_at}
-
-    @staticmethod
-    def get_image_from_embeds(embeds):
-        for embed in embeds:
-            embed_type = embed.type
-            if embed_type == 'video':
-                attachment = embed.thumbnail.url
-                if attachment:
-                    return attachment
-                else:
-                    continue
-
-            elif embed_type == 'rich':
-                attachment = embed.image.url
-            elif embed_type == 'image':
-                attachment = embed.url
-            else:
-                continue
-
-            return attachment if attachment != EmptyEmbed else None
+                'time': message.created_at}, attachment
 
     def check_mentions(self, message):
         if message.guild is None:
@@ -132,17 +113,21 @@ class Logger(Cog):
 
     async def on_message(self, message):
         self.check_mentions(message)
-        sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user_id`, `message_id`, `attachment`, `time`) " \
-              "VALUES (:shard, :guild, :channel, :user_id, :message_id, :attachment, :time)"
+        sql = "INSERT INTO `messages` (`guild`, `channel`, `user_id`, `message_id`, `time`) " \
+              "VALUES (:guild, :channel, :user_id, :message_id, :time)"
 
-        d = self.format_for_db(message)
+        d, attachment = self.format_for_db(message)
 
-        # terminal.info(str((shard, guild, guild_name, channel, channel_name, user, user_id, message.content, message_id, attachment)))
         self._q.put_nowait((sql, d))
+
+        if attachment and d['channel']:
+            sql = 'INSERT INTO attachments (channel, attachment) ' \
+                  'VALUES (:channel, :attachment) ON DUPLICATE KEY UPDATE attachment=:attachment'
+            self._q.put_nowait((sql, {'channel': d['channel'], 'attachment': attachment}))
 
     async def on_member_join(self, member):
         guild = member.guild
-        sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
+        sql = "INSERT INTO `join_leave` (`user`, `guild`, `value`) VALUES " \
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=1, at=CURRENT_TIMESTAMP"
 
         self._q.put_nowait((sql, {'user_id': member.id,
@@ -171,7 +156,7 @@ class Logger(Cog):
 
     async def on_member_remove(self, member):
         guild = member.guild
-        sql = "INSERT INTO `join_leave` (`user_id`, `guild`, `value`) VALUES " \
+        sql = "INSERT INTO `join_leave` (`user`, `guild`, `value`) VALUES " \
               "(:user_id, :guild, :value) ON DUPLICATE KEY UPDATE value=-1, at=CURRENT_TIMESTAMP"
 
         self._q.put_nowait((sql, {'user_id': member.id,
@@ -227,16 +212,17 @@ class Logger(Cog):
                 await channel.send(m)
 
     async def on_message_edit(self, before, after):
+        if isinstance(before.channel, discord.DMChannel):
+            return
+
         if before.content == after.content:
-            image = self.get_image_from_embeds(after.embeds)
+            image = get_image_from_embeds(after.embeds)
             if not image:
                 return
 
-            sql = "INSERT INTO `messages` (`shard`, `guild`, `channel`, `user_id`, `message_id`, `attachment`, `time`) " \
-                  "VALUES (:shard, :guild, :channel, :user_id, :message_id, :attachment, :time) ON DUPLICATE KEY UPDATE attachment=IFNULL(attachment, :attachment)"
-
-            d = self.format_for_db(after)
-            self._q.put_nowait((sql, d))
+            sql = 'INSERT INTO attachments (channel, attachment) ' \
+                  'VALUES (:channel, :attachment) ON DUPLICATE KEY UPDATE attachment=:attachment'
+            self._q.put_nowait((sql, {'channel': after.channel.id, 'attachment': image}))
 
         if before.author.bot or before.channel.id == 336917918040326166:
             return

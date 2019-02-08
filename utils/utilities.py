@@ -39,6 +39,7 @@ from random import randint
 import discord
 import numpy
 from discord import abc
+from discord.embeds import EmptyEmbed
 from discord.ext.commands.errors import MissingPermissions
 from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
@@ -444,7 +445,7 @@ async def retry(f, *args, retries_=3, break_on=(), **kwargs):
 
 
 def get_emote_id(s):
-    emote = re.match('(?:<(a)?:\w+:)(\d+)(?=>)', s)
+    emote = re.match(r'(?:<(a)?:\w+:)(\d+)(?=>)', s)
     if emote:
         return emote.groups()
 
@@ -452,7 +453,7 @@ def get_emote_id(s):
 
 
 def get_emote_name(s):
-    emote = re.match('(?:<(a)?:)(\w+)(?::\d+)(?=>)', s)
+    emote = re.match(r'(?:<(a)?:)(\w+)(?::\d+)(?=>)', s)
     if emote:
         return emote.groups()
 
@@ -460,7 +461,7 @@ def get_emote_name(s):
 
 
 def get_emote_name_id(s):
-    emote = re.match('(?:<(a)?:)(\w+)(?::)(\d+)(?=>)', s)
+    emote = re.match(r'(?:<(a)?:)(\w+)(?::)(\d+)(?=>)', s)
     if emote:
         return emote.groups()
 
@@ -468,7 +469,7 @@ def get_emote_name_id(s):
 
 
 async def get_image(ctx, image):
-    img = await get_image_from_message(ctx, image)
+    img = await get_image_from_ctx(ctx, image)
     if img is None:
         if image is not None:
             await ctx.send(f'No image found from {image}')
@@ -492,55 +493,76 @@ async def dl_image(ctx, url):
         return img
 
 
-async def get_image_from_message(ctx, *messages):
+def get_image_from_embeds(embeds):
+    for embed in embeds:
+        embed_type = embed.type
+        if embed_type == 'video':
+            attachment = embed.thumbnail.url
+            if attachment:
+                return attachment
+            else:
+                continue
+
+        elif embed_type == 'rich':
+            attachment = embed.image.url
+        elif embed_type == 'image':
+            attachment = embed.url
+            if not is_image_url(attachment):
+                attachment = embed.thumbnail.url
+        else:
+            continue
+
+        return attachment if attachment != EmptyEmbed else None
+
+
+def get_image_from_message(bot, message: discord.Message, content=None):
+    """
+    Get image from discord.Message
+    """
     image = None
-    if len(ctx.message.attachments) > 0 and isinstance(ctx.message.attachments[0].width, int):
-        image = ctx.message.attachments[0].url
-    elif messages and messages[0] is not None:
-        image = str(messages[0])
+    if len(message.attachments) > 0 and isinstance(message.attachments[0].width, int):
+        image = message.attachments[0].url
+    elif content or message.content:
+        image = content or message.content.split(' ')[0]
         if not test_url(image):
-            if re.match('<@!?\d+>', image) and ctx.message.mentions:
-                image = get_avatar(ctx.message.mentions[0])
+            if re.match(r'<@!?\d+>', image) and message.mentions:
+                image = get_avatar(message.mentions[0])
             elif get_emote_id(image)[1]:
                 image = get_emote_url(image)
             else:
                 try:
                     image = int(image)
                 except ValueError:
-                    pass
+                    image = None
                 else:
-                    user = discord.utils.find(lambda u: u.id == image, ctx.bot.get_all_members())
+                    user = bot.get_user(image)
                     if user:
                         image = get_avatar(user)
 
+    if not image:
+        image = get_image_from_embeds(message.embeds)
+
+    return image
+
+
+async def get_image_from_ctx(ctx, message):
+    image = get_image_from_message(ctx.bot, ctx.message, content=message)
     dbutil = ctx.bot.dbutil
     if image is None or not isinstance(image, str):
         if isinstance(image, int):
-            sql = 'SELECT attachment FROM `messages` WHERE message_id=%s' % image
+            try:
+                msg = await ctx.channel.get_message(image)
+                return get_image_from_message(ctx.bot, msg)
+            except discord.HTTPException:
+                pass
         else:
-            channel = ctx.channel
-            guild = channel.guild
-            sql = 'SELECT attachment FROM `messages` WHERE guild={} AND channel={} ORDER BY `message_id` DESC LIMIT 25'.format(guild.id, channel.id)
-        try:
-            rows = (await dbutil.execute(sql)).fetchall()
-            for row in rows:
-                attachment = row['attachment']
-                if not attachment:
-                    continue
-
-                if is_image_url(attachment):
-                    image = attachment
-                    break
-
-                # This is needed because some images like from twitter
-                # are usually in the format of someimage.jpg:large
-                # and mimetypes doesn't recognize that
-                elif is_image_url(':'.join(attachment.split(':')[:-1])):
-                    image = attachment
-                    break
-
-        except SQLAlchemyError:
-            pass
+            sql = 'SELECT attachment FROM `attachments` WHERE channel=%s' % ctx.channel.id
+            try:
+                row = (await dbutil.execute(sql)).first()
+                if row:
+                    image = row['attachment']
+            except SQLAlchemyError:
+                pass
 
     if image is not None:
         if not isinstance(image, str):
@@ -973,7 +995,15 @@ def is_image_url(url):
         return False
 
     mimetype, encoding = mimetypes.guess_type(url)
-    return mimetype and mimetype.startswith('image')
+    is_image = mimetype and mimetype.startswith('image')
+    if not is_image:
+        # This is needed because some images like from twitter
+        # are usually in the format of someimage.jpg:large
+        # and mimetypes doesn't recognize that
+        mimetype, encoding = mimetypes.guess_type((':'.join(url.split(':')[:-1])))
+        is_image = mimetype and mimetype.startswith('image')
+
+    return is_image
 
 
 def msg2dict(msg):

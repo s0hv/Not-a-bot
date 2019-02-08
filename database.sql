@@ -114,6 +114,12 @@ CREATE TABLE `messages` (
     KEY (`user_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `attachments` (
+    `channel` BIGINT NOT NULL,
+    `attachment` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+    PRIMARY KEY (`channel`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 CREATE TABLE `polls` (
     `guild` BIGINT NOT NULL,
@@ -188,7 +194,7 @@ CREATE TABLE `timeout_logs` (
 
 
 CREATE TABLE `join_leave`(
-    `user_id` BIGINT NOT NULL,
+    `user` BIGINT NOT NULL,
     `at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `guild` BIGINT NOT NULL,
     `value` TINYINT NOT NULL,

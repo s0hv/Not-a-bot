@@ -356,7 +356,7 @@ async def raw_image_from_url(url, client, get_mime=False):
         async with client.get(url) as r:
             terminal.debug('Downloading image url {}'.format(url))
             if not r.headers.get('Content-Type', '').startswith('image'):
-                raise ImageDownloadError('url isnt an image', url)
+                raise ImageDownloadError("url isn't an image (Invalid header)", url)
 
             max_size = 8000000
             size = int(r.headers.get('Content-Length', 0))
@@ -371,7 +371,7 @@ async def raw_image_from_url(url, client, get_mime=False):
                     mime_type = magic.from_buffer(d, mime=True)
                     total += chunk
                     if not mime_type.startswith('image') and mime_type != 'application/octet-stream':
-                        raise ImageDownloadError('url isnt an image', url)
+                        raise ImageDownloadError("url isn't an image", url)
 
                 total += chunk
                 if total > max_size:

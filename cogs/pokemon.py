@@ -6,12 +6,8 @@ import os
 import re
 import textwrap
 from functools import partial
-from io import BytesIO
 
 import discord
-import imagehash
-import numpy
-from PIL import Image
 from discord import utils, Embed
 from discord.embeds import EmptyEmbed
 from discord.errors import HTTPException
@@ -24,7 +20,6 @@ from bot.bot import command, cooldown
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
-from utils.imagetools import image_from_url
 from utils.utilities import basic_check, random_color, wait_for_yes, \
     check_botperm
 
@@ -408,6 +403,9 @@ class Pokemon(Cog):
         s += '```'
         await ctx.send(s)
 
+    """
+    Command removed because pokecord didnt want it to exist.
+    Kept here for archival purposes
     @command(ignore_extra=True, aliases=['gp'])
     @cooldown(1, 5, BucketType.guild)
     async def guess_pokemon(self, ctx, url=None):
@@ -435,6 +433,7 @@ class Pokemon(Cog):
         guess, accuracy = await self.bot.loop.run_in_executor(self.bot.threadpool, self.bot.poke_model.sample, img)
 
         await ctx.send(f"That pokemon is `{guess}` I'm {accuracy*100:.01f}% sure of that")
+    """
 
     @staticmethod
     async def create_pokelog(ctx):
@@ -602,6 +601,8 @@ class Pokemon(Cog):
         if self._is_spawn(message):
             self.poke_spawns[message.guild.id] = message.embeds[0].image.url
 
+    """
+    Unused code. Removed for same reason as guess_pokemon
     def get_match(self, img):
         raise NotImplementedError('Now uses a cnn instead of phash')
         binarydiff = self.only_hash != imagehash.phash(img,
@@ -617,6 +618,8 @@ class Pokemon(Cog):
             data = BytesIO(await r.content.read())
 
         return await self.bot.loop.run_in_executor(self.bot.threadpool, self.get_match, Image.open(data))
+        
+    """
 
     @command(aliases=['pstats_format'], ignore_extra=True)
     async def pstat_format(self, ctx):

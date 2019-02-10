@@ -24,19 +24,19 @@ logger = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')
 
 
-def get_track_pos(duration, current_pos):
-    mm, ss = divmod(duration, 60)
-    hh, mm = divmod(mm, 60)
-    m, s = divmod(floor(current_pos), 60)
+def format_time(duration):
+    m, s = divmod(floor(duration), 60)
     h, m = divmod(m, 60)
     m = str(m)
-    mm = str(mm)
+
     if h > 0:
         m = '{}:{}'.format(str(h), m.zfill(2))
-    if hh > 0:
-        mm = '{}:{}'.format(str(hh), mm.zfill(2))
 
-    return '`[{0}:{1}/{2}:{3}]`'.format(m, str(s).zfill(2), mm, str(ss).zfill(2))
+    return f'{m}:{str(s).zfill(2)}'
+
+
+def get_track_pos(duration, current_pos):
+    return f'`[{format_time(current_pos)}/{format_time(duration)}]`'
 
 
 class MusicPlayer:

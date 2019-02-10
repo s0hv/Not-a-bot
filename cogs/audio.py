@@ -44,7 +44,7 @@ from bot.converters import TimeDelta
 from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
-from bot.player import get_track_pos, MusicPlayer
+from bot.player import get_track_pos, MusicPlayer, format_time
 from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
                           create_playlist, validate_playlist, write_playlist,
                           PLAYLISTS)
@@ -1537,7 +1537,15 @@ class Audio:
             await ctx.send('No songs currently in queue')
         else:
             tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
-            await ctx.send(musicplayer.current.long_str + ' {0}'.format(tr_pos))
+            s = musicplayer.current.long_str + f' {tr_pos}\n'
+            if musicplayer.current.duration:
+                pos = round(20 * min(1, musicplayer.duration/musicplayer.current.duration))
+                slider = f'00:00 {"─"*pos}●{"─"*(20-pos-1)}  {format_time(musicplayer.current.duration)}'
+            else:
+                slider = f'00:00 {"─"*19}●  {format_time(musicplayer.duration)}'
+
+            s += slider
+            await ctx.send(s)
 
     @cooldown(1, 3, type=BucketType.user)
     @command(name='playnow', no_pm=True)

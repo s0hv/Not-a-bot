@@ -532,7 +532,9 @@ class Playlist:
         if not self.playlist or priority:
             terminal.debug(f'Downloading {song.webpage_url}')
             success = await song.download()
-            if not success:
+
+            # When success is None the song was already downloaded
+            if success is False:
                 return False
 
             if priority:

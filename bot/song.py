@@ -155,11 +155,24 @@ class Song:
 
     async def download(self, return_if_downloading=True):
         """
+        Downloads the song and returns a 3 state boolean representing 3 possible
+        outcomes of the method
+
         Args:
             return_if_downloading:
                 Tells whether to wait for an ongoing download to finish
                 if one exists
+
+        Returns:
+            (bool or None):
+                Returns bool when download was attempted. True meaning download
+                succeeded and False meaning download failed.
+                If None is returned no download attempt was made since
+                download has been done earlier
         """
+
+        # First check if download is unnecessary and return if any of them
+        # conditions are True
         if self.downloading:
             if not return_if_downloading:
                 await self.on_ready.wait()

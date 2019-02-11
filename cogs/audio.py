@@ -1753,7 +1753,7 @@ class Audio:
             await ctx.send('Disconnected')
 
     @commands.cooldown(1, 6, BucketType.user)
-    @command(no_pm=True, aliases=['stop1'], ignore_extra=True)
+    @command(no_pm=True, ignore_extra=True)
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
@@ -1762,11 +1762,30 @@ class Audio:
         if not musicplayer:
             if ctx.voice_client:
                 await ctx.voice_client.disconnect()
+                return
 
         await self.disconnect_voice(musicplayer)
 
+        # Legacy code
         if not self.musicplayers:
             self.clear_cache()
+
+    @command(no_pm=True, aliases=['vs'])
+    async def votestop(self, ctx):
+        """Stops the bot if enough people vote for it. Votes expire in 60s"""
+        musicplayer = self.get_musicplayer(ctx.guild.id, False)
+        if not musicplayer:
+            if ctx.voice_client:
+                await ctx.voice_client.disconnect()
+                return
+
+        resp = await musicplayer.votestop(ctx.author)
+
+        if resp is True:
+            await self.disconnect_voice(musicplayer)
+            await ctx.send('Votes reached disconnecting')
+        else:
+            await ctx.send(f'{resp} votes until disconnect')
 
     @cooldown(1, 5, type=BucketType.user)
     @command(no_pm=True, aliases=['skipsen', 'skipperino', 's'])

@@ -16,8 +16,8 @@ from discord.player import PCMVolumeTransformer
 
 from bot.playlist import Playlist
 from bot.youtube import url2id, get_related_vids, id2url
-from utils.utilities import mean_volume
-from utils.utilities import seek_to_sec, seek_from_timestamp
+from utils.timedset import TimedSet
+from utils.utilities import seek_to_sec, seek_from_timestamp, mean_volume
 
 log = logging.getLogger('discord')
 logger = logging.getLogger('audio')
@@ -66,6 +66,7 @@ class MusicPlayer:
         self.activity_check = None
         self._speed_mod = 1
         self._skip_votes = set()
+        self._stop_votes = TimedSet(loop=self.bot.loop)
 
     def __del__(self):
         self.close_tasks()
@@ -339,6 +340,19 @@ class MusicPlayer:
                                  options=self.current.options)
 
             self.voice.resume()
+
+    async def votestop(self, author):
+        """
+        Checks if the bot will be stopped by vote
+        """
+        self._stop_votes.add(author.id)
+        users = self.voice.channel.members
+        users = len(list(filter(lambda x: not x.bot, users)))
+        required_votes = ceil(users*0.6)
+        if len(self._stop_votes) >= required_votes:
+            return True
+
+        return f'{len(self._stop_votes)}/{required_votes}'
 
     async def skip(self, author, messageable=None):
         if self.is_playing():

@@ -628,7 +628,7 @@ def call_later(func, loop, timeout, *args, after=None, **kwargs):
         after: Func to pass to future.add_done_callback
 
     Returns:
-        asyncio.Task
+        CallLater
     """
     async def wait():
         if timeout > 0:

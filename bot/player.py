@@ -84,6 +84,8 @@ class MusicPlayer:
         if self.activity_check:
             self.activity_check.cancel()
 
+        self._stop_votes.clear()
+
     def is_alive(self):
         return self.is_playing() or self.voice is not None or (self.audio_player and not self.audio_player.done())
 

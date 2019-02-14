@@ -729,6 +729,9 @@ class Colors(Cog):
                 for r in guild.roles:
                     color2name[r.color.value] = r.name
 
+                # Exception for no color
+                color2name[0] = '@everyone'
+
             for m in guild.members.copy():
                 val = m.color.value
                 if val in data:

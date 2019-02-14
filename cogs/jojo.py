@@ -21,13 +21,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-import matplotlib
-matplotlib.use('Agg')
-
 import argparse
+import asyncio
 import logging
 import os
-import asyncio
 import sys
 from collections import OrderedDict
 from functools import partial
@@ -43,9 +40,9 @@ from discord.ext.commands import BucketType, bot_has_permissions
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon, Circle
 from numpy import pi, random
-from cogs.cog import Cog
 
 from bot.bot import command, cooldown
+from cogs.cog import Cog
 from utils.imagetools import (create_shadow, create_text,
                               create_geopattern_background, shift_color,
                               remove_background,
@@ -55,7 +52,6 @@ from utils.imagetools import (create_shadow, create_text,
 from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text,
                              get_image, basic_check, test_url)
-
 
 logger = logging.getLogger('debug')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(

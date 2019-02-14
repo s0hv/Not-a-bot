@@ -433,7 +433,8 @@ async def retry(f, *args, retries_=3, break_on=(), **kwargs):
     for i in range(0, retries_):
         try:
             retval = await f(*args, **kwargs)
-        except break_on as e:
+        except break_on as e_:
+            e = e_
             break
 
         except Exception as e_:

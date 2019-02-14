@@ -8,6 +8,7 @@ from io import BytesIO
 from math import ceil, sqrt
 
 import discord
+import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
@@ -124,6 +125,7 @@ class Colors(Cog):
                 rgb = (0, 0, 1/255)
             else:
                 # color #000000 uses the default color on discord which is the following color
+                # #b9bbbe
                 rgb = (185/255, 187/255, 190/255)
 
         return rgb
@@ -691,6 +693,111 @@ class Colors(Cog):
 
         async with ctx.typing():
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, colors)
+
+        await ctx.send(file=discord.File(data, 'colors.png'))
+
+    @command(no_pm=True, ignore_extra=True, aliases=['colorpie'])
+    @cooldown(1, 10, BucketType.guild)
+    async def color_pie(self, ctx, all_roles: bool=False):
+        """
+        Posts a pie chart of colors of this servers members.
+        If `all_roles` is set on will replace color hex with the role name
+        of the highest role that has the same value.
+
+        If off (default) it will only replace hex values with the corresponding
+        color names if the guild has any colors added.
+        """
+        guild = ctx.guild
+
+        def do():
+            member_count = len(guild.members)
+
+            # dict of
+            # hex value: amount of users with said value
+            data = {}
+
+            if not all_roles:
+                # Only resolve names for guild colors
+                colors = self._colors.get(guild.id, {})
+                color2name = {c.value: c.name for c in colors.values()}
+            else:
+                # Resolve names for all roles
+                color2name = {}
+
+                # Roles are ordered in hierarchy from lowest to highest
+                # so higher roles with same color will override other colors
+                for r in guild.roles:
+                    color2name[r.color.value] = r.name
+
+            for m in guild.members.copy():
+                val = m.color.value
+                if val in data:
+                    data[val] += 1
+                else:
+                    data[val] = 1
+
+            data = list(sorted(data.items(), key=lambda kv: kv[1], reverse=True))
+            values_count = [d[1] for d in data]
+            colors = [d[0] for d in data]
+            colors_hex = ['#B9BBBE' if c == 0 else '#' + hex(c)[2:].zfill(6).upper()
+                          for c in colors]
+
+            # Values normalized
+            values = [i/member_count for i in values_count]
+
+            color_text = []
+            used_color_lengths = [len(color2name.get(c, colors_hex[i])) for i, c in enumerate(colors)]
+            maxlen = max(used_color_lengths)
+
+            for i, c in enumerate(colors):
+                # Percentage that always has 4 numbers 00.00%
+                p = '{:>5.2%}'.format(values[i]).zfill(6)
+
+                c = color2name.get(c, colors_hex[i])
+
+                padding = maxlen - len(c)
+
+                # We wanna center the - so we pad from both sides
+                lpad = ceil(padding/2)
+                rpad = padding//2
+                color_text.append(f'{c} {" "*lpad}-{" "*rpad} {p} ({values_count[i]})')
+
+            # Create plot with 2 columns
+            fig, ax = plt.subplots(1, 2, figsize=(3, 3), subplot_kw={'aspect': 'equal'})
+
+            try:
+                # Scale radius based on amount of colors. This is because picture
+                # size increases when color amount increases
+                wedges, texts = ax[0].pie(values, colors=colors_hex, radius=len(colors)/5)
+
+                ax[1].axis('off')
+                x = len(colors)
+                x = sqrt(x)/2 + min(2.0, (x*x)/2000) + (maxlen-7)/28
+                f = ax[1].legend(wedges, color_text,
+                                 title=f"Colors ({len(colors)})",
+                                 loc="center",
+                                 # We need to move the anchor point based on circle radius
+                                 # and longest text. These values were created by trial and error
+                                 bbox_to_anchor=(x, 0, 0, 1))
+
+                # We wanna use monospace font so everything aligns nicely
+                plt.setp(f.texts, family='monospace')
+
+                buf = BytesIO()
+                # bbox_inches='tight' makes it so picture is extended just enough to fit everything
+                plt.savefig(buf, format='png', bbox_inches='tight')
+                plt.close(fig)
+
+            except Exception as e:
+                # In case of exception just close figure
+                plt.close(fig)
+                raise e
+
+            buf.seek(0)
+            return buf.getvalue()
+
+        async with ctx.typing():
+            data = await self.bot.loop.run_in_executor(self.bot.threadpool, do)
 
         await ctx.send(file=discord.File(data, 'colors.png'))
 

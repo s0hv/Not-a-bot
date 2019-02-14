@@ -1,6 +1,7 @@
 import inspect
 import logging
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -550,6 +551,68 @@ class Utilities(Cog):
             s += f'which was {td} ago'
 
         await ctx.send(s)
+
+    @command(aliases=['st'])
+    @cooldown(1, 4, BucketType.user)
+    async def sort_tags(self, ctx, tagname, *, tags):
+        """Gets missing tag indexes from a 42 bot tag search.
+        The first tagname must be the one that is gonna be looked for"""
+        tagname = tagname.rstrip(',')
+        tags = tags.split(', ')
+        match = re.match(r'(.+?)(\d+)', tagname)
+        numbers = set()
+        if match:
+            tagname, number = match.groups()
+            numbers.add(int(number))
+        else:
+            numbers.add(0)
+
+        tl = len(tagname)
+        for tag in tags:
+            if tag.endswith('...'):
+                continue
+            if tagname not in tag:
+                continue
+
+            if tagname == tag:
+                numbers.add(0)
+                continue
+
+            try:
+                # Ignore long numbers
+                n = tag[tl:]
+                if len(n) > 4:
+                    continue
+
+                numbers.add(int(n))
+            except ValueError:
+                continue
+
+        if not numbers:
+            await ctx.send(f'No other numbered tags found for {tagname}')
+            return
+
+        numbers = list(sorted(numbers))
+        last = numbers[0]
+
+        if last > 2:
+            s = f'-{last - 1}, '
+        else:
+            s = ''
+
+        for i in numbers[1:]:
+            delta = i - last
+            if delta > 4:
+                s += f'{last + 1}-{i - 1}, '
+            elif delta == 3:
+                s += f'{last + 1}, {i - 1}, '
+            elif delta == 2:
+                s += f'{i - 1}, '
+
+            last = i
+
+        s += f'{last+1}-'
+        await ctx.send(f'Missing tag numbers for {tagname} are {s}')
 
 
 def setup(bot):

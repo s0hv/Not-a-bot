@@ -567,6 +567,8 @@ class Utilities(Cog):
         else:
             numbers.add(0)
 
+        tagname = tagname.lstrip('\u200b')
+
         tl = len(tagname)
         for tag in tags:
             if tag.endswith('...'):

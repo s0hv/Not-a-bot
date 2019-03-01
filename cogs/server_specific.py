@@ -191,7 +191,7 @@ class ServerSpecific(Cog):
 
         await ctx.send('👌')
 
-    @command(no_pm=True, ignore_extra=True)
+    @command(no_pm=True)
     @cooldown(2, 4, type=BucketType.guild)
     @check(grant_check)
     @has_permissions(administrator=True)
@@ -220,7 +220,7 @@ class ServerSpecific(Cog):
 
         await ctx.send(f'{role_user} 👌 {target_role}')
 
-    @command(no_pm=True, ignore_extra=True)
+    @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(grant_check)
     @has_permissions(administrator=True)
@@ -622,6 +622,7 @@ class ServerSpecific(Cog):
 
         await self.delete_giveaway_from_db(message.id)
 
+    @Cog.listener()
     async def on_member_join(self, member):
         if self.bot.test_mode:
             return
@@ -636,6 +637,7 @@ class ServerSpecific(Cog):
             name = str(random.randint(1000, 9999))
         await member.edit(nick=name, reason='Auto nick')
 
+    @Cog.listener()
     async def on_message(self, message):
         if not self.bot.antispam:
             return
@@ -805,7 +807,7 @@ class ServerSpecific(Cog):
 
         await self.redis.set(key, f'{score}:{repeats}:{msg}', expire=old_ttl)
 
-    @command(ignore_extra=True)
+    @command()
     @check(lambda ctx: ctx.author.id==302276390403702785)  # Check if chad
     async def rt2_lock(self, ctx):
         if ctx.channel.id != 341610158755020820:
@@ -817,7 +819,7 @@ class ServerSpecific(Cog):
 
         await mod._set_channel_lock(ctx, True)
 
-    @command(ignore_extra=True, hidden=True)
+    @command(hidden=True)
     @cooldown(1, 60, BucketType.channel)
     async def zeta(self, ctx, channel: discord.TextChannel=None):
         try:

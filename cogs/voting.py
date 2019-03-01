@@ -11,6 +11,7 @@ from discord.ext.commands import bot_has_permissions, BucketType
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, has_permissions, cooldown
+from cogs.cog import Cog
 from utils.utilities import (get_emote_name_id, parse_time, datetime2sql,
                              get_avatar)
 
@@ -292,9 +293,9 @@ class Poll:
             await chn.send('Could not delete poll from database. The poll result might be recalculated')
 
 
-class VoteManager:
+class VoteManager(Cog):
     def __init__(self, bot):
-        self.bot = bot
+        super().__init__(bot)
         self.polls = self.bot.polls
         self.load_polls()
         self.parser = argparse.ArgumentParser()

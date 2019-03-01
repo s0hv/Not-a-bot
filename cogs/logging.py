@@ -25,7 +25,7 @@ class Logger(Cog):
         self._stop_log = asyncio.Event(loop=self.bot.loop)
         self._logging = asyncio.ensure_future(self.bot.loop.run_in_executor(self.bot.threadpool, self._logging_loop), loop=self.bot.loop)
 
-    def __unload(self):
+    def cog_unload(self):
         self.bot.loop.call_soon_threadsafe(self._stop_log.set)
         self._q.put_nowait((1, 1))
         time.sleep(0.1)
@@ -111,6 +111,7 @@ class Logger(Cog):
         sql += ' ON DUPLICATE KEY UPDATE amount=amount+1, role_name=VALUES(role_name)'
         self._q.put_nowait((sql, data))
 
+    @Cog.listener()
     async def on_message(self, message):
         self.check_mentions(message)
         sql = "INSERT INTO `messages` (`guild`, `channel`, `user_id`, `message_id`, `time`) " \
@@ -125,6 +126,7 @@ class Logger(Cog):
                   'VALUES (:channel, :attachment) ON DUPLICATE KEY UPDATE attachment=:attachment'
             self._q.put_nowait((sql, {'channel': d['channel'], 'attachment': attachment}))
 
+    @Cog.listener()
     async def on_member_join(self, member):
         guild = member.guild
         sql = "INSERT INTO `join_leave` (`user`, `guild`, `value`) VALUES " \
@@ -154,6 +156,7 @@ class Logger(Cog):
 
         await channel.send(message)
 
+    @Cog.listener()
     async def on_member_remove(self, member):
         guild = member.guild
         sql = "INSERT INTO `join_leave` (`user`, `guild`, `value`) VALUES " \
@@ -179,6 +182,7 @@ class Logger(Cog):
         message = format_join_leave(member, message)
         await channel.send(message)
 
+    @Cog.listener()
     async def on_message_delete(self, msg):
         if msg.author.bot or msg.channel.id == 336917918040326166:
             return
@@ -211,6 +215,7 @@ class Logger(Cog):
             else:
                 await channel.send(m)
 
+    @Cog.listener()
     async def on_message_edit(self, before, after):
         if isinstance(before.channel, discord.DMChannel):
             return
@@ -267,12 +272,15 @@ class Logger(Cog):
         embed.set_author(name=str(message.author), icon_url=get_avatar(message.author))
         return embed
 
+    @Cog.listener()
     async def on_guild_role_delete(self, role):
         await self.bot.dbutil.delete_role(role.id, role.guild.id)
 
+    @Cog.listener()
     async def on_guild_role_create(self, role):
         await self.bot.dbutil.add_roles(role.guild.id, role.id)
 
+    @Cog.listener()
     async def on_command_completion(self, ctx):
         entries = []
         cmd = ctx.command

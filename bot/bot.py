@@ -31,9 +31,8 @@ import discord
 from aiohttp import ClientSession
 from discord import state
 from discord.ext import commands
-from discord.ext.commands import CommandNotFound, bot_has_permissions
+from discord.ext.commands import bot_has_permissions, CheckFailure
 from discord.ext.commands.bot import _mention_pattern, _mentions_transforms
-from discord.ext.commands.errors import CommandError
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.http import HTTPClient
 
@@ -72,8 +71,9 @@ class Context(commands.context.Context):
 
 
 class Command(commands.Command):
-    def __init__(self, name, callback, **kwargs):
-        super(Command, self).__init__(name=name, callback=callback, **kwargs)
+    def __init__(self, func, **kwargs):
+        # Init called twice because commands are copied
+        super(Command, self).__init__(func, **kwargs)
         del self._buckets
         self._buckets = CooldownMapping(kwargs.get('cooldown'))
         self.level = kwargs.pop('level', 0)
@@ -86,7 +86,7 @@ class Command(commands.Command):
         self.checks.insert(0, check_blacklist)
 
         if self.owner_only:
-            terminal.info('registered owner_only command %s' % name)
+            terminal.info('registered owner_only command %s' % self.name)
             self.checks.insert(0, is_owner)
 
         if 'no_pm' in kwargs or 'no_dm' in kwargs:
@@ -98,43 +98,15 @@ class Command(commands.Command):
             bucket = self._buckets.get_bucket(ctx.message)
             bucket.undo_one()
 
-    async def can_run(self, ctx):
-        original = ctx.command
-        ctx.command = self
-
-        try:
-            if not (await ctx.bot.can_run(ctx)):
-                raise commands.errors.CheckFailure('The global check functions for command {0.qualified_name} failed.'.format(self))
-
-            cog = self.instance
-            if cog is not None:
-                try:
-                    local_check = getattr(cog, '_{0.__class__.__name__}__local_check'.format(cog))
-                except AttributeError:
-                    pass
-                else:
-                    ret = await discord.utils.maybe_coroutine(local_check, ctx)
-                    if not ret:
-                        return False
-
-            predicates = self.checks
-            if not predicates:
-                # since we have no checks, then we just return True.
-                return True
-
-            return ctx.override_perms or await discord.utils.async_all(predicate(ctx) for predicate in predicates)
-
-        finally:
-            ctx.command = original
-
 
 class Group(Command, commands.Group):
-    def __init__(self, **attrs):
-        Command.__init__(self, **attrs)
+    def __init__(self, *args, **attrs):
+        Command.__init__(self, *args, **attrs)
         self.invoke_without_command = attrs.pop('invoke_without_command', False)
 
     def group(self, *args, **kwargs):
         def decorator(func):
+            kwargs.setdefault('parent', self)
             result = group(*args, **kwargs)(func)
             self.add_command(result)
             return result
@@ -146,6 +118,7 @@ class Group(Command, commands.Group):
             if 'owner_only' not in kwargs:
                 kwargs['owner_only'] = self.owner_only
 
+            kwargs.setdefault('parent', self)
             result = command(*args, **kwargs)(func)
             self.add_command(result)
             return result
@@ -295,7 +268,7 @@ class Bot(commands.Bot, Client):
                     pass
             return
 
-        if isinstance(exception, commands.errors.CheckFailure):
+        if isinstance(exception, CheckFailure):
             return
 
         error_msg = None
@@ -384,31 +357,8 @@ class Bot(commands.Bot, Client):
         for page in pages:
             await destination.send(embed=page)
 
-    async def invoke(self, ctx):
-        """|coro|
-
-        Invokes the command given under the invocation context and
-        handles all the internal event dispatch mechanisms.
-
-        Parameters
-        -----------
-        ctx: :class:`.Context`
-            The invocation context to invoke.
-        """
-        if ctx.command is not None:
-            self.dispatch('command', ctx)
-            try:
-                if (await self.can_run(ctx, call_once=True)):
-                    await ctx.command.invoke(ctx)
-            except CommandError as e:
-                await ctx.command.dispatch_error(ctx, e)
-            else:
-                self.dispatch('command_completion', ctx)
-        elif ctx.invoked_with:
-            exc = CommandNotFound('Command "{}" is not found'.format(ctx.invoked_with))
-            self.dispatch('command_error', ctx, exc)
-
     async def get_context(self, message, *, cls=Context):
+        # Same as default implementation. This just adds runas variable
         ctx = await super().get_context(message, cls=cls)
         if self.runas is not None and message.author.id == self.owner_id:
             if ctx.guild:
@@ -424,6 +374,9 @@ class Bot(commands.Bot, Client):
         return ctx
 
     async def process_commands(self, message, local_time=None):
+        if message.author.bot:
+            return
+
         ctx = await self.get_context(message, cls=Context)
         ctx.received_at = local_time
         await self.invoke(ctx)
@@ -433,6 +386,7 @@ class Bot(commands.Bot, Client):
         the internal command list via :meth:`add_command`.
         """
         def decorator(func):
+            kwargs.setdefault('parent', self)
             result = command(*args, **kwargs)(func)
             self.add_command(result)
             return result
@@ -441,6 +395,7 @@ class Bot(commands.Bot, Client):
 
     def group(self, *args, **kwargs):
         def decorator(func):
+            kwargs.setdefault('parent', self)
             result = group(*args, **kwargs)(func)
             self.add_command(result)
             return result

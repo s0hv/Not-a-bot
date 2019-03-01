@@ -22,7 +22,7 @@ class CommandBlacklist(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @group(ignore_extra=True, no_pm=True, invoke_without_command=True)
+    @group(no_pm=True, invoke_without_command=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def blacklist(self, ctx, commands: commands.Greedy[CommandConverter]=None, *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]=None):
@@ -92,7 +92,7 @@ class CommandBlacklist(Cog):
         for msg in split_string(s, splitter='\n'):
             await ctx.send(msg)
 
-    @blacklist.command(ignore_extra=True, no_pm=True)
+    @blacklist.command(no_pm=True)
     @has_permissions(administrator=True)
     async def toggle(self, ctx):
         """
@@ -150,7 +150,7 @@ class CommandBlacklist(Cog):
 
         return message
 
-    @command(ignore_extra=True, no_pm=True)
+    @command(no_pm=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
     async def whitelist(self, ctx, commands: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]):

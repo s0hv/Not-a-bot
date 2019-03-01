@@ -29,12 +29,13 @@ from aiohttp import ClientSession
 from discord.ext.commands import cooldown
 
 from bot.bot import command
+from cogs.cog import Cog
 from utils.utilities import send_paged_message
 
 logger = logging.getLogger('debug')
 
 
-class SearchItem:
+class SearchItem():
     def __init__(self, **kwargs):
         self.url = kwargs.pop('link', 'None')
         self.title = kwargs.pop('title', 'Untitled')
@@ -43,9 +44,9 @@ class SearchItem:
         return '{0.url}'.format(self)
 
 
-class Search:
+class Search(Cog):
     def __init__(self, bot, client: ClientSession):
-        self.bot = bot
+        super().__init__(bot)
         self.client = client
         self.last_search = deque()
         self.key = bot.config.google_api_key

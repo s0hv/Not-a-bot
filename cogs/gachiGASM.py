@@ -57,7 +57,7 @@ class gachiGASM(Cog):
 
         self.reload_call = call_later(self._reload_and_post, self.bot.loop, self.time2tomorrow())
 
-    def __unload(self):
+    def cog_unload(self):
         self.reload_call.cancel()
 
     async def _reload_and_post(self):
@@ -115,12 +115,12 @@ class gachiGASM(Cog):
         """An alternative way of gachifying"""
         return await ctx.send('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
 
-    @command(ignore_extra=True, aliases=['rg'])
+    @command(aliases=['rg'])
     @cooldown(1, 5, BucketType.channel)
     async def randomgachi(self, ctx):
         await ctx.send(choice(self.gachilist))
 
-    @group(ignore_extra=True, invoke_without_command=True)
+    @group(invoke_without_command=True, aliases=['dg'])
     @cooldown(1, 5, BucketType.channel)
     async def dailygachi(self, ctx):
         await ctx.send(Random(self.get_day()+ctx.guild.id).choice(self.gachilist))
@@ -141,7 +141,7 @@ class gachiGASM(Cog):
         else:
             await ctx.send('No dailygachi channel set')
 
-    @dailygachi.command(ignore_extra=True)
+    @dailygachi.command()
     @cooldown(1, 5)
     @has_permissions(manage_guild=True)
     async def unsubscribe(self, ctx):

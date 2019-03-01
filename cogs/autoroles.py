@@ -1,4 +1,5 @@
 import logging
+import time
 from random import choice
 
 import discord
@@ -17,6 +18,7 @@ class AutoRoles(Cog):
     def dbutil(self):
         return self.bot.dbutil
 
+    @Cog.listener()
     async def on_message(self, message):
         if self.bot.test_mode:
             return
@@ -30,6 +32,7 @@ class AutoRoles(Cog):
                 if not discord.utils.get(message.author.roles, id=323098643030736919):
                     await message.author.add_roles(Snowflake(323098643030736919), reason='Pinged every')
 
+    @Cog.listener()
     async def on_member_update(self, before, after):
         if self.bot.test_mode:
             return
@@ -60,6 +63,7 @@ class AutoRoles(Cog):
                 return
             await member.add_roles(Snowflake(id=choice(list(color_ids))), reason='Automatic coloring')
 
+    @Cog.listener()
     async def on_member_join(self, member):
         guild = member.guild
 
@@ -86,6 +90,8 @@ class AutoRoles(Cog):
                 try:
                     await member.add_roles(Snowflake(muted_role), reason='[Keeproles] add muted role first')
                     roles.discard(muted_role)
+                except discord.NotFound:
+                    pass
                 except discord.HTTPException:
                     logger.exception('[KeepRoles] Failed to add muted role first')
 
@@ -105,11 +111,17 @@ class AutoRoles(Cog):
 
         try:
             await member.add_roles(*roles, atomic=False, reason='Keeproles')
+        except discord.NotFound:
+            # If member left before adding roles dont do anything
+            return
+
         except discord.HTTPException:
             for role in roles:
                 try:
                     await member.add_roles(role, reason='Keeproles')
-                except discord.errors.Forbidden:
+                except discord.Forbidden:
+                    pass
+                except discord.NotFound:
                     pass
                 except:
                     logger.exception('Failed to give role on join')
@@ -117,8 +129,13 @@ class AutoRoles(Cog):
         if guild.id == 217677285442977792:
             await wants_to_be_noticed(member, guild)
 
+    @Cog.listener()
     async def on_member_remove(self, member):
         if not self.bot.guild_cache.keeproles(member.guild.id):
+            return
+
+        # If user left in under 4.claim seconds dont save roles
+        if (time.time() - member.joined_at.timestamp()) < 4:
             return
 
         roles = [r.id for r in member.roles]

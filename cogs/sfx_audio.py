@@ -30,6 +30,7 @@ from collections import deque, OrderedDict
 
 import discord
 from discord.ext import commands
+from discord.ext.commands import Cog
 from numpy import random
 
 from bot.bot import cooldown
@@ -152,7 +153,7 @@ class Playlist:
             self.voice.stop()
 
 
-class Audio:
+class Audio(Cog):
     def __init__(self, bot, queue):
         self.bot = bot
         self.music_players = self.bot.music_players
@@ -199,7 +200,7 @@ class Audio:
 
         return True
 
-    @command(no_pm=True, ignore_extra=True, aliases=['s'])
+    @command(no_pm=True, aliases=['s'])
     async def stop_sfx(self, ctx):
         """Stop the current sfx"""
         state = self.get_voice_state(ctx.guild)
@@ -415,7 +416,7 @@ class Audio:
 
         await ctx.send('Random sfx set to %s' % values_rev.get(value))
 
-    @command(pass_context=True)
+    @command()
     @cooldown(1, 4, type=commands.BucketType.user)
     async def sfxlist(self, ctx):
         """List of all the sound effects"""
@@ -471,6 +472,7 @@ class Audio:
             return
         await self.disconnect_voice(state)
 
+    @Cog.listener()
     async def on_voice_state_update(self, member, before, after):
         if member == self.bot.user:
             return
@@ -504,11 +506,13 @@ class Audio:
         except:
             terminal.exception('Failed to say join leave voice')
 
+    @Cog.listener()
     async def on_join(self, member):
         string = '%s joined the channel' % member.name
         path = os.path.join(TTS, 'join.mp3')
         self._add_tts(path, string, member.guild)
 
+    @Cog.listener()
     async def on_leave(self, member):
         string = '%s left the channel' % member.name
         path = os.path.join(TTS, 'leave.mp3')

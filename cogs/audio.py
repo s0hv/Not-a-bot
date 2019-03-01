@@ -536,7 +536,7 @@ class Audio:
 
         return True
 
-    async def get_player_and_check(self, ctx, user_connected=True):
+    async def get_player_and_check(self, ctx):
         if not await self.check_player(ctx):
             return
 
@@ -544,13 +544,13 @@ class Audio:
 
         return musicplayer
 
-    @command(no_pm=True, aliases=['a'], ignore_extra=True)
+    @command(no_pm=True, aliases=['a'])
     @cooldown(1, 4, type=BucketType.guild)
     async def again(self, ctx):
         """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
-    @command(aliases=['q', 'queue_np'], no_pm=True, ignore_extra=True)
+    @command(aliases=['q', 'queue_np'], no_pm=True)
     @cooldown(1, 3, type=BucketType.guild)
     async def queue_now_playing(self, ctx):
         """Queue the currently playing song to the start of the queue"""
@@ -1254,20 +1254,20 @@ class Audio:
 
         return True
 
-    @command(no_pm=True, ignore_extra=True, aliases=['summon1'])
+    @command(no_pm=True, aliases=['summon1'])
     @cooldown(1, 3, type=BucketType.guild)
     async def summon(self, ctx):
         """Summons the bot to join your voice channel."""
         return await self._summon(ctx)
 
-    @command(no_pm=True, ignore_extra=True)
+    @command(no_pm=True)
     @cooldown(1, 3, type=BucketType.guild)
     async def move(self, ctx, channel: discord.VoiceChannel=None):
         """Moves the bot to your current voice channel or the specified voice channel"""
         return await self._summon(ctx, change_channel=True, channel=channel)
 
     @cooldown(2, 5, BucketType.guild)
-    @command(ignore_extra=True, no_pm=True)
+    @command(no_pm=True)
     async def repeat(self, ctx, value: bool=None):
         """If set on the current song will repeat until this is set off"""
         if not await self.check_voice(ctx):
@@ -1288,7 +1288,7 @@ class Audio:
         await ctx.send(s)
 
     @cooldown(1, 5, BucketType.guild)
-    @command(ignore_extra=True, no_pm=True)
+    @command(no_pm=True)
     async def speed(self, ctx, value: str):
         """Change the speed of the currently playing song.
         Values must be between 0.5 and 2"""
@@ -1320,7 +1320,7 @@ class Audio:
         await self._seek(musicplayer, current, seek, options=options, speed=v)
 
     @commands.cooldown(1, 5, BucketType.guild)
-    @command(ignore_extra=True, no_pm=True)
+    @command(no_pm=True)
     async def bass(self, ctx, value: int):
         """Add bass boost or decrease to a song.
         Value can range between -60 and 60"""
@@ -1348,7 +1348,7 @@ class Audio:
         await self._seek(musicplayer, current, seek, options=options)
 
     @cooldown(1, 5, BucketType.guild)
-    @command(no_pm=True, ignore_extra=True)
+    @command(no_pm=True)
     async def stereo(self, ctx, mode='sine'):
         """Works almost the same way {prefix}play does
         Default stereo type is sine.
@@ -1591,7 +1591,7 @@ class Audio:
             return
         await musicplayer.resume()
 
-    @command(name='bpm', no_pm=True, ignore_extra=True)
+    @command(name='bpm', no_pm=True)
     @cooldown(1, 8, BucketType.guild)
     async def bpm(self, ctx):
         """Gets the currently playing songs bpm using aubio"""
@@ -1710,7 +1710,7 @@ class Audio:
         if not self.musicplayers:
             await self.bot.change_presence(activity=discord.Activity(**self.bot.config.default_activity))
 
-    @command(no_pm=True, ignore_extra=True)
+    @command(no_pm=True)
     @cooldown(1, 6, BucketType.guild)
     async def force_stop(self, ctx):
         """
@@ -1753,7 +1753,7 @@ class Audio:
             await ctx.send('Disconnected')
 
     @commands.cooldown(1, 6, BucketType.user)
-    @command(no_pm=True, ignore_extra=True)
+    @command(no_pm=True)
     async def stop(self, ctx):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
@@ -2021,7 +2021,7 @@ class Audio:
 
         return await ctx.send('The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
-    @command(no_pm=True, ignore_extra=True, auth=Auth.BOT_MOD)
+    @command(no_pm=True, auth=Auth.BOT_MOD)
     async def ds(self, ctx):
         """Delete song from autoplaylist and skip it"""
         await ctx.invoke(self.delete_from_ap)

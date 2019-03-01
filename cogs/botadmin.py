@@ -31,7 +31,7 @@ from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
 from utils.utilities import split_string
 from utils.utilities import (y_n_check, basic_check, y_check, check_import,
-                             parse_timeout,
+                             parse_timeout, is_owner,
                              call_later, seconds2str, test_url,
                              wants_to_be_noticed)
 
@@ -70,6 +70,9 @@ class BotAdmin(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._last_result = None
+
+    def cog_check(self, ctx):
+        return is_owner(ctx)
 
     def load_extension(self, name, lib=None):
         """
@@ -183,7 +186,7 @@ class BotAdmin(Cog):
 
         return await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
 
-    @command(name='eval', owner_only=True)
+    @command(name='eval')
     async def eval_(self, ctx, *, code: str):
         context = globals().copy()
         context.update({'ctx': ctx,
@@ -265,7 +268,7 @@ class BotAdmin(Cog):
         else:
             await ctx.send(retval)
 
-    @command(name='exec', owner_only=True)
+    @command(name='exec')
     async def exec_(self, ctx, *, message):
         context = globals().copy()
         context.update({'ctx': ctx,
@@ -289,7 +292,7 @@ class BotAdmin(Cog):
 
         await ctx.send(retval)
 
-    @command(owner_only=True, aliases=['db_eval'])
+    @command(aliases=['db_eval'])
     async def dbeval(self, ctx, *, query):
         try:
             r, t = await self.bot.dbutil.execute(query, commit=True, measure_time=True)
@@ -336,19 +339,19 @@ class BotAdmin(Cog):
             else:
                 bot.add_command(command_)
 
-    @command(owner_only=True)
+    @command()
     async def reload(self, ctx, *, name):
         cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
         await ctx.send(await self.reload_extension(cog_name))
 
-    @command(owner_only=True)
+    @command()
     async def reload_all(self, ctx):
         messages = await self.reload_multiple(self.bot.default_cogs)
         messages = split_string(messages, list_join='\n', splitter='\n')
         for msg in messages:
             await ctx.send(msg)
 
-    @command(owner_only=True)
+    @command()
     async def load(self, ctx, cog):
         cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
         t = time.perf_counter()
@@ -361,7 +364,7 @@ class BotAdmin(Cog):
 
         await ctx.send('Loaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
-    @command(owner_only=True)
+    @command()
     async def unload(self, ctx, cog):
         cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
         t = time.perf_counter()
@@ -373,11 +376,11 @@ class BotAdmin(Cog):
 
         await ctx.send('Unloaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 
-    @command(owner_only=True)
+    @command()
     async def shutdown(self, ctx):
         await self._shutdown(ctx, ExitStatus.PreventRestart)
 
-    @command(owner_only=True, aliases=['reboot'])
+    @command(aliases=['reboot'])
     async def restart(self, ctx):
         await self._shutdown(ctx, ExitStatus.ForceRestart)
 
@@ -437,7 +440,7 @@ class BotAdmin(Cog):
             # have different effects on restarting behavior
             sys.exit(int(exit_code))
 
-    @command(owner_only=True)
+    @command()
     async def notice_me(self, ctx):
         guild = ctx.message.guild
         if guild.id == 217677285442977792:
@@ -457,14 +460,14 @@ class BotAdmin(Cog):
 
             await ctx.send(f'Added attention whore to {added} members and removed it from {removed} members')
 
-    @command(owner_only=True)
+    @command()
     async def reload_dbutil(self, ctx):
         reload(import_module('bot.dbutil'))
         from bot import dbutil
         self.bot._dbutil = dbutil.DatabaseUtils(self.bot)
         await ctx.send(':ok_hand:')
 
-    @command(owner_only=True)
+    @command()
     async def reload_config(self, ctx):
         try:
             config = Config()
@@ -476,7 +479,7 @@ class BotAdmin(Cog):
         self.bot.config = config
         await ctx.send(':ok_hand:')
 
-    @command(owner_only=True)
+    @command()
     async def cache_guilds(self):
         for guild in self.bot.guilds:
             sql = 'SELECT * FROM `guilds` WHERE guild=%s' % guild.id
@@ -496,7 +499,7 @@ class BotAdmin(Cog):
 
             self.bot.guild_cache.update_guild(guild.id, **d)
 
-    @command(owner_only=True)
+    @command()
     async def reload_module(self, ctx, module_name):
         try:
             reload(import_module(module_name))
@@ -504,12 +507,12 @@ class BotAdmin(Cog):
             return await ctx.send('Failed to reload module %s because of %s' % (module_name, e.__name__))
         await ctx.send('Reloaded module %s' % module_name)
 
-    @command(owner_only=True)
+    @command()
     async def runas(self, ctx, *, user: discord.User=None):
         self.bot._runas = user
         await ctx.send(f'Now running as {user}')
 
-    @command(owner_only=True, ignore_extra=True)
+    @command()
     async def update_bot(self, ctx, *, options=None):
         """Does a git pull"""
         cmd = 'git pull'.split(' ')
@@ -549,7 +552,7 @@ class BotAdmin(Cog):
             for msg in messages:
                 await ctx.send(msg)
 
-    @command(owner_only=True)
+    @command()
     async def add_sfx(self, ctx, file=None, name=None):
         client = self.bot.aiohttp_client
         if file and name:
@@ -598,7 +601,7 @@ class BotAdmin(Cog):
             await self.bot.loop.run_in_executor(self.bot.threadpool, write)
             await ctx.send(f'Added sfx {name}')
 
-    @command(owner_only=True)
+    @command()
     async def botban(self, ctx, user: PossibleUser, *, reason):
         """
         Ban someone from using this bot. Owner only
@@ -619,7 +622,7 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Banned {name}`{user_id}` from using this bot')
 
-    @command(owner_only=True)
+    @command()
     async def botunban(self, ctx, user: PossibleUser):
         """
         Remove someones botban
@@ -640,7 +643,7 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Removed the botban of {name}`{user_id}`')
 
-    @command(owner_only=True)
+    @command()
     async def leave_guild(self, ctx, guild_id: int):
         g = self.bot.get_guild(guild_id)
         if not g:
@@ -649,7 +652,7 @@ class BotAdmin(Cog):
         await g.leave()
         await ctx.send(f'Left guild {g.name} `{g.id}`')
 
-    @command(owner_only=True)
+    @command()
     async def blacklist_guild(self, ctx, guild_id: int, *, reason):
         try:
             await self.bot.dbutil.blacklist_guild(guild_id, reason)
@@ -664,7 +667,7 @@ class BotAdmin(Cog):
         s = f'{guild} `{guild_id}`' if guild else guild_id
         await ctx.send(f'Blacklisted guild {s}')
 
-    @command(owner_only=True)
+    @command()
     async def unblacklist_guild(self, ctx, guild_id: int):
         try:
             await self.bot.dbutil.unblacklist_guild(guild_id)
@@ -676,7 +679,7 @@ class BotAdmin(Cog):
         s = f'{guild} `{guild_id}`' if guild else guild_id
         await ctx.send(f'Unblacklisted guild {s}')
 
-    @command(owner_only=True, ignore_extra=True)
+    @command()
     async def restart_db(self, ctx):
         def reconnect():
             t = time.perf_counter()
@@ -699,7 +702,7 @@ class BotAdmin(Cog):
     def remove_call(self, _, msg_id):
         self.bot.call_laters.pop(msg_id, None)
 
-    @command(owner_only=True)
+    @command()
     async def call_later(self, ctx, *, call):
         msg = ctx.message
         # Parse timeout can basically parse anything where you want time
@@ -713,7 +716,7 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Scheduled call `{msg.id}` to run in {seconds2str(run_in.total_seconds(), False)}')
 
-    @command(owner_only=True)
+    @command()
     async def add_todo(self, ctx, priority: int=0, *, todo):
         try:
             rowid = await self.bot.dbutil.add_todo(todo, priority=priority)
@@ -723,7 +726,7 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Added todo with priority {priority} and id {rowid}')
 
-    @command(owner_only=True, name='todo')
+    @command(name='todo')
     async def list_todo(self, ctx, limit: int=3):
         try:
             rows = (await self.bot.dbutil.get_todo(limit)).fetchall()
@@ -742,14 +745,14 @@ class BotAdmin(Cog):
             return await ctx.send('Too long todo')
         await ctx.send(s)
 
-    @command(owner_only=True)
+    @command()
     async def complete_todo(self, ctx, id: int):
         sql = 'UPDATE `todo` SET completed_at=CURRENT_TIMESTAMP, completed=TRUE WHERE id=%s AND completed=FALSE' % id
 
         res = await self.bot.dbutil.execute(sql, commit=True)
         await ctx.send(f'{res.rowcount} rows updated')
 
-    @command(owner_only=True)
+    @command()
     async def reset_cooldown(self, ctx, command):
         cmd = self.bot.all_commands.get(command, None)
         if not cmd:
@@ -758,7 +761,7 @@ class BotAdmin(Cog):
         cmd.reset_cooldown(ctx)
         await ctx.send(f'Cooldown of {cmd.name} reset')
 
-    @command(owner_only=True)
+    @command()
     async def send_message(self, ctx, channel: discord.TextChannel, *, message):
         try:
             await channel.send(message)
@@ -767,7 +770,7 @@ class BotAdmin(Cog):
         except:
             await ctx.send('Failed to send message')
 
-    @command(owner_only=True, aliases=['add_changelog'])
+    @command(aliases=['add_changelog'])
     async def add_changes(self, ctx, *, changes):
         try:
             rowid = await self.bot.dbutil.add_changes(changes)

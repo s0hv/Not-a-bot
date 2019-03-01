@@ -19,7 +19,7 @@ class ActivityLog(Cog):
         self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
         self._update_now = asyncio.Event(loop=bot.loop)
 
-    def __unload(self):
+    def cog_unload(self):
         self._update_task_checker.cancel()
         self.bot.loop.call_soon_threadsafe(self._update_now.set)
         try:
@@ -70,13 +70,14 @@ class ActivityLog(Cog):
 
         return False
 
+    @Cog.listener()
     async def on_member_update(self, before, after):
         if self.status_changed(before, after):
             self._db_queue.append({'user': after.id,
                                    'time': (datetime.utcnow() - before.activity.start).seconds,
                                    'game': before.activity.name})
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 60, BucketType.user)
     async def played(self, ctx):
         games = await self.bot.dbutils.get_activities(ctx.author.id)
@@ -95,7 +96,7 @@ class ActivityLog(Cog):
 
         await ctx.send(embed=embed)
 
-    @command(ignore_extra=True, aliases=['del_played'])
+    @command(aliases=['del_played'])
     @cooldown(1, 60, BucketType.user)
     async def delete_played(self, ctx):
         """This will delete all your data from the games you've played
@@ -103,6 +104,7 @@ class ActivityLog(Cog):
         await ctx.send('This will delete all of your date from the db. This cannot be reversed\nContinue?')
 
         _check = basic_check(ctx.author, ctx.channel)
+
         def check(msg):
             return _check(msg) and bool_check(msg.content)
 
@@ -121,6 +123,7 @@ class ActivityLog(Cog):
             return await ctx.send('Failed to delete game records. Exception has been logged')
 
         await ctx.send('All of your game data has been removed')
+
 
 def setup(bot):
     bot.add_cog(ActivityLog(bot))

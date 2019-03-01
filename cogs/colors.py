@@ -271,9 +271,11 @@ class Colors(Cog):
         color = self.rgb2lab(rgb)
         return self.closest_color_match(color, colors.values())
 
+    @Cog.listener()
     async def on_guild_role_delete(self, role):
         await self._delete_color(role.guild.id, role.id)
 
+    @Cog.listener()
     async def on_guild_role_update(self, before, after):
         if before.color.value != after.color.value:
             color = self._colors.get(before.guild.id, {}).get(before.id)
@@ -696,7 +698,7 @@ class Colors(Cog):
 
         await ctx.send(file=discord.File(data, 'colors.png'))
 
-    @command(no_pm=True, ignore_extra=True, aliases=['colorpie'])
+    @command(no_pm=True, aliases=['colorpie'])
     @cooldown(1, 10, BucketType.guild)
     async def color_pie(self, ctx, all_roles: bool=False):
         """

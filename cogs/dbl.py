@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from datetime import timedelta
+
 import dbl
 
 from cogs.cog import Cog
@@ -26,7 +27,7 @@ class DBApi(Cog):
         headers = {'Content-type': 'application/json'}
         await self.bot.aiohttp_client.post(self.bot.config.dbl_webhook, json=json, headers=headers)
 
-    def __unload(self):
+    def cog_unload(self):
         self.bot.server.remove_listener(self.on_vote)
         if self.update_task:
             self.update_task.cancel()

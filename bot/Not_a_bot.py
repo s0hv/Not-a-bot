@@ -169,7 +169,7 @@ class NotABot(BotBase):
     async def on_message(self, message):
         local = time.perf_counter()
         await self.wait_until_ready()
-        if message.author.bot or message.author == self.user:
+        if message.author == self.user:
             return
 
         # Ignore if user is botbanned

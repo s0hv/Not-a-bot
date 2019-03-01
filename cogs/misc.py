@@ -23,7 +23,7 @@ class Misc(Cog):
         """Says the text that was put as a parameter"""
         await ctx.send('{0} {1}'.format(ctx.author.mention, words))
 
-    @command(ignore_extra=True, aliases=['twitchquotes'])
+    @command(aliases=['twitchquotes'])
     @cooldown(1, 2, type=BucketType.guild)
     async def twitchquote(self, ctx, tts: bool=None):
         """Random twitch quote from twitchquotes.com"""

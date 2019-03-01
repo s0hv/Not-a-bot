@@ -249,12 +249,11 @@ class Images(Cog):
             terminal.exception('failed to load pokefusion')
             self._pokefusion = None
 
-    def __unload(self):
+    def cog_unload(self):
         if self._pokefusion:
             self._pokefusion.driver.quit()
 
-    @staticmethod
-    def __local_check(ctx):
+    def cog_check(self, ctx):
         if not check_botperm('attach_files', ctx=ctx):
             raise BotMissingPermissions(('attach_files', ))
 
@@ -270,7 +269,7 @@ class Images(Cog):
         data.seek(0)
         return data
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths(self, ctx, image=None):
         """Generate a top 10 anime deaths image based on provided image"""
@@ -301,7 +300,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='top10-anime-deaths.png'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths2(self, ctx, image=None):
         """same as anime_deaths but with a transparent bg"""
@@ -332,7 +331,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='top10-anime-deaths.png'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(3, 5, type=BucketType.guild)
     async def trap(self, ctx, image=None):
         """Is it a trap?
@@ -368,7 +367,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='is_it_a_trap.png'))
 
-    @command(ignore_extra=True, aliases=['jotaro_no'])
+    @command(aliases=['jotaro_no'])
     @cooldown(3, 5, BucketType.guild)
     async def jotaro(self, ctx, image=None):
         """Jotaro wasn't pleased"""
@@ -406,7 +405,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='jotaro_no.png'))
 
-    @command(ignore_extra=True, aliases=['jotaro2'])
+    @command(aliases=['jotaro2'])
     @cooldown(2, 5, BucketType.guild)
     async def jotaro_photo(self, ctx, image=None):
         """Jotaro takes an image and looks at it"""
@@ -475,7 +474,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='jotaro_photo.{}'.format(extension)))
 
-    @command(ignore_extra=True, aliases=['jotaro3'])
+    @command(aliases=['jotaro3'])
     @cooldown(2, 5, BucketType.guild)
     async def jotaro_smile(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -502,7 +501,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='jotaro.png'))
 
-    @command(ignore_extra=True, aliases=['jotaro4'])
+    @command(aliases=['jotaro4'])
     @cooldown(2, 5, BucketType.guild)
     async def jotaro_photo2(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -528,7 +527,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='jotaro_photo.png'))
 
-    @command(aliases=['tbc'], ignore_extra=True)
+    @command(aliases=['tbc'])
     @cooldown(2, 5, BucketType.guild)
     async def tobecontinued(self, ctx, image=None, no_sepia=False):
         """Make a to be continued picture
@@ -570,7 +569,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='To_be_continued.png'))
 
-    @command(aliases=['heaven', 'heavens_door'], ignore_extra=True)
+    @command(aliases=['heaven', 'heavens_door'])
     @cooldown(2, 5, BucketType.guild)
     async def overheaven(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -594,7 +593,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='overheaven.png'))
 
-    @command(aliases=['puccireset'], ignore_extra=True)
+    @command(aliases=['puccireset'])
     @cooldown(2, 5, BucketType.guild)
     async def pucci(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -617,7 +616,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='pucci_reset.png'))
 
-    @command(aliases=['epitaph'], ignore_extra=True)
+    @command(aliases=['epitaph'])
     @cooldown(2, 5, BucketType.guild)
     async def doppio(self, ctx, image=None):
         """image of doppio"""
@@ -648,7 +647,7 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='epitaph.png'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.guild)
     async def party(self, ctx, image=None):
         """Takes a long ass time to make the gif"""
@@ -661,7 +660,7 @@ class Images(Cog):
         await ctx.send(content=f"Use {ctx.prefix}party2 if transparency guess went wrong",
                        file=File(img, filename='party.gif'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.guild)
     async def party2(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -672,7 +671,7 @@ class Images(Cog):
             img = await self.bot.loop.run_in_executor(self.threadpool, partial(gradient_flash, img, get_raw=True, transparency=False))
         await ctx.send(file=File(img, filename='party.gif'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(2, 2, type=BucketType.guild)
     async def blurple(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -700,7 +699,7 @@ class Images(Cog):
             file = File(*await self.image_func(do_it))
         await ctx.send(file=file)
 
-    @command(ignore_extra=True, aliases=['gspd', 'gif_spd', 'speedup'])
+    @command(aliases=['gspd', 'gif_spd', 'speedup'])
     @cooldown(2, 5)
     async def gif_speed(self, ctx, image, speed=None):
         """
@@ -767,7 +766,7 @@ class Images(Cog):
             file = await self.image_func(do_speedup)
         await ctx.send(file=File(file, filename='speedup.gif'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(2, 5, BucketType.guild)
     async def smug(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -791,7 +790,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='smug_man.png'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(2, 5, BucketType.guild)
     async def seeyouagain(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -813,7 +812,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='see_you_again.png'))
 
-    @command(ignore_extra=True, aliases=['sha'])
+    @command(aliases=['sha'])
     @cooldown(2, 5, BucketType.guild)
     async def sheer_heart_attack(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -835,7 +834,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='sha.png'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(2, 5, BucketType.guild)
     async def kira(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -860,7 +859,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='kira.png'))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(2, 5, BucketType.guild)
     async def josuke(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -885,7 +884,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='josuke.png'))
 
-    @command(ignore_extra=True, aliases=['josuke2'])
+    @command(aliases=['josuke2'])
     @cooldown(2, 5, BucketType.guild)
     async def josuke_binoculars(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -911,7 +910,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='josuke_binoculars.png'))
 
-    @command(ignore_extra=True, aliases=['02'])
+    @command(aliases=['02'])
     @cooldown(2, 5, BucketType.guild)
     async def zerotwo(self, ctx, image=None):
         img = await get_image(ctx, image)
@@ -935,7 +934,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='02.png'))
 
-    @command(ignore_extra=True, aliases=['greatview'])
+    @command(aliases=['greatview'])
     @cooldown(2, 5, BucketType.guild)
     async def giorno(self, ctx, stretch: Optional[bool]=True, image=None):
         """
@@ -1046,7 +1045,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='narancia.png'))
 
-    @command(ignore_extra=True, aliases=['poke'])
+    @command(aliases=['poke'])
     @cooldown(2, 2, type=BucketType.guild)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):
         """
@@ -1068,7 +1067,7 @@ class Images(Cog):
         file.seek(0)
         await ctx.send(s, file=File(file, filename='pokefusion.png'))
 
-    @command(ignore_extra=True, aliases=['get_im'])
+    @command(aliases=['get_im'])
     @cooldown(3, 3, BucketType.guild)
     async def get_image(self, ctx, *, data=None):
         """Get's the latest image in the channel if data is None

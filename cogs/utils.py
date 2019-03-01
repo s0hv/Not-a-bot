@@ -45,7 +45,7 @@ class Utilities(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.guild)
     async def changelog(self, ctx, page: int=1):
         sql = 'SELECT * FROM changelog ORDER BY `time` DESC'
@@ -71,7 +71,7 @@ class Utilities(Cog):
 
         await send_paged_message(ctx, rows, True, page, get_page)
 
-    @command(ignore_extra=True, aliases=['pong'])
+    @command(aliases=['pong'])
     @cooldown(1, 5, BucketType.guild)
     async def ping(self, ctx):
         """Ping pong"""
@@ -181,7 +181,7 @@ class Utilities(Cog):
             return
         await ctx.send(source)
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.user)
     async def invite(self, ctx):
         """This bots invite link"""
@@ -193,7 +193,7 @@ class Utilities(Cog):
             return
         return value.lstrip('0')
 
-    @command(ignore_extra=True, aliases=['bot', 'botinfo'])
+    @command(aliases=['bot', 'botinfo'])
     @cooldown(2, 5, BucketType.user)
     @bot_has_permissions(embed_links=True)
     async def stats(self, ctx):
@@ -269,7 +269,7 @@ class Utilities(Cog):
 
         await ctx.send(embed=embed)
 
-    @command(name='roles', ignore_extra=True, no_pm=True)
+    @command(name='roles', no_pm=True)
     @cooldown(1, 10, type=BucketType.guild)
     async def get_roles(self, ctx, page=''):
         """Get roles on this server"""
@@ -291,7 +291,7 @@ class Utilities(Cog):
         await send_paged_message(ctx, roles, starting_idx=idx,
                                  page_method=lambda p, i: '```{}```'.format(p))
 
-    @command(aliases=['created_at', 'snowflake', 'snoflake'], ignore_extra=True)
+    @command(aliases=['created_at', 'snowflake', 'snoflake'])
     @cooldown(1, 5, type=BucketType.guild)
     async def snowflake_time(self, ctx, id: int):
         """Gets creation date from the specified discord id in UTC"""
@@ -374,7 +374,7 @@ class Utilities(Cog):
         else:
             await ctx.send('Failed to send feedback')
 
-    @command(aliases=['bug'], ignore_extra=True)
+    @command(aliases=['bug'])
     @cooldown(1, 10, BucketType.user)
     async def bugreport(self, ctx):
         """For reporting bugs"""
@@ -387,7 +387,7 @@ class Utilities(Cog):
         """Pls vote thx"""
         await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
 
-    @command(aliases=['sellout'], ignore_extra=True)
+    @command(aliases=['sellout'])
     @cooldown(1, 10)
     async def donate(self, ctx):
         """

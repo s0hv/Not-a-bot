@@ -26,7 +26,6 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from discord.ext.commands import CommandNotFound, CommandError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
@@ -164,6 +163,7 @@ class BotBase(Bot):
         return True
 
     async def invoke(self, ctx):
+        # Just adds command logging
         if ctx.command is not None:
             if ctx.guild:
                 s = '{0.name}/{0.id}/{1.name}/{1.id} {2} called {3}'.format(ctx.guild, ctx.channel, str(ctx.author), ctx.command.name)
@@ -171,18 +171,8 @@ class BotBase(Bot):
                 s = 'DM/{0.id} {0} called {1}'.format(ctx.author, ctx.command.name)
             terminal.info(s)
             logger.debug(s)
-            self.dispatch('command', ctx)
-            try:
-                if (await self.can_run(ctx, call_once=True)):
-                    await ctx.command.invoke(ctx)
-            except CommandError as e:
-                await self.on_command_error(ctx, e)
-                return
-            else:
-                self.dispatch('command_completion', ctx)
-        elif ctx.invoked_with:
-            exc = CommandNotFound('Command "{}" is not found'.format(ctx.invoked_with))
-            self.dispatch('command_error', ctx, exc)
+
+            await super().invoke(ctx)
 
     async def on_guild_join(self, guild):
         terminal.info(f'Joined guild {guild.name} {guild.id}')

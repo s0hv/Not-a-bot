@@ -116,7 +116,7 @@ class Settings(Cog):
         """Remove and active prefix from use"""
         await self._remove_prefix(ctx, ctx.guild.id, prefix)
 
-    @settings.command(ignore_extra=True, no_pm=True)
+    @settings.command(no_pm=True)
     @cooldown(1, 10, type=BucketType.guild)
     @has_permissions(manage_channels=True, manage_guild=True)
     async def modlog(self, ctx, channel: discord.TextChannel=None):
@@ -171,7 +171,7 @@ class Settings(Cog):
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.guild)
-    @settings.command(ignore_extra=True, no_pm=True)
+    @settings.command(no_pm=True)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def keeproles(self, ctx, boolean: bool=None):
@@ -233,12 +233,12 @@ class Settings(Cog):
         value = 'on' if value else 'off'
         await ctx.send('Changed the value to ' + value)
 
-    @settings.command(name='automute', ignore_extra=True)
+    @settings.command(name='automute')
     async def automute_(self, ctx):
         # No need for checks. The automute command does that for you
         await self.automute.invoke(ctx)
 
-    @group(ignore_extra=True, invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True, no_pm=True)
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_roles=True, manage_guild=True)
     @bot_has_permissions(manage_roles=True)
@@ -288,7 +288,7 @@ class Settings(Cog):
         value = 'on' if value else 'off'
         await ctx.send('Set automute value to ' + value)
 
-    @automute.command(ignore_extra=True)
+    @automute.command()
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_roles=True, manage_guild=True)
     @bot_has_permissions(manage_roles=True)
@@ -312,7 +312,7 @@ class Settings(Cog):
 
         await ctx.send('Set automute limit to ' + str(limit))
 
-    @automute.command(no_pnm=True, ignore_extra=True)
+    @automute.command(no_pnm=True)
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_roles=True, manage_guild=True)
     @bot_has_permissions(manage_roles=True)
@@ -365,7 +365,7 @@ class Settings(Cog):
             return await ctx.send('Failed to set value')
         await ctx.send(f'Set embeds to {boolean}')
 
-    @on_delete.command(ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
+    @on_delete.command(no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_on_delete(self, ctx):
@@ -459,7 +459,7 @@ class Settings(Cog):
             return await ctx.send('Failed to set value')
         await ctx.send(f'Set embeds to {boolean}')
 
-    @on_edit.command(ignore_extra=True, no_dm=True, name='remove', aliases=['del', 'delete'])
+    @on_edit.command(no_dm=True, name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_on_edit(self, ctx):
@@ -517,31 +517,31 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.guild)
     async def delete_format(self, ctx):
         s = test_message(ctx.message)
         await ctx.send(s)
 
-    @command(ignore_extra=True, aliases=['test_delete'])
+    @command(aliases=['test_delete'])
     @cooldown(1, 10, BucketType.guild)
     async def test_delete_format(self, ctx, *, delete_message):
         s = format_on_delete(ctx.message, delete_message)
         await ctx.send(s)
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.guild)
     async def edit_format(self, ctx):
         s = test_message(ctx.message, True)
         await ctx.send(s)
 
-    @command(ignore_extra=True, aliases=['test_edit'])
+    @command(aliases=['test_edit'])
     @cooldown(1, 10, BucketType.guild)
     async def test_edit_format(self, ctx, *, edit_message):
         s = format_on_edit(ctx.message, ctx.message, edit_message, check_equal=False)
         await ctx.send(s)
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 10, BucketType.guild)
     async def join_format(self, ctx):
         s = test_member(ctx.author)
@@ -573,7 +573,7 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @join_message.command(name='remove', aliases=['del', 'delete'], ignore_extra=True, no_pm=True)
+    @join_message.command(name='remove', aliases=['del', 'delete'], no_pm=True)
     @cooldown(1, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_join(self, ctx):
@@ -643,7 +643,7 @@ class Settings(Cog):
 
         await ctx.send(f'Current format in channel <#{channel}>\n{message}')
 
-    @leave_message.command(name='remove', no_pm=True, aliases=['del', 'delete'], ignore_extra=True)
+    @leave_message.command(name='remove', no_pm=True, aliases=['del', 'delete'])
     @cooldown(1, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_join(self, ctx):

@@ -38,7 +38,7 @@ class Moderator(Cog):
         self._load_automute()
         self._load_temproles()
 
-    def __unload(self):
+    def cog_unload(self):
         for timeouts in list(self.timeouts.values()):
             for timeout in list(timeouts.values()):
                 timeout.cancel()
@@ -141,6 +141,7 @@ class Moderator(Cog):
         except discord.HTTPException:
             pass
 
+    @Cog.listener()
     async def on_message(self, message):
         guild = message.guild
         if guild and self.bot.guild_cache.automute(guild.id):
@@ -166,6 +167,7 @@ class Moderator(Cog):
                 return
 
             s = '.img penile hemorrhage'
+            # check for search of that
             if guild.id == 217677285442977792 and message.content.strip().lower() == s:
                 def check(msg):
                     if msg.author.id != 439205512425504771 or msg.channel != message.channel:
@@ -207,7 +209,7 @@ class Moderator(Cog):
                 return
 
             limit = self.bot.guild_cache.automute_limit(guild.id)
-            if len(message.mentions) + len(message.role_mentions) > limit:
+            if len(message.mentions) + len(message.role_mentions) >= limit:
                 blacklist = self.automute_blacklist.get(guild.id, ())
 
                 if message.channel.id not in blacklist:
@@ -469,7 +471,7 @@ class Moderator(Cog):
         await self.add_mute_reason(ctx, user.id, reason,
                                    modlog_message_id=msg.id if msg else None)
 
-    @command(ignore_extra=True, no_dm=True)
+    @command(no_dm=True)
     @cooldown(2, 3, BucketType.guild)
     @bot_has_permissions(manage_roles=True)
     async def mute_roll(self, ctx, user: discord.Member, minutes: int):
@@ -1011,7 +1013,7 @@ class Moderator(Cog):
         embed = self.purge_embed(ctx, messages)
         await self.send_to_modlog(channel.guild, embed=embed)
 
-    @purge.command(name='from', no_pm=True, ignore_extra=True)
+    @purge.command(name='from', no_pm=True)
     @cooldown(2, 4, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
     @has_permissions(manage_messages=True)
@@ -1091,7 +1093,7 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
                 await self.send_to_modlog(guild, embed=embed)
 
-    @purge.command(name='until', no_pm=True, ignore_extra=True)
+    @purge.command(name='until', no_pm=True)
     @cooldown(2, 4, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
     @has_permissions(manage_messages=True)
@@ -1125,7 +1127,7 @@ class Moderator(Cog):
         else:
             await ctx.send(f'Deleted {len(deleted)} messages')
 
-    @command(no_pm=True, ignore_extra=True, aliases=['softbab'])
+    @command(no_pm=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
     async def softban(self, ctx, user: PossibleUser, message_days: int=1):
@@ -1155,7 +1157,7 @@ class Moderator(Cog):
 
         await ctx.send(s)
 
-    @command(ignore_extra=True, aliases=['zawarudo'], no_pm=True)
+    @command(aliases=['zawarudo'], no_pm=True)
     @cooldown(1, 5, BucketType.guild)
     @bot_has_permissions(manage_channels=True, manage_roles=True)
     @has_permissions(manage_channels=True, manage_roles=True)
@@ -1163,7 +1165,7 @@ class Moderator(Cog):
         """Set send_messages permission override of everyone to false on current channel"""
         await self._set_channel_lock(ctx, True, zawarudo=ctx.invoked_with == 'zawarudo')
 
-    @command(ignore_extra=True, aliases=['tokiwougokidasu'], no_pm=True)
+    @command(aliases=['tokiwougokidasu'], no_pm=True)
     @cooldown(1, 5, BucketType.guild)
     @bot_has_permissions(manage_channels=True, manage_roles=True)
     @has_permissions(manage_channels=True, manage_roles=True)
@@ -1212,7 +1214,7 @@ class Moderator(Cog):
 
         temproles[user] = task
 
-    @command(ignore_extra=True, no_pm=True)
+    @command(no_pm=True)
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, BucketType.guild)

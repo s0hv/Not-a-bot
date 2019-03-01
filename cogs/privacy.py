@@ -11,7 +11,7 @@ class Privacy(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 5, BucketType.guild)
     async def privacy(self, ctx):
         can_embed = ctx.channel.permissions_for(ctx.guild.get_member(self.bot.user.id)).embed_links

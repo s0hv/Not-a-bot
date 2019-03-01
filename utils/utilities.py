@@ -1292,7 +1292,7 @@ async def create_custom_emoji(guild, name, image, already_b64=False, reason=None
 
 
 def is_owner(ctx):
-    if ctx.command.owner_only and ctx.bot.owner_id != ctx.original_user.id:
+    if ctx.bot.owner_id != ctx.original_user.id:
         raise NotOwner
 
     ctx.skip_check = True

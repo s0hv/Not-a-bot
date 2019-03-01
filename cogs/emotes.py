@@ -103,6 +103,5 @@ class Emotes(Cog):
             await ctx.send(s)
 
 
-
 def setup(bot):
     bot.add_cog(Emotes(bot))

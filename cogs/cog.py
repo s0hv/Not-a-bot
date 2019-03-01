@@ -1,25 +1,19 @@
 import asyncio
-import inspect
 
-from discord.ext.commands import GroupMixin, Command
+from discord.ext import commands
+from discord.ext.commands import Command
 
 
-# By subclassing GroupMixin we can iterate over all commands in a cog
-class Cog(GroupMixin):
+class Cog(commands.Cog):
     def __init__(self, bot):
         super().__init__()
         self._bot = bot
-        members = inspect.getmembers(self)
-        for name, member in members:
-            # register commands the cog has
-            if isinstance(member, Command):
-                if member.parent is None:
-                    self.add_command(member)
-                continue
 
+        # Add all commands to cmdstats db table
         cmds = set()
         for cmd in self.walk_commands():
             cmds.add(cmd)
+
         data = []
         for cmd in cmds:
             entries = []

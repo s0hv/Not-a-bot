@@ -102,7 +102,7 @@ class JoJo(Cog):
             self.parser.add_argument(arg, type=int, default=argparse.SUPPRESS,
                                      required=False)
 
-    def __unload(self):
+    def cog_unload(self):
         plt.close('all')
 
     def create_empty_stats_circle(self, color='k'):
@@ -261,7 +261,7 @@ class JoJo(Cog):
 
         return msg
 
-    @command(aliases=['stand_generator', 'standgen'], ignore_extra=True)
+    @command(aliases=['stand_generator', 'standgen'])
     @cooldown(1, 10, BucketType.user)
     @bot_has_permissions(attach_files=True)
     async def stand_gen(self, ctx, stand, user, image=None, *, params=None):

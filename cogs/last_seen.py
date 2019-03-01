@@ -36,7 +36,7 @@ class LastSeen(Cog):
         self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
         self._update_now = asyncio.Event(loop=bot.loop)
 
-    def __unload(self):
+    def cog_unload(self):
         self._update_task_checker.cancel()
         self.bot.loop.call_soon_threadsafe(self._update_now.set)
         try:
@@ -100,32 +100,38 @@ class LastSeen(Cog):
         else:
             return user.guild.id
 
+    @Cog.listener()
     async def on_message(self, message):
         guild = self.get_guild(message.author)
         o = UserSeen(message.author, guild)
         self._updates.add(o)
 
+    @Cog.listener()
     async def on_member_update(self, before, after):
         if self.status_changed(before, after):
             o = UserSeen(after, None)
             self._updates.add(o)
             return
 
+    @Cog.listener()
     async def on_reaction_add(self, _, user):
         guild = self.get_guild(user)
         o = UserSeen(user, guild)
         self._updates.add(o)
 
+    @Cog.listener()
     async def on_typing(self, _, user, __):
         guild = self.get_guild(user)
         o = UserSeen(user, guild)
         self._updates.add(o)
 
+    @Cog.listener()
     async def on_member_join(self, user):
         guild = user.guild.id
         o = UserSeen(user, guild)
         self._updates.add(o)
 
+    @Cog.listener()
     async def on_member_leave(self, user):
         guild = user.guild.id
         o = UserSeen(user, guild)

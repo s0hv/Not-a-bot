@@ -9,18 +9,14 @@ from functools import partial
 
 import discord
 from discord import utils, Embed
-from discord.embeds import EmptyEmbed
-from discord.errors import HTTPException
 from discord.ext.commands import BucketType
-from discord.ext.commands.converter import UserConverter
-from discord.ext.commands.errors import BadArgument, UserInputError, \
-    BotMissingPermissions
+from discord.ext.commands.errors import BotMissingPermissions
 
 from bot.bot import command, cooldown
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
-from utils.utilities import basic_check, random_color, wait_for_yes, \
+from utils.utilities import random_color, wait_for_yes, \
     check_botperm
 
 logger = logging.getLogger('debug')
@@ -224,6 +220,8 @@ class Pokemon(Cog):
         super().__init__(bot)
         self.poke_spawns = {}
 
+    '''
+    Not needed since ivs are shown
     @command(aliases=['pstats', 'pstat'])
     @cooldown(1, 3, BucketType.user)
     async def poke_stats(self, ctx, *, stats=None):
@@ -402,6 +400,7 @@ class Pokemon(Cog):
             s += f'{name}:{fill}{max_val}{fill2}| {from_max}{fill3}| {diff}{fill4}| {stat_range}{fill5}| {iv}\n'
         s += '```'
         await ctx.send(s)
+    '''
 
     """
     Command removed because pokecord didnt want it to exist.
@@ -452,7 +451,7 @@ class Pokemon(Cog):
 
         await ctx.send(f'Pokelog created in {channel.mention}')
 
-    @command(ignore_extra=True)
+    @command()
     @cooldown(1, 5, BucketType.guild)
     async def pokelog(self, ctx):
         """
@@ -621,7 +620,7 @@ class Pokemon(Cog):
         
     """
 
-    @command(aliases=['pstats_format'], ignore_extra=True)
+    @command(aliases=['pstats_format'])
     async def pstat_format(self, ctx):
         await ctx.send(textwrap.dedent("""
         Level 100 Pikachu

@@ -25,12 +25,13 @@ SOFTWARE.
 from discord.ext.commands import BucketType
 
 from bot.bot import command, cooldown
+from cogs.cog import Cog
 
 
-class Hearthstone:
+class Hearthstone(Cog):
     def __init__(self, bot, mashape_key, client):
+        super().__init__(bot)
         self.key = mashape_key
-        self.bot = bot
         self.client = client
 
     @command()

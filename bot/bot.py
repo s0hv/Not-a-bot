@@ -35,6 +35,7 @@ from discord.ext.commands import bot_has_permissions, CheckFailure
 from discord.ext.commands.bot import _mention_pattern, _mentions_transforms
 from discord.ext.commands.formatter import HelpFormatter, Paginator
 from discord.http import HTTPClient
+from discord.raw_models import RawBulkMessageDeleteEvent
 
 from bot.cooldowns import Cooldown, CooldownMapping
 from bot.formatter import Formatter
@@ -131,20 +132,12 @@ class ConnectionState(state.ConnectionState):
         super().__init__(*args, **kwargs)
 
     def parse_message_delete_bulk(self, data):
-        message_ids = set(data.get('ids', []))
-        to_be_deleted = []
-        for msg in self._messages:
-            if msg.id in message_ids:
-                to_be_deleted.append(msg)
-                message_ids.remove(msg.id)
+        raw = RawBulkMessageDeleteEvent(data)
+        self.dispatch('raw_bulk_message_delete', raw)
 
-        for msg in to_be_deleted:
-            self._messages.remove(msg)
-
+        to_be_deleted = [message for message in self._messages if message.id in raw.message_ids]
         if to_be_deleted:
             self.dispatch('bulk_message_delete', to_be_deleted)
-        if message_ids:
-            self.dispatch('raw_bulk_message_delete', message_ids)
 
 
 class Client(discord.Client):

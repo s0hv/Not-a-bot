@@ -472,8 +472,10 @@ class Audio(Cog):
             return
         await self.disconnect_voice(state)
 
-    @Cog.listener()
+    #@Cog.listener()
     async def on_voice_state_update(self, member, before, after):
+        # disabled for now
+        return
         if member == self.bot.user:
             return
 

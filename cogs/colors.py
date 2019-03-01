@@ -873,8 +873,8 @@ class Colors(Cog):
             if role:
                 try:
                     await color_role.edit(position=max(1, role.position))
-                except:
-                    logger.exception('Failed to move color to position')
+                except discord.HTTPException as e:
+                    await ctx.send(f'Failed to move color role up in roles hierarchy because of an exception\n{e}')
 
             self._colors[guild.id][color_role.id] = color_
         else:

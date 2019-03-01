@@ -1345,7 +1345,7 @@ async def search(s, ctx, site, downloader, on_error=None):
 
     url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
 
-    def get_page(page, index):
+    def get_page(page, _):
         id = page.get('id')
         if id is None:
             return page.get('url')

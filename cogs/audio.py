@@ -1197,7 +1197,10 @@ class Audio:
             if success:
                 musicplayer.start_playlist()
         else:
-            await search(name, ctx, site, self.downloader)
+            def on_error(_):
+                pass
+
+            await search(name, ctx, site, self.downloader, on_error=on_error)
 
     @command()
     @commands.cooldown(1, 5, type=BucketType.user)

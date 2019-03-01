@@ -61,7 +61,10 @@ class AutoRoles(Cog):
 
             if {r.id for r in list(member.roles)}.intersection(color_ids):
                 return
-            await member.add_roles(Snowflake(id=choice(list(color_ids))), reason='Automatic coloring')
+            try:
+                await member.add_roles(Snowflake(id=choice(list(color_ids))), reason='Automatic coloring')
+            except (discord.NotFound, discord.Forbidden):
+                pass
 
     @Cog.listener()
     async def on_member_join(self, member):
@@ -90,7 +93,7 @@ class AutoRoles(Cog):
                 try:
                     await member.add_roles(Snowflake(muted_role), reason='[Keeproles] add muted role first')
                     roles.discard(muted_role)
-                except discord.NotFound:
+                except (discord.NotFound, discord.Forbidden):
                     pass
                 except discord.HTTPException:
                     logger.exception('[KeepRoles] Failed to add muted role first')
@@ -122,7 +125,7 @@ class AutoRoles(Cog):
                 except discord.Forbidden:
                     pass
                 except discord.NotFound:
-                    pass
+                    return
                 except:
                     logger.exception('Failed to give role on join')
 

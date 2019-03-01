@@ -166,7 +166,7 @@ class BotBase(Bot):
         # Just adds command logging
         if ctx.command is not None:
             if ctx.guild:
-                s = '{0.name}/{0.id}/{1.name}/{1.id} {2} called {3}'.format(ctx.guild, ctx.channel, str(ctx.author), ctx.command.name)
+                s = '{0.name}/{0.id}/{1.name}/{1.id} {2}/{2.id} called {3}'.format(ctx.guild, ctx.channel, ctx.author, ctx.command.name)
             else:
                 s = 'DM/{0.id} {0} called {1}'.format(ctx.author, ctx.command.name)
             terminal.info(s)

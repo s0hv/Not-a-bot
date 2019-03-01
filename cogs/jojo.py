@@ -386,6 +386,7 @@ class JoJo(Cog):
 
                 def process_bg():
                     nonlocal bg, color
+                    bg = bg.convert('RGB')
                     dominant_color = get_color(bg)
                     color = Color(rgb=list(map(lambda c: c/255, dominant_color)))
                     bg = resize_keep_aspect_ratio(bg, size, crop_to_size=True)

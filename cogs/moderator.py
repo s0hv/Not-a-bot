@@ -760,15 +760,10 @@ class Moderator(Cog):
         if not ctx.author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
             return await ctx.send('All hail our leader <@!222399701390065674>')
 
-        abusers = (189458911886049281, 117699419951988737)
-        if user.id in abusers and ctx.author.id in abusers:
-            return await ctx.send("Abuse this 🖕")
-
+        abusers = (189458911886049281,)
+        # Rice muted and trying to mute others/shorten his sentence
         if ctx.author.id in abusers and mute_role in ctx.author.roles:
             return await ctx.send("Abuse this 🖕")
-
-        if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
-            return await ctx.send('No <:peepoWeird:423445885180051467>')
 
         if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
             return await ctx.send('The one you are trying to timeout is higher or same as you in the role hierarchy')
@@ -783,7 +778,7 @@ class Moderator(Cog):
         now = datetime.utcnow()
 
         if guild.id == 217677285442977792:
-            words = ('game', 'phil', 'ligma', 'christianserver', 'sugondese', 'deeznuts', 'haha', 'mute', 'lost')
+            words = ('christianserver',)
             rs = '' if not reason else reason.lower().replace(' ', '')
             gay = not reason or any([word in rs for word in words])
 

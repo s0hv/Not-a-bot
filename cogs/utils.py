@@ -534,7 +534,7 @@ class Utilities(Cog):
             return
 
         tzname = 'UTC' if not target_timezone else target_timezone.zone
-        td = format_timedelta(duration, accuracy=DateAccuracy.Day)
+        td = format_timedelta(duration, accuracy=DateAccuracy.Day-DateAccuracy.Minute)
         s = f'`{then.strftime("%Y-%m-%d %H:%M")}` `{tzname}` '
 
         if your_timezone:

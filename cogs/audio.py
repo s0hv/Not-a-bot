@@ -402,7 +402,7 @@ class MusicPlayder:
         return await self.bot.send_message(channel, message, delete_after=timeout)
 
 
-class Audio:
+class Audio(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.musicplayers = self.bot.playlists

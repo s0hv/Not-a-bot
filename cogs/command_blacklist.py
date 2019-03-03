@@ -1,6 +1,5 @@
 import logging
 import typing
-from functools import partial
 
 import discord
 from discord.ext import commands
@@ -337,16 +336,16 @@ class CommandBlacklist(Cog):
         value = await self.bot.dbutil.check_blacklist(f'(command="{command_}" OR command IS NULL)', user, ctx, True)
         await ctx.send(value or 'No special perms')
 
-    def get_rows(self, whereclause, select='*'):
-        session = self.bot.get_session
+    async def get_rows(self, whereclause, select='*'):
         sql = 'SELECT %s FROM `command_blacklist` WHERE %s' % (select, whereclause)
-        rows = session.execute(sql).fetchall()
+        rows = (await self.bot.dbutil.execute(sql)).fetchall()
         return rows
 
     @staticmethod
-    def get_applying_perm(command_rows):
+    def get_applying_perm(command_rows, return_type=False):
         smallest = 18
         smallest_row = None
+        perm_type = 0x10  # guild
         for row in command_rows:
             if row['type'] == BlacklistTypes.GLOBAL:
                 return False
@@ -366,7 +365,11 @@ class CommandBlacklist(Cog):
             v = v1 | v2
             if v < smallest:
                 smallest = v
+                return_type = v2
                 smallest_row = row
+
+        if return_type:
+            return smallest_row, perm_type
 
         return smallest_row
 
@@ -385,7 +388,7 @@ class CommandBlacklist(Cog):
         else:
             where = 'guild={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(guild.id)
 
-        rows = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(self.get_rows, where))
+        rows = await self.get_rows(where)
         if not rows:
             return await ctx.send('No perms found')
 
@@ -424,6 +427,58 @@ class CommandBlacklist(Cog):
 
         await send_paged_message(ctx, pages, embed=True)
 
+    @command(no_pm=True, aliases=['sp'])
+    @cooldown(1, 15, BucketType.guild)
+    async def show_perms(self, ctx):
+        """Shows all server perms in one paged embed"""
+        sql = f'SELECT command, type, user, role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
+        rows = await self.bot.dbutil.execute(sql)
+
+        perms = {'guild': [], 'channel': [], 'role': [], 'user': []}
+
+        for row in rows:
+            if row['user']:
+                perms['user'].append(row)
+            elif row['channel']:
+                perms['channel'].append(row)
+            elif row['role']:
+                perms['role'].append(row)
+            else:
+                perms['guild'].append(row)
+
+        ITEMS_PER_PAGE = 10
+
+        # Flatten dict to key value pairs
+        newperms = []
+        for k in perms:
+            newperms.extend([(perm, k) for perm in sorted(perms[k], key=lambda r: r['type'])])
+
+        paginator = Paginator(title=f"Permissions for guild {ctx.guild.name}", init_page=False)
+
+        for i in range(0, len(newperms), ITEMS_PER_PAGE):
+            s = ''
+            for row, type_ in newperms[i:i+ITEMS_PER_PAGE]:
+                t, e = ('whitelisted', '✅') if row['type'] == BlacklistTypes.WHITELIST else ('disabled', '❌')
+
+                if type_ == 'guild':
+                    s += f'🖥{e} Command `{row["command"]}` {t} for this guild\n'
+
+                elif type_ == 'channel':
+                    s += f'📝{e} Command `{row["command"]}` {t} in channel <#{row["channel"]}>\n'
+
+                elif type_ == 'role':
+                    role = '<@&{0}> {0}'.format(row['role'])
+                    s += f'⚙{e} Command `{row["command"]}` {t} for role {role}\n'
+
+                elif type_ == 'user':
+                    user = self.bot.get_user(row['user']) or ''
+                    s += f'👤{e} Command `{row["command"]}` {t} for user <@{row["user"]}> {user}\n'
+
+            paginator.add_page(description=s)
+
+        paginator.finalize()
+        await send_paged_message(ctx, paginator.pages, embed=True)
+
     @command(name='commands', no_pm=True)
     @cooldown(1, 30, type=BucketType.user)
     async def commands_(self, ctx, user: discord.Member=None):
@@ -439,7 +494,7 @@ class CommandBlacklist(Cog):
 
         where = f'guild={guild.id} AND (user={user.id} or user IS NULL) AND channel IS NULL AND {roles}'
 
-        rows = self.get_rows(where)
+        rows = await self.get_rows(where)
 
         commands = {}
         for row in rows:

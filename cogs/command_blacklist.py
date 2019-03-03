@@ -469,7 +469,7 @@ class CommandBlacklist(Cog):
 
                 elif type_ == 'role':
                     role = '<@&{0}> {0}'.format(row['role'])
-                    s += f'⚙{e} {cmd}` {t} for role {role}\n'
+                    s += f'⚙{e} {cmd} {t} for role {role}\n'
 
                 elif type_ == 'user':
                     user = self.bot.get_user(row['user']) or ''

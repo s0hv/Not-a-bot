@@ -462,18 +462,18 @@ class CommandBlacklist(Cog):
                 cmd = f'Command `{row["command"]}`' if row["command"] else 'All commands'
 
                 if type_ == 'guild':
-                    s += f'🖥{e} Command {cmd} {t} for this guild\n'
+                    s += f'🖥{e} {cmd} {t} for this guild\n'
 
                 elif type_ == 'channel':
-                    s += f'📝{e} Command {cmd} {t} in channel <#{row["channel"]}>\n'
+                    s += f'📝{e} {cmd} {t} in channel <#{row["channel"]}>\n'
 
                 elif type_ == 'role':
                     role = '<@&{0}> {0}'.format(row['role'])
-                    s += f'⚙{e} Command {cmd}` {t} for role {role}\n'
+                    s += f'⚙{e} {cmd}` {t} for role {role}\n'
 
                 elif type_ == 'user':
                     user = self.bot.get_user(row['user']) or ''
-                    s += f'👤{e} Command {cmd} {t} for user <@{row["user"]}> {user}\n'
+                    s += f'👤{e} {cmd} {t} for user <@{row["user"]}> {user}\n'
 
             paginator.add_page(description=s)
 

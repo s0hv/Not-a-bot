@@ -1540,7 +1540,8 @@ class Audio(commands.Cog):
             await ctx.send('No songs currently in queue')
         else:
             tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
-            s = musicplayer.current.long_str + f' {tr_pos} 🔁\n'
+            s = musicplayer.current.long_str + f' {tr_pos}'
+            s += ' 🔁\n' if musicplayer.repeat else '\n'
             if musicplayer.current.duration:
                 pos = round(20 * min(1, musicplayer.duration/musicplayer.current.duration))
                 slider = f'00:00 {"─"*pos}●{"─"*(20-pos-1)}  {format_time(musicplayer.current.duration)}'

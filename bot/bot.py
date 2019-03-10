@@ -472,6 +472,14 @@ def has_permissions(**perms):
         ch = ctx.channel
         permissions = ch.permissions_for(ctx.author)
 
+        # Special case for when manage roles is requested
+        # This is needed because the default implementation thinks that
+        # manage_channel_perms == manage_roles which can create false negatives
+        # Assumes ctx.author is instance of discord.Member
+        if 'manage_roles' in perms:
+            # Set manage roles based on server wide value
+            permissions.manage_roles = ctx.author.guild_permissions.manage_roles
+
         missing = [perm for perm, value in perms.items() if getattr(permissions, perm, None) != value]
 
         if not missing:
@@ -480,7 +488,6 @@ def has_permissions(**perms):
         raise commands.MissingPermissions(missing)
 
     return commands.check(predicate)
-
 
 
 class FormatterDeprecated(HelpFormatter):

@@ -574,7 +574,8 @@ class Moderator(Cog):
             choices.remove(loser)
             await self.add_timeout(ctx, ctx.guild.id, loser.id, expires_on, td.total_seconds(),
                                    reason=f'Lost mute roll to {choices[0]}',
-                                   author=ctx.guild.me)
+                                   author=ctx.guild.me,
+                                   show_in_logs=False)
             try:
                 await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
             except discord.DiscordException:
@@ -594,11 +595,11 @@ class Moderator(Cog):
             logger.exception('Could not delete untimeout')
 
     async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
-                          reason='No reason', author=None, modlog_msg=None):
+                          reason='No reason', author=None, modlog_msg=None, show_in_logs=True):
 
         await self.add_mute_reason(ctx, user_id, reason, author=author,
                                    modlog_message_id=modlog_msg,
-                                   duration=as_seconds)
+                                   duration=as_seconds, show_in_logs=show_in_logs)
         try:
             await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on)
         except SQLAlchemyError:
@@ -678,13 +679,14 @@ class Moderator(Cog):
 
         return embed
 
-    async def add_mute_reason(self, ctx, user_id, reason, author=None, modlog_message_id=None, duration=None):
+    async def add_mute_reason(self, ctx, user_id, reason, author=None, modlog_message_id=None,
+                              duration=None, show_in_logs=True):
         embed = self._reason_url(ctx, reason)
         await self.bot.dbutil.add_timeout_log(ctx.guild.id, user_id,
                                               author.id if author else ctx.author.id,
                                               reason, embed, ctx.message.created_at,
                                               modlog_message_id,
-                                              duration)
+                                              duration, show_in_logs)
 
     async def edit_mute_reason(self, ctx, user_id, reason):
         embed = self._reason_url(ctx, reason)

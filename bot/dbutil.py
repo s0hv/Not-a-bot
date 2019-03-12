@@ -501,10 +501,11 @@ class DatabaseUtils:
         return rowid
 
     async def add_timeout_log(self, guild_id, user_id, author_id, reason, embed=None,
-                              timestamp=None, modlog_message_id=None, duration=None):
+                              timestamp=None, modlog_message_id=None, duration=None,
+                              show_in_logs=True):
         try:
-            sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`, `message`, `time`, `duration`) VALUES ' \
-                  '(:guild, :user, :author, :reason, :embed, :message, :time, :duration) ON DUPLICATE KEY UPDATE ' \
+            sql = 'INSERT IGNORE INTO `timeout_logs` (`guild`, `user`, `author`, `reason`, `embed`, `message`, `time`, `duration`, `show_in_logs`) VALUES ' \
+                  '(:guild, :user, :author, :reason, :embed, :message, :time, :duration, :show_log) ON DUPLICATE KEY UPDATE ' \
                   'reason=:reason, embed=:embed, author=:author'
             d = {
                 'guild': guild_id,
@@ -514,7 +515,8 @@ class DatabaseUtils:
                 'embed': embed,
                 'message': modlog_message_id,
                 'time': timestamp,
-                'duration': duration
+                'duration': duration,
+                'show_log': show_in_logs
             }
             await self.bot.dbutils.execute(sql, params=d, commit=True)
         except SQLAlchemyError:
@@ -569,8 +571,8 @@ class DatabaseUtils:
         return row
 
     async def get_timeout_logs(self, guild_id, user_id):
-        sql = 'SELECT author, reason, time, duration FROM timeout_logs WHERE ' \
-              'guild=%s AND user=%s ORDER BY id DESC' % (guild_id, user_id)
+        sql = 'SELECT author, reason, time, duration, id FROM timeout_logs WHERE ' \
+              'guild=%s AND user=%s AND show_in_logs=true ORDER BY id DESC' % (guild_id, user_id)
 
         try:
             rows = await self.execute(sql)

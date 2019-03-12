@@ -186,7 +186,9 @@ CREATE TABLE `timeout_logs` (
     `message` BIGINT DEFAULT NULL,
     `time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `duration` MEDIUMINT UNSIGNED DEFAULT NULL,
+    `show_in_logs` BOOL DEFAULT true,
     PRIMARY KEY (`id`),
+    KEY (`show_in_logs`),
     KEY (`guild`),
     KEY (`user`),
     KEY (`author`)

@@ -27,7 +27,7 @@ from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
                               optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
 from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
-                             split_string, get_image)
+                             split_string, get_image, dl_image)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -933,6 +933,40 @@ class Images(Cog):
         async with ctx.typing():
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='02.png'))
+
+    @command()
+    @cooldown(2, 8, BucketType.guild)
+    async def v(self, ctx, image1, image2):
+        """Image of V reading a book. Needs 2 images for both of the pages"""
+        img1 = await dl_image(ctx, image1)
+        if img1 is None:
+            return
+
+        img2 = await dl_image(ctx, image2)
+        if not img2:
+            return
+
+        def do_it():
+            nonlocal img1, img2
+            template = Image.open(os.path.join(TEMPLATES, 'v.png')).convert('RGBA')
+            img = img1.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (370, 475), can_be_bigger=False,
+                                           resample=Image.BILINEAR, crop_to_size=True,
+                                           center_cropped=True)
+
+            template.alpha_composite(img, (100, 590))
+
+            img = img2.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (380, 475), can_be_bigger=False,
+                                           resample=Image.BILINEAR, crop_to_size=True,
+                                           center_cropped=True)
+            template.alpha_composite(img, (518, 592))
+
+            return self.save_image(template)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='v.png'))
 
     @command(aliases=['greatview'])
     @cooldown(2, 5, BucketType.guild)

@@ -22,6 +22,7 @@ from utils.utilities import (call_later, parse_timeout,
                              format_timedelta, DateAccuracy, send_paged_message)
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 manage_roles = discord.Permissions(268435456)
 lock_perms = discord.Permissions(268435472)
 
@@ -870,7 +871,13 @@ class Moderator(Cog):
         if row['expires_on']:
             delta = row['expires_on'] - datetime.utcnow()
             td = seconds2str(delta.total_seconds(), False)
-            td = f'Timeout for {member} expires in {td}\n'
+            # Sometimes it
+            if td.startswith('-'):
+                terminal.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {datetime.utcnow()}\nTimedelta: {delta}')
+                td = 'soon'
+            else:
+                td = 'in ' + td
+            td = f'Timeout for {member} expires {td}\n'
 
         reason = row['reason']
         author = row['author']

@@ -473,6 +473,10 @@ class DatabaseUtils:
         rowid = (await self.execute(sql, {'todo': todo, 'priority': priority}, commit=True)).lastrowid
         return rowid
 
+    async def edit_todo(self, id: int, priority: int):
+        sql = 'UPDATE `todo` SET priority=%s WHERE id=%s' % (priority, id)
+        await self.execute(sql, commit=True)
+
     async def get_todo(self, limit):
         sql = 'SELECT * FROM `todo` WHERE `completed` IS FALSE ORDER BY priority DESC LIMIT %s' % limit
         return await self.execute(sql)

@@ -726,6 +726,17 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Added todo with priority {priority} and id {rowid}')
 
+    @command()
+    async def todo_priority(self, ctx, id: int, priority: int):
+        try:
+            await self.bot.dbutil.edit_todo(id, priority)
+        except SQLAlchemyError:
+            logger.exception('Failed to edit todo')
+            await ctx.send('Failed to edit todo priority')
+            return
+
+        await ctx.send(f'Set the priority of {id} to {priority}')
+
     @command(name='todo')
     async def list_todo(self, ctx, limit: int=3):
         try:

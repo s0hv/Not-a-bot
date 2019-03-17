@@ -113,7 +113,7 @@ except:
     model = None
 
 #bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
-bot = NotABot(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True, cogs=initial_cogs, model=model)
+bot = NotABot(prefix='-', conf=config, max_messages=10000, test_mode=True, cogs=initial_cogs, model=model)
 bot.run(config.test_token)
 
 # We have systemctl set up in a way that different exit codes

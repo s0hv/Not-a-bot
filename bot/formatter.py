@@ -1,182 +1,301 @@
-import inspect
 import itertools
 import logging
 
 import colors
 import discord
 from discord import Embed
-from discord.ext.commands import Command
+from discord.ext.commands import help
 from discord.ext.commands.errors import CommandError
-from discord.ext.commands.formatter import HelpFormatter
 from sqlalchemy.exc import SQLAlchemyError
 
+from bot.commands import Command
 from utils.utilities import check_perms
 
 logger = logging.getLogger('debug')
 
+# Inject our custom Command class
+help._HelpCommandImpl.__bases__ = (Command, *Command.__bases__)
 
-class Formatter(HelpFormatter):
+
+class HelpCommand(help.HelpCommand):
+    """Help command implementation that tries to be thread safe.
+    Will overwrite all aliases given to it before init"""
     Generic = 0
-    Cog = 1
-    Command = 2
-    Filtered = 3  # Show only the commands that the caller can use based on required discord permissions
-    ExtendedFilter = 4  # Include database black/whitelist to filter
+    Filtered = 1  # Show only the commands that the caller can use based on required discord permissions
+    ExtendedFilter = 2  # Include database black/whitelist to filter
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, **options):
+        options.setdefault('command_attrs', {})
+        options['command_attrs']['aliases'] = ['helpall']
+        super().__init__(**options)
 
-    async def format_help_for(self, context, command_or_bot, is_owner=False, type=Generic):
-        self.context = context
-        self.command = command_or_bot
-        self.type = type
+    def show_all(self):
+        return self.context.invoked_with == 'helpall'
 
-        retval = await self.format(is_owner=is_owner)
-        context.skip_check = False  # Just in case
-        return retval
+    @staticmethod
+    async def _get_db_perms(ctx):
+        user = ctx.author
+        channel = ctx.channel
 
-    async def format(self, is_owner=False):
-        """Handles the actual behaviour involved with formatting.
-
-        To change the behaviour, this method should be overridden.
-
-        Returns
-        --------
-        list
-            A paginated output of the help command.
-        """
-        description = self.command.description if not self.is_cog() else inspect.getdoc(self.command)
-
-        self._paginator = Paginator(title='Help')
-
-        ctx = self.context
-        user = ctx.message.author
-        channel = ctx.message.channel
-        if isinstance(user, discord.Member) and user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
+        if isinstance(user, discord.Member) and len(user.roles) > 1:
+            roles = '(role IS NULL OR role IN ({}))'.format(
+                ', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
 
-        if isinstance(self.command, Command):
-            # <signature portion>
-            signature = self.get_command_signature()
-            if getattr(self.command, 'owner_only', False):
-                signature = 'This command is owner only\n' + signature
-            elif self.type == self.Filtered or self.type == self.ExtendedFilter:
-                try:
-                    can_run = await self.command.can_run(ctx) and await ctx.bot.can_run(ctx)
-                except CommandError as e:
-                    signature = str(e) + '\n\n' + signature
-                    # Workaround to get past the next if
-                    can_run = True
+        guild_owner = False if not ctx.guild else user.id == ctx.guild.owner.id
+        command_blacklist = {}
 
-                if not can_run:
-                    signature = "This command is blacklisted for you\n\n" + signature
+        # Filter by custom blacklist
+        if not guild_owner:
+            sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
+                  'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
 
-            signature = description + '\n' + signature
+            try:
+                rows = await ctx.bot.dbutil.execute(sql, {
+                    'guild': user.guild.id,
+                    'user': user.id,
+                    'channel': channel.id
+                })
 
-            # <long doc> section
-            if self.command.help:
-                cmd_name = self.command.qualified_name
-                self._paginator.edit_page(self.command.name, self.command.help.format(prefix=self.context.prefix, name=cmd_name.strip()))
+                for row in rows:
+                    name = row['command']
+                    if name in command_blacklist:
+                        command_blacklist[name].append(row)
+                    else:
+                        command_blacklist[name] = [row]
 
-            self._paginator.add_field('Usage', signature)
+            except SQLAlchemyError:
+                logger.exception('Failed to get role blacklist for help command')
 
-            # end it here if it's just a regular command
-            if not self.has_subcommands():
-                self._paginator.finalize()
-                return self._paginator.pages
+        return command_blacklist
 
-        def category(tup):
-            cog = tup[1].cog_name
-            return cog if cog is not None else 'No Category'
+    @staticmethod
+    def check_blacklist(commands, command_blacklist):
+        def check(command):
+            rows = command_blacklist.get(command.name, None)
+            if not rows:
+                return True
+            return check_perms(rows)
 
-        if self.is_bot():
-            guild_owner = False if not ctx.guild else user.id == ctx.guild.owner.id
-            command_blacklist = {}
-            if self.type == self.ExtendedFilter and not guild_owner:
-                sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
-                      'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
+        new_commands = []
+        for cmd in commands:
+            if check(cmd):
+                new_commands.append(cmd)
 
-                try:
-                    rows = await ctx.bot.dbutil.execute(sql, {'guild': user.guild.id,
-                                                              'user': user.id,
-                                                              'channel': channel.id})
+        return new_commands
 
-                    for row in rows:
-                        name = row['command']
-                        if name in command_blacklist:
-                            command_blacklist[name].append(row)
-                        else:
-                            command_blacklist[name] = [row]
+    async def send_bot_help(self, mapping):
+        """
+        Handles the implementation of the bot command page in the help command.
+        This function is called when the help command is called with no arguments.
 
-                except SQLAlchemyError:
-                    logger.exception('Failed to get role blacklist for help command')
+        It should be noted that this method does not return anything -- rather the
+        actual message sending should be done inside this method. Well behaved subclasses
+        should use :meth:`get_destination` to know where to send, as this is a customisation
+        point for other users.
 
-            # We dont wanna check perms again for each individual command
+        You can override this method to customise the behaviour.
+
+        Parameters
+        ------------
+        mapping: Mapping[Optional[:class:`Cog`], List[:class:`Command`]
+            A mapping of cogs to commands that have been requested by the user for help.
+            The key of the mapping is the :class:`~.commands.Cog` that the command belongs to, or
+            ``None`` if there isn't one, and the value is a list of commands that belongs to that cog.
+        """
+        ctx = self.context
+        dest = self.get_destination()
+
+        paginator = Paginator(title='Help')
+        skip_checks = self.show_all() or not self.verify_checks
+        commands = ctx.bot.commands
+
+        def get_category(command):
+            cog = command.cog
+            return cog.qualified_name + ':' if cog is not None else 'No category'
+
+        if not skip_checks:
+            command_blacklist = await self._get_db_perms(ctx)
+
+            # We dont wanna check db perms again for each individual command
             ctx.skip_check = True
 
-            data = sorted(await self.filter_command_list(), key=category)
+            commands = await self.filter_commands(commands, sort=True, key=get_category)
 
             # We also dont wanna leave it on
             ctx.skip_check = False
 
-            if self.type == self.ExtendedFilter and command_blacklist:
-                def check(command):
-                    rows = command_blacklist.get(command.name, None)
-                    if not rows:
-                        return True
-                    return check_perms(rows)
-            else:
-                check = None
+            if command_blacklist:
+                commands = self.check_blacklist(commands, command_blacklist)
 
-            for category_, commands in itertools.groupby(data, key=category):
-                # there simply is no prettier way of doing this.
-                commands = list(commands)
-
-                def inline(entries):
-                    if len(entries) > 5:
-                        return False
-                    else:
-                        return True
-
-                self._add_subcommands_and_page(category_, commands, is_owner=is_owner, inline=inline, predicate=check)
         else:
-            # TODO same kind of check as in general help command
-            self._add_subcommands_and_page('Commands:', await self.filter_command_list(), is_owner=is_owner)
+            commands = commands if self.show_hidden else filter(lambda c: not c.hidden, commands)
+            commands = sorted(commands, key=get_category)
+
+        def inline(entries):
+            if len(entries) > 5:
+                return False
+            else:
+                return True
+
+        for category, commands in itertools.groupby(commands, key=get_category):
+            # there simply is no prettier way of doing this.
+            commands = list(commands)
+            self._add_commands_to_field(paginator, category, commands, inline=inline(commands))
 
         # add the ending note
-        ending_note = self.get_ending_note()
-        self._paginator.add_field('Note', ending_note)
-        self._paginator.finalize()
-        return self._paginator.pages
+        ending_note = self.get_ending_note(ctx)
+        paginator.add_field('Note', ending_note)
+        # Flush page buffer
+        paginator.finalize()
 
-    def get_ending_note(self):
-        command_name = self.context.command.root_parent or self.context.invoked_with
+        for page in paginator.pages:
+            try:
+                await dest.send(embed=page)
+            except discord.HTTPException:
+                return
+
+    async def send_cog_help(self, cog):
+        ctx = self.context
+        dest = self.get_destination()
+
+        paginator = Paginator(title='Help', description=cog.description)
+        skip_checks = self.show_all() or not self.verify_checks
+        commands = cog.get_commands()
+
+        if not skip_checks:
+            command_blacklist = await self._get_db_perms(ctx)
+
+            # We dont wanna check db perms again for each individual command
+            ctx.skip_check = True
+
+            commands = await self.filter_commands(commands)
+
+            # We also dont wanna leave it on
+            ctx.skip_check = False
+
+            if command_blacklist:
+                commands = self.check_blacklist(commands, command_blacklist)
+
+        else:
+            commands = commands if self.show_hidden else filter(lambda c: not c.hidden, commands)
+
+        if commands:
+            self._add_commands_to_field(paginator, 'Commands', commands)
+
+        # add the ending note
+        ending_note = self.get_ending_note(ctx)
+        paginator.add_field('Note', ending_note)
+        paginator.finalize()
+
+        for page in paginator.pages:
+            try:
+                await dest.send(embed=page)
+            except discord.HTTPException:
+                return
+
+    async def send_group_help(self, group):
+        ctx = self.context
+        dest = self.get_destination()
+        paginator = await self.create_command_page(ctx, group)
+        skip_checks = self.show_all() or not self.verify_checks
+
+        if not skip_checks:
+            commands = await self.filter_commands(group.commands)
+        else:
+            commands = group.commands
+
+        if commands:
+            paginator.add_field('Subcommands')
+            for cmd in commands:
+                paginator.add_to_field(f'`{cmd.name}` ')
+
+        # add the ending note
+        ending_note = self.get_ending_note(ctx)
+        paginator.add_field('Note', ending_note)
+        paginator.finalize()
+
+        for page in paginator.pages:
+            try:
+                await dest.send(embed=page)
+            except discord.HTTPException:
+                return
+
+    async def send_command_help(self, command):
+        ctx = self.context
+        dest = self.get_destination()
+        paginator = await self.create_command_page(ctx, command)
+
+        paginator.finalize()
+
+        for page in paginator.pages:
+            try:
+                await dest.send(embed=page)
+            except discord.HTTPException:
+                return
+
+    async def create_command_page(self, ctx, command):
+        """
+        Creates a paginator for a command and creates the correct
+        description and usage fields
+        """
+        cmd_name = command.qualified_name
+
+        if command.help:
+            description = command.help.format(prefix=self.context.prefix, name=cmd_name.strip())
+        else:
+            description = Embed.Empty
+
+        paginator = Paginator(title=command.name, description=description)
+        signature = self.get_command_signature(command)
+        if getattr(command, 'owner_only', False):
+            signature = 'This command is owner only\n' + signature
+
+        try:
+            can_run = await command.can_run(ctx) and await ctx.bot.can_run(ctx)
+        except CommandError as e:
+            signature = str(e) + '\n\n' + signature
+            # Workaround to get past the next if
+            can_run = True
+
+        if not can_run:
+            signature = "This command is blacklisted for you\n\n" + signature
+
+        signature = command.description + '\n' + signature
+
+        paginator.add_field('Usage', signature)
+
+        return paginator
+
+    def get_ending_note(self, ctx=None):
+        ctx = ctx or self.context
+        command_name = ctx.command.root_parent or ctx.invoked_with
         s = "Type `{0}{1} command` for more info on a command.\n"\
-            "You can also type `{0}{1} Category` for more info on a category.\n".format(self.clean_prefix, command_name)
+            "You can also type `{0}{1} Category` for more info on a category.\n".format(ctx.prefix, command_name)
 
-        if self.context.command.name != 'all':
-            s += "This list is filtered based on your and the bots permissions. To get a list of all commands use `{0}{1} all`".format(self.clean_prefix, command_name)
+        if ctx.invoked_with != 'helpall':
+            s += "This list is filtered based on your and the bots permissions. Use `{}helpall` to skip checks".format(ctx.prefix)
         return s
 
-    def _add_subcommands_and_page(self, page, commands, is_owner=False, inline=None, predicate=None):
-        # Like _add_subcommands_to_page but doesn't leave empty fields in the embed
-        # Can be extended to include other filters too
+    @staticmethod
+    def _add_commands_to_field(paginator, field, commands, inline=False):
+        """
+        Adds commands to a new field in the paginator
+        Args:
+            paginator (Paginator):
+                Paginator to be used
+            field (str):
+                Name of the field being added. Usually category name
+            commands (list of Command):
+                List of commands that will be added under this field
+            inline(bool):
+                Whether field is inline or not. Defaults to False
 
+        """
         entries = []
-        for name, command in commands:
-            if name in command.aliases:
-                # skip aliases
-                continue
-
-            if command.owner_only and not is_owner:
-                continue
-
-            if self.type == self.ExtendedFilter and predicate and not predicate(command):
-                continue
-
-            entry = '`{0}` '.format(name)
-            entries.append(entry)
+        for command in commands:
+            entries.append(f'`{command.name}` ')
 
         if not entries:
             return
@@ -184,21 +303,9 @@ class Formatter(HelpFormatter):
         if callable(inline):
             inline = inline(entries)
 
-        self._paginator.add_field(page, inline=inline)
+        paginator.add_field(field, inline=inline)
         for entry in entries:
-            self._paginator.add_to_field(entry)
-
-    def _add_subcommands_to_page(self, commands, is_owner=False):
-        for name, command in commands:
-            if name in command.aliases:
-                # skip aliases
-                continue
-
-            if command.owner_only and not is_owner:
-                continue
-
-            entry = '`{0}` '.format(name)
-            self._paginator.add_to_field(entry)
+            paginator.add_to_field(entry)
 
 
 class Limits:

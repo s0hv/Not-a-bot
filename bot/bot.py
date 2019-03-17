@@ -23,24 +23,20 @@ SOFTWARE.
 """
 
 import asyncio
-import inspect
-import itertools
 import logging
 
 import discord
 from aiohttp import ClientSession
 from discord import state
 from discord.ext import commands
-from discord.ext.commands import bot_has_permissions, CheckFailure
-from discord.ext.commands.bot import _mention_pattern, _mentions_transforms
-from discord.ext.commands.formatter import HelpFormatter, Paginator
+from discord.ext.commands import CheckFailure
 from discord.http import HTTPClient
 from discord.raw_models import RawBulkMessageDeleteEvent
 
-from bot.cooldowns import Cooldown, CooldownMapping
-from bot.formatter import Formatter
-from bot.globals import Auth
-from utils.utilities import is_owner, check_blacklist, no_dm, seconds2str
+from bot.commands import command, group, Command, Group, cooldown
+from bot.cooldowns import CooldownMapping
+from bot.formatter import HelpCommand
+from utils.utilities import seconds2str
 
 try:
     import uvloop
@@ -56,6 +52,18 @@ log = logging.getLogger('discord')
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
+# Used to stop PyCharm from removing Command and Group from imports
+__all__ = [
+    'Group',
+    'Command',
+    'command',
+    'group',
+    'cooldown',
+    'Context',
+    'has_permissions',
+    'Bot'
+]
+
 
 class Context(commands.context.Context):
     __slots__ = ('override_perms', 'skip_check', 'original_user', 'domain',
@@ -69,62 +77,6 @@ class Context(commands.context.Context):
         self.skip_check = attrs.pop('skip_check', False)
         self.domain = attrs.get('domain', None)
         self.received_at = attrs.get('received_at', None)
-
-
-class Command(commands.Command):
-    def __init__(self, func, **kwargs):
-        # Init called twice because commands are copied
-        super(Command, self).__init__(func, **kwargs)
-        del self._buckets
-        self._buckets = CooldownMapping(kwargs.get('cooldown'))
-        self.level = kwargs.pop('level', 0)
-        self.owner_only = kwargs.pop('owner_only', False)
-        self.auth = kwargs.pop('auth', Auth.NONE)
-
-        if 'required_perms' in kwargs:
-            raise DeprecationWarning('Required perms is deprecated, use "from bot.bot import has_permissions" instead')
-
-        self.checks.insert(0, check_blacklist)
-
-        if self.owner_only:
-            terminal.info('registered owner_only command %s' % self.name)
-            self.checks.insert(0, is_owner)
-
-        if 'no_pm' in kwargs or 'no_dm' in kwargs:
-            self.checks.insert(0, no_dm)
-
-    def undo_use(self, ctx):
-        """Undoes one use of command"""
-        if self._buckets.valid:
-            bucket = self._buckets.get_bucket(ctx.message)
-            bucket.undo_one()
-
-
-class Group(Command, commands.Group):
-    def __init__(self, *args, **attrs):
-        Command.__init__(self, *args, **attrs)
-        self.invoke_without_command = attrs.pop('invoke_without_command', False)
-
-    def group(self, *args, **kwargs):
-        def decorator(func):
-            kwargs.setdefault('parent', self)
-            result = group(*args, **kwargs)(func)
-            self.add_command(result)
-            return result
-
-        return decorator
-
-    def command(self, *args, **kwargs):
-        def decorator(func):
-            if 'owner_only' not in kwargs:
-                kwargs['owner_only'] = self.owner_only
-
-            kwargs.setdefault('parent', self)
-            result = command(*args, **kwargs)(func)
-            self.add_command(result)
-            return result
-
-        return decorator
 
 
 class ConnectionState(state.ConnectionState):
@@ -173,11 +125,11 @@ class Client(discord.Client):
 
 class Bot(commands.Bot, Client):
     def __init__(self, prefix, config, aiohttp=None, **options):
-        if 'formatter' not in options:
-            options['formatter'] = Formatter(width=150)
-
+        options.setdefault('help_command', HelpCommand())
         super().__init__(prefix, owner_id=config.owner, **options)
         self._runas = None
+
+        '''
         self.remove_command('help')
 
         @self.group(invoke_without_command=True)
@@ -195,6 +147,7 @@ class Bot(commands.Bot, Client):
             """Shows all available commands even if you don't have the correct
             permissions to use the commands. Bot owner only commands are still hidden tho"""
             await self._help(ctx, *commands_, type=Formatter.Generic)
+        '''
 
         log.debug('Using loop {}'.format(self.loop))
         if aiohttp is None:
@@ -285,71 +238,6 @@ class Bot(commands.Bot, Client):
         terminal.warning('Ignoring exception in command {}'.format(context.command))
         terminal.exception('', exc_info=exception)
 
-    @staticmethod
-    def get_role_members(role, guild):
-        members = []
-        for member in guild.members:
-            if role in member.roles:
-                members.append(member)
-
-        return members
-
-    async def _help(self, ctx, *commands, type=Formatter.ExtendedFilter):
-        """Shows this message."""
-        author = ctx.author
-        if isinstance(ctx.author, discord.User):
-            type = Formatter.Generic
-
-        bot = ctx.bot
-        destination = ctx.message.channel
-        is_owner = author.id == self.owner_id
-
-        def repl(obj):
-            return _mentions_transforms.get(obj.group(0), '')
-
-        # help by itself just lists our own commands.
-        if len(commands) == 0:
-            pages = await self.formatter.format_help_for(ctx, self, is_owner=is_owner, type=type)
-        elif len(commands) == 1:
-            # try to see if it is a cog name
-            name = _mention_pattern.sub(repl, commands[0])
-            command = None
-            if name in bot.cogs:
-                command = bot.cogs[name]
-            else:
-                command = bot.all_commands.get(name)
-                if command is None:
-                    ctx.command.undo_use(ctx)
-                    await destination.send(bot.command_not_found.format(name))
-                    return
-
-            pages = await self.formatter.format_help_for(ctx, command, is_owner=is_owner, type=type)
-        else:
-            name = _mention_pattern.sub(repl, commands[0])
-            command = bot.all_commands.get(name)
-            if command is None:
-                ctx.command.undo_use(ctx)
-                await destination.send(bot.command_not_found.format(name))
-                return
-
-            for key in commands[1:]:
-                try:
-                    key = _mention_pattern.sub(repl, key)
-                    command = command.all_commands.get(key)
-                    if command is None:
-                        ctx.command.undo_use(ctx)
-                        await destination.send(bot.command_not_found.format(key))
-                        return
-                except AttributeError:
-                    ctx.command.undo_use(ctx)
-                    await destination.send(bot.command_has_no_subcommands.format(command, key))
-                    return
-
-            pages = await self.formatter.format_help_for(ctx, command, is_owner=is_owner, type=type)
-
-        for page in pages:
-            await destination.send(embed=page)
-
     async def get_context(self, message, *, cls=Context):
         # Same as default implementation. This just adds runas variable
         ctx = await super().get_context(message, cls=cls)
@@ -435,31 +323,6 @@ class Bot(commands.Bot, Client):
         return discord.utils.find(lambda r: r.id == role_id, guild.roles)
 
 
-def command(*args, **attrs):
-    if 'cls' not in attrs:
-        attrs['cls'] = Command
-    return commands.command(*args, **attrs)
-
-
-def group(name=None, **attrs):
-    """Uses custom Group class"""
-    if 'cls' not in attrs:
-        attrs['cls'] = Group
-    return commands.command(name=name, **attrs)
-
-
-def cooldown(rate, per, type=commands.BucketType.default):
-    """See `commands.cooldown` docs"""
-
-    def decorator(func):
-        if isinstance(func, Command):
-            func._buckets = CooldownMapping(Cooldown(rate, per, type))
-        else:
-            func.__commands_cooldown__ = Cooldown(rate, per, type)
-        return func
-    return decorator
-
-
 def has_permissions(**perms):
     """
     Same as the default discord.ext.commands.has_permissions
@@ -488,97 +351,3 @@ def has_permissions(**perms):
         raise commands.MissingPermissions(missing)
 
     return commands.check(predicate)
-
-
-class FormatterDeprecated(HelpFormatter):
-    Generic = 0
-    Cog = 1
-    Command = 2
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def format_help_for(self, context, command_or_bot, is_owner=False):
-        self.context = context
-        self.command = command_or_bot
-        return self.format(is_owner=is_owner)
-
-    def format(self, is_owner=False, generic=False):
-        """Handles the actual behaviour involved with formatting.
-
-        To change the behaviour, this method should be overridden.
-
-        Returns
-        --------
-        list
-            A paginated output of the help command.
-        """
-        if generic:
-            self._paginator = Paginator(prefix='```Markdown\n')
-        else:
-            self._paginator = Paginator(prefix='', suffix='')
-
-        # we need a padding of ~80 or so
-
-        description = self.command.description if not self.is_cog() else inspect.getdoc(self.command)
-
-        if description:
-            # <description> portion
-            self._paginator.add_line(description, empty=True)
-
-        if isinstance(self.command, Command):
-            # <signature portion>
-            signature = self.get_command_signature()
-            if self.command.owner_only:
-                signature = 'This command is owner only\n' + signature
-
-            self._paginator.add_line(signature, empty=True)
-
-            # <long doc> section
-            if self.command.help:
-                self._paginator.add_line(self.command.help, empty=True)
-
-            # end it here if it's just a regular command
-            if not self.has_subcommands():
-                self._paginator.close_page()
-                return self._paginator.pages
-
-        max_width = self.max_name_size
-
-        def category(tup):
-            cog = tup[1].cog_name
-            # we insert the zero width space there to give it approximate
-            # last place sorting position.
-            return cog + ':' if cog is not None else '\u200bNo Category:'
-
-        if self.is_bot():
-            data = sorted(self.filter_command_list(), key=category)
-            for category, commands in itertools.groupby(data, key=category):
-                # there simply is no prettier way of doing this.
-                commands = list(commands)
-                if len(commands) > 0:
-                    self._paginator.add_line('#' + category)
-
-                self._add_subcommands_to_page(max_width, commands, is_owner=is_owner)
-        else:
-            self._paginator.add_line('Commands:')
-            self._add_subcommands_to_page(max_width, self.filter_command_list(), is_owner=is_owner)
-
-        # add the ending note
-        self._paginator.add_line()
-        ending_note = self.get_ending_note()
-        self._paginator.add_line(ending_note)
-        return self._paginator.pages
-
-    def _add_subcommands_to_page(self, max_width, commands, is_owner=False):
-        for name, command in commands:
-            if name in command.aliases:
-                # skip aliases
-                continue
-
-            if command.owner_only and not is_owner:
-                continue
-
-            entry = '  {0:<{width}} {1}'.format(name, command.short_doc, width=max_width)
-            shortened = self.shorten(entry)
-            self._paginator.add_line(shortened)

@@ -468,6 +468,13 @@ class BotAdmin(Cog):
         await ctx.send(':ok_hand:')
 
     @command()
+    async def reload_help(self, ctx):
+        reload(import_module('bot.formatter'))
+        from bot.formatter import HelpCommand
+        self.bot.help_command = HelpCommand()
+        await ctx.send(':ok_hand:')
+
+    @command()
     async def reload_config(self, ctx):
         try:
             config = Config()

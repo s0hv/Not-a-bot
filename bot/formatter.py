@@ -4,11 +4,12 @@ import logging
 import colors
 import discord
 from discord import Embed
-from discord.ext.commands import help
+from discord.ext.commands import help, BucketType
 from discord.ext.commands.errors import CommandError
 from sqlalchemy.exc import SQLAlchemyError
 
 from bot.commands import Command
+from bot.cooldowns import Cooldown
 from utils.utilities import check_perms
 
 logger = logging.getLogger('debug')
@@ -27,6 +28,7 @@ class HelpCommand(help.HelpCommand):
     def __init__(self, **options):
         options.setdefault('command_attrs', {})
         options['command_attrs']['aliases'] = ['helpall']
+        options['command_attrs']['cooldown'] = Cooldown(2, 10, BucketType.guild)
         super().__init__(**options)
 
     def show_all(self):

@@ -66,7 +66,7 @@ class Song:
         self.is_live = kwargs.pop('is_live', True)
         self.playlist = playlist
         self.seek = False
-        self.success = False
+        self.success = None  # False when download error
         self.config = config
         self.filename = filename
         self.before_options = kwargs.pop('before_options', '')
@@ -147,6 +147,7 @@ class Song:
         try:
             async with session.head(self.url) as r:
                 if r.status != 200:
+                    self.last_update = 0  # Reset last update so we dont end up in recursion loop
                     await self.download()
             return True
         except:
@@ -171,6 +172,10 @@ class Song:
                 download has been done earlier
         """
 
+        if self.success is False:
+            self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
+            return False
+
         # First check if download is unnecessary and return if any of them
         # conditions are True
         if self.downloading:
@@ -187,7 +192,6 @@ class Song:
             return
 
         self._downloading = True
-        self.success = False
         self.on_ready.clear()
         logger.debug(f'Started downloading {self.long_str}')
         try:
@@ -243,11 +247,14 @@ class Song:
             self.success = True
 
         except Exception as e:
-            logger.exception('Download error: {}'.format(e))
-            try:
-                await self.playlist.channel.send('Failed to download {0}\nlink: <{1}>'.format(self.title, self.webpage_url))
-            except discord.HTTPException:
-                pass
+            if self.success is not False:
+                logger.exception('Download error: {}'.format(e))
+                try:
+                    await self.playlist.channel.send('Failed to download {0}\nlink: <{1}>'.format(self.title, self.webpage_url))
+                except discord.HTTPException:
+                    pass
+
+            self.success = False
 
         finally:
             self._downloading = False

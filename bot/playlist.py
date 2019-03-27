@@ -160,18 +160,27 @@ class Playlist:
 
             return song
 
-    async def cache_songs(self, amount_to_cache=10):
+    async def cache_songs(self, amount_to_cache=4):
+        cached = 0
         for idx, song in enumerate(self.playlist.copy()):
             if idx == 0:
                 continue
 
-            if idx >= amount_to_cache:
+            if cached >= amount_to_cache:
                 break
 
             if song not in self.playlist:
                 continue
 
             await song.download()
+            if song.success is False:
+                try:
+                    # Song download failed completely. Remove it from the queue
+                    self.playlist.remove(song)
+                except ValueError:
+                    pass
+
+            cached += 1
 
     async def download_next(self):
         next_song = self.peek()
@@ -195,6 +204,7 @@ class Playlist:
                 await self.send('Clearing by indices is not supported', channel)
 
             await self.send('Playlist cleared', channel)
+            await self.cache_songs()
             return True
 
     def select_by_predicate(self, predicate):

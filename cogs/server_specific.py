@@ -141,9 +141,9 @@ class ServerSpecific(Cog):
             return
 
         if before.roles != after.roles:
-            r = after.guild.get_role(316288608287981569)
+            r = after.guild.get_role(355372842088660992)
             if r in after.roles:
-                await after.remove_role(r, reason='No')
+                await after.remove_roles(r, reason='No')
 
     @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)

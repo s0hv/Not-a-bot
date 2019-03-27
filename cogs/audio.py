@@ -1050,10 +1050,9 @@ class Audio(commands.Cog):
         self.add_viewed_playlist(user, selected, name)
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
-    @staticmethod
     @playlist_by_time.command(name='clear', pass_context=True)
     @cooldown(1, 5, BucketType.user)
-    async def clear_playlist_time(ctx, name, longer_than: Optional[bool], *, duration: TimeDelta):
+    async def clear_playlist_time(self, ctx, name, longer_than: Optional[bool], *, duration: TimeDelta):
         """
         See `{prefix}help vp dur` for argument usage.
         Clears a playlist by song duration.

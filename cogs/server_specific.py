@@ -135,6 +135,16 @@ class ServerSpecific(Cog):
 
         return True
 
+    @Cog.listener()
+    async def on_member_update(self, before, after):
+        if before.guild.id != 217677285442977792:
+            return
+
+        if before.roles != after.roles:
+            r = after.guild.get_role(316288608287981569)
+            if r in after.roles:
+                await after.remove_role(r, reason='No')
+
     @command(no_pm=True)
     @cooldown(1, 4, type=BucketType.user)
     @check(grant_check)

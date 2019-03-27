@@ -935,6 +935,27 @@ class Images(Cog):
         await ctx.send(file=File(file, filename='02.png'))
 
     @command()
+    @cooldown(2, 5, BucketType.guild)
+    async def dante(self, ctx, image=None):
+        """Dante looking at a scene"""
+        img = await get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'dante.png')).convert('RGBA')
+            img = img.convert('RGBA')
+            img = img.resize((1316, 990), resample=Image.BICUBIC)
+
+            img.alpha_composite(template, (0, 0))
+            return self.save_image(img)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='dante.png'))
+
+    @command()
     @cooldown(2, 8, BucketType.guild)
     async def v(self, ctx, image1, image2):
         """Image of V reading a book. Needs 2 images for both of the pages"""

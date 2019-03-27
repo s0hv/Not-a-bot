@@ -1223,10 +1223,8 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
     if len(pages) == 1:
         return
 
-    await message.add_reaction('◀')
-    await message.add_reaction('▶')
-
     paged = PagedMessage(pages, starting_idx=starting_idx)
+    await paged.add_reactions(message)
 
     if callable(page_method):
         async def send():
@@ -1251,6 +1249,10 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
             return
 
         page = paged.reaction_changed(*result)
+        if page is False:
+            await message.delete()
+            return
+
         if page is None:
             continue
 

@@ -245,7 +245,7 @@ class Playlist:
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
         entries = info['entries']
         length = len(entries)
-        paged = PagedMessage(entries)
+        paged = PagedMessage(entries, stop='❌', accept='✅')
         emoji = ('◀', '▶', '✅', '❌')
 
         def get_url(entry):
@@ -281,8 +281,11 @@ class Playlist:
             except asyncio.TimeoutError:
                 return await ctx.send('Took too long.')
 
-            reaction = result[0]
-            if reaction.emoji == '✅':
+            entry = paged.reaction_changed(*result)
+            if entry is None:
+                continue
+
+            if entry is True:
                 if in_vc:
                     await message.delete()
                     await self._add_url(get_url(entry), priority=priority,
@@ -290,13 +293,9 @@ class Playlist:
 
                 return
 
-            if reaction.emoji == '❌':
+            if entry is False:
                 await message.delete()
                 return
-
-            entry = paged.reaction_changed(*result)
-            if entry is None:
-                continue
 
             try:
                 await message.edit(content=get_page(entry, paged.index))

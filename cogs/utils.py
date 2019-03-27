@@ -394,7 +394,7 @@ class Utilities(Cog):
         Bot is not free to host. Donations go straight to server costs
         """
         await ctx.send('If you want to support bot in server costs donate to https://www.paypal.me/s0hvaperuna\n'
-                       'Alternatively you can use my DigitalOcean referral link https://m.do.co/c/84da65db5e5b')
+                       'Alternatively you can use my DigitalOcean referral link https://m.do.co/c/84da65db5e5b which will help out in server costs as well')
 
     @staticmethod
     def find_emoji(emojis, name):

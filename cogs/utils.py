@@ -14,6 +14,7 @@ from typing import Optional
 from urllib.parse import quote
 
 import discord
+import pkg_resources
 import psutil
 from discord.ext.commands import (BucketType, bot_has_permissions, Group,
                                   clean_content)
@@ -257,7 +258,7 @@ class Utilities(Cog):
                 i += 1
 
         embed = discord.Embed(title='Stats', colour=random_color())
-        embed.add_field(name='discord.py version', value=discord.__version__)
+        embed.add_field(name='discord.py version', value=pkg_resources.get_distribution('discord.py').version)
         embed.add_field(name='Uptime', value=uptime)
         embed.add_field(name='Servers', value=str(guilds))
         embed.add_field(name='Users', value=str(users))

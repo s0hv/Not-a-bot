@@ -60,7 +60,8 @@ class AprilFools(Cog):
             if c.id in (561966590124490763, 360692585687285761, 360730963598245891):
                 continue
 
-            await c.set_permissions(ctx.guild.default_role, read_messages=False)
+            for cc in c.channels:
+                await cc.set_permissions(ctx.guild.default_role, read_messages=False)
 
         for c, roles in self.channel_to_role.items():
             c = ctx.guild.get_channel(c)

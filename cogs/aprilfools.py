@@ -43,11 +43,11 @@ class AprilFools(Cog):
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        if payload.message_id != 0:
+        if payload.message_id != 561980345239601173:
             return
 
         guild = self.bot.get_guild(217677285442977792)
-        r = guild.get_role(0)
+        r = guild.get_role(561978446192967754)
         m = guild.get_member(payload.user_id)
         if not m:
             return

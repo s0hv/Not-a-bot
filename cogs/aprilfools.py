@@ -29,6 +29,13 @@ class AprilFools(Cog):
         for c, roles in self.channel_to_role.items():
             self.role_to_channel.update({r: c for r in roles})
 
+        g = bot.get_guild(217677285442977792)
+        r = g.get_role(348208141541834773)
+        for c in self.channel_to_role.keys():
+            c = g.get_channel(c)
+            if r in c.overwrites:
+                self.channel_to_role[c.id].append(r.id)
+
         self._random_color = asyncio.ensure_future(self._random_color_task(), loop=self.bot.loop)
 
     def cog_unload(self):
@@ -56,12 +63,19 @@ class AprilFools(Cog):
     @command()
     @is_owner()
     async def create_perms(self, ctx):
+        r = ctx.guild.get_role(297432787605258240)
+        for c in self.channel_to_role.keys():
+            await ctx.guild.get_channel(c).set_perms(r, read_messages=True)
+
+        return
         for c in ctx.guild.categories:
             if c.id in (561966590124490763, 360692585687285761, 360730963598245891):
                 continue
 
             for cc in c.channels:
                 await cc.set_permissions(ctx.guild.default_role, read_messages=False)
+
+        return
 
         for c, roles in self.channel_to_role.items():
             c = ctx.guild.get_channel(c)

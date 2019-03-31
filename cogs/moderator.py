@@ -424,7 +424,7 @@ class Moderator(Cog):
     @command(no_pm=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
-    async def mute(self, ctx, user: MentionedMember, *reason):
+    async def mute(self, ctx, user: MentionedMember, *, reason):
         """Mute a user. Only works if the server has set the mute role"""
         mute_role = await self._mute_check(ctx)
         if not mute_role:
@@ -440,7 +440,7 @@ class Moderator(Cog):
         if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
             return await ctx.send('The one you are trying to mute is higher or same as you in the role hierarchy')
 
-        reason = ' '.join(reason) if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
+        reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
         except discord.HTTPException:

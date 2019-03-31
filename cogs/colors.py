@@ -502,7 +502,8 @@ class Colors(Cog):
         await ctx.send(' '.join(hex_colors), file=discord.File(data, 'colors.png'))
 
     @command(no_pm=True, aliases=['colour'])
-    @cooldown(1, 5, type=BucketType.user)
+    @bot_has_permissions(manage_roles=True)
+    @cooldown(1, 120, type=BucketType.user)
     async def color(self, ctx, *, color=None):
         """Set you color on the server.
         {prefix}{name} name of color
@@ -510,11 +511,13 @@ class Colors(Cog):
         guild = ctx.guild
         colors = self._colors.get(guild.id, None)
         if not colors:
+            ctx.command.reset_cooldown(ctx)
             return await ctx.send("This guild doesn't have any color roles")
 
         ids = set(colors.keys())
         roles = set([r.id for r in ctx.author.roles])
         if not color:
+            ctx.command.reset_cooldown(ctx)
             user_colors = roles.intersection(ids)
             if not user_colors:
                 return await ctx.send("You don't have a color role")
@@ -529,6 +532,7 @@ class Colors(Cog):
 
         color_ = self.get_color(color, guild.id)
         if not color_:
+            ctx.command.reset_cooldown(ctx)
             match = self.closest_match(color, guild)
             if not match:
                 return await ctx.send('Could not find color %s' % color)
@@ -539,6 +543,7 @@ class Colors(Cog):
 
         id, color = color_
         if id in roles and len(roles) <= 1:
+            ctx.command.reset_cooldown(ctx)
             return await ctx.send('You already have that color')
 
         roles = roles.difference(ids)

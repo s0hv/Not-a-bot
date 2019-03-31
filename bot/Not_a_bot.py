@@ -145,6 +145,7 @@ class NotABot(BotBase):
     async def _random_color_task(self):
         if self.test_mode:
             return
+
         guild = self.get_guild(217677285442977792)
         if not guild:
             return
@@ -157,6 +158,9 @@ class NotABot(BotBase):
             try:
                 await asyncio.sleep(3600)
             except asyncio.CancelledError:
+                return
+
+            if self.get_cog('AprilFools'):
                 return
 
             try:

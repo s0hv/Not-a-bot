@@ -7,6 +7,7 @@ import shlex
 from io import BytesIO
 from math import ceil, sqrt
 
+from discord.ext import commands
 import discord
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
@@ -503,7 +504,7 @@ class Colors(Cog):
 
     @command(no_pm=True, aliases=['colour'])
     @bot_has_permissions(manage_roles=True)
-    @cooldown(1, 120, type=BucketType.user)
+    @commands.cooldown(1, 120, type=BucketType.member)
     async def color(self, ctx, *, color=None):
         """Set you color on the server.
         {prefix}{name} name of color

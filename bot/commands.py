@@ -38,8 +38,7 @@ class Command(commands.Command):
     def __init__(self, func, **kwargs):
         # Init called twice because commands are copied
         super(Command, self).__init__(func, **kwargs)
-        del self._buckets
-        self._buckets = CooldownMapping(kwargs.get('cooldown'))
+        self._buckets = CooldownMapping(self._buckets._cooldown)
         self.owner_only = kwargs.pop('owner_only', False)
         self.auth = kwargs.pop('auth', Auth.NONE)
 

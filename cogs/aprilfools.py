@@ -65,7 +65,7 @@ class AprilFools(Cog):
     async def create_perms(self, ctx):
         r = ctx.guild.get_role(297432787605258240)
         for c in self.channel_to_role.keys():
-            await ctx.guild.get_channel(c).set_perms(r, read_messages=True)
+            await ctx.guild.get_channel(c).set_permissions(r, read_messages=True)
 
         return
         for c in ctx.guild.categories:

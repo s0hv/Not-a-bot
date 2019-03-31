@@ -113,7 +113,7 @@ class AprilFools(Cog):
 
             color_roles = colors._colors.get(guild.id)
             color = colors.rgb2lab(colors.check_rgb(c.to_rgb()))
-            new_color = colors.closest_color_match(color, color_roles.values())
+            new_color, _ = colors.closest_color_match(color, color_roles.values())
 
             new_channel = self.role_to_channel.get(new_color.role_id)
             old_channel = self.role_to_channel.get(role.id)

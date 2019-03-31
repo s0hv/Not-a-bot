@@ -57,7 +57,7 @@ class AprilFools(Cog):
     @is_owner()
     async def create_perms(self, ctx):
         for c in ctx.guild.categories:
-            if c.id in (561966590124490763, 360692585687285761):
+            if c.id in (561966590124490763, 360692585687285761, 360730963598245891):
                 continue
 
             await c.set_permissions(ctx.guild.default_role, read_messages=False)
@@ -117,3 +117,7 @@ class AprilFools(Cog):
                 await new_channel.set_permissions(role, read_messages=True)
             except discord.HTTPException:
                 pass
+
+
+def setup(bot):
+    bot.add_cog(AprilFools(bot))

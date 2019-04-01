@@ -25,16 +25,16 @@ class AprilFools(Cog):
             561967252350697473: [322080267475091457, 311274533271109654, 440567167625461781]
         }
 
-        self.role_to_channel = {}
-        for c, roles in self.channel_to_role.items():
-            self.role_to_channel.update({r: c for r in roles})
-
         g = bot.get_guild(217677285442977792)
         r = g.get_role(348208141541834773)
         for c in self.channel_to_role.keys():
             c = g.get_channel(c)
             if r in c.overwrites:
                 self.channel_to_role[c.id].append(r.id)
+
+        self.role_to_channel = {}
+        for c, roles in self.channel_to_role.items():
+            self.role_to_channel.update({r: c for r in roles})
 
         self._random_color = asyncio.ensure_future(self._random_color_task(), loop=self.bot.loop)
 

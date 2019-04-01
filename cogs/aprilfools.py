@@ -94,11 +94,6 @@ class AprilFools(Cog):
             return
 
         while True:
-            try:
-                await asyncio.sleep(3600)
-            except asyncio.CancelledError:
-                return
-
             c = random_color()
             try:
                 await role.edit(color=c)
@@ -112,7 +107,7 @@ class AprilFools(Cog):
                 continue
 
             color_roles = colors._colors.get(guild.id)
-            color = colors.rgb2lab(colors.check_rgb(c.to_rgb()))
+            color = colors.rgb2lab(colors.check_rgb([x/255 for x in c.to_rgb()]))
             new_color, _ = colors.closest_color_match(color, color_roles.values())
 
             new_channel = self.role_to_channel.get(new_color.role_id)
@@ -132,6 +127,11 @@ class AprilFools(Cog):
                 await new_channel.set_permissions(role, read_messages=True)
             except discord.HTTPException:
                 pass
+
+            try:
+                await asyncio.sleep(1200)
+            except asyncio.CancelledError:
+                return
 
 
 def setup(bot):

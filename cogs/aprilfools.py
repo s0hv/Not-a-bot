@@ -29,7 +29,7 @@ class AprilFools(Cog):
         r = g.get_role(348208141541834773)
         for c in self.channel_to_role.keys():
             c = g.get_channel(c)
-            if r in c.overwrites:
+            if r in c.changed_roles:
                 self.channel_to_role[c.id].append(r.id)
 
         self.role_to_channel = {}

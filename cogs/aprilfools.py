@@ -64,26 +64,101 @@ class AprilFools(Cog):
     @command()
     @is_owner()
     async def create_perms(self, ctx):
-        r = ctx.guild.get_role(297432787605258240)
-        for c in self.channel_to_role.keys():
-            await ctx.guild.get_channel(c).set_permissions(r, read_messages=True)
+        guild = ctx.guild
+        # not rekt perms
+        r = guild.get_role(330805371499446272)
+        await guild.get_channel(322839372913311744).set_permissions(r, read_messages=True)
 
-        return
-        for c in ctx.guild.categories:
-            if c.id in (561966590124490763, 360692585687285761, 360730963598245891):
+        # Archive perms for color channels
+        for c in self.channel_to_role.keys():
+            c = guild.get_channel(c)
+            await c.set_permissions(guild.default_role, read_messages=None, send_messages=False)
+
+        # Remove color channel role overrides
+        for c in self.channel_to_role.keys():
+            c = guild.get_channel(c)
+            for o, _ in c.overwrites:
+                if o == guild.default_role:
+                    continue
+
+                await c.set_permissions(o, None)
+
+        # Archive perms for channel category
+        await guild.get_channel(561966590124490763).set_permissions(guild.default_role, read_messages=None, send_messages=False)
+
+        # Restore talk here
+        cat = guild.get_channel(360694488290689024)
+        o = cat.overwrites_for(guild.default_role)
+        o.read_messages = None
+        await cat.set_permissions(guild.default_role, overwrite=o)
+
+        for c in cat.channels:
+            if c.id in (341610158755020820, 515620023457546243, 509462073432997890):
+                continue
+            o = c.overwrites_for(guild.default_role)
+            o.read_messages = None
+            await c.set_permissions(guild.default_role, overwrite=o)
+
+        # Mudae
+        await guild.get_channel(509462073432997890).set_permissions(guild.get_role(492737863931265034), read_messages=True)
+
+        #rt2
+        await guild.get_channel(341610158755020820).set_permissions(guild.get_role(341673743229124609), read_messages=True)
+
+        # restore topic channels
+        cat = guild.get_channel(360695301457313792)
+        o = cat.overwrites_for(guild.default_role)
+        o.read_messages = None
+        await cat.set_permissions(guild.default_role, overwrite=o)
+
+        for c in cat.channels:
+            if c.id in (499656404399947796, 338523738997915649):
                 continue
 
-            for cc in c.channels:
-                await cc.set_permissions(ctx.guild.default_role, read_messages=False)
+            o = c.overwrites_for(guild.default_role)
+            o.read_messages = None
+            c.set_permissions(guild.default_role, overwrite=o)
 
-        return
+        # Restore mod rules
+        c = guild.get_channel(357982845509304320)
+        o = c.overwrites_for(guild.default_role)
+        o.read_messages = True
+        await c.set_permissions(guild.default_role, overwrite=o)
 
-        for c, roles in self.channel_to_role.items():
-            c = ctx.guild.get_channel(c)
+        # Server stuff
+        cat = guild.get_channel(360697181558145024)
+        o = cat.overwrites_for(guild.default_role)
+        o.read_messages = None
+        await cat.set_permissions(guild.default_role, overwrite=o)
 
-            for r in roles:
-                r = ctx.guild.get_role(r)
-                await c.set_permissions(r, read_messages=True)
+        for c in cat.channels:
+            o = c.overwrites_for(guild.default_role)
+            o.read_messages = None
+            c.set_permissions(guild.default_role, overwrite=o)
+
+        # NSFW
+        cat = guild.get_channel(360699176394293248)
+        o = cat.overwrites_for(guild.default_role)
+        o.read_messages = None
+        await cat.set_permissions(guild.default_role, overwrite=o)
+
+        for c in cat.channels:
+            o = c.overwrites_for(guild.default_role)
+            o.read_messages = None
+            c.set_permissions(guild.default_role, overwrite=o)
+
+        # Misc
+        cat = guild.get_channel(360694903824580608)
+        o = cat.overwrites_for(guild.default_role)
+        o.read_messages = None
+        await cat.set_permissions(guild.default_role, overwrite=o)
+
+        for c in cat.channels:
+            o = c.overwrites_for(guild.default_role)
+            o.read_messages = None
+            c.set_permissions(guild.default_role, overwrite=o)
+
+        self.bot.unload_extension('cogs.aprilfools')
 
     async def _random_color_task(self):
         guild = self.bot.get_guild(217677285442977792)

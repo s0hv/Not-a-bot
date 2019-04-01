@@ -71,8 +71,7 @@ initial_cogs = [
     'settings',
     'stats',
     'utils',
-    'voting',
-    'aprilfools']
+    'voting']
 
 terminal.info('Main bot starting up')
 logger.info('Starting bot')

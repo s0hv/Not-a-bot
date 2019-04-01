@@ -160,9 +160,6 @@ class NotABot(BotBase):
             except asyncio.CancelledError:
                 return
 
-            if self.get_cog('AprilFools'):
-                return
-
             try:
                 await role.edit(color=random_color())
             except discord.HTTPException:

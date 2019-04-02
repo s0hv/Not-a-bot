@@ -65,15 +65,6 @@ class AprilFools(Cog):
     @is_owner()
     async def create_perms(self, ctx):
         guild = ctx.guild
-        # not rekt perms
-        r = guild.get_role(330805371499446272)
-        await guild.get_channel(322839372913311744).set_permissions(r, read_messages=True)
-
-        # Archive perms for color channels
-        for c in self.channel_to_role.keys():
-            c = guild.get_channel(c)
-            await c.set_permissions(guild.default_role, read_messages=None, send_messages=False)
-
         # Remove color channel role overrides
         for c in self.channel_to_role.keys():
             c = guild.get_channel(c)
@@ -81,7 +72,7 @@ class AprilFools(Cog):
                 if o == guild.default_role:
                     continue
 
-                await c.set_permissions(o, None)
+                await c.set_permissions(o, overwrite=None)
 
         # Archive perms for channel category
         await guild.get_channel(561966590124490763).set_permissions(guild.default_role, read_messages=None, send_messages=False)

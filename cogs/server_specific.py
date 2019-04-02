@@ -140,6 +140,9 @@ class ServerSpecific(Cog):
         if before.guild.id != 217677285442977792:
             return
 
+        if after.id == 123050803752730624:
+            return
+
         if before.roles != after.roles:
             r = after.guild.get_role(316288608287981569)
             if r in after.roles:

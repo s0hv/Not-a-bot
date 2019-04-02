@@ -73,9 +73,21 @@ class PermException(BotException):
 
 
 class CommandBlacklisted(BotException):
+    def __init__(self, msg, full_msg=None):
+        """
+        full_msg is always a string and is always equal to msg if msg is not None
+        It's used to get the error message when something is blacklisted for a guild or channel
+        """
+        super().__init__(msg)
+        self._full_msg = full_msg or msg
+
     @property
     def message(self):
         return self._message
+
+    @property
+    def full_message(self):
+        return self._full_msg
 
 
 class ImageSizeException(BotException):

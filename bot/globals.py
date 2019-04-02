@@ -101,9 +101,10 @@ class PermValues:
               'channel': 0x8, 'guild': 0x10}
     RETURNS = {1: True, 3: False, 4: True, 6: False, 8: True, 10: False,
                16: True, 18: False}
-    BLACKLIST_MESSAGES = {3: 'Command has been blacklisted for you',
-                          6: 'Command has been blacklisted for a role you have',
-                          10: None, 18: None}
+    BLACKLIST_MESSAGES = {3: ('Command has been blacklisted for you', None),
+                          6: ('Command has been blacklisted for a role you have', None),
+                          10: (None, 'Command has been blacklisted in this channel'),
+                          18: (None, 'Command has been blacklisted from the guild')}
 
 
 class Auth:

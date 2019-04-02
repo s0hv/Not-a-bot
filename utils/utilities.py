@@ -1315,7 +1315,7 @@ async def check_blacklist(ctx):
         return False
 
     overwrite_perms = await bot.dbutil.check_blacklist('(command="%s" OR command IS NULL)' % ctx.command, ctx.author, ctx, True)
-    msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, None)
+    msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, (None, None))
     if isinstance(overwrite_perms, int):
         if ctx.guild and ctx.guild.owner.id == ctx.author.id:
             overwrite_perms = True
@@ -1324,8 +1324,8 @@ async def check_blacklist(ctx):
     ctx.override_perms = overwrite_perms
 
     if overwrite_perms is False:
-        if msg is not None:
-            raise CommandBlacklisted(msg)
+        if msg is not None or full_msg is not None:
+            raise CommandBlacklisted(msg, full_msg)
         return False
 
     return True

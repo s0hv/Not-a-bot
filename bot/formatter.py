@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from bot.commands import Command
 from bot.cooldowns import Cooldown
+from bot.exceptions import CommandBlacklisted
 from utils.utilities import check_perms
 
 logger = logging.getLogger('debug')
@@ -256,9 +257,13 @@ class HelpCommand(help.HelpCommand):
 
         try:
             can_run = await command.can_run(ctx) and await ctx.bot.can_run(ctx)
+        except CommandBlacklisted as e:
+            signature = e.full_message + '\n\n' + signature
+            # Workaround to get past the next if
+            can_run = True
+
         except CommandError as e:
             signature = str(e) + '\n\n' + signature
-            # Workaround to get past the next if
             can_run = True
 
         if not can_run:

@@ -78,7 +78,7 @@ class DBApi(Cog):
         with open(os.path.join(os.getcwd(), 'data', 'votes.txt'), 'w') as f:
             f.write(str(points - points % 10))
 
-        await server_specific._toggle_every(channel, new_giveaways, timedelta(days=1))
+        await server_specific._toggle_every(channel, new_giveaways * 5, timedelta(days=1))
 
 
 def setup(bot):

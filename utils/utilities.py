@@ -730,7 +730,7 @@ def check_user_mention(msg, word):
 
 
 def get_avatar(user):
-    return user.avatar_url or user.default_avatar_url
+    return str(user.avatar_url or user.default_avatar_url)
 
 
 def get_role_id(s):

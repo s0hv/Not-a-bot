@@ -847,11 +847,13 @@ class Colors(Cog):
         lab = self.rgb2lab(rgb)
         color = convert_color(lab, sRGBColor)
         value = int(color.get_rgb_hex()[1:], 16)
+
+        # Find a role with the same color value as this one
         r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
         if r:
             k, r = r
             if guild.get_role(r.role_id):
-                return await ctx.send('This color already exists')
+                return await ctx.send(f'This color already exists. Conflicting color {r.name} `{r.role_id}`')
             else:
                 self._colors.get(guild.id, {}).pop(k, None)
 

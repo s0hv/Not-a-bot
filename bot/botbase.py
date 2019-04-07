@@ -26,6 +26,7 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+from discord.ext.commands.errors import ExtensionError
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
@@ -105,7 +106,7 @@ class BotBase(Bot):
         for cog in self.default_cogs:
             try:
                 self.load_extension(cog)
-            except Exception as e:
+            except ExtensionError as e:
                 if not print_err:
                     errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:

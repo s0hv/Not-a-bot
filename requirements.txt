@@ -18,6 +18,7 @@ pillow
 psutil
 pymysql
 python-magic
+pytz
 sanic
 selenium
 sqlalchemy

@@ -579,7 +579,7 @@ class ServerSpecific(Cog):
             return
 
         try:
-            message = await channel.get_message(message)
+            message = await channel.fetch_message(message)
         except discord.NotFound:
             logger.exception('Could not find message for every toggle')
             await self.delete_giveaway_from_db(message)

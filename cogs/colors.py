@@ -7,7 +7,6 @@ import shlex
 from io import BytesIO
 from math import ceil, sqrt
 
-from discord.ext import commands
 import discord
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
@@ -16,6 +15,7 @@ from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from discord.errors import InvalidArgument
+from discord.ext import commands
 from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument,
                                   clean_content)
 from numpy.random import choice
@@ -504,7 +504,7 @@ class Colors(Cog):
 
     @command(no_pm=True, aliases=['colour'])
     @bot_has_permissions(manage_roles=True)
-    @commands.cooldown(1, 120, type=BucketType.member)
+    @commands.cooldown(1, 7, type=BucketType.member)
     async def color(self, ctx, *, color=None):
         """Set you color on the server.
         {prefix}{name} name of color

@@ -27,11 +27,8 @@ import logging
 
 import discord
 from aiohttp import ClientSession
-from discord import state
 from discord.ext import commands
 from discord.ext.commands import CheckFailure
-from discord.http import HTTPClient
-from discord.raw_models import RawBulkMessageDeleteEvent
 
 from bot.commands import command, group, Command, Group, cooldown
 from bot.cooldowns import CooldownMapping
@@ -79,48 +76,10 @@ class Context(commands.context.Context):
         self.received_at = attrs.get('received_at', None)
 
 
-class ConnectionState(state.ConnectionState):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def parse_message_delete_bulk(self, data):
-        raw = RawBulkMessageDeleteEvent(data)
-        self.dispatch('raw_bulk_message_delete', raw)
-
-        to_be_deleted = [message for message in self._messages if message.id in raw.message_ids]
-        if to_be_deleted:
-            self.dispatch('bulk_message_delete', to_be_deleted)
-
-
 class Client(discord.Client):
     def __init__(self, loop=None, **options):
-        self.ws = None
+        super().__init__(loop=loop, **options)
         self._exit_code = 0
-        self.loop = asyncio.get_event_loop() if loop is None else loop
-        self._listeners = {}
-        self.shard_id = options.get('shard_id')
-        self.shard_count = options.get('shard_count')
-
-        connector = options.pop('connector', None)
-        proxy = options.pop('proxy', None)
-        proxy_auth = options.pop('proxy_auth', None)
-        self.http = HTTPClient(connector, proxy=proxy, proxy_auth=proxy_auth, loop=self.loop)
-
-        self._handlers = {
-            'ready': self._handle_ready
-        }
-
-        self._connection = ConnectionState(dispatch=self.dispatch, chunker=self._chunker, handlers=self._handlers,
-                                           syncer=self._syncer, http=self.http, loop=self.loop, **options)
-
-        self._connection.shard_count = self.shard_count
-        self._closed = asyncio.Event(loop=self.loop)
-        self._ready = asyncio.Event(loop=self.loop)
-        self._connection._get_websocket = lambda g: self.ws
-
-        if discord.VoiceClient.warn_nacl:
-            discord.VoiceClient.warn_nacl = False
-            log.warning("PyNaCl is not installed, voice will NOT be supported")
 
 
 class Bot(commands.Bot, Client):
@@ -315,12 +274,6 @@ class Bot(commands.Bot, Client):
 
     async def on_reaction_remove(self, reaction, user):
         self.handle_reaction_changed(reaction, user)
-
-    @staticmethod
-    def get_role(role_id, guild):
-        if role_id is None:
-            return
-        return discord.utils.find(lambda r: r.id == role_id, guild.roles)
 
 
 def has_permissions(**perms):

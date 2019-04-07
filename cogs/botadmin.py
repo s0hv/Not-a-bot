@@ -15,12 +15,12 @@ from enum import IntEnum
 from importlib import reload, import_module
 from io import BytesIO, StringIO
 from pprint import PrettyPrinter
-from types import ModuleType
+from py_compile import PyCompileError
 
 import aiohttp
 import discord
 from discord.errors import HTTPException, InvalidArgument
-from discord.ext.commands.core import GroupMixin
+from discord.ext.commands.errors import ExtensionError, ExtensionFailed
 from discord.user import BaseUser
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -46,7 +46,8 @@ class ExitStatus(IntEnum):
 
 
 class NoStringWrappingPrettyPrinter(PrettyPrinter):
-    def _format_str(self, s):
+    @staticmethod
+    def _format_str(s):
         if '\n' in s:
             s = f'"""{s}"""'
         else:
@@ -74,77 +75,45 @@ class BotAdmin(Cog):
     def cog_check(self, ctx):
         return is_owner(ctx)
 
-    def load_extension(self, name, lib=None):
-        """
-        Reworked implementation of the default bot extension loader
-        It works exactly the same unless you provide the lib argument manually
-        That way you can import the lib before this method to check for
-        errors in the file and pass the returned lib to this function if no errors were thrown.
+    def _reload_extension(self, name):
+        t = time.perf_counter()
+        # Check that the module is importable
+        try:
+            # Check if code compiles. If not returns the error
+            # Only check this cog as the operation takes a while and
+            # Other cogs can be reloaded if they fail unlike this
+            if name == 'cogs.botadmin':
+                check_import(name)
 
-        Args:
-            name: str
-                name of the extension
-            lib: Module
-                lib returned from `import_module`
-        Raises:
-            ClientException
-                Raised when no setup function is found or when lib isn't a valid module
-        """
-        if lib is None:
-            # Fall back to default implementation when lib isn't provided
-            return self.bot.load_extension(name)
+        except PyCompileError:
+            logger.exception(f'Failed to reload extension {name}')
+            return f'Failed to import module {name}.\nError has been logged'
 
-        if name in self.bot.extensions:
-            return
+        try:
+            self.bot.reload_extension(name)
 
-        if not isinstance(lib, ModuleType):
-            raise discord.ClientException("lib isn't a valid module")
+        # We wanna exclude ExtensionFailed errors since they can contain sensitive
+        # data because they give the contents of the parent error message
+        except ExtensionFailed as e:
+            logger.exception('Failed to reload extension %s' % name)
+            terminal.exception('Failed to reload extension %s' % name)
+            return f'Could not reload {name} because of {type(e).__name__}\nCheck logs for more info'
 
-        lib = import_module(name)
-        if not hasattr(lib, 'setup'):
-            del lib
-            del sys.modules[name]
-            raise discord.ClientException('extension does not have a setup function')
+        except ExtensionError as e:
+            return f'Could not reload {name} because of an error\n{e}'
 
-        lib.setup(self.bot)
-        self.bot.extensions[name] = lib
+        return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter() - t) * 1000)
 
     async def reload_extension(self, name):
         """
         Reload an cog with the given import path
         """
-        def do_reload():
-            t = time.perf_counter()
-            # Check that the module is importable
-            try:
-                # Check if code compiles. If not returns the error
-                # Only check this cog as the operation takes a while and
-                # Other cogs can be reloaded if they fail unlike this
-                if name == 'cogs.botadmin':
-                    e = check_import(name)
-                    if e:
-                        return f'```py\n{e}\n```'
+        return await self.bot.loop.run_in_executor(self.bot.threadpool, self._reload_extension, name)
 
-                lib = import_module(name)
-            except:
-                logger.exception(f'Failed to reload extension {name}')
-                return f'Failed to import module {name}.\nError has been logged'
-
-            try:
-                self.bot.unload_extension(name)
-                self.load_extension(name, lib=lib)
-            except Exception:
-                logger.exception('Failed to reload extension %s' % name)
-                terminal.exception('Failed to reload extension %s' % name)
-                return 'Could not reload %s because of an error' % name
-
-            return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter()-t)*1000)
-
-        return await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
-
-    async def reload_multiple(self, names):
+    async def reload_extensions(self, names):
         """
         Same as reload_extension but for multiple files
+        We are using 2 functions to optimize the usage of run_in_executor
         """
         if not names:
             return "No module names given",
@@ -152,37 +121,10 @@ class BotAdmin(Cog):
         messages = []
 
         def do_reload():
-
             for name in names:
-                t = time.perf_counter()
-                # Check that the module is importable
-                try:
-                    # Check if code compiles. If not returns the error
-                    # Only check this cog as the operation takes a while and
-                    # Other cogs can be reloaded if they fail unlike this
-                    if name == 'cogs.botadmin':
-                        e = check_import(name)
-                        if e:
-                            return f'```py\n{e}\n```'
+                messages.append(self._reload_extension(name))
 
-                    lib = import_module(name)
-                except:
-                    logger.exception(f'Failed to reload extension {name}')
-                    messages.append(f'Failed to import module {name}.\nError has been logged')
-                    continue
-
-                try:
-                    self.bot.unload_extension(name)
-                    self.load_extension(name, lib=lib)
-                except Exception:
-                    logger.exception('Failed to reload extension %s' % name)
-                    messages.append('Could not reload %s because of an error' % name)
-                    continue
-
-                t = time.perf_counter() - t
-                messages.append('Reloaded {} in {:.0f}ms'.format(name, t * 1000))
-
-            return messages
+            return split_string(messages, list_join='\n', splitter='\n')
 
         return await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
 
@@ -316,38 +258,15 @@ class BotAdmin(Cog):
         embed.add_field(name='output', value=value, inline=False)
         await ctx.send(embed=embed)
 
-    def _recursively_remove_all_commands(self, command, bot=None):
-        commands = []
-        for _command in command.commands.copy().values():
-            if isinstance(_command, GroupMixin):
-                l = self._recursively_remove_all_commands(_command)
-                command.remove_command(_command.name)
-                commands.append(l)
-            else:
-                commands.append(command.remove_command(_command.name))
-
-        if bot:
-            bot.remove_command(command.name)
-        return command, commands
-
-    def _recursively_add_all_commands(self, commands, bot):
-        for command_ in commands:
-            if isinstance(command_, tuple):
-                command_, commands_ = command_
-                bot.add_command(command_)
-                self._recursively_add_all_commands(commands_, command_)
-            else:
-                bot.add_command(command_)
-
     @command()
-    async def reload(self, ctx, *, name):
-        cog_name = 'cogs.%s' % name if not name.startswith('cogs.') else name
-        await ctx.send(await self.reload_extension(cog_name))
+    async def reload(self, ctx, *names):
+        cog_names = ['cogs.' + name if not name.startswith('cogs.') else name for name in names]
+        for msg in await self.reload_extensions(cog_names):
+            await ctx.send(msg)
 
     @command()
     async def reload_all(self, ctx):
-        messages = await self.reload_multiple(self.bot.default_cogs)
-        messages = split_string(messages, list_join='\n', splitter='\n')
+        messages = await self.reload_extensions(self.bot.default_cogs)
         for msg in messages:
             await ctx.send(msg)
 
@@ -555,7 +474,7 @@ class BotAdmin(Cog):
             if not y_check(msg.content):
                 return await ctx.send('Not auto updating')
 
-            messages = split_string(await self.reload_multiple(files), list_join='\n', splitter='\n')
+            messages = await self.reload_extensions(files)
             for msg in messages:
                 await ctx.send(msg)
 

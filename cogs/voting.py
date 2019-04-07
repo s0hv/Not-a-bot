@@ -179,7 +179,7 @@ class Poll:
             if chn is None:
                 return
 
-            msg = await chn.get_message(self.message)
+            msg = await chn.fetch_message(self.message)
         except discord.DiscordException:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)
@@ -402,7 +402,7 @@ class VoteManager(Cog):
         """
 
         try:
-            msg = await ctx.channel.get_message(message_id)
+            msg = await ctx.channel.fetch_message(message_id)
         except discord.HTTPException:
             return await ctx.send('Message not found')
 

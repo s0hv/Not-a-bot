@@ -26,10 +26,10 @@ import asyncio
 import logging
 import mimetypes
 import os
+import py_compile
 import re
 import shlex
 import subprocess
-import sys
 import time
 from collections import OrderedDict, Iterable
 from datetime import timedelta, datetime
@@ -552,7 +552,7 @@ async def get_image_from_ctx(ctx, message):
     if image is None or not isinstance(image, str):
         if isinstance(image, int):
             try:
-                msg = await ctx.channel.get_message(image)
+                msg = await ctx.channel.fetch_message(image)
                 return get_image_from_message(ctx.bot, msg)
             except discord.HTTPException:
                 pass
@@ -1392,13 +1392,7 @@ def check_import(module_name):
     module_name = module_name.split('.')
     module_name[-1] = module_name[-1] + '.py'
     module_name = os.path.join(os.getcwd(), *module_name)
-    cmd = f'"{sys.executable}" -m compileall "{module_name}"'
-    p = subprocess.Popen(shlex.split(cmd), stdout=subprocess.PIPE)
-    out, _ = p.communicate()
-    out = out.decode('utf-8')
-    if out.lower().startswith('compiling'):
-        out = '\n'.join(out.split('\n')[1:]).strip('* ')
-    return out
+    py_compile.compile(module_name, doraise=True)
 
 
 def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None, raise_error=None):

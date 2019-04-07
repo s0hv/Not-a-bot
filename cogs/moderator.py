@@ -1107,7 +1107,7 @@ class Moderator(Cog):
         otherwise the limit is 100"""
         channel = ctx.channel
         try:
-            message = await channel.get_message(message_id)
+            message = await channel.fetch_message(message_id)
         except discord.NotFound:
             return await ctx.send(f'Message {message_id} not found in this channel')
 
@@ -1271,7 +1271,7 @@ class Moderator(Cog):
         if is_msg:
             message_id = user_or_message
             try:
-                msg = await modlog.get_message(message_id)
+                msg = await modlog.fetch_message(message_id)
             except discord.HTTPException as e:
                 return await ctx.send('Failed to get message\n%s' % e)
 
@@ -1303,7 +1303,7 @@ class Moderator(Cog):
             embed = None
             if row['message']:
                 try:
-                    msg = await modlog.get_message(row['message'])
+                    msg = await modlog.fetch_message(row['message'])
                 except discord.HTTPException:
                     s += f'Failed to get modlog entry\n'
                 else:

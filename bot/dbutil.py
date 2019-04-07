@@ -585,6 +585,16 @@ class DatabaseUtils:
 
         return rows
 
+    async def remove_tlogs(self, where):
+        sql = f'DELETE FROM timeout_logs WHERE {where}'
+
+        try:
+            row = await self.execute(sql, commit=True)
+        except SQLAlchemyError:
+            return False
+
+        return row.rowcount
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

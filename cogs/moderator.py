@@ -697,7 +697,7 @@ class Moderator(Cog):
         await self.bot.dbutil.edit_timeout_log(ctx.guild.id, user_id, ctx.author.id,
                                                reason, embed)
 
-    @command(aliases=['tlogs'])
+    @group(aliases=['tlogs'], invoke_without_command=True)
     @bot_has_permissions(embed_links=True)
     @cooldown(1, 6, BucketType.user)
     async def timeout_logs(self, ctx, *, user: discord.User=None):
@@ -713,7 +713,7 @@ class Moderator(Cog):
         paginator = Paginator(title=f'Timeouts for {user}', init_page=False)
 
         description = ''
-        s_format = '{time} ago {duration} by {author} for the reason "{reason}"\n'
+        s_format = '`{id}` {time} ago {duration} by {author} for the reason "{reason}"\n'
         for row in rows:
             time = format_timedelta(datetime.utcnow() - row['time'], DateAccuracy.Day)
             if row['duration']:
@@ -723,13 +723,42 @@ class Moderator(Cog):
                 duration = 'permanently'
             author = self.bot.get_user(row['author'])
             description += s_format.format(time=time, author=author or row['author'],
-                                           reason=row['reason'], duration=duration)
+                                           reason=row['reason'], duration=duration,
+                                           id=row['id'])
 
         paginator.add_page(description=description, paginate_description=True)
         paginator.finalize()
         pages = paginator.pages
 
         await send_paged_message(ctx, pages, embed=True)
+
+    @timeout_logs.command(name='remove', aliases=['r', 'delete'])
+    @cooldown(1, 5, BucketType.user)
+    async def remove_tlog(self, ctx, *ids: int):
+        """
+        Delete timeouts made by you with the given ids
+        You can find the ids by using tlogs command. They're the numbers on
+        the left side before all the other info.
+        If you're a server admin you can delete logs from any user in your guild
+        """
+        author = ctx.author
+        is_admin = author.guild_permissions.administrator
+        ids = ', '.join([str(i) for i in ids])
+
+        if is_admin:
+            where = f'guild={ctx.guild.id} AND '
+        else:
+            where = f'author={author.id} AND '
+
+        where += f' id IN ({ids})'
+
+        rows = await self.bot.dbutil.remove_tlogs(where)
+
+        if rows is False:
+            await ctx.send('Failed to delete records because of an error')
+            return
+
+        await ctx.send(f'Successfully deleted {rows} tlog entries')
 
     @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)

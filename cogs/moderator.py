@@ -628,15 +628,18 @@ class Moderator(Cog):
     async def untimeout(self, user_id, guild_id):
         mute_role = self.bot.guild_cache.mute_role(guild_id)
         if mute_role is None:
+            await self.remove_timeout(user_id, guild_id)
             return
 
         guild = self.bot.get_guild(guild_id)
         if guild is None:
+            terminal.warning(f'Guild {guild_id} not found. Only removing timeout from database')
             await self.remove_timeout(user_id, guild_id)
             return
 
         user = guild.get_member(user_id)
         if not user:
+            terminal.warning(f'User {user_id} not found. Only removing timeout from database')
             await self.remove_timeout(user_id, guild_id)
             return
 
@@ -644,7 +647,7 @@ class Moderator(Cog):
             try:
                 await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
             except discord.HTTPException:
-                logger.exception('Could not autounmute user %s' % user.id)
+                terminal.exception('Could not autounmute user %s' % user.id)
         await self.remove_timeout(user.id, guild.id)
 
     @command(no_pm=True)

@@ -691,12 +691,6 @@ class ServerSpecific(Cog):
         if not mute_role:
             return
 
-        if not isinstance(user, discord.Member):
-            user = guild.get_member(user.id)
-            if not user:
-                logger.debug(f'User found when expected member and member not found in guild {guild.name} user {user} in channel {message.channel.name}')
-                return
-
         if mute_role in user.roles:
             return
 
@@ -708,7 +702,7 @@ class ServerSpecific(Cog):
             value = await self.redis.get(key)
         except ConnectionClosedError:
             import aioredis
-            terminal.exception('Conncetion closed. Reconnecting')
+            terminal.exception('Connection closed. Reconnecting')
             redis = await aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
                                         password=self.bot.config.redis_auth,
                                         loop=self.bot.loop, encoding='utf-8')
@@ -786,16 +780,11 @@ class ServerSpecific(Cog):
 
         if score > needed_for_mute and certainty > 55:
             certainty = str(certainty) + '%'
-            channel = self.bot.get_channel(252872751319089153)
-            if channel:
-                await channel.send(f'{user.mention} got muted for spam with score of {round(score)} at {message.created_at}')
-
             time = timedelta(hours=2)
             if self.bot.timeouts.get(guild.id, {}).get(user.id):
                 return
 
-            d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author,
-                                                             time)
+            d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, time)
 
             await message.author.add_roles(mute_role, reason='[Automute] Spam')
             url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'

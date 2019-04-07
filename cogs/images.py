@@ -989,6 +989,36 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='v.png'))
 
+    @command(aliases=['cj'])
+    @cooldown(2, 5, BucketType.guild)
+    async def ah_shit(self, ctx, stretch: Optional[bool]=True, image=None):
+        """
+        If stretch is set off the image will not be stretched to size
+        """
+        img = await get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'ah_shit.png'))
+            img = img.convert('RGBA')
+            size = (843, 553)
+            if stretch:
+                img = img.resize(size, resample=Image.BICUBIC)
+            else:
+                img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                               resample=Image.BICUBIC,
+                                               crop_to_size=True,
+                                               center_cropped=True)
+
+            img.alpha_composite(template)
+            return self.save_image(img)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='ah_shit.png'))
+
     @command(aliases=['greatview'])
     @cooldown(2, 5, BucketType.guild)
     async def giorno(self, ctx, stretch: Optional[bool]=True, image=None):

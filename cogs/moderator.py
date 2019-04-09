@@ -1081,6 +1081,7 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, messages, users={'<@!%s>' % user})
                 await self.send_to_modlog(guild, embed=embed)
 
+            await ctx.send(f'Checked the last {max_messages} of the channel {channel} and deleted {len(messages)} messages', delete_after=20)
             return
 
         t = datetime.utcnow() - timedelta(days=14)

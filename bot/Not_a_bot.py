@@ -84,6 +84,7 @@ class NotABot(BotBase):
         guild_ids = {r[0] for r in await self.dbutil.fetch(sql)}
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
         for guild in guilds:
+            logger.debug(guild.id)
             if await self.dbutil.is_guild_blacklisted(guild.id):
                 await guild.leave()
                 continue
@@ -95,6 +96,7 @@ class NotABot(BotBase):
 
             await self.dbutil.index_guild_roles(guild)
 
+        logger.debug('Caching prefixes')
         await self.dbutils.add_guilds(*new_guilds)
         sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild'
         rows = {}

@@ -340,11 +340,7 @@ class BotAdmin(Cog):
                 await audio.shutdown()
 
             try:
-                session = self.bot._Session
-                engine = self.bot._engine
-
-                session.close_all()
-                engine.dispose()
+                await self._bot.loop.close()
             except:
                 logger.exception('Failed to shut db down gracefully')
             logger.info('Closed db connection')

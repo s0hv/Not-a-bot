@@ -76,6 +76,7 @@ class NotABot(BotBase):
         return self._poke_model
 
     async def cache_guilds(self):
+        terminal.info('Caching guilds')
         import time
         t = time.time()
         guilds = self.guilds
@@ -114,6 +115,7 @@ class NotABot(BotBase):
         for guild_id, row in rows.items():
             self.guild_cache.update_cached_guild(guild_id, **row)
 
+        terminal.info('Indexing user roles')
         for guild in guilds:
             if self.guild_cache.keeproles(guild.id):
                 if guild.unavailable:
@@ -123,6 +125,7 @@ class NotABot(BotBase):
                 if not success:
                     raise EnvironmentError('Failed to cache keeprole servers')
 
+        terminal.info('Guilds cached')
         logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
 
     async def on_ready(self):

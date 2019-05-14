@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2017 s0hvaperuna
+Copyright (c) 2017-2019 s0hvaperuna
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,9 +26,8 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
+import asyncpg
 from discord.ext.commands.errors import ExtensionError
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot import exceptions
 from bot.bot import Bot
@@ -53,7 +52,7 @@ class BotBase(Bot):
         self._guild_cache = GuildCache(self)
         self._dbutil = DatabaseUtils(self)
         self.call_laters = {}
-        self._setup_db()
+        self.loop.run_until_complete(self._setup_db())
         self.threadpool = ThreadPoolExecutor(4)
         self.loop.set_default_executor(self.threadpool)
 
@@ -62,14 +61,16 @@ class BotBase(Bot):
         else:
             self.default_cogs = set()
 
-    def _setup_db(self):
+    async def _setup_db(self):
         db = 'discord' if not self.test_mode else 'test'
-        engine = create_engine('mysql+pymysql://{0.db_user}:{0.db_password}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
-                               encoding='utf8', pool_recycle=36000)
-        session_factory = sessionmaker(bind=engine)
-        Session = scoped_session(session_factory)
-        self._Session = Session
-        self._engine = engine
+        self._pool = await asyncpg.create_pool(database=db,
+                                               user=self.config.db_user,
+                                               host=self.config.db_host,
+                                               loop=self.loop,
+                                               password=self.config.db_password,
+                                               max_inactive_connection_lifetime=600,
+                                               min_size=10,
+                                               max_size=20)
 
     @staticmethod
     def get_command_prefix(self, message):
@@ -81,12 +82,8 @@ class BotBase(Bot):
         return prefixes
 
     @property
-    def get_session(self):
-        return self._Session()
-
-    @property
-    def engine(self):
-        return self._engine
+    def pool(self):
+        return self._pool
 
     @property
     def guild_cache(self):
@@ -105,6 +102,9 @@ class BotBase(Bot):
             errors = []
         for cog in self.default_cogs:
             try:
+                if cog in self.extensions:
+                    continue
+
                 self.load_extension(cog)
             except ExtensionError as e:
                 if not print_err:
@@ -138,7 +138,8 @@ class BotBase(Bot):
             return
 
         # Ignore if user is botbanned
-        if message.author.id != self.owner_id and (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
+        if message.author.id != self.owner_id and (await self.dbutil.execute(
+                'SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
             return
 
         await self.process_commands(message, local_time=local)

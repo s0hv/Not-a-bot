@@ -58,7 +58,7 @@ class LastSeen(Cog):
             user_ids.append(update.user_id)
             usernames.append(update.username)
             guild_ids.append(update.guild_id)
-            times.append(update.timestamp.strftime('%Y-%m-%d %H:%M:%S'))
+            times.append(update.timestamp)
         await self.bot.dbutils.multiple_last_seen(user_ids, usernames, guild_ids, times)
         del updates
 
@@ -70,7 +70,7 @@ class LastSeen(Cog):
     async def _status_loop(self):
         while not self._update_now.is_set():
             try:
-                await asyncio.wait_for(self._update_now.wait(), timeout=10, loop=self.bot.loop)
+                await asyncio.wait_for(self._update_now.wait(), timeout=5, loop=self.bot.loop)
             except asyncio.TimeoutError:
                 pass
 

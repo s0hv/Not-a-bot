@@ -10,6 +10,7 @@ from math import ceil, sqrt
 import discord
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
+from asyncpg.exceptions import PostgresError
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
@@ -19,7 +20,6 @@ from discord.ext import commands
 from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument,
                                   clean_content)
 from numpy.random import choice
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, has_permissions, cooldown, group
 from bot.globals import WORKING_DIR
@@ -71,8 +71,8 @@ class Colors(Cog):
               'colors LEFT OUTER JOIN roles on roles.id=colors.id'
 
         try:
-            rows = (await self.bot.dbutil.execute(sql)).fetchall()
-        except SQLAlchemyError:
+            rows = await self.bot.dbutil.fetch(sql)
+        except PostgresError:
             logger.exception('Failed to cache colors')
             return
 
@@ -84,29 +84,39 @@ class Colors(Cog):
 
     async def _add_color2db(self, color, update=False):
         await self.bot.dbutils.add_roles(color.guild_id, color.role_id)
-        sql = 'INSERT INTO `colors` (`id`, `name`, `value`, `lab_l`, `lab_a`, `lab_b`) VALUES ' \
-              '(:id, :name, :value, :lab_l, :lab_a, :lab_b)'
+        sql = 'INSERT INTO colors (id, name, "value", lab_l, lab_a, lab_b) VALUES ' \
+              '($1, $2, $3, $4, $5, $6)'
         if update:
-            sql += ' ON DUPLICATE KEY UPDATE name=:name, value=:value, lab_l=:lab_l, lab_a=:lab_a, lab_b=:lab_b'
+            sql += ' ON CONFLICT (id) DO UPDATE SET name=$2, value=$3, lab_l=$4, lab_a=$5, lab_b=$6'
 
+        # Determines if we executemany or not
+        many = False
         if isinstance(color, list):
-            params = [{'id': c.role_id,
-                      'name': c.name,
-                      'value': c.value,
-                      'lab_l': c.lab.lab_l,
-                      'lab_a': c.lab.lab_a,
-                      'lab_b': c.lab.lab_b} for c in color]
+            args = [
+                (
+                    c.role_id,
+                    c.name,
+                    c.value,
+                    c.lab.lab_l,
+                    c.lab.lab_a,
+                    c.lab.lab_b
+                ) for c in color
+            ]
+            many = True
+
         else:
-            params = {'id': color.role_id,
-                      'name': color.name,
-                      'value': color.value,
-                      'lab_l': color.lab.lab_l,
-                      'lab_a': color.lab.lab_a,
-                      'lab_b': color.lab.lab_b}
+            args = (
+                color.role_id,
+                color.name,
+                color.value,
+                color.lab.lab_l,
+                color.lab.lab_a,
+                color.lab.lab_b
+            )
 
         try:
-            await self.bot.dbutil.execute(sql, params=params, commit=True)
-        except SQLAlchemyError:
+            await self.bot.dbutil.execute(sql, args, insertmany=many)
+        except PostgresError:
             logger.exception('Failed to add color to db')
             return False
         else:

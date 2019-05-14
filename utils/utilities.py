@@ -38,10 +38,10 @@ from random import randint
 
 import discord
 import numpy
+from asyncpg.exceptions import PostgresError
 from discord import abc
 from discord.embeds import EmptyEmbed
 from discord.ext.commands.errors import MissingPermissions
-from sqlalchemy.exc import SQLAlchemyError
 from validators import url as test_url
 
 from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
@@ -557,12 +557,12 @@ async def get_image_from_ctx(ctx, message):
             except discord.HTTPException:
                 pass
         else:
-            sql = 'SELECT attachment FROM `attachments` WHERE channel=%s' % ctx.channel.id
+            sql = 'SELECT attachment FROM attachments WHERE channel=%s' % ctx.channel.id
             try:
-                row = (await dbutil.execute(sql)).first()
+                row = await dbutil.fetch(sql, fetchmany=False)
                 if row:
                     image = row['attachment']
-            except SQLAlchemyError:
+            except PostgresError:
                 pass
 
     if image is not None:
@@ -1314,7 +1314,7 @@ async def check_blacklist(ctx):
     if not await bot.check_auth(ctx):
         return False
 
-    overwrite_perms = await bot.dbutil.check_blacklist('(command="%s" OR command IS NULL)' % ctx.command, ctx.author, ctx, True)
+    overwrite_perms = await bot.dbutil.check_blacklist("(command='%s' OR command IS NULL)" % ctx.command, ctx.author, ctx, True)
     msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, (None, None))
     if isinstance(overwrite_perms, int):
         if ctx.guild and ctx.guild.owner.id == ctx.author.id:

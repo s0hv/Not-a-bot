@@ -10,16 +10,16 @@ from typing import Union
 import discord
 import emoji
 from aioredis.errors import ConnectionClosedError
+from asyncpg.exceptions import PostgresError
 from discord.errors import HTTPException
 from discord.ext.commands import (BucketType, check, bot_has_permissions)
 from numpy import sqrt
 from numpy.random import choice
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, has_permissions, cooldown
 from bot.formatter import Paginator
 from cogs.cog import Cog
-from utils.utilities import (split_string, parse_time, datetime2sql, call_later,
+from utils.utilities import (split_string, parse_time, call_later,
                              get_avatar, retry, send_paged_message,
                              check_botperm)
 
@@ -96,10 +96,10 @@ class ServerSpecific(Cog):
             g.cancel()
 
     async def load_giveaways(self):
-        sql = 'SELECT * FROM `giveaways`'
+        sql = 'SELECT * FROM giveaways'
         try:
-            rows = (await self.bot.dbutil.execute(sql)).fetchall()
-        except SQLAlchemyError:
+            rows = await self.bot.dbutil.fetch(sql)
+        except PostgresError:
             logger.exception('Failed to load giveaways')
             return
 
@@ -122,14 +122,14 @@ class ServerSpecific(Cog):
         return self.bot.dbutil
 
     async def _check_role_grant(self, ctx, user, role_id, guild_id):
-        where = 'user=%s OR user_role IN (%s)' % (user.id, ', '.join((str(r.id) for r in user.roles)))
+        where = 'uid=%s OR user_role IN (%s)' % (user.id, ', '.join((str(r.id) for r in user.roles)))
 
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND role=%s AND (%s) LIMIT 1' % (guild_id, role_id, where)
+        sql = 'SELECT role FROM role_granting WHERE guild=%s AND role=%s AND (%s) LIMIT 1' % (guild_id, role_id, where)
         try:
-            row = (await self.bot.dbutil.execute(sql)).first()
+            row = await self.bot.dbutil.fetch(sql, fetchmany=False)
             if not row:
                 return False
-        except SQLAlchemyError:
+        except PostgresError:
             await ctx.send('Something went wrong. Try again in a bit')
             return None
 
@@ -223,11 +223,11 @@ class ServerSpecific(Cog):
         if not await self.dbutil.add_roles(guild.id, *roles):
             return await ctx.send('Could not add roles to database')
 
-        sql = 'INSERT IGNORE INTO `role_granting` (`user_role`, `role`, `guild`, `user`) VALUES ' \
-              '(%s, %s, %s, %s)' % values
+        sql = 'INSERT INTO role_granting (user_role, role, guild, uid) VALUES ' \
+              '(%s, %s, %s, %s) ON CONFLICT DO NOTHING ' % values
         try:
-            await self.dbutil.execute(sql, commit=True)
-        except SQLAlchemyError:
+            await self.dbutil.execute(sql)
+        except PostgresError:
             logger.exception('Failed to add grant role')
             return await ctx.send('Failed to add perms. Exception logged')
 
@@ -247,10 +247,10 @@ class ServerSpecific(Cog):
         else:
             where = 'user=%s' % role_user.id
 
-        sql = 'DELETE FROM `role_granting` WHERE role=%s AND guild=%s AND %s' % (target_role.id, guild.id, where)
+        sql = 'DELETE FROM role_granting WHERE role=%s AND guild=%s AND %s' % (target_role.id, guild.id, where)
         try:
-            await self.dbutil.execute(sql, commit=True)
-        except SQLAlchemyError:
+            await self.dbutil.execute(sql)
+        except PostgresError:
             logger.exception('Failed to remove role grant')
             return await ctx.send('Failed to remove perms. Exception logged')
 
@@ -261,15 +261,15 @@ class ServerSpecific(Cog):
     async def all_grants(self, ctx, role_user: Union[discord.Role, discord.User]=None):
         """Shows all grants on the server.
         If user or role provided will get all grants specific to that."""
-        sql = f'SELECT `role`, `user_role`, `user` FROM `role_granting` WHERE guild={ctx.guild.id}'
+        sql = f'SELECT role, user_role, uid FROM role_granting WHERE guild={ctx.guild.id}'
         if isinstance(role_user, discord.Role):
             sql += f' AND user_role={role_user.id}'
         elif isinstance(role_user, discord.User):
-            sql += f' AND user={role_user.id}'
+            sql += f' AND uid={role_user.id}'
 
         try:
-            rows = await self.bot.dbutil.execute(sql)
-        except SQLAlchemyError:
+            rows = await self.bot.dbutil.fetch(sql)
+        except PostgresError:
             logger.exception(f'Failed to get grants for {role_user}')
             return await ctx.send('Failed to get grants')
 
@@ -282,7 +282,7 @@ class ServerSpecific(Cog):
 
             # Add user grants
             if not role_id:
-                user = row['user']
+                user = row['uid']
                 if user in user_grants:
                     user_grants[user].append(target_role)
                 else:
@@ -328,10 +328,10 @@ class ServerSpecific(Cog):
         if not user:
             user = ctx.author
 
-        sql = 'SELECT `role` FROM `role_granting` WHERE guild=%s AND (user=%s OR user_role IN (%s))' % (guild.id, user.id, ', '.join((str(r.id) for r in user.roles)))
+        sql = 'SELECT role FROM role_granting WHERE guild=%s AND (uid=%s OR user_role IN (%s))' % (guild.id, user.id, ', '.join((str(r.id) for r in user.roles)))
         try:
-            rows = (await self.dbutil.execute(sql)).fetchall()
-        except SQLAlchemyError:
+            rows = await self.dbutil.fetch(sql)
+        except PostgresError:
             logger.exception('Failed to get role grants')
             return await ctx.send('Failed execute sql')
 
@@ -492,11 +492,11 @@ class ServerSpecific(Cog):
         if role is None:
             return await channel.send('Every role not found')
 
-        sql = 'INSERT INTO `giveaways` (`guild`, `title`, `message`, `channel`, `winners`, `expires_in`) VALUES (:guild, :title, :message, :channel, :winners, :expires_in)'
+        sql = 'INSERT INTO giveaways (guild, title, message, channel, winners, expires_in) VALUES ($1, $2, $3, $4, $5, $6)'
 
         now = datetime.utcnow()
         expired_date = now + expires_in
-        sql_date = datetime2sql(expired_date)
+        sql_date = expired_date
 
         title = 'Toggle the every role on the winner.'
         embed = discord.Embed(title='Giveaway: {}'.format(title),
@@ -514,14 +514,10 @@ class ServerSpecific(Cog):
             pass
 
         try:
-            await self.bot.dbutil.execute(sql, params={'guild': guild.id,
-                                                       'title': 'Toggle every',
-                                                       'message': message.id,
-                                                       'channel': channel.id,
-                                                       'winners': winners,
-                                                       'expires_in': sql_date},
-                                          commit=True)
-        except SQLAlchemyError:
+            await self.bot.dbutil.execute(sql, (guild.id, 'Toggle every',
+                                                message.id, channel.id,
+                                                winners, sql_date))
+        except PostgresError:
             logger.exception('Failed to create every toggle')
             return await channel.send('SQL error')
 
@@ -555,11 +551,11 @@ class ServerSpecific(Cog):
 
         await self._toggle_every(ctx.channel, winners, expires_in)
 
-    async def delete_giveaway_from_db(self, message_id):
-        sql = 'DELETE FROM `giveaways` WHERE message=:message'
+    async def delete_giveaway_from_db(self, message_id: int):
+        sql = 'DELETE FROM giveaways WHERE message=$1'
         try:
-            await self.bot.dbutil.execute(sql, {'message': message_id}, commit=True)
-        except SQLAlchemyError:
+            await self.bot.dbutil.execute(sql, (message_id,))
+        except PostgresError:
             logger.exception('Failed to delete giveaway {}'.format(message_id))
 
     async def remove_every(self, guild, channel, message, title, winners):
@@ -981,7 +977,7 @@ class ServerSpecific(Cog):
         except asyncio.TimeoutError:
             return
 
-        asyncio.ensure_future(delete_wb_msg(), loop=self.bot.loop)
+        self.bot.loop.create_task(delete_wb_msg())
 
         e = discord.Embed(title=f'{name} ({waifu[3]})', color=16745712, description=desc)
 

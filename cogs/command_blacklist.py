@@ -2,9 +2,9 @@ import logging
 import typing
 
 import discord
+from asyncpg.exceptions import PostgresError
 from discord.ext import commands
 from discord.ext.commands import BucketType, has_permissions
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group, cooldown
 from bot.converters import CommandConverter
@@ -53,8 +53,8 @@ class CommandBlacklist(Cog):
 
         async def _blacklist(name):
             if mention is None:
-                whereclause = 'guild=%s AND type IN (%s, %s) AND command="%s" AND channel IS NULL AND role IS NULL AND user IS NULL' % (
-                               guild.id, BlacklistTypes.BLACKLIST, BlacklistTypes.WHITELIST, name)
+                whereclause = "guild=$1 AND type IN (%s, %s) AND command=$2 AND channel IS NULL AND role IS NULL AND uid IS NULL" % (
+                               BlacklistTypes.BLACKLIST, BlacklistTypes.WHITELIST)
                 success = await self._set_blacklist(ctx, whereclause, guild=guild.id, command=name)
                 if success:
                     return 'Blacklisted command {} from this server'.format(name)
@@ -103,8 +103,8 @@ class CommandBlacklist(Cog):
 
         guild = ctx.guild
         values = {'command': None, 'guild': guild.id, 'type': BlacklistTypes.BLACKLIST}
-        where = 'guild=%s AND command IS NULL AND NOT type=%s AND user IS NULL AND role IS NULL AND channel IS NULL' % (guild.id, BlacklistTypes.GLOBAL)
-        success = await self._set_blacklist(where, **values)
+        where = 'guild=%s AND command IS NULL AND NOT type=%s AND uid IS NULL AND role IS NULL AND channel IS NULL' % (guild.id, BlacklistTypes.GLOBAL)
+        success = await self._set_blacklist(ctx, where, (), **values)
         if success:
             msg = 'All commands disabled on this server for non whitelisted users'
         elif success is None:
@@ -123,21 +123,21 @@ class CommandBlacklist(Cog):
         message = None
         if isinstance(scope, discord.User):
             userid = scope.id
-            success = await self._set_blacklist(ctx, where + 'user=%s' % userid, user=userid, **values)
+            success = await self._set_blacklist(ctx, where + 'uid=%s' % userid, (), uid=userid, **values)
             if success:
                 message = f'{type_string} all commands for user {scope} `{userid}`'
             elif success is None:
                 message = f'removed {type_string2} from user {scope}, `{userid}`'
 
         elif isinstance(scope, discord.Role):
-            success = await self._set_blacklist(ctx, where + 'role=%s' % scope.id, role=scope.id, **values)
+            success = await self._set_blacklist(ctx, where + 'role=%s' % scope.id, (), role=scope.id, **values)
             if success:
                 message = '{0} all commands from role {1} `{1.id}`'.format(type_string, scope)
             elif success is None:
                 message = 'Removed {0} from role {1} `{1.id}`'.format(type_string2, scope)
 
         elif isinstance(scope, discord.TextChannel):
-            success = await self._set_blacklist(ctx, where + 'channel=%s' % scope.id,
+            success = await self._set_blacklist(ctx, where + 'channel=%s' % scope.id, (),
                                                 channel=scope.id, **values)
             if success:
                 message = '{0} all commands from channel {1} `{1.id}`'.format(type_string, scope)
@@ -198,60 +198,73 @@ class CommandBlacklist(Cog):
         for msg in split_string(s, splitter='\n'):
             await ctx.send(msg)
 
-    async def _set_blacklist(self, ctx, whereclause, type_=BlacklistTypes.BLACKLIST, **values):
+    async def _set_blacklist(self, ctx, whereclause, whereargs=None, type_=BlacklistTypes.BLACKLIST, **values):
         """
-        :ctx: object that messages can be sent to
-        :return: True when new permission is set
-                 None when permission is toggled
-                 False when operation failed
+        Args:
+            ctx: Context object that error messages can be sent to
+            whereclause: The whereclause to search records
+            whereargs: Args that are used in the whereclause. If not defined
+                       values.values() will be used
+            type_:
+            **values: Keyword values that are used to set database columns
+                      Uses the format column name=column value
+
+        Returns:
+            True when new permissions are set
+            None when permission is removed. e.g. blacklist to no blacklist
+            False when operation failed
         """
         type_string = 'blacklist' if type_ == BlacklistTypes.BLACKLIST else 'whitelist'
-        sql = 'SELECT `id`, `type` FROM `command_blacklist` WHERE %s' % whereclause
+        sql = 'SELECT id, type FROM command_blacklist WHERE %s' % whereclause
+        whereargs = whereargs if whereargs is not None else values.values()
+
         try:
-            row = (await self.bot.dbutil.execute(sql, values)).first()
-        except SQLAlchemyError:
+            row = await self.bot.dbutil.fetch(sql, whereargs, fetchmany=False)
+        except PostgresError:
             logger.exception('Failed to remove blacklist')
             await ctx.send('Failed to remove %s' % type_string)
-            return
+            return False
 
         if row:
             if row['type'] == type_:
-                sql = 'DELETE FROM `command_blacklist` WHERE id=:id'
+                sql = 'DELETE FROM command_blacklist WHERE %s' % whereclause
                 try:
-                    await self.bot.dbutil.execute(sql, {'id': row['id']}, commit=True)
-                except SQLAlchemyError:
+                    await self.bot.dbutil.execute(sql, whereargs)
+                except PostgresError:
                     logger.exception('Could not update %s with whereclause %s' % (type_string, whereclause))
                     await ctx.send('Failed to remove %s' % type_string)
                     return False
                 else:
                     return
             else:
-                sql = 'UPDATE `command_blacklist` SET type=:type WHERE id=:id'
+                sql = 'UPDATE command_blacklist SET type=$1 WHERE id=$2'
                 try:
-                    await self.bot.dbutil.execute(sql, {'type': type_, 'id': row['id']}, commit=True)
-                except SQLAlchemyError:
+                    await self.bot.dbutil.execute(sql, (type_, row['id']))
+                except PostgresError:
                     logger.exception('Could not update %s with whereclause %s' % (type_string, whereclause))
                     await ctx.send('Failed to remove %s' % type_string)
                     return False
                 else:
                     return True
         else:
-            sql = 'INSERT INTO `command_blacklist` ('
+            # Dynamically create a insert that looks like this
+            # INSERT INTO command_blacklist (v1, v2, v3) VALUES ($1, $2, $3)
+            sql = 'INSERT INTO command_blacklist ('
             values['type'] = type_
             keys = values.keys()
             val = '('
             l = len(keys)
             for idx, k in enumerate(keys):
-                sql += '`%s`' % k
-                val += ':%s' % k
+                sql += '"%s"' % k
+                val += '$%s' % (idx + 1)
                 if idx != l - 1:
                     sql += ', '
                     val += ', '
 
             sql += ') VALUES ' + val + ')'
             try:
-                await self.bot.dbutil.execute(sql, values, commit=True)
-            except SQLAlchemyError:
+                await self.bot.dbutil.execute(sql, values.values())
+            except PostgresError:
                 logger.exception('Could not set values %s' % values)
                 await ctx.send('Failed to set %s' % type_string)
                 return False
@@ -259,10 +272,10 @@ class CommandBlacklist(Cog):
         return True
 
     async def _add_user_blacklist(self, ctx, command_name, user, guild):
-        whereclause = 'guild=:guild AND command=:command AND user=:user AND NOT type=:type'
-        success = await self._set_blacklist(ctx, whereclause, command=command_name,
-                                            user=user.id,
-                                            guild=guild.id,
+        whereclause = 'guild=$1 AND command=$2 AND uid=$3 AND NOT type=$4'
+        success = await self._set_blacklist(ctx, whereclause, guild=guild.id,
+                                            command=command_name,
+                                            uid=user.id,
                                             type=BlacklistTypes.GLOBAL)
         if success:
             return 'Blacklisted command {0} from user {1} `{1.id}`'.format(command_name, user)
@@ -270,10 +283,10 @@ class CommandBlacklist(Cog):
             return 'Removed command {0} blacklist from user {1} `{1.id}`'.format(command_name, user)
 
     async def _add_role_blacklist(self, ctx, command_name, role, guild):
-        whereclause = 'guild=:guild AND command=:command AND role=:role AND NOT type=:type'
-        success = await self._set_blacklist(ctx, whereclause, command=command_name,
+        whereclause = 'guild=$1 AND command=$2 AND role=$3 AND NOT type=$4'
+        success = await self._set_blacklist(ctx, whereclause, guild=guild.id,
+                                            command=command_name,
                                             role=role.id,
-                                            guild=guild.id,
                                             type=BlacklistTypes.GLOBAL)
         if success:
             return 'Blacklisted command {0} from role {1} `{1.id}`'.format(command_name, role)
@@ -281,11 +294,10 @@ class CommandBlacklist(Cog):
             return 'Removed command {0} blacklist from role {1} `{1.id}`'.format(command_name, role)
 
     async def _add_channel_blacklist(self, ctx, command_name, channel, guild):
-        whereclause = 'guild=:guild AND command=:command AND channel=:channel AND NOT type=:type'
-        success = await self._set_blacklist(ctx, whereclause,
+        whereclause = 'guild=$1 AND command=$2 AND channel=$3 AND NOT type=$4'
+        success = await self._set_blacklist(ctx, whereclause, guild=guild.id,
                                             command=command_name,
                                             channel=channel.id,
-                                            guild=guild.id,
                                             type=BlacklistTypes.GLOBAL)
         if success:
             return 'Blacklisted command {0} from channel {1} `{1.id}`'.format(command_name, channel)
@@ -293,12 +305,12 @@ class CommandBlacklist(Cog):
             return 'Removed command {0} blacklist from channel {1} `{1.id}`'.format(command_name, channel)
 
     async def _add_user_whitelist(self, ctx, command_name, user, guild):
-        whereclause = 'guild=:guild AND command=:command AND user=:user AND NOT type=:type'
+        whereclause = 'guild=$1 AND command=$2 AND uid=$3 AND NOT type=$4'
         success = await self._set_blacklist(ctx, whereclause,
                                             type_=BlacklistTypes.WHITELIST,
-                                            command=command_name,
-                                            user=user.id,
                                             guild=guild.id,
+                                            command=command_name,
+                                            uid=user.id,
                                             type=BlacklistTypes.GLOBAL)
         if success:
             return 'Whitelisted command {0} from user {1} `{1.id}`'.format(command_name, user)
@@ -306,12 +318,12 @@ class CommandBlacklist(Cog):
             return 'Removed command {0} whitelist from user {1} `{1.id}`'.format(command_name, user)
 
     async def _add_role_whitelist(self, ctx, command_name, role, guild):
-        whereclause = 'guild=:guild AND command=:command AND role=:role AND NOT type=:type'
+        whereclause = 'guild=$1 AND command=$2 AND role=$3 AND NOT type=$4'
         success = await self._set_blacklist(ctx, whereclause,
                                             type_=BlacklistTypes.WHITELIST,
+                                            guild=guild.id,
                                             command=command_name,
                                             role=role.id,
-                                            guild=guild.id,
                                             type=BlacklistTypes.GLOBAL)
         if success:
             return 'Whitelisted command {0} from role {1} `{1.id}`'.format(command_name, role)
@@ -319,12 +331,12 @@ class CommandBlacklist(Cog):
             return 'Removed command {0} whitelist from role {1} `{1.id}`'.format(command_name, role)
 
     async def _add_channel_whitelist(self, ctx, command_name, channel, guild):
-        whereclause = 'guild=:guild AND command=:command AND channel=:channel AND NOT type=:type'
+        whereclause = 'guild=$1 AND command=$2 AND channel=$3 AND NOT type=$4'
         success = await self._set_blacklist(ctx, whereclause,
                                             type_=BlacklistTypes.WHITELIST,
+                                            guild=guild.id,
                                             command=command_name,
                                             channel=channel.id,
-                                            guild=guild.id,
                                             type=BlacklistTypes.GLOBAL)
         if success:
             return 'Whitelisted command {0} from channel {1} `{1.id}`'.format(command_name, channel)
@@ -333,12 +345,12 @@ class CommandBlacklist(Cog):
 
     @command(owner_only=True)
     async def test_perms(self, ctx, user: discord.Member, command_):
-        value = await self.bot.dbutil.check_blacklist(f'(command="{command_}" OR command IS NULL)', user, ctx, True)
+        value = await self.bot.dbutil.check_blacklist(f"(command='{command_}' OR command IS NULL)", user, ctx, True)
         await ctx.send(value or 'No special perms')
 
     async def get_rows(self, whereclause, select='*'):
-        sql = 'SELECT %s FROM `command_blacklist` WHERE %s' % (select, whereclause)
-        rows = (await self.bot.dbutil.execute(sql)).fetchall()
+        sql = 'SELECT %s FROM command_blacklist WHERE %s' % (select, whereclause)
+        rows = await self.bot.dbutil.fetch(sql)
         return rows
 
     @staticmethod
@@ -384,9 +396,9 @@ class CommandBlacklist(Cog):
             role_ = get_role(role, guild.roles, name_matching=True)
             if not role_:
                 return await ctx.send('No role found with {}'.format(role))
-            where = 'guild={} AND user IS NULL AND channel IS NULL AND role={}'.format(guild.id, role_.id)
+            where = 'guild={} AND uid IS NULL AND channel IS NULL AND role={}'.format(guild.id, role_.id)
         else:
-            where = 'guild={} AND user IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(guild.id)
+            where = 'guild={} AND uid IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(guild.id)
 
         rows = await self.get_rows(where)
         if not rows:
@@ -431,8 +443,8 @@ class CommandBlacklist(Cog):
     @cooldown(1, 15, BucketType.guild)
     async def show_perms(self, ctx):
         """Shows all server perms in one paged embed"""
-        sql = f'SELECT command, type, user, role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
-        rows = await self.bot.dbutil.execute(sql)
+        sql = f'SELECT command, type, uid as "user", role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
+        rows = await self.bot.dbutil.fetch(sql)
 
         perms = {'guild': [], 'channel': [], 'role': [], 'user': []}
 
@@ -493,7 +505,7 @@ class CommandBlacklist(Cog):
         else:
             roles = 'role IS NULL'
 
-        where = f'guild={guild.id} AND (user={user.id} or user IS NULL) AND channel IS NULL AND {roles}'
+        where = f'guild={guild.id} AND (uid={user.id} or uid IS NULL) AND channel IS NULL AND {roles}'
 
         rows = await self.get_rows(where)
 

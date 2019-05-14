@@ -7,13 +7,12 @@ from datetime import datetime
 
 import discord
 import numpy
+from asyncpg.exceptions import PostgresError
 from discord.ext.commands import bot_has_permissions, BucketType
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, has_permissions, cooldown
 from cogs.cog import Cog
-from utils.utilities import (get_emote_name_id, parse_time, datetime2sql,
-                             get_avatar)
+from utils.utilities import (get_emote_name_id, parse_time, get_avatar)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -183,10 +182,10 @@ class Poll:
         except discord.DiscordException:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)
-            sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
+            sql = 'DELETE FROM polls WHERE message=%s' % self.message
             try:
-                await self.bot.dbutil.execute(sql, commit=True)
-            except SQLAlchemyError:
+                await self.bot.dbutil.execute(sql)
+            except PostgresError:
                 logger.exception('Could not delete poll')
             return await channel.send('Failed to end poll.\nReason: Could not get the poll message')
 
@@ -285,10 +284,10 @@ class Poll:
         except discord.HTTPException:
             pass
 
-        sql = 'DELETE FROM `polls` WHERE `message`= %s' % self.message
+        sql = 'DELETE FROM polls WHERE message= %s' % self.message
         try:
-            await self.bot.dbutil.execute(sql, commit=True)
-        except SQLAlchemyError:
+            await self.bot.dbutil.execute(sql)
+        except PostgresError:
             logger.exception('Could not delete poll')
             await chn.send('Could not delete poll from database. The poll result might be recalculated')
 
@@ -297,7 +296,7 @@ class VoteManager(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.polls = self.bot.polls
-        self.load_polls()
+        asyncio.run_coroutine_threadsafe(self.load_polls(), self.bot.loop)
         self.parser = argparse.ArgumentParser()
         self.parser.add_argument('-header', nargs='+')
         self.parser.add_argument('-time', default='60s', nargs='+')
@@ -313,10 +312,10 @@ class VoteManager(Cog):
         for poll in list(self.polls.values()):
             poll.stop()
 
-    def load_polls(self):
-        session = self.bot.get_session
-        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, polls.giveaway, emotes.emote FROM polls LEFT OUTER JOIN pollEmotes ON polls.message = pollEmotes.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pollEmotes.emote_id'
-        poll_rows = session.execute(sql)
+    async def load_polls(self):
+        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, polls.giveaway, emotes.emote ' \
+              'FROM polls LEFT OUTER JOIN "pollEmotes" pe ON polls.message = pe.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pe.emote_id'
+        poll_rows = await self.bot.dbutil.fetch(sql)
         polls = {}
         for row in poll_rows:
             poll = polls.get(row['message'], Poll(self.bot, row['message'], row['channel'], row['title'],
@@ -509,7 +508,7 @@ class VoteManager(Cog):
 
         now = datetime.utcnow()
         expired_date = now + expires_in
-        sql_date = datetime2sql(expired_date)
+        sql_date = expired_date
         parsed.time = sql_date
 
         emotes = []
@@ -576,25 +575,30 @@ class VoteManager(Cog):
             await ctx.send('Failed to get emotes `{}`'.format('` `'.join(failed)),
                            delete_after=60)
 
-        def do_sql():
-            sql = 'INSERT INTO `polls` (`guild`, `title`, `strict`, `message`, `channel`, `expires_in`, `ignore_on_dupe`, `multiple_votes`, `max_winners`, `giveaway`) ' \
-                  'VALUES (:guild, :title, :strict, :message, :channel, :expires_in, :ignore_on_dupe, :multiple_votes, :max_winners, :giveaway)'
-            d = {'guild': ctx.guild.id, 'title': title,
-                 'strict': parsed.strict, 'message': msg.id,
-                 'channel': ctx.channel.id,
-                 'expires_in': parsed.time,
-                 'ignore_on_dupe': parsed.no_duplicate_votes,
-                 'multiple_votes': parsed.allow_multiple_entries,
-                 'max_winners': parsed.max_winners,
-                 'giveaway': parsed.giveaway}
+        async with self.bot.pool.acquire() as conn:
+            tr = conn.transaction()
+            await tr.start()
+            sql = 'INSERT INTO polls (guild, title, strict, message, channel, expires_in, ignore_on_dupe, multiple_votes, max_winners, giveaway) ' \
+                  'VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)'
+            d = (
+                ctx.guild.id,
+                title,
+                parsed.strict,
+                msg.id,
+                ctx.channel.id,
+                parsed.time,
+                parsed.no_duplicate_votes,
+                parsed.allow_multiple_entries,
+                parsed.max_winners,
+                parsed.giveaway
+            )
 
-            session = self.bot.get_session
             try:
-                session.execute(sql, params=d)
+                await conn.execute(sql, *d)
 
                 emotes_list = []
                 if emotes:
-                    sql = 'INSERT INTO `emotes` (`name`, `emote`, `guild`) VALUES (:name, :emote, :guild) '
+                    sql = 'INSERT INTO emotes (name, emote, guild) VALUES ($1, $2, $3) '
                     values = []
                     # We add all successfully parsed emotes even if the bot failed to
                     # add them so strict mode will count them in too
@@ -609,32 +613,27 @@ class VoteManager(Cog):
                             name = prefix + name
                             emotes_list.append(id)
                             guild = ctx.guild.id
-                        values.append({'name': name, 'emote': str(id), 'guild': guild})
+                        values.append((name, str(id), guild))
 
-                    # If emote is already in the table update its name
-                    sql += ' ON DUPLICATE KEY UPDATE name=VALUES(name)'
-                    session.execute(sql, values)
+                    # No need to run these if no user set emotes are used
+                    if values:
+                        # If emote is already in the table update its name
+                        sql += ' ON CONFLICT (emote) DO UPDATE SET name=EXCLUDED.name'
+                        await conn.executemany(sql, values)
 
-                    sql = 'INSERT IGNORE INTO `pollEmotes` (`poll_id`, `emote_id`) VALUES (:poll, :emote)'
-                    values = []
-                    for id in emotes_list:
-                        values.append({'poll': msg.id, 'emote': str(id)})
+                        sql = 'INSERT INTO "pollEmotes" (poll_id, emote_id) VALUES ($1, $2) ON CONFLICT DO NOTHING '
+                        values = []
+                        for id in emotes_list:
+                            values.append((msg.id, str(id)))
 
-                        session.execute(sql, values)
+                        await conn.executemany(sql, values)
 
-                session.commit()
-                return emotes_list
-            except SQLAlchemyError:
-                session.rollback()
+                await tr.commit()
+            except PostgresError:
+                await tr.rollback()
                 logger.exception('Failed sql query')
-                return 'Failed to save poll. Exception has been logged'
-
-        try:
-            emotes_list = await self.bot.loop.run_in_executor(self.bot.threadpool, do_sql)
-        except:
-            logger.exception('Failed to save poll')
-            terminal.exception('Failed to save poll')
-            return await ctx.send('Failed to save poll to db')
+                await ctx.send('Failed to save poll. Exception has been logged')
+                return
 
         if isinstance(emotes_list, str):
             # Error happened when this is a string. Otherwise it's a list

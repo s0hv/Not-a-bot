@@ -62,7 +62,6 @@ initial_cogs = [
     'logging',
     'misc',
     'moderator',
-    'neural_networks',
     'pokemon',
     'privacy',
     'search',

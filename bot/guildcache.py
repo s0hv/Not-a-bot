@@ -1,5 +1,4 @@
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+from asyncpg.exceptions import PostgresError
 
 from bot.exceptions import (NotEnoughPrefixes, PrefixExists,
                             PrefixDoesntExist)
@@ -31,11 +30,12 @@ class GuildCache:
         self._set_internal_value(guild_id, 'prefixes', sorted(list(self.prefixes(guild_id, use_set=True)), reverse=True))
 
     async def set_value(self, guild_id, name, value):
-        sql = 'INSERT INTO `guilds` (`guild`, `{0}`) VALUES ({1}, :{0}) ON DUPLICATE KEY UPDATE {0}=:{0}'.format(name, guild_id)
+        # WARNING sql injection could happen if user input is allowed to the name var
+        sql = 'INSERT INTO guilds (guild, {0}) VALUES ($1, $2) ON CONFLICT (guild) DO UPDATE SET {0}=$2'.format(name)
         try:
-            await self.bot.dbutil.execute(text(sql), params={name: value}, commit=True)
+            await self.bot.dbutil.execute(sql, (guild_id, value))
             success = True
-        except SQLAlchemyError:
+        except PostgresError:
             success = False
         settings = self.get_settings(guild_id)
         settings[name] = value

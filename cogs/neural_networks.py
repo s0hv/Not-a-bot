@@ -1,8 +1,6 @@
 import logging
 import re
 
-from sqlalchemy.exc import SQLAlchemyError
-
 from cogs.cog import Cog
 from utils import unzalgo
 
@@ -57,15 +55,7 @@ class NNLogger(Cog):
         if len(content) < 5:
             return
 
-        session = self.bot.get_session
-        sql = 'INSERT INTO `nn_text` (`message`) VALUES (:message)'
-        try:
-            session.execute(sql, params={'message': content})
-            session.commit()
-        except SQLAlchemyError:
-            session.rollback()
-            logger.exception('Failed to log message to nn table')
-
+        sql = 'INSERT INTO nn_text (message) VALUES (:message)'
 
 def setup(bot):
     bot.add_cog(NNLogger(bot))

@@ -174,7 +174,7 @@ class Settings(Cog):
     @settings.command(no_pm=True)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def keeproles(self, ctx, boolean: bool=None):
+    async def keeproles(self, ctx, boolean: bool):
         """Get the current keeproles value on this server or change it.
         Keeproles makes the bot save every users roles so it can give them even if that user rejoins
         but only the roles the bot can give"""
@@ -200,7 +200,7 @@ class Settings(Cog):
                 perms = bot_member.guild_permissions
                 if not perms.administrator and not perms.manage_roles:
                     return await ctx.send('This bot needs manage roles permissions to enable this feature')
-                msg = await ctx.send('indexing roles')
+                msg = await ctx.send('Indexing roles. This could take a while depending on server size')
                 if not await self.bot.dbutils.index_guild_member_roles(guild):
                     return await ctx.send('Failed to index user roles')
 

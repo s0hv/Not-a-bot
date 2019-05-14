@@ -143,7 +143,7 @@ class Server(Cog):
             embed.set_footer(text=f'Page {idx+1}/{len(pages)}')
             for row in rows:
                 winrate = round(row['wins'] * 100 / row['games'], 1)
-                v = f'<@{row["user"]}>\n' \
+                v = f'<@{row["uid"]}>\n' \
                     f'Winrate: {winrate}% with {row["wins"]} wins \n'\
                     f'Current streak: {row["current_streak"]}\n' \
                     f'Biggest streak: {row["biggest_streak"]}'
@@ -165,7 +165,7 @@ class Server(Cog):
 
         if user_id:
             for idx, r in enumerate(stats):
-                if r['user'] == user_id:
+                if r['uid'] == user_id:
                     i = idx // 10
 
                     winrate = round(r['wins'] * 100 / r['games'], 1)

@@ -3,10 +3,10 @@ import logging
 
 import colors
 import discord
+from asyncpg.exceptions import PostgresError
 from discord import Embed
 from discord.ext.commands import help, BucketType
 from discord.ext.commands.errors import CommandError
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.commands import Command
 from bot.cooldowns import Cooldown
@@ -51,15 +51,13 @@ class HelpCommand(help.HelpCommand):
 
         # Filter by custom blacklist
         if not guild_owner:
-            sql = 'SELECT `type`, `role`, `user`, `channel`, `command` FROM `command_blacklist` WHERE guild=:guild ' \
-                  'AND (user IS NULL OR user=:user) AND {} AND (channel IS NULL OR channel=:channel)'.format(roles)
+            sql = 'SELECT type, role, uid, channel, command FROM command_blacklist WHERE guild=$1 ' \
+                  'AND (uid IS NULL OR uid=$2) AND {} AND (channel IS NULL OR channel=$3)'.format(roles)
 
             try:
-                rows = await ctx.bot.dbutil.execute(sql, {
-                    'guild': user.guild.id,
-                    'user': user.id,
-                    'channel': channel.id
-                })
+                rows = await ctx.bot.dbutil.fetch(sql, (user.guild.id,
+                                                        user.id,
+                                                        channel.id))
 
                 for row in rows:
                     name = row['command']
@@ -68,7 +66,7 @@ class HelpCommand(help.HelpCommand):
                     else:
                         command_blacklist[name] = [row]
 
-            except SQLAlchemyError:
+            except PostgresError:
                 logger.exception('Failed to get role blacklist for help command')
 
         return command_blacklist

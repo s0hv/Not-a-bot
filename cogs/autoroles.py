@@ -79,10 +79,10 @@ class AutoRoles(Cog):
 
         roles = set()
         if self.bot.guild_cache.keeproles(guild.id):
-            sql = 'SELECT roles.id FROM `users` LEFT OUTER JOIN `userRoles` ON users.id=userRoles.user LEFT OUTER JOIN `roles` ON roles.id=userRoles.role ' \
+            sql = 'SELECT roles.id FROM users LEFT OUTER JOIN userroles ON users.id=userroles.uid LEFT OUTER JOIN roles ON roles.id=userroles.role ' \
                   'WHERE roles.guild=%s AND users.id=%s' % (guild.id, member.id)
 
-            roles = {r['id'] for r in (await self.bot.dbutil.execute(sql)).fetchall()}
+            roles = {r['id'] for r in await self.bot.dbutil.fetch(sql)}
             if not roles:
                 return await self.add_random_color(member)
 
@@ -113,7 +113,7 @@ class AutoRoles(Cog):
         roles = [Snowflake(r) for r in roles]
 
         try:
-            await member.add_roles(*roles, atomic=False, reason='Keeproles')
+            await member.add_roles(*roles, atomic=len(roles) > 3, reason='Keeproles')
         except discord.NotFound:
             # If member left before adding roles dont do anything
             return
@@ -137,8 +137,8 @@ class AutoRoles(Cog):
         if not self.bot.guild_cache.keeproles(member.guild.id):
             return
 
-        # If user left in under 4.claim seconds dont save roles
-        if (time.time() - member.joined_at.timestamp()) < 4:
+        # If user left in under 6 seconds dont save roles
+        if (time.time() - member.joined_at.timestamp()) < 6:
             return
 
         roles = [r.id for r in member.roles]

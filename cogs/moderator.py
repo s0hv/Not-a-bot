@@ -7,8 +7,8 @@ from random import randint, random
 from typing import Union
 
 import discord
+from asyncpg.exceptions import PostgresError
 from discord.ext.commands import (BucketType, bot_has_permissions)
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, group, has_permissions, cooldown
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
@@ -35,9 +35,9 @@ class Moderator(Cog):
         self.automute_blacklist = {}
         self.automute_whitelist = {}
         self._current_rolls = {}  # Users currently active in a mute roll
-        self._load_timeouts()
-        self._load_automute()
-        self._load_temproles()
+        asyncio.run_coroutine_threadsafe(self._load_timeouts(), self.bot.loop)
+        asyncio.run_coroutine_threadsafe(self._load_automute(), self.bot.loop)
+        asyncio.run_coroutine_threadsafe(self._load_temproles(), self.bot.loop)
 
     def cog_unload(self):
         for timeouts in list(self.timeouts.values()):
@@ -48,10 +48,10 @@ class Moderator(Cog):
             for temprole in list(temproles.values()):
                 temprole.cancel()
 
-    def _load_automute(self):
-        sql = 'SELECT * FROM `automute_blacklist`'
-        session = self.bot.get_session
-        rows = session.execute(sql)
+    async def _load_automute(self):
+        sql = 'SELECT * FROM automute_blacklist'
+
+        rows = await self.bot.dbutil.fetch(sql)
         for row in rows:
             id_ = row['guild']
             if id_ not in self.automute_blacklist:
@@ -63,8 +63,8 @@ class Moderator(Cog):
 
             s.add(row['channel'])
 
-        sql = 'SELECT * FROM `automute_whitelist`'
-        rows = session.execute(sql)
+        sql = 'SELECT * FROM automute_whitelist'
+        rows = await self.bot.dbutil.fetch(sql)
         for row in rows:
             id_ = row['guild']
             if id_ not in self.automute_whitelist:
@@ -76,28 +76,27 @@ class Moderator(Cog):
 
             s.add(row['role'])
 
-    def _load_temproles(self):
-        session = self.bot.get_session
-        sql = 'SELECT * FROM `temproles`'
-        rows = session.execute(sql)
+    async def _load_temproles(self):
+        sql = 'SELECT * FROM temproles'
+        rows = await self.bot.dbutil.fetch(sql)
 
         for row in rows:
             time = row['expires_at'] - datetime.utcnow()
             guild = row['guild']
-            user = row['user']
+            user = row['uid']
             role = row['role']
 
             self.register_temprole(user, role, guild, time.total_seconds())
 
-    def _load_timeouts(self):
-        session = self.bot.get_session
-        sql = 'SELECT * FROM `timeouts`'
-        rows = session.execute(sql)
+    async def _load_timeouts(self):
+        # TODO only load timeouts that expire within the next few hours and refresh timeouts every few hours
+        sql = 'SELECT * FROM timeouts'
+        rows = await self.bot.dbutil.fetch(sql)
         for row in rows:
             try:
                 time = row['expires_on'] - datetime.utcnow()
                 guild = row['guild']
-                user = row['user']
+                user = row['uid']
 
                 if guild not in self.timeouts:
                     guild_timeouts = {}
@@ -193,7 +192,7 @@ class Moderator(Cog):
                 time = timedelta(days=3)
                 await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
                 d = f'Automuted user {user} `{user.id}` for {time}'
-                url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
+                url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
                 embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d,
                                       timestamp=datetime.utcnow())
                 embed.add_field(name='Reason', value=message.content)
@@ -228,7 +227,7 @@ class Moderator(Cog):
                         else:
                             d = 'Automuted user {0} `{0.id}`'.format(message.author)
 
-                        url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
+                        url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
                         reason = 'Too many mentions in a message'
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
                         embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
@@ -460,7 +459,7 @@ class Moderator(Cog):
 
         author = ctx.author
         description = '{} muted {} {}'.format(author.mention, user, user.id)
-        url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
+        url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
         embed = discord.Embed(title='🤐 Moderation action [MUTE]',
                               timestamp=datetime.utcnow(),
                               description=description)
@@ -524,7 +523,7 @@ class Moderator(Cog):
 
             td = timedelta(minutes=minutes)
 
-            expires_on = datetime2sql(datetime.utcnow() + td)
+            expires_on = datetime.utcnow() + td
             msg = await ctx.send(f'{user} vs {ctx.author}\nLoser: <a:loading:449907001569312779>')
             await asyncio.sleep(2)
             counter = True
@@ -590,20 +589,22 @@ class Moderator(Cog):
 
     async def remove_timeout(self, user_id, guild_id):
         try:
-            sql = 'DELETE FROM `timeouts` WHERE `guild`=:guild AND `user`=:user'
-            await self.bot.dbutil.execute(sql, params={'guild': guild_id, 'user': user_id}, commit=True)
-        except SQLAlchemyError:
+            sql = 'DELETE FROM timeouts WHERE guild=$1 AND uid=$2'
+            await self.bot.dbutil.execute(sql, (guild_id, user_id))
+        except PostgresError:
             logger.exception('Could not delete untimeout')
 
     async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
                           reason='No reason', author=None, modlog_msg=None, show_in_logs=True):
 
-        await self.add_mute_reason(ctx, user_id, reason, author=author,
-                                   modlog_message_id=modlog_msg,
-                                   duration=as_seconds, show_in_logs=show_in_logs)
         try:
+            await self.add_mute_reason(ctx, user_id, reason, author=author,
+                                       modlog_message_id=modlog_msg,
+                                       duration=as_seconds,
+                                       show_in_logs=show_in_logs)
+
             await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Could not save timeout')
             await ctx.send('Could not save timeout. Canceling action')
             return False
@@ -694,8 +695,8 @@ class Moderator(Cog):
 
     async def edit_mute_reason(self, ctx, user_id, reason):
         embed = self._reason_url(ctx, reason)
-        await self.bot.dbutil.edit_timeout_log(ctx.guild.id, user_id, ctx.author.id,
-                                               reason, embed)
+        return await self.bot.dbutil.edit_timeout_log(ctx.guild.id, user_id, ctx.author.id,
+                                                      reason, embed)
 
     @group(aliases=['tlogs'], invoke_without_command=True)
     @bot_has_permissions(embed_links=True)
@@ -706,7 +707,6 @@ class Moderator(Cog):
         if rows is False:
             return await ctx.send(f'Failed to get timeout logs for user {user}')
 
-        rows = rows.fetchall()
         if not rows:
             return await ctx.send(f'No timeouts for {user}')
 
@@ -785,30 +785,32 @@ class Moderator(Cog):
         if not time:
             return await ctx.send('Invalid time string')
 
-        if user.id == ctx.author.id and time.total_seconds() < 21600:
-            return await ctx.send('If you gonna timeout yourself at least make it a longer timeout')
+        # Ignore checks if in test mode
+        if not self.bot.test_mode:
+            if user.id == ctx.author.id and time.total_seconds() < 21600:
+                return await ctx.send('If you gonna timeout yourself at least make it a longer timeout')
 
-        if guild.id == 217677285442977792 and user.id == 123050803752730624:
-            return await ctx.send("Not today kiddo. I'm too powerful for you")
+            if guild.id == 217677285442977792 and user.id == 123050803752730624:
+                return await ctx.send("Not today kiddo. I'm too powerful for you")
 
-        r = guild.get_role(339841138393612288)
-        if not ctx.author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
-            return await ctx.send('All hail our leader <@!222399701390065674>')
+            r = guild.get_role(339841138393612288)
+            if not ctx.author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
+                return await ctx.send('All hail our leader <@!222399701390065674>')
 
-        abusers = (189458911886049281,)
-        # Rice muted and trying to mute others/shorten his sentence
-        if ctx.author.id in abusers and mute_role in ctx.author.roles:
-            return await ctx.send("Abuse this 🖕")
+            abusers = (189458911886049281,)
+            # Rice muted and trying to mute others/shorten his sentence
+            if ctx.author.id in abusers and mute_role in ctx.author.roles:
+                return await ctx.send("Abuse this 🖕")
 
-        if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
-            return await ctx.send('The one you are trying to timeout is higher or same as you in the role hierarchy')
+            if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
+                return await ctx.send('The one you are trying to timeout is higher or same as you in the role hierarchy')
 
-        if time.days > 30:
-            return await ctx.send("Timeout can't be longer than 30 days")
-        if guild.id == 217677285442977792 and time.total_seconds() < 500:
-            return await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
-        if time.total_seconds() < 59:
-            return await ctx.send('Minimum timeout is 1 minute')
+            if time.days > 30:
+                return await ctx.send("Timeout can't be longer than 30 days")
+            if guild.id == 217677285442977792 and time.total_seconds() < 500:
+                return await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
+            if time.total_seconds() < 59:
+                return await ctx.send('Minimum timeout is 1 minute')
 
         now = datetime.utcnow()
 
@@ -822,11 +824,11 @@ class Moderator(Cog):
                     very_gay = timedelta(seconds=time.total_seconds()*2)
                     await ctx.send('Abuse this <:christianServer:336568327939948546>')
                     await ctx.author.add_roles(mute_role, reason='Abuse this')
-                    await self.add_timeout(ctx, guild.id, ctx.author.id, datetime2sql(now + very_gay), very_gay.total_seconds(),
+                    await self.add_timeout(ctx, guild.id, ctx.author.id, now + very_gay, very_gay.total_seconds(),
                                            reason='Abuse this <:christianServer:336568327939948546>')
 
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
-        expires_on = datetime2sql(now + time)
+        expires_on = now + time
 
         try:
             await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
@@ -839,7 +841,7 @@ class Moderator(Cog):
         description = '{} muted {} `{}` for {}'.format(author.mention,
                                                        user, user.id, time)
 
-        url = f'https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id}'
+        url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
         embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
                               timestamp=datetime.utcnow() + time,
                               description=description)
@@ -979,10 +981,11 @@ class Moderator(Cog):
             pass
 
     @staticmethod
-    def purge_embed(ctx, messages, users: set=None, multiple_channels=False):
+    def purge_embed(ctx, messages, users: set=None, multiple_channels=False, channel=None):
         author = ctx.author
         if not multiple_channels:
-            d = '%s removed %s messages in %s' % (author.mention, len(messages), ctx.channel.mention)
+            d = '%s removed %s messages in %s' % (author.mention, len(messages),
+                                                  channel.mention if channel else ctx.channel.mention)
         else:
             d = '%s removed %s messages' % (author.mention, len(messages))
 
@@ -1086,14 +1089,14 @@ class Moderator(Cog):
 
         t = datetime.utcnow() - timedelta(days=14)
         t = datetime2sql(t)
-        sql = 'SELECT `message_id`, `channel` FROM `messages` WHERE guild=%s AND user_id=%s AND DATE(`time`) > "%s" ' % (guild.id, user, t)
+        sql = "SELECT message_id, channel FROM messages WHERE guild=%s AND user_id=%s AND time > '%s'::date " % (guild.id, user, t)
 
         if channel is not None:
             sql += 'AND channel=%s ' % channel.id
 
-        sql += 'ORDER BY `message_id` DESC LIMIT %s' % max_messages
+        sql += 'ORDER BY message_id DESC LIMIT %s' % max_messages
 
-        rows = (await self.bot.dbutil.execute(sql)).fetchall()
+        rows = await self.bot.dbutil.fetch(sql)
 
         channel_messages = {}
         for r in rows:
@@ -1120,10 +1123,10 @@ class Moderator(Cog):
                 ids.extend(channel_messages[k])
 
         if ids:
-            sql = 'DELETE FROM `messages` WHERE `message_id` IN (%s)' % ', '.join([str(i.id) for i in ids])
+            sql = 'DELETE FROM messages WHERE message_id IN (%s)' % ', '.join([str(i.id) for i in ids])
             try:
-                await self.bot.dbutil.execute(sql, commit=True)
-            except SQLAlchemyError:
+                await self.bot.dbutil.execute(sql)
+            except PostgresError:
                 logger.exception('Could not delete messages from database')
 
             if modlog:
@@ -1218,20 +1221,20 @@ class Moderator(Cog):
 
         return temproles
 
-    async def remove_role(self, user, role, guild):
+    async def remove_role(self, user: int, role: int, guild: int):
         guild = self.bot.get_guild(guild)
         if not guild:
             await self.bot.dbutil.remove_temprole(user, role)
             return
 
-        user = guild.get_member(user)
+        member = guild.get_member(user)
 
-        if not user:
+        if not member:
             await self.bot.dbutil.remove_temprole(user, role)
             return
 
         try:
-            await user.remove_roles(Snowflake(role), reason='Removed temprole')
+            await member.remove_roles(Snowflake(role), reason='Removed temprole')
         except discord.HTTPException:
             pass
 
@@ -1261,7 +1264,7 @@ class Moderator(Cog):
 
         total_seconds = time.total_seconds()
 
-        if total_seconds < 60:
+        if not self.bot.test_mode and total_seconds < 60:
             return await ctx.send('Must be over minute')
 
         bot = ctx.guild.me
@@ -1274,7 +1277,6 @@ class Moderator(Cog):
         expires_at = datetime.utcnow() + time
 
         self.register_temprole(user.id, role.id, user.guild.id, total_seconds)
-        expires_at = datetime2sql(expires_at)
         await self.bot.dbutil.add_temprole(user.id, role.id, user.guild.id,
                                            expires_at)
 
@@ -1364,7 +1366,8 @@ class Moderator(Cog):
                     s += f'Failed to edit modlog reason because of an error.\n{e}\n'
 
         if user_id:
-            await self.edit_mute_reason(ctx, user_id, reason)
+            if not await self.edit_mute_reason(ctx, user_id, reason):
+                return await ctx.send('Failed to edit reason because of an error')
 
         if row:
             td = datetime.utcnow() - row['time']

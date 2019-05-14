@@ -19,10 +19,10 @@ from py_compile import PyCompileError
 
 import aiohttp
 import discord
+from asyncpg.exceptions import PostgresError
 from discord.errors import HTTPException, InvalidArgument
 from discord.ext.commands.errors import ExtensionError, ExtensionFailed
 from discord.user import BaseUser
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command
 from bot.config import Config
@@ -236,24 +236,29 @@ class BotAdmin(Cog):
 
     @command(aliases=['db_eval'])
     async def dbeval(self, ctx, *, query):
+        # Choose between fetch and execute based on first keyword
+        if query.lower().startswith('select '):
+            f = self.bot.dbutil.fetch(query, measure_time=True)
+        else:
+            f = self.bot.dbutil.execute(query, measure_time=True)
+
         try:
-            r, t = await self.bot.dbutil.execute(query, commit=True, measure_time=True)
-        except SQLAlchemyError:
+            rows, t = await f
+        except PostgresError:
             logger.exception('Failed to execute eval query')
             return await ctx.send('Failed to execute query. Exception logged')
 
         embed = discord.Embed(title='sql', description=f'Query ran succesfully in {t*1000:.0f} ms')
         embed.add_field(name='input', value=f'```sql\n{query}\n```', inline=False)
 
-        if r.returns_rows:
-            rows = r.fetchall()
+        if not isinstance(rows, str):
             if len(rows) > 30:
                 value = f'Too many results {len(rows)} > 30'
             else:
                 value = '```py\n' + pprint.pformat(rows, compact=True)[:1000] + '```'
 
         else:
-            value = f'{r.rowcount} rows were inserted/modified/deleted'
+            value = f'```sql\n{rows}```'
 
         embed.add_field(name='output', value=value, inline=False)
         await ctx.send(embed=embed)
@@ -414,8 +419,8 @@ class BotAdmin(Cog):
                 sql = 'INSERT INTO `guilds` (`guild`, `prefix`) ' \
                       'VALUES (%s, "%s")' % (guild.id, self.bot.command_prefix)
                 try:
-                    await self.bot.dbutil.execute(sql, commit=True)
-                except SQLAlchemyError:
+                    await self.bot.dbutil.execute(sql)
+                except PostgresError:
                     logger.exception('Failed to cache guild')
 
                 d = {'prefix': self.bot.command_prefix}
@@ -542,7 +547,7 @@ class BotAdmin(Cog):
 
         try:
             await self.bot.dbutil.botban(user_id, reason)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception(f'Failed to botban user {name}{user_id}')
             return await ctx.send(f'Failed to ban user {name}`{user_id}`')
 
@@ -563,7 +568,7 @@ class BotAdmin(Cog):
 
         try:
             await self.bot.dbutil.botunban(user_id)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception(f'Failed to remove botban of user {name}{user_id}')
             return await ctx.send(f'Failed to remove botban of user {name}`{user_id}`')
 
@@ -582,7 +587,7 @@ class BotAdmin(Cog):
     async def blacklist_guild(self, ctx, guild_id: int, *, reason):
         try:
             await self.bot.dbutil.blacklist_guild(guild_id, reason)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Failed to blacklist guild')
             return await ctx.send('Failed to blacklist guild\nException has been logged')
 
@@ -597,7 +602,7 @@ class BotAdmin(Cog):
     async def unblacklist_guild(self, ctx, guild_id: int):
         try:
             await self.bot.dbutil.unblacklist_guild(guild_id)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Failed to unblacklist guild')
             return await ctx.send('Failed to unblacklist guild\nException has been logged')
 
@@ -646,7 +651,7 @@ class BotAdmin(Cog):
     async def add_todo(self, ctx, priority: int=0, *, todo):
         try:
             rowid = await self.bot.dbutil.add_todo(todo, priority=priority)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Failed to add todo')
             return await ctx.send('Failed to add to todo')
 
@@ -656,7 +661,7 @@ class BotAdmin(Cog):
     async def todo_priority(self, ctx, id: int, priority: int):
         try:
             await self.bot.dbutil.edit_todo(id, priority)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Failed to edit todo')
             await ctx.send('Failed to edit todo priority')
             return
@@ -667,7 +672,7 @@ class BotAdmin(Cog):
     async def list_todo(self, ctx, limit: int=3):
         try:
             rows = (await self.bot.dbutil.get_todo(limit)).fetchall()
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Failed to get todo')
             return await ctx.send('Failed to get todo')
 
@@ -686,7 +691,7 @@ class BotAdmin(Cog):
     async def complete_todo(self, ctx, id: int):
         sql = 'UPDATE `todo` SET completed_at=CURRENT_TIMESTAMP, completed=TRUE WHERE id=%s AND completed=FALSE' % id
 
-        res = await self.bot.dbutil.execute(sql, commit=True)
+        res = await self.bot.dbutil.execute(sql)
         await ctx.send(f'{res.rowcount} rows updated')
 
     @command()
@@ -711,7 +716,7 @@ class BotAdmin(Cog):
     async def add_changes(self, ctx, *, changes):
         try:
             rowid = await self.bot.dbutil.add_changes(changes)
-        except SQLAlchemyError:
+        except PostgresError:
             logger.exception('Failed to add changes')
             return await ctx.send('Failed to add to todo')
 

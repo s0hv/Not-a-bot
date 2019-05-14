@@ -963,7 +963,7 @@ fuzzy_tz = {
     'ua': 'Europe/Kiev',
     'united_states': 'America/New_York',
     'us': 'America/New_York',
-    'washington,_d.c.': 'America/New_York',
+    'washington_d.c.': 'America/New_York',
     'uzbekistan': 'Asia/Samarkand',
     'uz': 'Asia/Samarkand',
     'kazakhstan': 'Asia/Almaty',
@@ -973,5 +973,8 @@ fuzzy_tz = {
     'fm': 'Pacific/Truk',
     'palikir': 'Pacific/Truk',
     'spain': 'Europe/Madrid',
-    'es': 'Europe/Madrid'
+    'es': 'Europe/Madrid',
+    'ny': 'America/New_York',
+    'nyc': 'America/New_York',
+    'uae': 'Asia/Dubai'
 }

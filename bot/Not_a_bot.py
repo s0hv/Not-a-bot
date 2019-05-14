@@ -30,7 +30,7 @@ import time
 
 import aioredis
 import discord
-from sqlalchemy.exc import SQLAlchemyError
+from asyncpg.exceptions import PostgresError
 
 from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
@@ -79,8 +79,8 @@ class NotABot(BotBase):
         import time
         t = time.time()
         guilds = self.guilds
-        sql = 'SELECT guild FROM `guilds`'
-        guild_ids = {r[0] for r in await self.dbutil.execute(sql)}
+        sql = 'SELECT guild FROM guilds'
+        guild_ids = {r[0] for r in await self.dbutil.fetch(sql)}
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
         for guild in guilds:
             if await self.dbutil.is_guild_blacklisted(guild.id):
@@ -95,9 +95,9 @@ class NotABot(BotBase):
             await self.dbutil.index_guild_roles(guild)
 
         await self.dbutils.add_guilds(*new_guilds)
-        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild'
+        sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild'
         rows = {}
-        for row in await self.dbutil.execute(sql):
+        for row in await self.dbutil.fetch(sql):
             guild_id = row['guild']
             if guild_id in rows:
                 prefix = row['prefix']
@@ -174,7 +174,7 @@ class NotABot(BotBase):
             return
 
         # Ignore if user is botbanned
-        if message.author.id != self.owner_id and (await self.dbutil.execute('SELECT 1 FROM `banned_users` WHERE user=%s' % message.author.id)).first():
+        if message.author.id != self.owner_id and (await self.dbutil.fetch('SELECT 1 FROM banned_users WHERE uid=%s' % message.author.id, fetchmany=False)):
             return
 
         await self.process_commands(message, local_time=local)
@@ -202,15 +202,15 @@ class NotABot(BotBase):
             await guild.leave()
             return
 
-        sql = 'INSERT IGNORE INTO `guilds` (`guild`) VALUES (%s)' % guild.id
+        sql = 'INSERT INTO guilds (guild) VALUES (%s) ON CONFLICT (guild) DO NOTHING' % guild.id
         try:
             await self.dbutil.execute(sql)
-            await self.dbutil.execute('INSERT IGNORE INTO `prefixes` (`guild`) VALUES (%s)' % guild.id, commit=True)
-        except SQLAlchemyError:
+            await self.dbutil.execute('INSERT INTO prefixes (guild) VALUES (%s) ON CONFLICT DO NOTHING' % guild.id)
+        except PostgresError:
             logger.exception('Failed to add new server')
 
-        sql = 'SELECT guilds.*, prefixes.prefix FROM `guilds` LEFT OUTER JOIN `prefixes` ON guilds.guild=prefixes.guild WHERE guilds.guild=%s' % guild.id
-        rows = (await self.dbutil.execute(sql)).fetchall()
+        sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild WHERE guilds.guild=%s' % guild.id
+        rows = await self.dbutil.fetch(sql)
         if not rows:
             return
 

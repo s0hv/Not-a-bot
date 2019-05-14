@@ -2,8 +2,8 @@ import logging
 from datetime import datetime
 
 import discord
+from asyncpg.exceptions import PostgresError
 from discord.ext.commands import BucketType, bot_has_permissions
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, cooldown
 from bot.converters import AnyUser, CommandConverter
@@ -42,8 +42,8 @@ class Stats(Cog):
         else:
             page = 1
 
-        sql = 'SELECT * FROM `mention_stats` WHERE guild={} ORDER BY amount DESC LIMIT {}'.format(guild.id, 10*page)
-        rows = (await self.bot.dbutil.execute(sql)).fetchall()
+        sql = 'SELECT * FROM mention_stats WHERE guild={} ORDER BY amount DESC LIMIT {}'.format(guild.id, 10*page)
+        rows = await self.bot.dbutil.fetch(sql)
         if not rows:
             return await ctx.send('No role mentions logged on this server')
 
@@ -83,22 +83,24 @@ class Stats(Cog):
             username = user
 
         if user_id:
-            user_clause = 'user=:user'
+            user_clause = 'uid=$1'
         else:
-            user_clause = 'username=:user'
+            user_clause = 'username=$1'
+            # We need to replace this so the correct type is given
+            user_id = username
 
         guild = ctx.guild
         if guild is not None:
             guild = guild.id
-            sql = 'SELECT seen.* FROM `last_seen_users` seen WHERE guild=:guild AND {0} ' \
-                  'UNION ALL (SELECT  seen2.* FROM `last_seen_users` seen2 WHERE guild!=:guild AND {0} ORDER BY seen2.last_seen DESC LIMIT 1)'.format(user_clause)
+            sql = 'SELECT seen.* FROM last_seen_users seen WHERE guild=$2 AND {0} ' \
+                  'UNION ALL (SELECT  seen2.* FROM last_seen_users seen2 WHERE seen2.guild!=$2 AND seen2.{0} ORDER BY seen2.last_seen DESC LIMIT 1)'.format(user_clause)
         else:
             guild = 0
-            sql = 'SELECT * FROM `last_seen_users` WHERE guild=0 AND %s' % user_clause
+            sql = 'SELECT * FROM last_seen_users WHERE guild=$2 AND %s' % user_clause
 
         try:
-            rows = (await self.bot.dbutil.execute(sql, {'guild': guild, 'user': user_id or username})).fetchall()
-        except SQLAlchemyError:
+            rows = await self.bot.dbutil.fetch(sql, (user_id, guild))
+        except PostgresError:
             terminal.exception('Failed to get last seen from db')
             return await ctx.send('Failed to get user because of an error')
 
@@ -117,9 +119,9 @@ class Stats(Cog):
 
         if user_id is None:
             if local:
-                user_id = local['user']
+                user_id = local['uid']
             else:
-                user_id = global_['user']
+                user_id = global_['uid']
 
         if username is None:
             username = local['username']

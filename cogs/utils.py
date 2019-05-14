@@ -16,10 +16,10 @@ from urllib.parse import quote
 import discord
 import pkg_resources
 import psutil
+from asyncpg.exceptions import PostgresError
 from discord.ext.commands import (BucketType, bot_has_permissions, Group,
                                   clean_content)
 from discord.ext.commands.errors import BadArgument
-from sqlalchemy.exc import SQLAlchemyError
 
 from bot.bot import command, cooldown
 from bot.converters import FuzzyRole, TzConverter
@@ -49,8 +49,8 @@ class Utilities(Cog):
     @command()
     @cooldown(1, 10, BucketType.guild)
     async def changelog(self, ctx, page: int=1):
-        sql = 'SELECT * FROM changelog ORDER BY `time` DESC'
-        rows = list(await self.bot.dbutil.execute(sql))
+        sql = 'SELECT * FROM changelog ORDER BY time DESC'
+        rows = await self.bot.dbutil.fetch(sql)
 
         def create_embed(row):
             embed = discord.Embed(title='Changelog', description=row['changes'],
@@ -85,13 +85,11 @@ class Utilities(Cog):
         await ctx.trigger_typing()
         t = time.perf_counter() - t
         message = 'Pong!\n🏓 took {:.0f}ms\nLocal delay {:.0f}ms\nWebsocket ping {:.0f}ms'.format(t*1000, local_delay*1000, self.bot.latency*1000)
-        if hasattr(self.bot, 'get_session'):
-            sql_t = time.time()
+        if hasattr(self.bot, 'pool'):
             try:
-                self.bot.get_session.execute('SELECT 1').fetchall()
-                sql_t = time.time() - sql_t
+                _, sql_t = await self.bot.dbutil.fetch('SELECT 1', measure_time=True)
                 message += '\nDatabase ping {:.0f}ms'.format(sql_t * 1000)
-            except SQLAlchemyError:
+            except PostgresError:
                 message += '\nDatabase could not be reached'
 
         await ctx.send(message)
@@ -239,10 +237,10 @@ class Utilities(Cog):
             logger.exception('Failed to get last updated')
             last_updated = 'N/A'
 
-        sql = 'SELECT * FROM `command_stats` ORDER BY `uses` DESC LIMIT 3'
+        sql = 'SELECT * FROM command_stats ORDER BY uses DESC LIMIT 3'
         try:
-            rows = await self.bot.dbutil.execute(sql)
-        except SQLAlchemyError:
+            rows = await self.bot.dbutil.fetch(sql)
+        except PostgresError:
             logger.exception('Failed to get command stats')
             top_cmd = 'Failed to get command stats'
         else:

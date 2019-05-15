@@ -570,7 +570,7 @@ class Pokemon(Cog):
             else:
                 url = 'https://i.imgur.com/1M3QklX.png'
 
-        elif 'detective pikachu' in poke_fmt:
+        elif 'detectivepikachu' in poke_fmt:
             icon = ''
             if shiny:
                 url = 'https://i.imgur.com/5YWs0rA.png'
@@ -596,16 +596,17 @@ class Pokemon(Cog):
 
         return False
 
+    @Cog.listener()
     async def on_message(self, message):
         # Ignore others than pokecord
-        if message.author.id != 365975655608745985:
+        if not self.bot.test_mode and message.author.id != 365975655608745985:
             return
 
         if message.content:
             return await self._post2pokelog(message)
 
-        if self._is_spawn(message):
-            self.poke_spawns[message.guild.id] = message.embeds[0].image.url
+        #if self._is_spawn(message):
+         #   self.poke_spawns[message.guild.id] = message.embeds[0].image.url
 
     """
     Unused code. Removed for same reason as guess_pokemon

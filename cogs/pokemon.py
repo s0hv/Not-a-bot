@@ -37,7 +37,7 @@ stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
 
-legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!')
+legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!.*')
 legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
                'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',
@@ -569,6 +569,13 @@ class Pokemon(Cog):
                 url = 'https://i.imgur.com/F1N9TQm.png'
             else:
                 url = 'https://i.imgur.com/1M3QklX.png'
+
+        elif 'detective pikachu' in poke_fmt:
+            icon = ''
+            if shiny:
+                url = 'https://i.imgur.com/5YWs0rA.png'
+            else:
+                url = 'https://i.imgur.com/9Sfddti.png'
 
         else:
             url = 'http://play.pokemonshowdown.com/sprites/xyani{}/{}.gif'.format(shiny, poke_fmt)

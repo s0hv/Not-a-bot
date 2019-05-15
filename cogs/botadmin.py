@@ -667,7 +667,7 @@ class BotAdmin(Cog):
     @command(name='todo')
     async def list_todo(self, ctx, limit: int=3):
         try:
-            rows = (await self.bot.dbutil.get_todo(limit)).fetchall()
+            rows = await self.bot.dbutil.get_todo(limit)
         except PostgresError:
             logger.exception('Failed to get todo')
             return await ctx.send('Failed to get todo')
@@ -677,7 +677,7 @@ class BotAdmin(Cog):
 
         s = ''
         for row in rows:
-            s += f'{row["id"]} {row["time"]} `{row["priority"]}` {row["todo"]}\n\n'
+            s += f'ID: {row["id"]} at {row["time"].strftime("%Y-%m-%d %H:%M:%S")} `{row["priority"]}` {row["todo"]}\n\n'
 
         if len(rows) > 2000:
             return await ctx.send('Too long todo')

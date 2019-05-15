@@ -180,10 +180,15 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, commands.errors.CommandOnCooldown):
             error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
-        if isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument) or isinstance(exception, commands.BadUnionArgument):
+        elif isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument) or isinstance(exception, commands.BadUnionArgument):
             error_msg = str(exception)
 
-        if isinstance(exception, exceptions.BotException):
+        elif isinstance(exception, exceptions.CommandBlacklisted):
+            if exception.message is None:
+                return
+            error_msg = str(exception)
+
+        elif isinstance(exception, exceptions.BotException):
             error_msg = str(exception)
 
         if error_msg:

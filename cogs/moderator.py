@@ -35,11 +35,15 @@ class Moderator(Cog):
         self.automute_blacklist = {}
         self.automute_whitelist = {}
         self._current_rolls = {}  # Users currently active in a mute roll
-        asyncio.run_coroutine_threadsafe(self._load_timeouts(), self.bot.loop)
-        asyncio.run_coroutine_threadsafe(self._load_automute(), self.bot.loop)
-        asyncio.run_coroutine_threadsafe(self._load_temproles(), self.bot.loop)
+        # Delay used to update expiring events. 30min
+        self._pause = 1800
+
+        asyncio.run_coroutine_threadsafe(self._load_automute(), loop=bot.loop).result()
+        self._event_loop = asyncio.run_coroutine_threadsafe(self.load_expiring_events(), loop=bot.loop)
 
     def cog_unload(self):
+        self._event_loop.cancel()
+
         for timeouts in list(self.timeouts.values()):
             for timeout in list(timeouts.values()):
                 timeout.cancel()
@@ -76,9 +80,20 @@ class Moderator(Cog):
 
             s.add(row['role'])
 
-    async def _load_temproles(self):
-        sql = 'SELECT * FROM temproles'
-        rows = await self.bot.dbutil.fetch(sql)
+    async def load_expiring_events(self):
+        # Load events that expire in an hour
+        expiry = timedelta(hours=100)
+
+        while True:
+            await self._load_timeouts(expiry)
+            await self._load_temproles(expiry)
+
+            await asyncio.sleep(self._pause)
+
+    async def _load_temproles(self, expires_in: timedelta):
+        date = datetime.utcnow() + expires_in
+        sql = 'SELECT * FROM temproles WHERE expires_at < $1'
+        rows = await self.bot.dbutil.fetch(sql, (date,))
 
         for row in rows:
             time = row['expires_at'] - datetime.utcnow()
@@ -86,37 +101,18 @@ class Moderator(Cog):
             user = row['uid']
             role = row['role']
 
-            self.register_temprole(user, role, guild, time.total_seconds())
+            self.register_temprole(user, role, guild, time.total_seconds(), ignore_dupe=True)
 
-    async def _load_timeouts(self):
-        # TODO only load timeouts that expire within the next few hours and refresh timeouts every few hours
-        sql = 'SELECT * FROM timeouts'
-        rows = await self.bot.dbutil.fetch(sql)
+    async def _load_timeouts(self, expires_in: timedelta):
+        date = datetime.utcnow() + expires_in
+        sql = 'SELECT * FROM timeouts WHERE expires_on < $1'
+        rows = await self.bot.dbutil.fetch(sql, (date,))
         for row in rows:
-            try:
-                time = row['expires_on'] - datetime.utcnow()
-                guild = row['guild']
-                user = row['uid']
+            time = row['expires_on'] - datetime.utcnow()
+            guild = row['guild']
+            user = row['uid']
 
-                if guild not in self.timeouts:
-                    guild_timeouts = {}
-                    self.timeouts[guild] = guild_timeouts
-                else:
-                    guild_timeouts = self.timeouts.get(guild)
-
-                t = guild_timeouts.pop(user, None)
-                if t:
-                    t.cancel()
-
-                seconds = time.total_seconds()
-                if seconds <= 1:
-                    seconds = 1
-                task = call_later(self.untimeout, self.bot.loop, seconds,
-                                  user, guild, after=lambda f: guild_timeouts.pop(user, None))
-                guild_timeouts[user] = task
-
-            except:
-                logger.exception('Could not untimeout %s' % row)
+            self.register_timeout(user, guild, time.total_seconds(), ignore_dupe=True)
 
     async def send_to_modlog(self, guild, *args, **kwargs):
         if isinstance(guild, int):
@@ -609,21 +605,7 @@ class Moderator(Cog):
             await ctx.send('Could not save timeout. Canceling action')
             return False
 
-        if guild_id not in self.timeouts:
-            guild_timeouts = {}
-            self.timeouts[guild_id] = guild_timeouts
-        else:
-            guild_timeouts = self.timeouts.get(guild_id)
-
-        t = guild_timeouts.get(user_id)
-        if t:
-            t.cancel()
-
-        task = call_later(self.untimeout, self.bot.loop,
-                          as_seconds, user_id, guild_id,
-                          after=lambda f: guild_timeouts.pop(user_id, None))
-
-        guild_timeouts[user_id] = task
+        self.register_timeout(user_id, guild_id, as_seconds)
         return True
 
     async def untimeout(self, user_id, guild_id):
@@ -1221,6 +1203,14 @@ class Moderator(Cog):
 
         return temproles
 
+    def get_timeouts(self, guild: int):
+        timeouts = self.timeouts.get(guild, None)
+        if timeouts is None:
+            timeouts = {}
+            self.timeouts[guild] = timeouts
+
+        return timeouts
+
     async def remove_role(self, user: int, role: int, guild: int):
         guild = self.bot.get_guild(guild)
         if not guild:
@@ -1240,10 +1230,37 @@ class Moderator(Cog):
 
         await self.bot.dbutil.remove_temprole(user, role)
 
-    def register_temprole(self, user: int, role: int, guild: int, time):
+    def register_timeout(self, user: int, guild: int, time, ignore_dupe=False):
+        timeouts = self.get_timeouts(guild)
+
+        if not ignore_dupe and time > self._pause*2:
+            return
+
+        t = timeouts.pop(user, None)
+        if t:
+            if ignore_dupe:
+                return
+
+            t.cancel()
+
+        if time <= 1:
+            time = 1
+
+        task = call_later(self.untimeout, self.bot.loop, time,
+                          user, guild, after=lambda f: timeouts.pop(user, None))
+        timeouts[user] = task
+
+    def register_temprole(self, user: int, role: int, guild: int, time, ignore_dupe=False):
+        # Don't register long events instantly
+        if not ignore_dupe and time > self._pause * 2:
+            return
+
         temproles = self.get_temproles(guild)
         old = temproles.get(user)
+
         if old:
+            if ignore_dupe:
+                return
             old.cancel()
 
         if time <= 1:

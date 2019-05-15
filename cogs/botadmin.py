@@ -102,6 +102,10 @@ class BotAdmin(Cog):
         except ExtensionError as e:
             return f'Could not reload {name} because of an error\n{e}'
 
+        except Exception as e:
+            terminal.exception(f'Failed to reload {name}')
+            return f'Could not reload {name} because of an error {type(e).__name__}'
+
         return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter() - t) * 1000)
 
     async def reload_extension(self, name):

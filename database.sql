@@ -1,346 +1,435 @@
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-SET time_zone = "+00:00";
-
-
-CREATE TABLE `guilds` (
-    `guild` BIGINT NOT NULL,
-    `mute_role` BIGINT DEFAULT NULL,
-    `modlog` BIGINT DEFAULT NULL,
-    `keeproles` BOOL DEFAULT false,
-
-    `on_join_channel` BIGINT DEFAULT NULL,
-    `on_leave_channel` BIGINT DEFAULT NULL,
-    `on_join_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    `on_leave_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-
-    `color_on_join` BOOL DEFAULT false,
-
-    `on_delete_channel` BIGINT DEFAULT NULL,
-    `on_edit_channel` BIGINT DEFAULT NULL,
-    `on_delete_embed` BOOL DEFAULT false,
-    `on_edit_embed` BOOL DEFAULT false,
-    `on_edit_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    `on_delete_message` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    --`on_bulk_delete` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-
-    `automute` BOOL DEFAULT false,
-    `automute_limit` TINYINT DEFAULT 10,
-    `automute_time` TIME DEFAULT NULL,
-
-    `dailygachi` BIGINT DEFAULT NULL,
-
-    PRIMARY KEY (`guild`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `automute_whitelist` (
-    `role` BIGINT NOT NULL,
-    `guild` BIGINT NOT NULL,
-    PRIMARY KEY (`role`),
-    KEY (`guild`),
-    FOREIGN KEY (`role`) REFERENCES `roles` (`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE `prefixes` (
-    `prefix` VARCHAR(30) COLLATE utf8mb4_unicode_ci DEFAULT "!" NOT NULL,
-    `guild` BIGINT NOT NULL,
-    PRIMARY KEY (`prefix`, `guild`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `colors` (
-    `id` BIGINT NOT NULL,
-    `name` VARCHAR(127) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `value` MEDIUMINT UNSIGNED NOT NULL,
-    `lab_l` FLOAT NOT NULL,
-    `lab_a` FLOAT NOT NULL,
-    `lab_b` FLOAT NOT NULL,
-    PRIMARY KEY (`id`),
-    FOREIGN KEY (`id`) REFERENCES `roles` (`id`)
-        ON DELETE CASCADE,
-    KEY (`value`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `command_blacklist` (
-    `id` INT NOT NULL AUTO_INCREMENT,
-    `command` TEXT DEFAULT NULL,
-    `type` TINYINT NOT NULL,
-    `user` BIGINT DEFAULT NULL,
-    `role` BIGINT DEFAULT NULL,
-    `channel` BIGINT DEFAULT NULL,
-    `guild` BIGINT DEFAULT NULL,
-    PRIMARY KEY (`id`),
-    KEY (`user`),
-    KEY (`role`),
-    KEY (`guild`),
-    KEY (`channel`)
-) ENGINE=MyISAM;
-
-
-CREATE TABLE `bot_staff` (
-    `user` BIGINT NOT NULL,
-    `auth_level` TINYINT NOT NULL,
-    PRIMARY KEY `user_id` (`user`)
-) ENGINE=MyISAM;
-
-
-CREATE TABLE `banned_users` (
-    `user` BIGINT NOT NULL,
-    `reason` TEXT NOT NULL,
-    PRIMARY KEY `user_id` (`user`)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE `guild_blacklist` (
-    `guild` BIGINT NOT NULL,
-    `reason` TEXT NOT NULL,
-    PRIMARY KEY (`guild`)
-) ENGINE=InnoDB;
-
--- https://stackoverflow.com/a/8048494/6046713 restrict row count
-CREATE TABLE `messages` (
-    `shard` SMALLINT DEFAULT NULL,
-    `guild` BIGINT DEFAULT NULL,
-    `channel` BIGINT DEFAULT NULL,
-    `user_id` BIGINT NOT NULL,
-    `message_id` BIGINT NOT NULL,
-    `time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `attachment` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    PRIMARY KEY (`message_id`),
-    KEY (`guild`),
-    KEY (`channel`),
-    KEY (`user_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `attachments` (
-    `channel` BIGINT NOT NULL,
-    `attachment` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    PRIMARY KEY (`channel`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `polls` (
-    `guild` BIGINT NOT NULL,
-    `title` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    `strict` BOOL DEFAULT false,
-    `message` BIGINT NOT NULL,
-    `channel` BIGINT NOT NULL,
-    `expires_in` datetime DEFAULT NULL,
-    `ignore_on_dupe` BOOL DEFAULT false,
-    `multiple_votes` BOOL DEFAULT false,
-    `max_winners` SMALLINT UNSIGNED DEFAULT 1,
-    PRIMARY KEY `message_id` (`message`),
-    KEY (`guild`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `emotes` (
-    `name` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    `emote` VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `guild` BIGINT DEFAULT NULL,
-    PRIMARY KEY (`emote`),
-    KEY (`guild`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `pollEmotes` (
-    `poll_id` BIGINT NOT NULL,
-    `emote_id` VARCHAR(20) COLLATE utf8mb4_unicode_ci NOT NULL,
-    PRIMARY KEY (`poll_id`,`emote_id`),
-    FOREIGN KEY (`poll_id`) REFERENCES `polls`(`message`)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (`emote_id`) REFERENCES `emotes`(`emote`)
-        ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `giveaways` (
-    `guild` BIGINT NOT NULL,
-    `title` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    `message` BIGINT NOT NULL,
-    `channel` BIGINT NOT NULL,
-    `winners` SMALLINT NOT NULL,
-    `expires_in` datetime DEFAULT NULL,
-    PRIMARY KEY `message_id` (`message`),
-    KEY (`guild`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `timeouts`(
-    `guild` BIGINT NOT NULL,
-    `user` BIGINT NOT NULL,
-    `expires_on` datetime NOT NULL,
-    PRIMARY KEY (`user`, `guild`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `timeout_logs` (
-    `id` MEDIUMINT
-     UNSIGNED NOT NULL AUTO_INCREMENT,
-    `guild` BIGINT NOT NULL,
-    `user` BIGINT NOT NULL,
-    `author` BIGINT NOT NULL,
-    `embed` TEXT COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-    `reason` TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
-    `message` BIGINT DEFAULT NULL,
-    `time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `duration` MEDIUMINT UNSIGNED DEFAULT NULL,
-    `show_in_logs` BOOL DEFAULT true,
-    PRIMARY KEY (`id`),
-    KEY (`show_in_logs`),
-    KEY (`guild`),
-    KEY (`user`),
-    KEY (`author`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `join_leave`(
-    `user` BIGINT NOT NULL,
-    `at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `guild` BIGINT NOT NULL,
-    `value` TINYINT NOT NULL,
-    PRIMARY KEY (`user`, `guild`)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE `role_granting` (
-    `user_role` BIGINT NOT NULL,
-    `user` BIGINT NOT NULL,
-    `role` BIGINT NOT NULL,
-    `guild` BIGINT NOT NULL,
-    PRIMARY KEY (`user_role`, `role`, `user`),
-    KEY (`guild`),
-
-    FOREIGN KEY (`user_role`) REFERENCES `roles`(`id`)
-        ON DELETE CASCADE,
-    FOREIGN KEY (`role`) REFERENCES `roles`(`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
-
-CREATE TABLE `mention_stats`(
-    `guild` BIGINT NOT NULL,
-    `role` BIGINT NOT NULL,
-    `role_name` VARCHAR(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `amount` INT DEFAULT 1,
-    PRIMARY KEY (`guild`, `role`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `users` (
-    `id` BIGINT NOT NULL,
-    -- `username` VARCHAR(64) COLLATE utf8mb4_unicode_ci NOT NULL,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `roles` (
-    `id` BIGINT NOT NULL,
-    `guild` BIGINT NOT NULL,
-    PRIMARY KEY (`id`),
-    KEY (`guild`)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE `userRoles` (
-    `user` BIGINT NOT NULL,
-    `role` BIGINT NOT NULL,
-    PRIMARY KEY (`user`,`role`),
-    FOREIGN KEY (`role`) REFERENCES `roles`(`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB;
-
-
-CREATE TABLE `automute_blacklist` (
-    `channel` BIGINT NOT NULL,
-    `guild` BIGINT NOT NULL,
-    PRIMARY KEY (`channel`),
-    KEY (`guild`)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE `nn_text` (
-    `message` TEXT COLLATE utf8mb4_unicode_ci NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `last_seen_users` (
-    `user` BIGINT NOT NULL,
-    `username` VARCHAR(40) COLLATE utf8mb4_unicode_ci NOT NULL,
-    `guild` BIGINT DEFAULT 0,
-    `last_seen` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`user`, `guild`),
-    KEY (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `activity_log` (
-    `user` BIGINT NOT NULL,
-    game VARCHAR(128) COLLATE utf8mb4_unicode_ci NOT NULL,
-    time INT DEFAULT 0,
-    PRIMARY KEY (`user`, `game`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `command_stats` (
-    `parent` VARCHAR(40) COLLATE utf8_unicode_ci NOT NULL,
-    `cmd` VARCHAR(200) COLLATE utf8_unicode_ci DEFAULT 0,
-    `uses` BIGINT DEFAULT 0,
-    UNIQUE KEY (`parent`, `cmd`),
-    KEY (`uses`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `mute_roll_stats` (
-    `guild` BIGINT NOT NULL,
-    `user` BIGINT NOT NULL,
-    `wins` TINYINT UNSIGNED DEFAULT 0,
-    `games` TINYINT UNSIGNED DEFAULT 1,
-    `current_streak` TINYINT UNSIGNED DEFAULT 0,
-    `biggest_streak` TINYINT UNSIGNED DEFAULT 0,
-    PRIMARY KEY (`guild`, `user`),
-    KEY (`wins`),
-    KEY (`games`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `pokespawns` (
-    `guild` BIGINT NOT NULL,
-    `name` VARCHAR(20) COLLATE utf8_unicode_ci NOT NULL,
-    `count` MEDIUMINT UNSIGNED DEFAULT 1,
-    PRIMARY KEY (`guild`, `name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `todo` (
-    `time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `completed_at` TIMESTAMP NULL DEFAULT NULL,
-    `completed` BOOL DEFAULT FALSE,
-    `todo` TEXT COLLATE utf8mb4_unicode_ci,
-    `priority` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-    `id` MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
-CREATE TABLE `temproles` (
-    `role` BIGINT NOT NULL,
-    `user` BIGINT NOT NULL,
-    `guild` BIGINT NOT NULL,
-    `expires_at` TIMESTAMP NOT NULL,
-
-    PRIMARY KEY (`role`, `user`)
-) ENGINE=InnoDB;
-
-
-CREATE TABLE `changelog` (
-    `id` SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    `changes` TEXT COLLATE utf8mb4_unicode_ci,
-    `time` TIMESTAMP DEFAULT UTC_TIMESTAMP,
-
-    PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-------------------------
--- UNDER CONSTRUCTION --
-------------------------
+create table activity_log
+(
+  uid  bigint       not null,
+  game varchar(128) not null,
+  time bigint default 0,
+  constraint idx_27130_primary
+    primary key (uid, game)
+);
+
+create table attachments
+(
+  channel    bigint not null,
+  attachment text   not null,
+  constraint idx_27134_primary
+    primary key (channel)
+);
+
+create table automute_blacklist
+(
+  channel bigint not null,
+  guild   bigint not null,
+  constraint idx_27140_primary
+    primary key (channel)
+);
+
+create index idx_27140_server_id
+  on automute_blacklist (guild);
+
+create table banned_users
+(
+  uid    bigint not null,
+  reason text   not null,
+  constraint idx_27146_primary
+    primary key (uid)
+);
+
+create table bot_staff
+(
+  uid        bigint   not null,
+  auth_level smallint not null,
+  constraint idx_27152_primary
+    primary key (uid)
+);
+
+create table changelog
+(
+  id      serial                              not null,
+  changes text,
+  time    timestamp default CURRENT_TIMESTAMP not null,
+  constraint idx_27157_primary
+    primary key (id)
+);
+
+create table command_blacklist
+(
+  id      bigserial not null,
+  command text,
+  type    smallint  not null,
+  uid     bigint,
+  role    bigint,
+  channel bigint,
+  guild   bigint,
+  constraint idx_27170_primary
+    primary key (id)
+);
+
+create index idx_27170_role
+  on command_blacklist (role);
+
+create index idx_27170_channel
+  on command_blacklist (channel);
+
+create index idx_27170_user
+  on command_blacklist (uid);
+
+create index idx_27170_server
+  on command_blacklist (guild);
+
+create table command_stats
+(
+  parent varchar(40) not null,
+  cmd    varchar(200) default '0'::character varying,
+  uses   bigint       default 0
+);
+
+create index idx_27177_uses
+  on command_stats (uses);
+
+create unique index idx_27177_parent
+  on command_stats (parent, cmd);
+
+create table emotes
+(
+  name  text        not null,
+  emote varchar(20) not null,
+  guild bigint,
+  constraint idx_27182_primary
+    primary key (emote)
+);
+
+create index idx_27182_server_id
+  on emotes (guild);
+
+create table giveaways
+(
+  guild      bigint   not null,
+  title      text     not null,
+  message    bigint   not null,
+  channel    bigint   not null,
+  winners    smallint not null,
+  expires_in timestamp,
+  constraint idx_27188_primary
+    primary key (message)
+);
+
+create index idx_27188_server_id
+  on giveaways (guild);
+
+create table guilds
+(
+  guild             bigint not null,
+  mute_role         bigint,
+  modlog            bigint,
+  on_delete_channel bigint,
+  on_edit_channel   bigint,
+  keeproles         boolean  default false,
+  on_join_channel   bigint,
+  on_leave_channel  bigint,
+  on_join_message   text,
+  on_leave_message  text,
+  color_on_join     boolean  default false,
+  on_edit_message   text,
+  on_delete_message text,
+  automute          boolean  default false,
+  automute_limit    smallint default 10,
+  automute_time     interval,
+  on_delete_embed   boolean  default false,
+  on_edit_embed     boolean  default false,
+  dailygachi        bigint,
+  constraint idx_27194_primary
+    primary key (guild)
+);
+
+create table guild_blacklist
+(
+  guild  bigint not null,
+  reason text   not null,
+  constraint idx_27206_primary
+    primary key (guild)
+);
+
+create table join_leave
+(
+  uid   bigint                              not null,
+  at    timestamp default CURRENT_TIMESTAMP not null,
+  guild bigint                              not null,
+  value smallint                            not null,
+  constraint idx_27212_primary
+    primary key (uid, guild)
+);
+
+create table last_seen_users
+(
+  uid       bigint                              not null,
+  username  varchar(40)                         not null,
+  guild     bigint    default 0                 not null,
+  last_seen timestamp default CURRENT_TIMESTAMP not null,
+  constraint idx_27216_primary
+    primary key (uid, guild)
+);
+
+create index idx_27216_username
+  on last_seen_users (username);
+
+create table mention_stats
+(
+  guild     bigint       not null,
+  role      bigint       not null,
+  role_name varchar(100) not null,
+  amount    bigint default 1,
+  constraint idx_27221_primary
+    primary key (guild, role)
+);
+
+create table messages
+(
+  guild      bigint,
+  channel    bigint,
+  user_id    bigint,
+  message_id bigint    default 0                 not null,
+  time       timestamp default CURRENT_TIMESTAMP not null,
+  constraint idx_27225_primary
+    primary key (message_id)
+);
+
+create index idx_27225_user_id
+  on messages (user_id);
+
+create index idx_27225_channel_id
+  on messages (channel);
+
+create index idx_27225_server_id
+  on messages (guild);
+
+create index idx_27225_time
+  on messages (time);
+
+create table mute_roll_stats
+(
+  guild          bigint not null,
+  uid            bigint not null,
+  wins           integer  default 0,
+  games          integer  default 1,
+  current_streak smallint default 0,
+  biggest_streak smallint default 0,
+  constraint idx_27230_primary
+    primary key (guild, uid)
+);
+
+create index idx_27230_wins
+  on mute_roll_stats (wins);
+
+create index idx_27230_games
+  on mute_roll_stats (games);
+
+create table nn_text
+(
+  message text not null
+);
+
+create table pokespawns
+(
+  guild bigint      not null,
+  name  varchar(20) not null,
+  count integer default 1,
+  constraint idx_27243_primary
+    primary key (guild, name)
+);
+
+create table polls
+(
+  guild          bigint not null,
+  title          text   not null,
+  strict         boolean default false,
+  message        bigint not null,
+  channel        bigint not null,
+  expires_in     timestamp,
+  ignore_on_dupe boolean default false,
+  multiple_votes boolean default false,
+  max_winners    integer default 1,
+  giveaway       boolean default false,
+  constraint idx_27250_primary
+    primary key (message)
+);
+
+create table pollemotes
+(
+  poll_id  bigint      not null,
+  emote_id varchar(20) not null,
+  constraint idx_27247_primary
+    primary key (poll_id, emote_id),
+  constraint pollemotes_ibfk_1
+    foreign key (poll_id) references polls
+      on update cascade on delete cascade
+);
+
+create index idx_27247_emote_id
+  on pollemotes (emote_id);
+
+create index idx_27250_server_id
+  on polls (guild);
+
+create table prefixes
+(
+  prefix varchar(30) default '!'::character varying not null,
+  guild  bigint                                     not null,
+  constraint idx_27261_primary
+    primary key (prefix, guild)
+);
+
+create table roles
+(
+  id    bigint not null,
+  guild bigint not null,
+  constraint idx_27265_primary
+    primary key (id)
+);
+
+create table automute_whitelist
+(
+  role  bigint not null,
+  guild bigint not null,
+  constraint idx_27143_primary
+    primary key (role),
+  constraint automute_whitelist_ibfk_1
+    foreign key (role) references roles
+      on update restrict on delete cascade
+);
+
+create index idx_27143_server
+  on automute_whitelist (guild);
+
+create table colors
+(
+  id    bigint           not null,
+  name  varchar(127)     not null,
+  value integer          not null,
+  lab_l double precision not null,
+  lab_a double precision not null,
+  lab_b double precision not null,
+  constraint idx_27165_primary
+    primary key (id),
+  constraint colors_ibfk_1
+    foreign key (id) references roles
+      on update restrict on delete cascade
+);
+
+create index idx_27165_value
+  on colors (value);
+
+create index idx_27265_server
+  on roles (guild);
+
+create table role_granting
+(
+  user_role bigint not null,
+  role      bigint not null,
+  guild     bigint not null,
+  uid       bigint not null,
+  constraint idx_27268_primary
+    primary key (user_role, role, uid),
+  constraint role_granting_ibfk_2
+    foreign key (role) references roles
+      on update restrict on delete cascade
+);
+
+create index idx_27268_server_id
+  on role_granting (guild);
+
+create index idx_27268_role_id
+  on role_granting (role);
+
+create table temproles
+(
+  role       bigint                              not null,
+  uid        bigint                              not null,
+  guild      bigint                              not null,
+  expires_at timestamp default CURRENT_TIMESTAMP not null,
+  constraint idx_27271_primary
+    primary key (role, uid)
+);
+
+create table timeouts
+(
+  guild      bigint    not null,
+  uid        bigint    not null,
+  expires_on timestamp not null,
+  constraint idx_27274_primary
+    primary key (uid, guild)
+);
+
+create table timeout_logs
+(
+  guild        bigint                              not null,
+  uid          bigint                              not null,
+  author       bigint                              not null,
+  embed        text,
+  reason       text                                not null,
+  message      bigint,
+  id           bigserial                           not null,
+  time         timestamp default CURRENT_TIMESTAMP not null,
+  duration     integer,
+  show_in_logs boolean   default true,
+  constraint idx_27279_primary
+    primary key (id)
+);
+
+create index idx_27279_author
+  on timeout_logs (author);
+
+create index idx_27279_guild
+  on timeout_logs (guild);
+
+create index idx_27279_show_in_logs
+  on timeout_logs (show_in_logs);
+
+create index idx_27279_user
+  on timeout_logs (uid);
+
+create table timeout_logs_old
+(
+  guild  bigint not null,
+  "user" bigint not null,
+  time   bigint not null,
+  reason text   not null
+);
+
+create index idx_27288_user
+  on timeout_logs_old ("user");
+
+create index idx_27288_guild
+  on timeout_logs_old (guild);
+
+create table todo
+(
+  time         timestamp default CURRENT_TIMESTAMP not null,
+  completed_at timestamp,
+  completed    boolean   default false,
+  todo         text,
+  priority     smallint  default 0                 not null,
+  id           serial                              not null,
+  constraint idx_27296_primary
+    primary key (id)
+);
+
+create table userroles
+(
+  uid  bigint not null,
+  role bigint not null,
+  constraint idx_27306_primary
+    primary key (uid, role),
+  constraint userroles_ibfk_1
+    foreign key (role) references roles
+      on update restrict on delete cascade
+);
+
+create index idx_27306_role_id
+  on userroles (role);
+
+create table users
+(
+  id bigint not null,
+  constraint idx_27309_primary
+    primary key (id)
+);

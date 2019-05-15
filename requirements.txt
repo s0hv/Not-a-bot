@@ -1,6 +1,7 @@
 aiohttp
 aioredis
 ansicolors
+asyncpg
 beautifulsoup4
 colormath
 colorthief
@@ -21,7 +22,6 @@ python-magic
 pytz
 sanic
 selenium
-sqlalchemy
 validators
 youtube_dl
 git+https://github.com/Rapptz/discord.py@rewrite#egg=discord.py[voice]

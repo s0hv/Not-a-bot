@@ -737,6 +737,25 @@ class DatabaseUtils:
 
         return row
 
+    async def get_timezone(self, user_id: int):
+        sql = f'SELECT timezone FROM users WHERE id={user_id}'
+
+        try:
+            row = await self.fetch(sql, fetchmany=False)
+            return row['timezone']
+        except PostgresError:
+            logger.exception('Failed to get user timezone')
+
+    async def set_timezone(self, user_id: int, timezone):
+        sql = 'INSERT INTO users (id, timezone) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET timezone=$2'
+
+        try:
+            await self.execute(sql, (user_id, timezone))
+        except PostgresError:
+            return False
+
+        return True
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

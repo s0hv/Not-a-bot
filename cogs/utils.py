@@ -10,12 +10,12 @@ import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
 from io import StringIO
-from typing import Optional
 from urllib.parse import quote
 
 import discord
 import pkg_resources
 import psutil
+import pytz
 from asyncpg.exceptions import PostgresError
 from discord.ext.commands import (BucketType, bot_has_permissions, Group,
                                   clean_content)
@@ -24,11 +24,12 @@ from discord.ext.commands.errors import BadArgument
 from bot.bot import command, cooldown
 from bot.converters import FuzzyRole, TzConverter
 from cogs.cog import Cog
+from utils.tzinfo import fuzzy_tz
 from utils.unzalgo import unzalgo, is_zalgo
 from utils.utilities import (random_color, get_avatar, split_string,
                              get_emote_url, send_paged_message,
-                             format_timedelta,
-                             parse_time, DateAccuracy)
+                             format_timedelta, parse_timeout,
+                             DateAccuracy)
 
 try:
     from pip.commands import SearchCommand
@@ -488,35 +489,70 @@ class Utilities(Cog):
 
         await ctx.send(embed=embed)
 
-    @command(name='timedelta', aliases=['td'])
+    async def get_timezone(self, ctx, user_id: int):
+        tz = await self.bot.dbutil.get_timezone(user_id)
+        if tz:
+            try:
+                return await ctx.bot.loop.run_in_executor(ctx.bot.threadpool, pytz.timezone, tz)
+            except pytz.UnknownTimeZoneError:
+                pass
+
+        return pytz.FixedOffset(0)
+
+    @command(aliases=['tz'])
+    @cooldown(2, 7)
+    async def timezone(self, ctx, timezone: str=None):
+        """
+        Set or view your timezone. If timezone isn't given shows your current timezone
+        If timezone is given sets your current timezone to that
+        """
+        user = ctx.author
+        if not timezone:
+            tz = await self.get_timezone(ctx, user.id)
+            s = tz.localize(datetime.utcnow()).strftime('Your current timezone is UTC %z')
+            await ctx.send(s)
+            return
+
+        tz = fuzzy_tz.get(timezone)
+
+        if not tz:
+            await ctx.send(f'Timezone {timezone} not found')
+            return
+
+        if await self.bot.dbutil.set_timezone(user.id, tz):
+            await ctx.send(f'Timezone set to {tz}')
+        else:
+            await ctx.send('Failed to set timezone because of an error')
+
+    @command(name='timedelta', aliases=['td'],
+             usage="[duration] [timezones]")
     @cooldown(1, 3, BucketType.user)
-    async def timedelta_(self, ctx, target_timezone: Optional[TzConverter], your_timezone: Optional[TzConverter], *, duration):
+    async def timedelta_(self, ctx, *, args=''):
         """
         Get a date that is in the amount of duration given.
         To get past dates start your duration with `-`
-        Time format is `1d 1h 1m 1s` where each one is optional but
-        at least one is required.
+        Time format is `1d 1h 1m 1s` where each one is optional.
+        When no time is given it is interpreted as 0 seconds
 
-        You can also specify which timezone to use and another timezone for comparison if you want
-        Timezones can just an integer determining the offset in hours or
-        a name of a big city like capitals of countries.
-        Remember to use quotes if the city name contains spaces
+        You can also specify which timezones to use for comparison.
+        By default your own timezone is always put at the bottom (defaults to UTC).
+        Timezones can be just an integer determining the UTC offset in hours or
+        a city name or a country (Not all countries and cities are accepted as input).
+        Remember to use quotes if the city name contains spaces.
+        Max given timezones is 5.
         """
+
         addition = True
-        if duration.startswith('-'):
+        if args.startswith('-'):
             addition = False
-            duration = duration[1:]
+            args = args[1:]
 
-        duration_ = parse_time(duration)
-        if duration is None:
-            return await ctx.send(f'Failed to parse time from {duration}')
+        duration, timezones = parse_timeout(args)
+        timezones = shlex.split(timezones)
 
-        duration = duration_
-
-        if target_timezone:
-            now = datetime.now(target_timezone)
-        else:
-            now = datetime.utcnow()
+        if len(timezones) > 5:
+            await ctx.send('Over 5 timezones given. Give fewer timezones (Use quotes if a tz has spaces)')
+            return
 
         async def add_time(dt):
             try:
@@ -528,21 +564,24 @@ class Utilities(Cog):
             except OverflowError:
                 await ctx.send('Failed to get new date because of an Overflow error. Try giving a smaller duration')
 
-        then = await add_time(now)
-        if not then:
-            return
-
-        tzname = 'UTC' if not target_timezone else target_timezone.zone
-        td = format_timedelta(duration, accuracy=DateAccuracy.Day-DateAccuracy.Minute)
-        s = f'`{then.strftime("%Y-%m-%d %H:%M")}` `{tzname}` '
-
-        if your_timezone:
-            then = await add_time(datetime.now(your_timezone))
-            if not then:
+        converter = TzConverter()
+        s = ''
+        for timezone in timezones:
+            tz = await converter.convert(ctx, timezone)
+            dt = await add_time(datetime.now(tz))
+            if not tz:
                 return
 
-            tzname = 'UTC' if not target_timezone else your_timezone.zone
-            s += f'\n`{then.strftime("%Y-%m-%d %H:%M")}` `{tzname}`\n'
+            s += f'`{dt.strftime("%Y-%m-%d %H:%M UTC%z")}` `{tz.zone}`\n'
+
+        tz = await self.get_timezone(ctx, ctx.author.id)
+        dt = await add_time(datetime.now(tz))
+        if not tz:
+            return
+
+        s += f'`{dt.strftime("%Y-%m-%d %H:%M UTC%z")}` `{tz.zone}`\n'
+
+        td = format_timedelta(duration, accuracy=DateAccuracy.Day-DateAccuracy.Minute)
 
         if addition:
             s += f'which is in {td}'

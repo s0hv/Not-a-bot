@@ -430,6 +430,7 @@ create index idx_27306_role_id
 create table users
 (
   id bigint not null,
+  timezone text DEFAULT NULL,
   constraint idx_27309_primary
     primary key (id)
 );

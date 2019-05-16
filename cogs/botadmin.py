@@ -692,7 +692,7 @@ class BotAdmin(Cog):
         sql = 'UPDATE todo SET completed_at=CURRENT_TIMESTAMP, completed=TRUE WHERE id=%s AND completed=FALSE' % id
 
         res = await self.bot.dbutil.execute(sql)
-        await ctx.send(f'{res.rowcount} rows updated')
+        await ctx.send(f'{res.split(" ")[-1]} rows updated')
 
     @command()
     async def reset_cooldown(self, ctx, command):

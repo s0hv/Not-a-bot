@@ -435,11 +435,11 @@ class DatabaseUtils:
 
         for i in range(0, len(user_ids), step):
             data = []
-            for uid, u, g, t in zip(user_ids[i:step], usernames[i:step], guild_id[i:step], timestamps[i:step]):
+            for uid, u, g, t in zip(user_ids[i:i+step], usernames[i:i+step], guild_id[i:i+step], timestamps[i:i+step]):
                 data.extend((uid, u, g, t))
 
             sql = 'INSERT INTO last_seen_users (uid, username, guild, last_seen) VALUES %s ' \
-                  'ON CONFLICT (uid, guild) DO UPDATE SET last_seen=EXCLUDED.last_seen, username=EXCLUDED.username' % self.create_bind_groups(len(data), 4)
+                  'ON CONFLICT (uid, guild) DO UPDATE SET last_seen=EXCLUDED.last_seen, username=EXCLUDED.username' % self.create_bind_groups(len(data)//4, 4)
 
             sql_statements.append(sql)
             args.append(data)

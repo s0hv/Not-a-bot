@@ -88,9 +88,9 @@ class DateAccuracy(Enum):
         # from year (value of 1) to second (value of 6)
         # that's why slice value = 6-DateAccuracy.value
         if self.value > other.value:
-            return slice(6-self.value, 6-other.value)
+            return slice(other.value, self.value)
         else:
-            return slice(6-other.value, 6-self.value)
+            return slice(self.value, other.value)
 
 
 class CallLater:
@@ -852,7 +852,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         idx = 0
         if is_slice:
             old_acc = accuracy
-            accuracy = DateAccuracy(len(names) - accuracy.stop + 1)
+            accuracy = DateAccuracy(accuracy.stop)
 
         # Week is an exception and we want to keep it out of calculations
         # unless it is the requested accuracy. We use day here since we count
@@ -864,7 +864,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
             last, val = divmod(last, d)
             times.append(val)
 
-            if len(times)-1 >= accuracy.value:
+            if len(times) - 1 >= accuracy.value:
                 last = last*d+val
                 times[-1] = last
                 break
@@ -895,18 +895,24 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         if is_slice:
             # Slices are given in the format of from int to int inclusive
             # when slices from exclusive at the end so we have to recreate the slice
-            old_acc = slice(old_acc.start-1, old_acc.stop)
+            old_acc = slice(old_acc.start, old_acc.stop + 1)
             # Extend times so every accuracy has an unit attached to it
             # This makes it so we can slice the list like normal
             times.extend([0]*(len(names)-len(times)))
-            times = list(reversed(times))[old_acc]
+            #times = list(reversed(times))[old_acc]
+            times = times[old_acc]
+            names = list(reversed(names))
 
             # When all times in the slice are 0 fall back to the last value found
             if max(times) == 0:
                 times = [val]
-                names = [names[len(names) - 1 - idx]]
+                names = [names[idx]]
             else:
-                names = list(names)[old_acc]
+                names = names[old_acc]
+                # We need to reverse them or the order will be
+                # from seconds onwards
+                names = list(reversed(names))
+                times = list(reversed(times))
         else:
             names = [names[len(names)-1-idx]]
             times = [val]

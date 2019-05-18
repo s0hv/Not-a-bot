@@ -17,12 +17,13 @@ import pkg_resources
 import psutil
 import pytz
 from asyncpg.exceptions import PostgresError
+from dateutil import parser
 from discord.ext.commands import (BucketType, bot_has_permissions, Group,
                                   clean_content)
 from discord.ext.commands.errors import BadArgument
 
 from bot.bot import command, cooldown
-from bot.converters import FuzzyRole, TzConverter
+from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
 from utils.tzinfo import fuzzy_tz
 from utils.unzalgo import unzalgo, is_zalgo
@@ -41,7 +42,7 @@ except ImportError:
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
-
+parserinfo = parser.parserinfo(dayfirst=True)
 
 class Utilities(Cog):
     def __init__(self, bot):
@@ -525,21 +526,32 @@ class Utilities(Cog):
             await ctx.send('Failed to set timezone because of an error')
 
     @command(name='timedelta', aliases=['td'],
-             usage="[duration] [timezones]")
+             usage="[duration or date] [timezones and users]")
     @cooldown(1, 3, BucketType.user)
     async def timedelta_(self, ctx, *, args=''):
         """
         Get a date that is in the amount of duration given.
         To get past dates start your duration with `-`
         Time format is `1d 1h 1m 1s` where each one is optional.
-        When no time is given it is interpreted as 0 seconds
+        When no time is given it is interpreted as 0 seconds.
+
+        You can also give a date and duration will be calculated as the time to that point in time.
+        Timezone will be user timezone by default but you can specify the date utc offset with e.g. UTC+3
+        If the date doesn't have spaces in it, put it inside quotes. In ambiguous 3-integer dates day is assumed to be first
+        e.g. `"14:00"`, `14:00 UTC+1`, `"Mon 14:00 UTC-3"`
 
         You can also specify which timezones to use for comparison.
         By default your own timezone is always put at the bottom (defaults to UTC).
         Timezones can be just an integer determining the UTC offset in hours or
         a city name or a country (Not all countries and cities are accepted as input).
         Remember to use quotes if the city name contains spaces.
+        You can also give users and their timezone is used if they've set it
         Max given timezones is 5.
+
+        Examples
+        `{prefix}{name} 1h ny`
+        `{prefix}{name} "Mon 22:00 UTC-3"`
+        `{prefix}{name} "Jan 4th 10:00" @user berlin`
         """
 
         addition = True
@@ -548,7 +560,41 @@ class Utilities(Cog):
             args = args[1:]
 
         duration, timezones = parse_timeout(args)
+        # Used to guess if time with quotes might've been given
+        # This way we can give the correct portion of the string to dateutil parser
+        quote_start = timezones.startswith('"')
+        user_tz = await self.get_timezone(ctx, ctx.author.id)
+
         timezones = shlex.split(timezones)
+
+        if not duration and timezones:
+            try:
+                if quote_start:
+                    t = timezones[0]
+                else:
+                    t = ' '.join(timezones[:2])
+
+                date = parser.parse(t)
+
+                if not date.tzinfo:
+                    duration = user_tz.localize(date) - datetime.now(user_tz)
+                else:
+                    # UTC timezones are inverted in dateutil UTC+3 gives UTC-3
+                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(None).total_seconds()//-60)
+                    duration = date.replace(tzinfo=tz) - datetime.now(user_tz)
+
+                addition = duration.days >= 0
+
+                if not addition:
+                    duration *= -1
+
+                if quote_start:
+                    timezones = timezones[1:]
+                else:
+                    timezones = timezones[2:]
+
+            except (ValueError, OverflowError):
+                pass
 
         if len(timezones) > 5:
             await ctx.send('Over 5 timezones given. Give fewer timezones (Use quotes if a tz has spaces)')
@@ -564,22 +610,34 @@ class Utilities(Cog):
             except OverflowError:
                 await ctx.send('Failed to get new date because of an Overflow error. Try giving a smaller duration')
 
-        converter = TzConverter()
+        tz_converter = TzConverter()
+        user_converter = PossibleUser()
+
         s = ''
         for timezone in timezones:
-            tz = await converter.convert(ctx, timezone)
+            try:
+                tz = await tz_converter.convert(ctx, timezone)
+            except BadArgument as e:
+                try:
+                    user = await user_converter.convert(ctx, timezone)
+                    if isinstance(user, int):
+                        tz = await self.get_timezone(ctx, user)
+                    else:
+                        tz = await self.get_timezone(ctx, user.id)
+                except BadArgument:
+                    raise e
+
             dt = await add_time(datetime.now(tz))
-            if not tz:
+            if not dt:
                 return
 
             s += f'`{dt.strftime("%Y-%m-%d %H:%M UTC%z")}` `{tz.zone}`\n'
 
-        tz = await self.get_timezone(ctx, ctx.author.id)
-        dt = await add_time(datetime.now(tz))
-        if not tz:
+        dt = await add_time(datetime.now(user_tz))
+        if not dt:
             return
 
-        s += f'`{dt.strftime("%Y-%m-%d %H:%M UTC%z")}` `{tz.zone}`\n'
+        s += f'`{dt.strftime("%Y-%m-%d %H:%M UTC%z")}` `{user_tz.zone}`\n'
 
         td = format_timedelta(duration, accuracy=DateAccuracy.Day-DateAccuracy.Minute)
 

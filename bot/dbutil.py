@@ -742,7 +742,8 @@ class DatabaseUtils:
 
         try:
             row = await self.fetch(sql, fetchmany=False)
-            return row['timezone']
+            if row:
+                return row['timezone']
         except PostgresError:
             logger.exception('Failed to get user timezone')
 

@@ -495,6 +495,9 @@ class Pokemon(Cog):
                        'Make sure this bot has send messages and embed links perms set to ✅')
 
     async def _post2pokelog(self, message):
+        if not message.guild:
+            return
+
         channel = utils.get(message.guild.channels, name='pokelog')
         if not channel:
             return

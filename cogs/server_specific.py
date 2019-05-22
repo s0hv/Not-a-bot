@@ -29,6 +29,9 @@ terminal = logging.getLogger('terminal')
 
 def create_check(guild_ids):
     def guild_check(ctx):
+        if not ctx.guild:
+            return False
+
         return ctx.guild.id in guild_ids
 
     return guild_check

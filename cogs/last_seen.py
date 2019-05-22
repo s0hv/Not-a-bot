@@ -95,7 +95,7 @@ class LastSeen(Cog):
 
     @staticmethod
     def get_guild(user):
-        if isinstance(user, discord.User):
+        if isinstance(user, discord.user.BaseUser):
             return None
         else:
             return user.guild.id

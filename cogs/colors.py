@@ -820,6 +820,9 @@ class Colors(Cog):
         async with ctx.typing():
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, do)
 
+        if not data:
+            return
+
         await ctx.send(file=discord.File(data, 'colors.png'))
 
     @command(aliases=['search_colour'])

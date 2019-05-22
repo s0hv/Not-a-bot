@@ -25,7 +25,7 @@ from discord.ext.commands.errors import BadArgument
 from bot.bot import command, cooldown
 from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
-from utils.tzinfo import fuzzy_tz
+from utils.tzinfo import fuzzy_tz, tz_dict
 from utils.unzalgo import unzalgo, is_zalgo
 from utils.utilities import (random_color, get_avatar, split_string,
                              get_emote_url, send_paged_message,
@@ -43,6 +43,7 @@ except ImportError:
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 parserinfo = parser.parserinfo(dayfirst=True)
+
 
 class Utilities(Cog):
     def __init__(self, bot):
@@ -574,7 +575,7 @@ class Utilities(Cog):
                 else:
                     t = ' '.join(timezones[:2])
 
-                date = parser.parse(t)
+                date = parser.parse(t, tzinfos=tz_dict, parserinfo=parserinfo)
 
                 if not date.tzinfo:
                     duration = user_tz.localize(date) - datetime.now(user_tz)

@@ -367,7 +367,7 @@ class CommandBlacklist(Cog):
             else:
                 v1 = PermValues.VALUES['blacklist']
 
-            if row['user'] is not None:
+            if row['uid'] is not None:
                 v2 = PermValues.VALUES['user']
             elif row['role'] is not None:
                 v2 = PermValues.VALUES['role']
@@ -377,7 +377,7 @@ class CommandBlacklist(Cog):
             v = v1 | v2
             if v < smallest:
                 smallest = v
-                return_type = v2
+                perm_type = v2
                 smallest_row = row
 
         if return_type:
@@ -443,13 +443,13 @@ class CommandBlacklist(Cog):
     @cooldown(1, 15, BucketType.guild)
     async def show_perms(self, ctx):
         """Shows all server perms in one paged embed"""
-        sql = f'SELECT command, type, uid as "user", role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
+        sql = f'SELECT command, type, uid, role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
         rows = await self.bot.dbutil.fetch(sql)
 
         perms = {'guild': [], 'channel': [], 'role': [], 'user': []}
 
         for row in rows:
-            if row['user']:
+            if row['uid']:
                 perms['user'].append(row)
             elif row['channel']:
                 perms['channel'].append(row)
@@ -484,8 +484,8 @@ class CommandBlacklist(Cog):
                     s += f'⚙{e} {cmd} {t} for role {role}\n'
 
                 elif type_ == 'user':
-                    user = self.bot.get_user(row['user']) or ''
-                    s += f'👤{e} {cmd} {t} for user <@{row["user"]}> {user}\n'
+                    user = self.bot.get_user(row['uid']) or ''
+                    s += f'👤{e} {cmd} {t} for user <@{row["uid"]}> {user}\n'
 
             paginator.add_page(description=s)
 

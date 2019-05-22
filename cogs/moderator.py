@@ -82,7 +82,8 @@ class Moderator(Cog):
 
     async def load_expiring_events(self):
         # Load events that expire in an hour
-        expiry = timedelta(hours=100)
+        expiry = timedelta(hours=1)
+        self._pause = expiry.total_seconds()//2
 
         while True:
             await self._load_timeouts(expiry)
@@ -1231,16 +1232,15 @@ class Moderator(Cog):
         await self.bot.dbutil.remove_temprole(user, role)
 
     def register_timeout(self, user: int, guild: int, time, ignore_dupe=False):
-        timeouts = self.get_timeouts(guild)
-
         if not ignore_dupe and time > self._pause*2:
+            return
+
+        timeouts = self.get_timeouts(guild)
+        if ignore_dupe and user in timeouts:
             return
 
         t = timeouts.pop(user, None)
         if t:
-            if ignore_dupe:
-                return
-
             t.cancel()
 
         if time <= 1:
@@ -1256,11 +1256,11 @@ class Moderator(Cog):
             return
 
         temproles = self.get_temproles(guild)
-        old = temproles.get(user)
+        if user in temproles and ignore_dupe:
+            return
 
+        old = temproles.pop(user, None)
         if old:
-            if ignore_dupe:
-                return
             old.cancel()
 
         if time <= 1:

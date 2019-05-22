@@ -39,25 +39,23 @@ class HelpCommand(help.HelpCommand):
     async def _get_db_perms(ctx):
         user = ctx.author
         channel = ctx.channel
+        is_guild = ctx.guild is not None
 
         if isinstance(user, discord.Member) and len(user.roles) > 1:
-            roles = '(role IS NULL OR role IN ({}))'.format(
-                ', '.join(map(lambda r: str(r.id), user.roles)))
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
 
-        guild_owner = False if not ctx.guild else user.id == ctx.guild.owner.id
+        guild_owner = False if (not is_guild or not ctx.guild.owner) else user.id == ctx.guild.owner.id
         command_blacklist = {}
 
         # Filter by custom blacklist
-        if not guild_owner:
+        if not guild_owner and is_guild:
             sql = 'SELECT type, role, uid, channel, command FROM command_blacklist WHERE guild=$1 ' \
                   'AND (uid IS NULL OR uid=$2) AND {} AND (channel IS NULL OR channel=$3)'.format(roles)
 
             try:
-                rows = await ctx.bot.dbutil.fetch(sql, (user.guild.id,
-                                                        user.id,
-                                                        channel.id))
+                rows = await ctx.bot.dbutil.fetch(sql, (ctx.guild.id, user.id, channel.id))
 
                 for row in rows:
                     name = row['command']

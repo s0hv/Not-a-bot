@@ -9,7 +9,7 @@ from discord.errors import InvalidArgument
 from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 
 
 def _args_to_string(args):

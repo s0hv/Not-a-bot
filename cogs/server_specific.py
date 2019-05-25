@@ -786,7 +786,7 @@ class ServerSpecific(Cog):
             d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, time)
 
             await message.author.add_roles(mute_role, reason='[Automute] Spam')
-            url = f'https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id}'
+            url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
             embed = discord.Embed(title='Moderation action [AUTOMUTE]',
                                   description=d, timestamp=datetime.utcnow())
             embed.add_field(name='Reason', value='Spam')

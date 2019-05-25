@@ -815,7 +815,7 @@ class Colors(Cog):
                 raise e
 
             buf.seek(0)
-            return buf.getvalue()
+            return buf
 
         async with ctx.typing():
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, do)

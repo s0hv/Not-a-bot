@@ -529,7 +529,7 @@ class DatabaseUtils:
             # Algorithm based on https://stackoverflow.com/a/27710046
             # Gives priority to games played then wins and then winrate
             #      '1/SQRT(POW(wins/games-1, 2)*0.7 + POW(1/games, 2)*3 + POW(1/wins, 2)*2)'
-            sort = '1/SQRT(POW(wins/GREATEST(games-1, 1), 2)*0.7 + POW(1/games, 2)*3 + POW(1/GREATEST(wins, 1), 2) *2)'
+            sort = '1/SQRT(POWER(wins/GREATEST(cast(games as decimal(7, 3))-1, 1), 2)*0.7 + POWER(1/cast(games as decimal(7, 3)), 2)*3 + POWER(1/GREATEST(cast(wins as decimal(7, 3)), 1), 2) *2)'
         sql = 'SELECT uid as "user", * FROM mute_roll_stats WHERE guild=%s ORDER BY %s DESC' % (guild, sort)
 
         rows = await self.fetch(sql)
@@ -788,7 +788,7 @@ class DatabaseUtils:
         else:
             roles = 'role IS NULL'
 
-        sql = f'SELECT type, role, uid as user, channel  FROM command_blacklist WHERE guild={user.guild.id} AND {command} ' \
+        sql = f'SELECT type, role, uid as "user", channel  FROM command_blacklist WHERE guild={user.guild.id} AND {command} ' \
               f'AND (uid IS NULL OR uid={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
         rows = await self.fetch(sql)
         if not rows:

@@ -105,6 +105,9 @@ class CallLater:
     def cancel(self):
         self.future.cancel()
 
+    def __repr__(self):
+        return f'<{self.__class__.__name__}> Runs at {self.runs_at}'
+
 
 # Made so only ids can be used
 class Snowflake(abc.Snowflake):

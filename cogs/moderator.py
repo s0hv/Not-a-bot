@@ -1232,9 +1232,6 @@ class Moderator(Cog):
         await self.bot.dbutil.remove_temprole(user, role)
 
     def register_timeout(self, user: int, guild: int, time, ignore_dupe=False):
-        if not ignore_dupe and time > self._pause*2:
-            return
-
         timeouts = self.get_timeouts(guild)
         if ignore_dupe and user in timeouts:
             return
@@ -1242,6 +1239,10 @@ class Moderator(Cog):
         t = timeouts.pop(user, None)
         if t:
             t.cancel()
+
+        # If we modify an existing timeout to a longer one this will trigger
+        if not ignore_dupe and time > self._pause*2:
+            return
 
         if time <= 1:
             time = 1
@@ -1251,10 +1252,6 @@ class Moderator(Cog):
         timeouts[user] = task
 
     def register_temprole(self, user: int, role: int, guild: int, time, ignore_dupe=False):
-        # Don't register long events instantly
-        if not ignore_dupe and time > self._pause * 2:
-            return
-
         temproles = self.get_temproles(guild)
         if user in temproles and ignore_dupe:
             return
@@ -1262,6 +1259,9 @@ class Moderator(Cog):
         old = temproles.pop(user, None)
         if old:
             old.cancel()
+
+        if not ignore_dupe and time > self._pause * 2:
+            return
 
         if time <= 1:
             time = 1

@@ -338,7 +338,7 @@ class Utilities(Cog):
         await ctx.send(unzalgo(text))
 
     @command()
-    @cooldown(1, 120, BucketType.user)
+    @cooldown(1, 1, BucketType.user)
     async def feedback(self, ctx, *, feedback):
         """
         Send feedback of the bot.
@@ -351,12 +351,13 @@ class Utilities(Cog):
 
         e = discord.Embed(title='Feedback', description=feedback)
         author = ctx.author
-        e.set_thumbnail(url=author.avatar_url or author.default_avatar_url)
-        e.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+        avatar = get_avatar(author)
+        e.set_thumbnail(url=avatar)
+        e.set_footer(text=str(author), icon_url=avatar)
         e.add_field(name='Guild', value=f'{ctx.guild.id}\n{ctx.guild.name}')
 
         json = {'embeds': [e.to_dict()],
-                'avatar_url': ctx.author.avatar_url,
+                'avatar_url': avatar,
                 'username': ctx.author.name,
                 'wait': True}
         headers = {'Content-type': 'application/json'}
@@ -364,7 +365,7 @@ class Utilities(Cog):
         try:
             r = await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
         except:
-            pass
+            terminal.exception('')
         else:
             status = str(r.status)
             # Accept 2xx status codes

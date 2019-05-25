@@ -1,4 +1,17 @@
+from enum import Enum
+
+
+class Actions(Enum):
+    DELETE = 0,
+    INVALID = 1,
+    VALID = 2
+
+
 class PagedMessage:
+    DELETE = Actions.DELETE
+    INVALID = Actions.INVALID
+    VALID = Actions.VALID
+
     def __init__(self, pages, prev='◀', next='▶', stop='⏹', accept=None, test_check=False, starting_idx=0):
         """
         Paged message where pages can be changed by reacting to a message
@@ -32,7 +45,7 @@ class PagedMessage:
 
     def reaction_changed(self, reaction, user):
         if self.test_check and not self.check(reaction, user):
-            return
+            return self.INVALID
 
         if reaction.emoji == self._next:
             try:
@@ -47,15 +60,15 @@ class PagedMessage:
             if idx < 0:
                 idx = len(self._pages) - 1
                 if idx == self._idx:
-                    return
+                    return self.INVALID
 
             self._idx = idx
             page = self._pages[idx]
 
         elif reaction.emoji == self._stop:
-            return False
+            return self.DELETE
 
         else:
-            return True
+            return self.VALID
 
         return page

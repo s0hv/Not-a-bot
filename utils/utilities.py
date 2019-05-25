@@ -1258,11 +1258,11 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
             return
 
         page = paged.reaction_changed(*result)
-        if page is False:
+        if page is PagedMessage.DELETE:
             await message.delete()
             return
 
-        if page is None:
+        if page is PagedMessage.INVALID:
             continue
 
         try:

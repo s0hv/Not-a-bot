@@ -282,10 +282,10 @@ class Playlist:
                 return await ctx.send('Took too long.')
 
             entry = paged.reaction_changed(*result)
-            if entry is None:
+            if entry is PagedMessage.INVALID:
                 continue
 
-            if entry is True:
+            if entry is PagedMessage.VALID:
                 if in_vc:
                     await message.delete()
                     await self._add_url(get_url(entry), priority=priority,
@@ -293,7 +293,7 @@ class Playlist:
 
                 return
 
-            if entry is False:
+            if entry is PagedMessage.DELETE:
                 await message.delete()
                 return
 

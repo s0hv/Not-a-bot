@@ -154,7 +154,6 @@ class Server(Cog):
         custom_desc = None
 
         def get_page(page, idx):
-            nonlocal custom_desc
             if not page:
                 return cache_page(idx, custom_desc)
 

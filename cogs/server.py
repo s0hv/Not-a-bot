@@ -150,13 +150,17 @@ class Server(Cog):
             pages[idx] = embed
             return embed
 
+        # Used for putting callers stats in the description of embed
+        custom_desc = None
+
         def get_page(page, idx):
+            nonlocal custom_desc
             if not page:
-                return cache_page(idx)
+                return cache_page(idx, custom_desc)
 
             return page
 
-        if isinstance(user, BaseUser):
+        if isinstance(user, BaseUser) or isinstance(user, discord.Member):
             user_id = user.id
         else:
             user_id = user
@@ -171,16 +175,11 @@ class Server(Cog):
                         f'Winrate: {winrate}% with {r["wins"]} wins \n' \
                         f'Games: {r["games"]}\n' \
                         f'Current streak: {r["current_streak"]}\n' \
-                        f'Biggest streak: {r["biggest_streak"]}'
+                        f'Biggest streak: {r["biggest_streak"]}\n' \
+                        f'Ranking {idx + 1}/{len(stats)}'
 
-                    e = discord.Embed(description=d)
-                    e.set_footer(text=f'Ranking {idx + 1}/{len(stats)}')
-                    await ctx.send(embed=e)
-                    return
-
-            return await ctx.send(
-                f"Didn't find user {user} on the leaderboards.\n"
-                "Are you sure they have played mute roll")
+                    custom_desc = d
+                    break
 
         await send_paged_message(ctx, pages, embed=True, page_method=get_page)
 
@@ -192,30 +191,30 @@ class Server(Cog):
         It prioritizes amount of wins and winrate over games played tho games played
         also has a decent impact on results
         """
-        await self._post_mr_top(ctx, user)
+        await self._post_mr_top(ctx, user or ctx.author)
 
     @mute_roll_top.command(no_dm=True)
     @cooldown(2, 5, BucketType.guild)
-    async def games(self, ctx):
+    async def games(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by amount of games played"""
-        await self._post_mr_top(ctx, None, sort='games')
+        await self._post_mr_top(ctx, user or ctx.author, sort='games')
 
     @mute_roll_top.command(no_dm=True)
     @cooldown(2, 5, BucketType.guild)
-    async def wins(self, ctx):
+    async def wins(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by amount of games won"""
-        await self._post_mr_top(ctx, None, sort='wins')
+        await self._post_mr_top(ctx, user or ctx.author, sort='wins')
 
     @mute_roll_top.command(no_dm=True, aliases=['wr'])
     @cooldown(2, 5, BucketType.guild)
-    async def winrate(self, ctx):
+    async def winrate(self, ctx, *, user: PossibleUser=None):
         """
         Sort mute roll stats by winrate while also taking games played into account tho only slightly
         """
         # Sort by winrate while prioritizing games played a bit
         # If we dont do this we'll only get 1 win 1 game users at the top
         sort = '1/SQRT( POWER((1 - wins / games::decimal), 2) + POWER(1 / games::decimal, 2)* 0.9 )'
-        await self._post_mr_top(ctx, None, sort=sort)
+        await self._post_mr_top(ctx, user or ctx.author, sort=sort)
 
     async def _dl(self, ctx, url):
         try:

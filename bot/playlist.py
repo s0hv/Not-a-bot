@@ -576,7 +576,7 @@ class Playlist:
         await song.download()
         await song.on_ready.wait()
         if not song.success:
-            return
+            return False
         return song
 
     def get_random_song(self, playlist):

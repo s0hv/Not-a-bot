@@ -11,9 +11,11 @@ from discord import player
 from discord.activity import Activity, ActivityType
 from discord.errors import ClientException
 from discord.errors import HTTPException
+from discord.ext.commands.cooldowns import BucketType
 from discord.opus import Encoder as OpusEncoder
 from discord.player import PCMVolumeTransformer
 
+from bot.cooldowns import Cooldown
 from bot.playlist import Playlist
 from bot.youtube import url2id, get_related_vids, id2url
 from utils.timedset import TimedSet
@@ -56,6 +58,10 @@ class MusicPlayer:
         self.channel = channel
         self.repeat = False
         self._disconnect = disconnect
+
+        # With BucketType.default we can call get_bucket with msg param set to None
+        # Determines an error rate at which we disconnect
+        self._spam_detector = Cooldown(3, 10, BucketType.default)
 
         self.playlist = Playlist(bot, channel=self.channel, downloader=downloader)
         self.autoplaylist = bot.config.autoplaylist
@@ -152,6 +158,30 @@ class MusicPlayer:
         # vol = volm/rms
         return rms, self.volume_multiplier/rms
 
+    async def assert_functionality(self):
+        """
+        Returns:
+            Boolean determining if we are getting songs correctly or if we are getting too many errors
+        """
+        retry_after = self._spam_detector.update_rate_limit()
+        if retry_after:
+            await self.send('Looks like something is wrong with playback. Disconnecting.\n'
+                            'If this continues contact owner lol')
+
+            async def stop():
+                if self.activity_check:
+                    self.activity_check.cancel()
+                await self._disconnect(self)
+                self.voice = None
+
+            # We need the background task because calling disconnect will
+            # cancel audio loop which will stop every function called inside it
+            # this one and disconnect included
+            self.bot.loop.create_task(stop())
+            return False
+
+        return True
+
     async def set_mean_volume(self, file):
         try:
             # Don't want mean volume from livestreams
@@ -217,6 +247,18 @@ class MusicPlayer:
 
                     elif self.autoplaylist:
                         self.current = await self.playlist.get_from_autoplaylist()
+                        # Autoplaylist was empty?
+                        if self.current is None:
+                            self.autoplaylist = False
+                            await self.send("Couldn't get video from autoplaylist. Setting it off")
+                            continue
+
+                        if self.current is False:
+                            self.current = None
+                            # Failed to download autoplaylist song. Check that we are functioning
+                            if not await self.assert_functionality():
+                                return
+
                     else:
                         # If autoplaylist not enabled wait until playlist is populated
                         await self.playlist.not_empty.wait()
@@ -254,6 +296,8 @@ class MusicPlayer:
             if not self.current.success:
                 terminal.error(f'Download of {self.current.webpage_url} unsuccessful')
                 self.current = None
+                if not await self.assert_functionality():
+                    return
                 continue
 
             if self.current.filename is not None:
@@ -261,6 +305,8 @@ class MusicPlayer:
             elif self.current.url != 'None':
                 file = self.current.url
             else:
+                # This block doesn't really need to have the functionality check
+                # since it's a rare error
                 terminal.error('No valid file to be played')
                 await self.send('No valid file to be played')
                 continue

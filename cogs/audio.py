@@ -1697,7 +1697,7 @@ class Audio(commands.Cog):
                 musicplayer.audio_player.cancel()
 
             if musicplayer.voice is not None:
-                await musicplayer.voice.disconnect()
+                await musicplayer.voice.disconnect(force=True)
                 musicplayer.voice = None
 
         except Exception:
@@ -1764,7 +1764,7 @@ class Audio(commands.Cog):
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
             if ctx.voice_client:
-                await ctx.voice_client.disconnect()
+                await ctx.voice_client.disconnect(force=True)
                 return
 
         await self.disconnect_voice(musicplayer)

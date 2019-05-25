@@ -68,6 +68,7 @@ initial_cogs = [
 
 terminal.info('Main bot starting up')
 logger.info('Starting bot')
+config.default_activity = {'type': 1, 'name': 'Music'}
 bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True), conf=config, max_messages=100, cogs=initial_cogs)
 bot.run(config.audio_token)
 

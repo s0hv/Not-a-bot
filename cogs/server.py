@@ -120,31 +120,29 @@ class Server(Cog):
         """Sort users by join date"""
         await self._date_sort(ctx, page, lambda u: u.created_at, 'created')
 
-    @command(no_dm=True, aliases=['mr_top', 'mr_stats'])
-    @cooldown(2, 5, BucketType.channel)
-    async def mute_roll_top(self, ctx, *, user: PossibleUser=None):
-        stats = await self.bot.dbutil.get_mute_roll(ctx.guild.id)
+    async def _post_mr_top(self, ctx, user, sort=None):
+        stats = await self.bot.dbutil.get_mute_roll(ctx.guild.id, sort=sort)
         if not stats:
             return await ctx.send('No mute roll stats on this server')
 
-        page_length = ceil(len(stats)/10)
+        page_length = ceil(len(stats) / 10)
         pages = [False for _ in range(page_length)]
 
         title = f'Mute roll stats for guild {ctx.guild}'
 
         def cache_page(idx, custom_description=None):
-            i = idx*10
-            rows = stats[i:i+10]
+            i = idx * 10
+            rows = stats[i:i + 10]
             if custom_description:
                 embed = discord.Embed(title=title, description=custom_description)
             else:
                 embed = discord.Embed(title=title)
 
-            embed.set_footer(text=f'Page {idx+1}/{len(pages)}')
+            embed.set_footer(text=f'Page {idx + 1}/{len(pages)}')
             for row in rows:
                 winrate = round(row['wins'] * 100 / row['games'], 1)
                 v = f'<@{row["uid"]}>\n' \
-                    f'Winrate: {winrate}% with {row["wins"]} wins \n'\
+                    f'Winrate: {winrate}% with {row["wins"]} wins \n' \
                     f'Current streak: {row["current_streak"]}\n' \
                     f'Biggest streak: {row["biggest_streak"]}'
                 embed.add_field(name=f'{row["games"]} games', value=v)
@@ -169,20 +167,55 @@ class Server(Cog):
                     i = idx // 10
 
                     winrate = round(r['wins'] * 100 / r['games'], 1)
-                    d = f'Stats for <@{user_id}> at page {i+1}\n' \
+                    d = f'Stats for <@{user_id}> at page {i + 1}\n' \
                         f'Winrate: {winrate}% with {r["wins"]} wins \n' \
+                        f'Games: {r["games"]}\n' \
                         f'Current streak: {r["current_streak"]}\n' \
                         f'Biggest streak: {r["biggest_streak"]}'
 
                     e = discord.Embed(description=d)
-                    e.set_footer(text=f'Ranking {idx+1}/{len(stats)}')
+                    e.set_footer(text=f'Ranking {idx + 1}/{len(stats)}')
                     await ctx.send(embed=e)
                     return
 
-            return await ctx.send(f"Didn't find user {user} on the leaderboards.\n"
-                                  "Are you sure they have played mute roll")
+            return await ctx.send(
+                f"Didn't find user {user} on the leaderboards.\n"
+                "Are you sure they have played mute roll")
 
         await send_paged_message(ctx, pages, embed=True, page_method=get_page)
+
+    @group(no_dm=True, aliases=['mr_top', 'mr_stats', 'mrtop'], invoke_without_command=True)
+    @cooldown(2, 5, BucketType.guild)
+    async def mute_roll_top(self, ctx, *, user: PossibleUser=None):
+        """
+        Sort mute roll stats using a custom algorithm
+        It prioritizes amount of wins and winrate over games played tho games played
+        also has a decent impact on results
+        """
+        await self._post_mr_top(ctx, user)
+
+    @mute_roll_top.command(no_dm=True)
+    @cooldown(2, 5, BucketType.guild)
+    async def games(self, ctx):
+        """Sort mute roll stats by amount of games played"""
+        await self._post_mr_top(ctx, None, sort='games')
+
+    @mute_roll_top.command(no_dm=True)
+    @cooldown(2, 5, BucketType.guild)
+    async def wins(self, ctx):
+        """Sort mute roll stats by amount of games won"""
+        await self._post_mr_top(ctx, None, sort='wins')
+
+    @mute_roll_top.command(no_dm=True, aliases=['wr'])
+    @cooldown(2, 5, BucketType.guild)
+    async def winrate(self, ctx):
+        """
+        Sort mute roll stats by winrate while also taking games played into account tho only slightly
+        """
+        # Sort by winrate while prioritizing games played a bit
+        # If we dont do this we'll only get 1 win 1 game users at the top
+        sort = '1/SQRT( POWER((1 - wins / games::decimal), 2) + POWER(1 / games::decimal, 2)* 0.9 )'
+        await self._post_mr_top(ctx, None, sort=sort)
 
     async def _dl(self, ctx, url):
         try:

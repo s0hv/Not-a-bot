@@ -338,7 +338,7 @@ class Utilities(Cog):
         await ctx.send(unzalgo(text))
 
     @command()
-    @cooldown(1, 1, BucketType.user)
+    @cooldown(1, 120, BucketType.user)
     async def feedback(self, ctx, *, feedback):
         """
         Send feedback of the bot.

@@ -418,6 +418,7 @@ fuzzy_tz = {
     'mountain': 'US/Mountain',
     'newfoundland': 'Canada/Newfoundland',
     'pacific': 'US/Pacific',
+    'pst': 'US/Pacific',
     'saskatchewan': 'Canada/Saskatchewan',
     'yukon': 'Canada/Yukon',
     'continental': 'Chile/Continental',

@@ -576,7 +576,7 @@ class Utilities(Cog):
                 else:
                     t = ' '.join(timezones[:2])
 
-                date = parser.parse(t, tzinfos=tz_dict, parserinfo=parserinfo)
+                date = parser.parse(t.upper(), tzinfos=tz_dict, parserinfo=parserinfo)
 
                 if not date.tzinfo:
                     duration = user_tz.localize(date) - datetime.now(user_tz)

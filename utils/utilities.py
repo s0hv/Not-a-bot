@@ -1176,7 +1176,7 @@ def check_perms(values, return_raw=False):
         else:
             v1 = PermValues.VALUES['blacklist']
 
-        if value['user'] is not None:
+        if value['uid'] is not None:
             v2 = PermValues.VALUES['user']
         elif value['role'] is not None:
             v2 = PermValues.VALUES['role']

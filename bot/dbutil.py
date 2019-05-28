@@ -774,7 +774,7 @@ class DatabaseUtils:
         Returns: int, bool, None
             See fetch_raw to see possible return values
         """
-        sql = 'SELECT uid as "user", * FROM command_blacklist WHERE type=%s AND %s ' \
+        sql = 'SELECT * FROM command_blacklist WHERE type=%s AND %s ' \
               'AND (uid=%s OR uid IS NULL) LIMIT 1' % (BlacklistTypes.GLOBAL, command, user.id)
         rows = await self.fetch(sql, fetchmany=False)
 
@@ -790,7 +790,7 @@ class DatabaseUtils:
         else:
             roles = 'role IS NULL'
 
-        sql = f'SELECT type, role, uid as "user", channel  FROM command_blacklist WHERE guild={user.guild.id} AND {command} ' \
+        sql = f'SELECT type, role, uid, channel  FROM command_blacklist WHERE guild={user.guild.id} AND {command} ' \
               f'AND (uid IS NULL OR uid={user.id}) AND {roles} AND (channel IS NULL OR channel={channel.id})'
         rows = await self.fetch(sql)
         if not rows:

@@ -138,7 +138,7 @@ class BotBase(Bot):
             return
 
         # Ignore if user is botbanned
-        if message.author.id != self.owner_id and (await self.dbutil.execute('SELECT 1 FROM banned_users WHERE uid=%s' % message.author.id)).first():
+        if message.author.id != self.owner_id and (await self.dbutil.fetch('SELECT 1 FROM banned_users WHERE uid=%s' % message.author.id, fetchmany=False)):
             return
 
         await self.process_commands(message, local_time=local)
@@ -148,7 +148,7 @@ class BotBase(Bot):
             return True
 
         sql = 'SELECT auth_level FROM bot_staff WHERE uid=%s' % user_id
-        rows = (await self.dbutil.execute(sql)).first()
+        rows = await self.dbutil.fetch(sql)
         if not rows:
             return False
 

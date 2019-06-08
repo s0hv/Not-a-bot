@@ -26,6 +26,7 @@ import logging
 from collections import deque
 
 from aiohttp import ClientSession
+from discord import DMChannel
 from discord.ext.commands import cooldown
 
 from bot.bot import command
@@ -57,13 +58,15 @@ class Search(Cog):
     async def image(self, ctx, *, query):
         """Google search an image"""
         #logger.debug('Image search query: {}'.format(query))
-        return await self._search(ctx, query, True, safe='off' if ctx.channel.nsfw else 'high')
+        safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'high'
+        return await self._search(ctx, query, True, safe=safe)
 
     @command()
     @cooldown(2, 5)
     async def google(self, ctx, *, query):
         #logger.debug('Web search query: {}'.format(query))
-        return await self._search(ctx, query, safe='off' if ctx.channel.nsfw else 'medium')
+        safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'medium'
+        return await self._search(ctx, query, safe=safe)
 
     async def _search(self, ctx, query, image=False, safe='off'):
         params = {'key': self.key,

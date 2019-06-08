@@ -140,6 +140,9 @@ class Logger(Cog):
 
     @Cog.listener()
     async def on_message_delete(self, msg):
+        if isinstance(msg.channel, discord.DMChannel):
+            return
+
         if msg.author.bot or msg.channel.id == 336917918040326166:
             return
 

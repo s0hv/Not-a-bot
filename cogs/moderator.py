@@ -768,59 +768,49 @@ class Moderator(Cog):
         if not time:
             return await ctx.send('Invalid time string')
 
+        author = ctx.author
+
         # Ignore checks if in test mode
         if not self.bot.test_mode:
-            if user.id == ctx.author.id and time.total_seconds() < 21600:
+            if user.id == author.id and time.total_seconds() < 21600:
                 return await ctx.send('If you gonna timeout yourself at least make it a longer timeout')
 
             if guild.id == 217677285442977792 and user.id == 123050803752730624:
                 return await ctx.send("Not today kiddo. I'm too powerful for you")
 
             r = guild.get_role(339841138393612288)
-            if not ctx.author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in ctx.author.roles:
+            if not author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in author.roles:
                 return await ctx.send('All hail our leader <@!222399701390065674>')
 
-            abusers = (189458911886049281,)
-            # Rice muted and trying to mute others/shorten his sentence
-            if ctx.author.id in abusers and mute_role in ctx.author.roles:
-                return await ctx.send("Abuse this 🖕")
-
-            if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
+            if author != guild.owner and author.top_role <= user.top_role:
                 return await ctx.send('The one you are trying to timeout is higher or same as you in the role hierarchy')
 
             if time.days > 30:
                 return await ctx.send("Timeout can't be longer than 30 days")
-            if guild.id == 217677285442977792 and time.total_seconds() < 500:
-                return await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
+            if guild.id == 217677285442977792:
+                if time.total_seconds() < 500:
+                    return await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
+
+                rtm = guild.get_role(339841138393612288)
+                if rtm in author.roles and rtm in user.roles:
+                    if ctx.channel.id == 361830510646788098:
+                        return
+
             if time.total_seconds() < 59:
                 return await ctx.send('Minimum timeout is 1 minute')
 
         now = datetime.utcnow()
 
-        if guild.id == 217677285442977792:
-            words = ('christianserver',)
-            rs = '' if not reason else reason.lower().replace(' ', '')
-            gay = not reason or any([word in rs for word in words])
-
-            if ctx.author.id in abusers and gay:
-                if mute_role not in ctx.author.roles:
-                    very_gay = timedelta(seconds=time.total_seconds()*2)
-                    await ctx.send('Abuse this <:christianServer:336568327939948546>')
-                    await ctx.author.add_roles(mute_role, reason='Abuse this')
-                    await self.add_timeout(ctx, guild.id, ctx.author.id, now + very_gay, very_gay.total_seconds(),
-                                           reason='Abuse this <:christianServer:336568327939948546>')
-
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         expires_on = now + time
 
         try:
-            await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
+            await user.add_roles(mute_role, reason=f'[{author}] {reason}')
             await ctx.send('Muted user {} for {}'.format(user, time))
         except discord.HTTPException:
             await ctx.send('Could not mute user {}'.format(user))
             return
 
-        author = ctx.message.author
         description = '{} muted {} `{}` for {}'.format(author.mention,
                                                        user, user.id, time)
 

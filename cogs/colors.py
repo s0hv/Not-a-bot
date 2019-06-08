@@ -61,6 +61,7 @@ class Colors(Cog):
         super().__init__(bot)
         self._colors = {}
         self.bot.colors = self._colors
+        self._color_jobs = set()
         asyncio.run_coroutine_threadsafe(self._cache_colors(), self.bot.loop)
 
         with open(os.path.join(os.getcwd(), 'data', 'color_names.json'), 'r', encoding='utf-8') as f:
@@ -1020,13 +1021,22 @@ class Colors(Cog):
         for embed in embeds:
             await ctx.send(embed=embed)
 
-    @command(owner_only=True)
+    @command()
+    @bot_has_permissions(manage_roles=True)
+    @has_permissions(administrator=True)
     async def color_uncolored(self, ctx):
         """Color users that don't have a color role"""
         guild = ctx.guild
         color_ids = list(self._colors.get(guild.id, {}).keys())
         if not color_ids:
-            return await ctx.send('No colors')
+            await ctx.send('No colors')
+            return
+
+        if guild.id in self._color_jobs:
+            await ctx.send('Coloring job is already running in this server')
+            return
+
+        self._color_jobs.add(guild.id)
 
         try:
             await self.bot.request_offline_members(guild)
@@ -1058,6 +1068,7 @@ class Colors(Cog):
                 except:
                     logger.exception('failed to remove duplicate colors')
 
+        self._color_jobs.discard(guild.id)
         await ctx.send('Colored %s user(s) without color role\n'
                        'Removed duplicate colors from %s user(s)' % (colored, duplicate_colors))
 

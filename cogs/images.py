@@ -756,11 +756,10 @@ class Images(Cog):
             frames[0].save(file, format='GIF', duration=durations, save_all=True,
                            append_images=frames[1:], loop=65535, optimize=False, disposal=2)
             file.seek(0)
-            data = file.getvalue()
-            if len(data) > 8000000:
+            if file.getbuffer().nbytes > 8000000:
                 return optimize_gif(file.getvalue())
 
-            return data
+            return file
 
         async with ctx.typing():
             file = await self.image_func(do_speedup)

@@ -37,7 +37,7 @@ class BotException(CommandError):
         if cmd_message is not None:
             terminal.info(cmd_message)
 
-        self._message = message
+        self._message = message or ''
 
     @property
     def message(self):
@@ -111,6 +111,12 @@ class ImageResizeException(BotException):
     def message(self):
         return f"Resized image would have too many pixels {self._message} > {self.max_pixel}\n" \
                "Usually this is because of extremely wide/tall pictures"
+
+
+class ImageProcessingError(BotException):
+    @property
+    def message(self):
+        return f'Failed to process because of an error\n{self._message}'
 
 
 class ImageDownloadError(BotException):

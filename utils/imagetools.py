@@ -41,7 +41,8 @@ from geopatterns.utils import promap
 from numpy import sqrt
 
 from bot.exceptions import (ImageSizeException, ImageResizeException,
-                            TooManyFrames, ImageDownloadError)
+                            TooManyFrames, ImageDownloadError,
+                            ImageProcessingError)
 from bot.globals import IMAGES_PATH
 
 # import cv2
@@ -558,12 +559,22 @@ def get_duration(frames):
 
 def fixed_gif_frames(img, func=None):
     if func is None:
-        def func(img):
-            return img.copy()
+        def func(im):
+            return im.copy()
 
     frames = []
     while True:
-        frames.append(func(img))
+        try:
+            frames.append(func(img))
+        except ValueError as e:
+            e = str(e)
+            if e.startswith('tile cannot'):
+                raise ImageProcessingError(str(e))
+            else:
+                raise ImageProcessingError()
+        except:
+            raise ImageProcessingError()
+
         try:
             img.seek(img.tell() + 1)
         except EOFError:

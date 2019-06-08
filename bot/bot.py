@@ -27,6 +27,7 @@ import logging
 
 import discord
 from aiohttp import ClientSession
+from aiohttp.client_exceptions import ClientConnectionError
 from discord.ext import commands
 from discord.ext.commands import CheckFailure
 
@@ -163,6 +164,9 @@ class Bot(commands.Bot, Client):
         if isinstance(exception, exceptions.NotOwner):
             return
 
+        if isinstance(exception, ClientConnectionError):
+            return
+
         channel = context.channel
 
         if isinstance(exception, commands.errors.BotMissingPermissions) or isinstance(exception, commands.errors.MissingPermissions):
@@ -190,6 +194,9 @@ class Bot(commands.Bot, Client):
 
         elif isinstance(exception, exceptions.BotException):
             error_msg = str(exception)
+
+        if isinstance(exception, OSError) and 'Errno 12' in str(exception):
+            error_msg = "Couldn't allocate memory. Try again a bit later"
 
         if error_msg:
             if self._check_error_cd(context.message):

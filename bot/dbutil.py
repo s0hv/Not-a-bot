@@ -497,13 +497,15 @@ class DatabaseUtils:
 
     async def get_command_stats(self, parent=None, name=""):
         sql = 'SELECT * FROM command_stats'
+        args = ()
         if parent:
+            args = (parent, name)
             sql += ' WHERE parent=$1 AND cmd=$2'
 
         sql += ' ORDER BY uses DESC'
 
         try:
-            await self.fetch(sql, (parent, name))
+            return await self.fetch(sql, args)
         except PostgresError:
             logger.exception('Failed to get command stats')
             return False

@@ -51,11 +51,7 @@ cv2 = None  # Remove cv2 import cuz it takes forever to import
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
 
-MAGICK = 'magick '
-try:
-    subprocess.call(['magick'], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-except FileNotFoundError:
-    MAGICK = ''
+MAGICK = os.environ.get('MAGICK_PREFIX', '')
 
 MAX_COLOR_DIFF = 2.82842712475  # Biggest value produced by color_distance
 GLOW_LOCK = Lock()

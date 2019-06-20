@@ -2,6 +2,8 @@
 # -*-coding=utf-8 -*-
 
 import logging
+import os
+import subprocess
 import sys
 
 import discord
@@ -74,6 +76,14 @@ initial_cogs = [
 
 terminal.info('Main bot starting up')
 logger.info('Starting bot')
+
+# check whether convert is invoked with 'magick convert' or just convert
+if not os.environ.get('MAGICK_PREFIX'):
+    try:
+        subprocess.call(['magick'], timeout=3, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        os.environ['MAGICK_PREFIX'] = 'magick '
+    except FileNotFoundError:
+        os.environ['MAGICK_PREFIX'] = ''
 
 # Initialize tensorflow for text cmd
 try:

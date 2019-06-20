@@ -169,7 +169,10 @@ class Bot(commands.Bot, Client):
 
         channel = context.channel
 
-        if isinstance(exception, commands.errors.BotMissingPermissions) or isinstance(exception, commands.errors.MissingPermissions):
+        if isinstance(exception, commands.errors.BotMissingPermissions) or \
+           isinstance(exception, commands.errors.MissingPermissions) or \
+           isinstance(exception, exceptions.MissingFeatures):
+
             if self._check_error_cd(context.message):
                 try:
                     return await channel.send(str(exception))
@@ -314,5 +317,20 @@ def has_permissions(**perms):
             return True
 
         raise commands.MissingPermissions(missing)
+
+    return commands.check(predicate)
+
+
+def guild_has_features(*features):
+    def predicate(ctx):
+        if not ctx.guild:
+            return
+
+        missing = [feature for feature in features if feature.upper() not in ctx.guild.features]
+
+        if not missing:
+            return True
+
+        raise exceptions.MissingFeatures(missing)
 
     return commands.check(predicate)

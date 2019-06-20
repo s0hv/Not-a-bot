@@ -1,25 +1,31 @@
 import asyncio
 import base64
 import logging
+import ntpath
 import os
+import random
 from datetime import datetime
 from math import ceil
 
 import discord
+from PIL import Image
 from discord.ext.commands import BucketType, bot_has_permissions
 from discord.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import command, has_permissions, cooldown, group
+from bot.bot import command, has_permissions, cooldown, group, \
+    guild_has_features
 from bot.converters import PossibleUser, GuildEmoji
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
+from utils.imagetools import resize_keep_aspect_ratio
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
                              basic_check, format_timedelta, DateAccuracy,
-                             create_custom_emoji, wait_for_yes)
+                             create_custom_emoji, wait_for_yes, get_image)
 
 logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class Server(Cog):
@@ -421,6 +427,87 @@ class Server(Cog):
         """
         p = os.path.join('data', 'templates', 'loading.gif')
         await ctx.send('Please wait. Server deletion in progress', file=discord.File(p, filename='loading.gif'))
+
+    @command(no_pm=True)
+    @cooldown(1, 15)
+    async def pls(self, ctx, image=None):
+        img = await get_image(ctx, image, True)
+
+        def do_it():
+            nonlocal img
+            w, h = (960, 540)
+
+            # According to docs LANCZOS is best for downsampling. In other cases use bicubic
+            resample = Image.LANCZOS if (img.width > w and img.height > h) else Image.BICUBIC
+            img = resize_keep_aspect_ratio(img, (w, h), crop_to_size=True,
+                                           center_cropped=True,
+                                           can_be_bigger=True,
+                                           resample=resample)
+
+            base_path = os.path.join('data', 'banners', str(ctx.guild.id))
+            os.makedirs(base_path, exist_ok=True)
+            filename = str(ctx.message.id) + '.png'
+            img.save(
+                os.path.join(base_path, filename),
+                'PNG'
+            )
+
+            return filename
+
+        try:
+            file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
+        except:
+            terminal.exception('Failed to save banner')
+            await ctx.send('Failed to save banner image')
+            return
+
+        await ctx.send(f'Saved banner image as {file}')
+
+    @command(no_pm=True, aliases=['brotate'])
+    @guild_has_features('BANNER')
+    @bot_has_permissions(manage_guild=True)
+    @cooldown(1, 3600, BucketType.guild)
+    async def banner_rotate(self, ctx, filename=None):
+        guild = ctx.guild
+        base_path = os.path.join('data', 'banners', str(guild.id))
+
+        if filename:
+            # Sanitize path to only the filename
+            filename = ntpath.basename(filename)
+
+        if not os.path.exists(base_path):
+            os.makedirs(base_path, exist_ok=True)
+
+        files = os.listdir(base_path)
+
+        if not filename:
+            if not files:
+                await ctx.send('No banner rotation images found for guild')
+                return
+
+            filename = random.choice(files)
+
+        if filename not in files:
+            await ctx.send(f'File {filename} not found')
+            return
+
+        data = bytes()
+        with open(os.path.join(base_path, filename), 'rb') as f:
+            while True:
+                bt = f.read(4096)
+                if not bt:
+                    break
+
+                data += bt
+
+        try:
+            await guild.edit(banner=data)
+        except (discord.HTTPException, discord.InvalidArgument) as e:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send(f'Failed to set banner because of an error\n{e}')
+            return
+
+        await ctx.send('♻')
 
 
 def setup(bot):

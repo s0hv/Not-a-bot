@@ -25,7 +25,7 @@ SOFTWARE.
 
 import logging
 
-from discord.ext.commands.errors import CommandError
+from discord.ext.commands.errors import CommandError, CheckFailure
 
 terminal = logging.getLogger('terminal')
 
@@ -159,3 +159,17 @@ class NoPokeFoundException(BotException):
 
 class NoCachedFileException(Exception):
     pass
+
+
+class MissingFeatures(CheckFailure):
+    def __init__(self, missing_features, *args):
+        self.missing_features = missing_features
+
+        missing = [feature.replace('_', ' ').replace('guild', 'server').upper() for feature in missing_features]
+
+        if len(missing) > 2:
+            fmt = '{}, and {}'.format(", ".join(missing[:-1]), missing[-1])
+        else:
+            fmt = ' and '.join(missing)
+        message = 'Guild is missing {} feature(s) to run this command.'.format(fmt)
+        super().__init__(message, *args)

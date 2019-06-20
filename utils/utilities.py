@@ -472,8 +472,8 @@ def get_emote_name_id(s):
     return None, None, None
 
 
-async def get_image(ctx, image):
-    img = await get_image_from_ctx(ctx, image)
+async def get_image(ctx, image, current_message_only=False):
+    img = await get_image_from_ctx(ctx, image, current_message_only)
     if img is None:
         if image is not None:
             await ctx.send(f'No image found from {image}')
@@ -549,10 +549,10 @@ def get_image_from_message(bot, message: discord.Message, content=None):
     return image
 
 
-async def get_image_from_ctx(ctx, message):
+async def get_image_from_ctx(ctx, message, current_message_only=False):
     image = get_image_from_message(ctx.bot, ctx.message, content=message)
     dbutil = ctx.bot.dbutil
-    if image is None or not isinstance(image, str):
+    if image is None or not isinstance(image, str) and not current_message_only:
         if isinstance(image, int):
             try:
                 msg = await ctx.channel.fetch_message(image)

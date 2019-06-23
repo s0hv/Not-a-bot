@@ -568,7 +568,7 @@ class Server(Cog):
             def do_it():
                 thumbs_path = os.path.join(base_path, 'thumbs')
                 os.makedirs(thumbs_path, exist_ok=True)
-                w, h = (2, 3)  # How many banners we have in one image
+                w, h = (3, 4)  # How many banners we have in one image
                 width = THUMB_SIZE[0]*w
                 images = []  # Images to be concatenated together
                 stack = []  # Concatenated images

@@ -687,7 +687,6 @@ class Server(Cog):
         try:
             await guild.edit(banner=data)
         except (discord.HTTPException, discord.InvalidArgument) as e:
-            ctx.command.reset_cooldown(ctx)
             await ctx.send(f'Failed to set banner because of an error\n{e}')
             return
 

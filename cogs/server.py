@@ -480,6 +480,51 @@ class Server(Cog):
 
         await ctx.send(f'Saved banner image as {file}')
 
+    @command(no_pm=True, aliases=['bremove'])
+    @cooldown(1, 5, BucketType.guild)
+    async def banner_remove(self, ctx, filename):
+        """Remove a banner from the rotation"""
+        guild = ctx.guild
+        base_path = os.path.join('data', 'banners', str(guild.id))
+        if not os.path.exists(base_path):
+            await ctx.send('No banners found for guild')
+            return
+
+        files = os.listdir(base_path)
+
+        # Sanitize path to only the filename
+        filename = ntpath.basename(filename)
+
+        if filename not in files:
+            await ctx.send(f'File {filename} not found')
+            return
+
+        file = os.path.join(base_path, filename)
+        thumb = os.path.join(base_path, 'thumbs', filename)
+
+        def do_it():
+            data = BytesIO()
+            im = Image.open(file)
+            im.save(data, 'PNG')
+            data.seek(0)
+
+            try:
+                os.remove(file)
+            except OSError:
+                pass
+
+            try:
+                os.remove(thumb)
+            except OSError:
+                pass
+
+            return data
+
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
+
+        await ctx.send(f'Deleted {filename}', file=discord.File(data, filename))
+
+
     @command(no_pm=True)
     @cooldown(1, 15, BucketType.guild)
     async def banners(self, ctx, filename=None):

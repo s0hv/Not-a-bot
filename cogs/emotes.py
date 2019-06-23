@@ -27,7 +27,7 @@ class Emotes(Cog):
         return global_emotes, local_emotes, animated_emotes
 
     @staticmethod
-    def _format_emotes(emotes, limit, type_=None, include_name=True, delim='\n', width=2):
+    def _format_emotes(emotes, limit, type_=None, include_name=True, delim='\n', width=3):
         e = f'{len(emotes)}/{limit} {type_} emotes\n' if type_ else ''
 
         for i, emote in enumerate(emotes):
@@ -54,7 +54,7 @@ class Emotes(Cog):
             global_emotes, local_emotes, animated_emotes = self.get_emotes(guild)
 
             if global_emotes:
-                s = 'Global emotes:\n' + self._format_emotes(global_emotes, emote_limit)
+                s = 'Global emotes:\n' + self._format_emotes(global_emotes, emote_limit, width=2)
             elif local_emotes:
                 s = 'Local emotes:\n' + self._format_emotes(local_emotes, emote_limit, 'local')
             elif animated_emotes:

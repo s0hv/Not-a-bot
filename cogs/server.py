@@ -522,7 +522,6 @@ class Server(Cog):
                 os.makedirs(thumbs_path, exist_ok=True)
                 w, h = (2, 3)  # How many banners we have in one image
                 width = THUMB_SIZE[0]*w
-                height = THUMB_SIZE[1]*h
                 images = []  # Images to be concatenated together
                 stack = []  # Concatenated images
                 curr_files = []  # Filenames for images in the images variable
@@ -548,7 +547,7 @@ class Server(Cog):
                     images.append(im)
                     if len(images) >= w:
                         stack.append(concatenate_images(
-                            images, width
+                            images, THUMB_SIZE[0]
                         ))
                         images.clear()
                         filenames.append(' '.join(curr_files))
@@ -556,7 +555,7 @@ class Server(Cog):
 
                     # Stack concatenated images when the limit is reached
                     if len(stack) >= h:
-                        stack_images(stack, height, width).save(data, 'PNG')
+                        stack_images(stack, THUMB_SIZE[1], width).save(data, 'PNG')
                         data.seek(0)
                         yield data, filenames
                         filenames = []
@@ -568,7 +567,7 @@ class Server(Cog):
                     filenames.append(' '.join(curr_files))
 
                 if stack:
-                    stack_images(stack, len(stack)*THUMB_SIZE[1], width).save(data, 'PNG')
+                    stack_images(stack, THUMB_SIZE[1], width).save(data, 'PNG')
                     data.seek(0)
                     yield data, filenames
 

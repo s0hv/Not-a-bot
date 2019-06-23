@@ -31,6 +31,7 @@ text.txt
 battletags.json
 data/servers.json
 data/images/
+data/banners/
 data/temp/
 __pycache__/
 data/pokefusion/sprPKMType_*

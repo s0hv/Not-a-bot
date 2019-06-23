@@ -725,3 +725,32 @@ def optimize_gif(gif_bytes):
     out, err = p.communicate()
     buff = BytesIO(out)
     return buff
+
+
+def concatenate_images(images, width=50):
+    max_width = width*len(images)
+    height = max(map(lambda i: i.height, images))
+
+    empty = Image.new('RGBA', (max_width, height), (0,0,0,0))
+
+    offset = 0
+    for im in images:
+        empty.paste(im, (offset, 0))
+        offset += width
+
+    return empty
+
+
+def stack_images(images, height=50, max_width: int=None):
+    max_height = height*len(images)
+    if not max_width:
+        max_width = max(map(lambda i: i.width, images))
+
+    empty = Image.new('RGBA', (max_width, max_height), (0,0,0,0))
+
+    offset = 0
+    for im in images:
+        empty.paste(im, (0, offset))
+        offset += height
+
+    return empty

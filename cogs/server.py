@@ -5,6 +5,7 @@ import ntpath
 import os
 import random
 from datetime import datetime
+from io import BytesIO
 from math import ceil
 
 import discord
@@ -19,13 +20,17 @@ from bot.converters import PossibleUser, GuildEmoji
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
-from utils.imagetools import resize_keep_aspect_ratio
+from utils.imagetools import resize_keep_aspect_ratio, stack_images, \
+    concatenate_images
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
                              basic_check, format_timedelta, DateAccuracy,
                              create_custom_emoji, wait_for_yes, get_image)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
+
+# Size of banner thumbnail
+THUMB_SIZE = (288, 162)
 
 
 class Server(Cog):
@@ -429,8 +434,9 @@ class Server(Cog):
         await ctx.send('Please wait. Server deletion in progress', file=discord.File(p, filename='loading.gif'))
 
     @command(no_pm=True)
-    @cooldown(1, 15)
+    @cooldown(1, 15, BucketType.guild)
     async def pls(self, ctx, image=None):
+        """Add an image to the server banner rotation"""
         img = await get_image(ctx, image, True)
 
         def do_it():
@@ -452,6 +458,17 @@ class Server(Cog):
                 'PNG'
             )
 
+            # Make thumbnails every banner for faster access when viewing multiple
+            # banners at once
+            base_path = os.path.join(base_path, 'thumbs')
+            os.makedirs(base_path, exist_ok=True)
+
+            img = img.resize(THUMB_SIZE, Image.LANCZOS)
+            img.save(
+                os.path.join(base_path, filename),
+                'PNG'
+            )
+
             return filename
 
         try:
@@ -463,22 +480,138 @@ class Server(Cog):
 
         await ctx.send(f'Saved banner image as {file}')
 
-    @command(no_pm=True, aliases=['brotate'])
-    @guild_has_features('BANNER')
-    @bot_has_permissions(manage_guild=True)
-    @cooldown(1, 3600, BucketType.guild)
-    async def banner_rotate(self, ctx, filename=None):
+    @command(no_pm=True)
+    @cooldown(1, 15, BucketType.guild)
+    async def banners(self, ctx, filename=None):
+        """
+        Show all banners in rotation for this server. If filename is specified
+        gives the full banner corresponding to that filename
+        """
         guild = ctx.guild
         base_path = os.path.join('data', 'banners', str(guild.id))
+        if not os.path.exists(base_path):
+            await ctx.send('No banners found for guild')
+            return
+
+        files = os.listdir(base_path)
 
         if filename:
             # Sanitize path to only the filename
             filename = ntpath.basename(filename)
 
+            if filename not in files:
+                await ctx.send(f'File {filename} not found')
+                return
+
+            def do_it():
+                data = BytesIO()
+                with open(os.path.join(base_path, filename), 'rb') as f:
+                    while True:
+                        bt = f.read(4096)
+                        if not bt:
+                            break
+
+                        data.write(bt)
+
+                data.seek(0)
+                yield data, (filename, )
+
+        else:
+            def do_it():
+                thumbs_path = os.path.join(base_path, 'thumbs')
+                os.makedirs(thumbs_path, exist_ok=True)
+                w, h = (2, 3)  # How many banners we have in one image
+                width = THUMB_SIZE[0]*w
+                height = THUMB_SIZE[1]*h
+                images = []  # Images to be concatenated together
+                stack = []  # Concatenated images
+                curr_files = []  # Filenames for images in the images variable
+                filenames = []  # Filenames for current stack
+                data = BytesIO()
+
+                (_, _, banners) = next(os.walk(base_path))
+
+                for banner in banners:
+                    curr_files.append(banner)
+                    thumb = os.path.join(thumbs_path, banner)
+
+                    # Create thumb if it doesn't exist
+                    if not os.path.exists(thumb):
+                        im = Image.open(os.path.join(base_path, banner))
+                        im = im.resize(THUMB_SIZE, Image.LANCZOS)
+                        im.save(thumb, 'PNG')
+                    else:
+                        im = Image.open(thumb)
+
+                    # Append thumb to list and concatenate them when the limit
+                    # is reached
+                    images.append(im)
+                    if len(images) >= w:
+                        stack.append(concatenate_images(
+                            images, width
+                        ))
+                        images.clear()
+                        filenames.append(' '.join(curr_files))
+                        curr_files.clear()
+
+                    # Stack concatenated images when the limit is reached
+                    if len(stack) >= h:
+                        stack_images(stack, height, width).save(data, 'PNG')
+                        data.seek(0)
+                        yield data, filenames
+                        filenames = []
+                        data = BytesIO()
+                        stack.clear()
+
+                if images:
+                    stack.extend(images)
+                    filenames.append(' '.join(curr_files))
+
+                if stack:
+                    stack_images(stack, len(stack)*THUMB_SIZE[1], width).save(data, 'PNG')
+                    data.seek(0)
+                    yield data, filenames
+
+        try:
+            for data, filenames in await self.bot.loop.run_in_executor(self.bot.threadpool, do_it):
+                filenames = '\n'.join(filenames)
+                await ctx.send(f'```\n{filenames}\n```', file=discord.File(data, 'banners.png'))
+        except:
+            terminal.exception('Failed to load banners')
+            await ctx.send('Failed to show banners')
+            return
+
+    @command(no_pm=True, aliases=['brotate'])
+    @guild_has_features('BANNER')
+    @bot_has_permissions(manage_guild=True)
+    @cooldown(1, 1800, BucketType.guild)
+    async def banner_rotate(self, ctx, filename=None):
+        """Change server banner to one of the banners saved for the server"""
+        guild = ctx.guild
+        base_path = os.path.join('data', 'banners', str(guild.id))
         if not os.path.exists(base_path):
             os.makedirs(base_path, exist_ok=True)
 
         files = os.listdir(base_path)
+
+        if filename:
+            # Sanitize path to only the filename
+            filename = ntpath.basename(filename)
+
+            if filename not in files:
+                await ctx.send(f'File {filename} not found')
+                return
+
+        old_banner = await self.bot.dbutil.last_banner(guild.id)
+
+        try:
+            files.remove(old_banner)
+        except ValueError:
+            pass
+        else:
+            if not files:
+                await ctx.send('Server only has one banner to select from')
+                return
 
         if not filename:
             if not files:
@@ -507,6 +640,7 @@ class Server(Cog):
             await ctx.send(f'Failed to set banner because of an error\n{e}')
             return
 
+        await self.bot.dbutil.set_last_banner(guild.id, filename)
         await ctx.send('♻')
 
 

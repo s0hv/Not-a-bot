@@ -121,22 +121,32 @@ create table guilds
   guild             bigint not null,
   mute_role         bigint,
   modlog            bigint,
+
   on_delete_channel bigint,
   on_edit_channel   bigint,
+
   keeproles         boolean  default false,
+
   on_join_channel   bigint,
   on_leave_channel  bigint,
   on_join_message   text,
   on_leave_message  text,
+
   color_on_join     boolean  default false,
+
   on_edit_message   text,
   on_delete_message text,
+
   automute          boolean  default false,
   automute_limit    smallint default 10,
   automute_time     interval,
+
   on_delete_embed   boolean  default false,
   on_edit_embed     boolean  default false,
+
   dailygachi        bigint,
+
+  last_banner TEXT DEFAULT NULL,
   constraint idx_27194_primary
     primary key (guild)
 );

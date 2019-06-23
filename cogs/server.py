@@ -488,6 +488,7 @@ class Server(Cog):
         base_path = os.path.join('data', 'banners', str(guild.id))
         if not os.path.exists(base_path):
             await ctx.send('No banners found for guild')
+            ctx.command.reset_cooldown(ctx)
             return
 
         files = os.listdir(base_path)
@@ -497,6 +498,7 @@ class Server(Cog):
 
         if filename not in files:
             await ctx.send(f'File {filename} not found')
+            ctx.command.reset_cooldown(ctx)
             return
 
         file = os.path.join(base_path, filename)
@@ -524,7 +526,6 @@ class Server(Cog):
 
         await ctx.send(f'Deleted {filename}', file=discord.File(data, filename))
 
-
     @command(no_pm=True)
     @cooldown(1, 15, BucketType.guild)
     async def banners(self, ctx, filename=None):
@@ -536,6 +537,7 @@ class Server(Cog):
         base_path = os.path.join('data', 'banners', str(guild.id))
         if not os.path.exists(base_path):
             await ctx.send('No banners found for guild')
+            ctx.command.reset_cooldown(ctx)
             return
 
         files = os.listdir(base_path)
@@ -546,6 +548,7 @@ class Server(Cog):
 
             if filename not in files:
                 await ctx.send(f'File {filename} not found')
+                ctx.command.reset_cooldown(ctx)
                 return
 
             def do_it():
@@ -644,6 +647,7 @@ class Server(Cog):
 
             if filename not in files:
                 await ctx.send(f'File {filename} not found')
+                ctx.command.reset_cooldown(ctx)
                 return
 
         old_banner = await self.bot.dbutil.last_banner(guild.id)
@@ -655,17 +659,20 @@ class Server(Cog):
         else:
             if not files:
                 await ctx.send('Server only has one banner to select from')
+                ctx.command.reset_cooldown(ctx)
                 return
 
         if not filename:
             if not files:
                 await ctx.send('No banner rotation images found for guild')
+                ctx.command.reset_cooldown(ctx)
                 return
 
             filename = random.choice(files)
 
         if filename not in files:
             await ctx.send(f'File {filename} not found')
+            ctx.command.reset_cooldown(ctx)
             return
 
         data = bytes()

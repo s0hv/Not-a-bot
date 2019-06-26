@@ -209,6 +209,10 @@ class Bot(commands.Bot, Client):
                     pass
             return
 
+        # Ignore exception logging when message is set as empty
+        elif error_msg == '':
+            return
+
         terminal.warning('Ignoring exception in command {}'.format(context.command))
         terminal.exception('', exc_info=exception)
 

@@ -611,7 +611,7 @@ class Server(Cog):
                         stack.clear()
 
                 if images:
-                    stack.extend(images)
+                    stack.append(concatenate_images(images, THUMB_SIZE[0]))
                     filenames.append(' '.join(curr_files))
 
                 if stack:

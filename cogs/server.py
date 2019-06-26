@@ -483,6 +483,7 @@ class Server(Cog):
 
     @command(no_pm=True, aliases=['bremove'])
     @cooldown(1, 5, BucketType.guild)
+    @has_permissions(manage_guild=True)
     async def banner_remove(self, ctx, filename):
         """Remove a banner from the rotation"""
         guild = ctx.guild

@@ -542,13 +542,13 @@ class Server(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        files = os.listdir(base_path)
+        (_, _, banners) = next(os.walk(base_path))
 
         if filename:
             # Sanitize path to only the filename
             filename = ntpath.basename(filename)
 
-            if filename not in files:
+            if filename not in banners:
                 await ctx.send(f'File {filename} not found')
                 ctx.command.reset_cooldown(ctx)
                 return
@@ -577,8 +577,6 @@ class Server(Cog):
                 curr_files = []  # Filenames for images in the images variable
                 filenames = []  # Filenames for current stack
                 data = BytesIO()
-
-                (_, _, banners) = next(os.walk(base_path))
 
                 for banner in banners:
                     curr_files.append(banner)
@@ -641,7 +639,7 @@ class Server(Cog):
         if not os.path.exists(base_path):
             os.makedirs(base_path, exist_ok=True)
 
-        files = os.listdir(base_path)
+        (_, _, files) = next(os.walk(base_path))
 
         if filename:
             # Sanitize path to only the filename

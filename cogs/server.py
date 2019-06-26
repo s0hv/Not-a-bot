@@ -435,6 +435,7 @@ class Server(Cog):
 
     @command(no_pm=True)
     @cooldown(1, 15, BucketType.guild)
+    @has_permissions(manage_guild=True)
     async def pls(self, ctx, image=None):
         """Add an image to the server banner rotation"""
         img = await get_image(ctx, image, True)

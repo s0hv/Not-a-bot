@@ -314,7 +314,7 @@ class VoteManager(Cog):
 
     async def load_polls(self):
         sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, polls.giveaway, emotes.emote ' \
-              'FROM polls LEFT OUTER JOIN "pollEmotes" pe ON polls.message = pe.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pe.emote_id'
+              'FROM polls LEFT OUTER JOIN pollemotes pe ON polls.message = pe.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pe.emote_id'
         poll_rows = await self.bot.dbutil.fetch(sql)
         polls = {}
         for row in poll_rows:
@@ -621,7 +621,7 @@ class VoteManager(Cog):
                         sql += ' ON CONFLICT (emote) DO UPDATE SET name=EXCLUDED.name'
                         await conn.executemany(sql, values)
 
-                        sql = 'INSERT INTO "pollEmotes" (poll_id, emote_id) VALUES ($1, $2) ON CONFLICT DO NOTHING '
+                        sql = 'INSERT INTO pollemotes (poll_id, emote_id) VALUES ($1, $2) ON CONFLICT DO NOTHING '
                         values = []
                         for id in emotes_list:
                             values.append((msg.id, str(id)))

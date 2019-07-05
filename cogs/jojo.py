@@ -36,12 +36,12 @@ import discord
 import numpy as np
 from PIL import Image, ImageFont
 from colour import Color
-from discord.ext.commands import BucketType, bot_has_permissions
+from discord.ext.commands import BucketType
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon, Circle
 from numpy import pi, random
 
-from bot.bot import command, cooldown
+from bot.bot import command, cooldown, bot_has_permissions
 from cogs.cog import Cog
 from utils.imagetools import (create_shadow, create_text,
                               create_geopattern_background, shift_color,

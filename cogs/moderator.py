@@ -8,9 +8,10 @@ from typing import Union
 
 import discord
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import (BucketType, bot_has_permissions)
+from discord.ext.commands import BucketType
 
-from bot.bot import command, group, has_permissions, cooldown
+from bot.bot import command, group, has_permissions, cooldown, \
+    bot_has_permissions
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
 from bot.formatter import Paginator
 from bot.globals import DATA

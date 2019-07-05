@@ -3,9 +3,9 @@ from datetime import datetime
 
 import discord
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import BucketType, bot_has_permissions
+from discord.ext.commands import BucketType
 
-from bot.bot import command, cooldown
+from bot.bot import command, cooldown, bot_has_permissions
 from bot.converters import AnyUser, CommandConverter
 from cogs.cog import Cog
 from utils.utilities import send_paged_message, format_timedelta

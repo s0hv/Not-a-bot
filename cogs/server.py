@@ -10,18 +10,18 @@ from math import ceil
 
 import discord
 from PIL import Image
-from discord.ext.commands import BucketType, bot_has_permissions
+from discord.ext.commands import BucketType
 from discord.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import command, has_permissions, cooldown, group, \
-    guild_has_features
+from bot.bot import (command, has_permissions, cooldown, group,
+                     guild_has_features, bot_has_permissions)
 from bot.converters import PossibleUser, GuildEmoji
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
-from utils.imagetools import resize_keep_aspect_ratio, stack_images, \
-    concatenate_images
+from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
+                              concatenate_images)
 from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
                              basic_check, format_timedelta, DateAccuracy,
                              create_custom_emoji, wait_for_yes, get_image)

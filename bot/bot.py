@@ -59,6 +59,8 @@ __all__ = [
     'cooldown',
     'Context',
     'has_permissions',
+    'bot_has_permissions',
+    'guild_has_features',
     'Bot'
 ]
 
@@ -321,6 +323,36 @@ def has_permissions(**perms):
             return True
 
         raise commands.MissingPermissions(missing)
+
+    return commands.check(predicate)
+
+
+def bot_has_permissions(**perms):
+    """Similar to :func:`.has_permissions` except checks if the bot itself has
+    the permissions listed.
+
+    This check raises a special exception, :exc:`.BotMissingPermissions`
+    that is inherited from :exc:`.CheckFailure`.
+    """
+    def predicate(ctx):
+        guild = ctx.guild
+        me = guild.me if guild is not None else ctx.bot.user
+        permissions = ctx.channel.permissions_for(me)
+
+        # Special case for when manage roles is requested
+        # This is needed because the default implementation thinks that
+        # manage_channel_perms == manage_roles which can create false negatives
+        # Assumes ctx.author is instance of discord.Member
+        if 'manage_roles' in perms:
+            # Set manage roles based on server wide value
+            permissions.manage_roles = ctx.author.guild_permissions.manage_roles
+
+        missing = [perm for perm, value in perms.items() if getattr(permissions, perm, None) != value]
+
+        if not missing:
+            return True
+
+        raise commands.BotMissingPermissions(missing)
 
     return commands.check(predicate)
 

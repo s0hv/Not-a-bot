@@ -8,9 +8,9 @@ from datetime import datetime
 import discord
 import numpy
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import bot_has_permissions, BucketType
+from discord.ext.commands import BucketType
 
-from bot.bot import command, has_permissions, cooldown
+from bot.bot import command, has_permissions, cooldown, bot_has_permissions
 from cogs.cog import Cog
 from utils.utilities import (get_emote_name_id, parse_time, get_avatar)
 

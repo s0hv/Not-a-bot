@@ -12,11 +12,11 @@ import emoji
 from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError
 from discord.errors import HTTPException
-from discord.ext.commands import (BucketType, check, bot_has_permissions)
+from discord.ext.commands import (BucketType, check)
 from numpy import sqrt
 from numpy.random import choice
 
-from bot.bot import command, has_permissions, cooldown
+from bot.bot import command, has_permissions, cooldown, bot_has_permissions
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, call_later,

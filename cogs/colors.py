@@ -17,11 +17,11 @@ from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from discord.errors import InvalidArgument
 from discord.ext import commands
-from discord.ext.commands import (BucketType, bot_has_permissions, BadArgument,
-                                  clean_content)
+from discord.ext.commands import (BucketType, BadArgument, clean_content)
 from numpy.random import choice
 
-from bot.bot import command, has_permissions, cooldown, group
+from bot.bot import command, has_permissions, cooldown, group, \
+    bot_has_permissions
 from bot.globals import WORKING_DIR
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,

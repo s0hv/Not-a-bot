@@ -17,11 +17,10 @@ import psutil
 import pytz
 from asyncpg.exceptions import PostgresError
 from dateutil import parser
-from discord.ext.commands import (BucketType, bot_has_permissions, Group,
-                                  clean_content)
+from discord.ext.commands import (BucketType, Group, clean_content)
 from discord.ext.commands.errors import BadArgument
 
-from bot.bot import command, cooldown
+from bot.bot import command, cooldown, bot_has_permissions
 from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
 from utils.tzinfo import fuzzy_tz, tz_dict

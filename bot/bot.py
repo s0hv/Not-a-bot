@@ -343,9 +343,9 @@ def bot_has_permissions(**perms):
         # This is needed because the default implementation thinks that
         # manage_channel_perms == manage_roles which can create false negatives
         # Assumes ctx.author is instance of discord.Member
-        if 'manage_roles' in perms:
+        if guild and 'manage_roles' in perms:
             # Set manage roles based on server wide value
-            permissions.manage_roles = ctx.author.guild_permissions.manage_roles
+            permissions.manage_roles = me.guild_permissions.manage_roles
 
         missing = [perm for perm, value in perms.items() if getattr(permissions, perm, None) != value]
 

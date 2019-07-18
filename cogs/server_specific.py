@@ -17,7 +17,6 @@ from numpy import sqrt
 from numpy.random import choice
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
-from bot.commands import CooldownMapping, commands
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, call_later,
@@ -94,7 +93,7 @@ class ServerSpecific(Cog):
         self.grant_whitelist = grant_whitelist
         self.redis = self.bot.redis
         self._zetas = {}
-        self._redis_cooldown = CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.default))
+        self._redis_fails = 0
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
@@ -702,10 +701,8 @@ class ServerSpecific(Cog):
         try:
             value = await self.redis.get(key)
         except ConnectionClosedError:
-            if self._redis_cooldown.valid:
-                bucket = self._redis_cooldown.get_bucket(message)
-                retry_after = bucket.update_rate_limit()
-                if retry_after:
+            self._redis_fails += 1
+            if self._redis_fails > 1:
                     self.bot.redis = None
                     self.redis = None
                     await self.bot.get_channel(252872751319089153).send('Manual redis restart required')
@@ -721,6 +718,8 @@ class ServerSpecific(Cog):
             self.bot.redis = redis
             del old
             return
+
+        self._redis_fails = 0
 
         if value:
             score, repeats, last_msg = value.split(':', 2)

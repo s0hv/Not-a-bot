@@ -765,7 +765,7 @@ class DatabaseUtils:
         sql = f'SELECT last_banner FROM guilds WHERE guild={guild_id}'
 
         try:
-            return self.fetch(sql, fetchmany=False)
+            return await self.fetch(sql, fetchmany=False)
         except PostgresError:
             logger.exception('Failed to get last banner')
             return None
@@ -774,7 +774,7 @@ class DatabaseUtils:
         sql = f'UPDATE guilds SET last_banner=$1 WHERE guild={guild_id}'
 
         try:
-            return self.execute(sql, (banner, ))
+            return await self.execute(sql, (banner, ))
         except PostgresError:
             logger.exception('Failed to set last banner')
             return None

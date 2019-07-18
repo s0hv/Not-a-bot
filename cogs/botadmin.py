@@ -630,6 +630,24 @@ class BotAdmin(Cog):
 
         await ctx.send(f'Reconnected to db in {t:.0f}ms')
 
+    @command()
+    async def reload_redis(self, ctx):
+        import aioredis
+        redis = await aioredis.create_redis(
+            (self.bot.config.db_host, self.bot.config.redis_port),
+            password=self.bot.config.redis_auth,
+            loop=self.bot.loop, encoding='utf-8')
+
+        old = self.bot.redis
+        self.bot.redis = redis
+        del old
+
+        cog = self.bot.get_cog('ServerSpecific')
+        if cog:
+            cog.redis = self.bot.redis
+
+        await ctx.send('Reloaded redis')
+
     def remove_call(self, _, msg_id):
         self.bot.call_laters.pop(msg_id, None)
 

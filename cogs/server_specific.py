@@ -17,6 +17,7 @@ from numpy import sqrt
 from numpy.random import choice
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
+from bot.commands import CooldownMapping, commands
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, call_later,
@@ -93,6 +94,7 @@ class ServerSpecific(Cog):
         self.grant_whitelist = grant_whitelist
         self.redis = self.bot.redis
         self._zetas = {}
+        self._redis_cooldown = CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.default))
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
@@ -651,7 +653,7 @@ class ServerSpecific(Cog):
 
     @Cog.listener()
     async def on_message(self, message):
-        if not self.bot.antispam:
+        if not self.bot.antispam or not self.redis:
             return
 
         guild = message.guild
@@ -700,6 +702,15 @@ class ServerSpecific(Cog):
         try:
             value = await self.redis.get(key)
         except ConnectionClosedError:
+            if self._redis_cooldown.valid:
+                bucket = self._redis_cooldown.get_bucket(message)
+                retry_after = bucket.update_rate_limit()
+                if retry_after:
+                    self.bot.redis = None
+                    self.redis = None
+                    await self.bot.get_channel(252872751319089153).send('Manual redis restart required')
+                    return
+
             import aioredis
             terminal.exception('Connection closed. Reconnecting')
             redis = await aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),

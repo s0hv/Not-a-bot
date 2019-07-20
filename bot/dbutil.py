@@ -513,7 +513,8 @@ class DatabaseUtils:
     async def increment_mute_roll(self, guild: int, user: int, win: bool):
         if win:
             sql = 'INSERT INTO mute_roll_stats AS m (guild, uid, wins, current_streak, biggest_streak) VALUES ($1, $2, 1, 1, 1)' \
-                  ' ON CONFLICT (guild, uid) DO UPDATE SET wins=m.wins + 1, games=m.games + 1, current_streak=m.current_streak + 1, biggest_streak=GREATEST(m.current_streak, m.biggest_streak)'
+                  ' ON CONFLICT (guild, uid) DO UPDATE SET wins=m.wins + 1, games=m.games + 1, ' \
+                  'current_streak=m.current_streak + 1, biggest_streak=GREATEST(m.current_streak + 1, m.biggest_streak)'
         else:
             sql = 'INSERT INTO mute_roll_stats AS m (guild, uid) VALUES ($1, $2)' \
                   ' ON CONFLICT (guild, uid) DO UPDATE SET games=m.games+1, current_streak=0'

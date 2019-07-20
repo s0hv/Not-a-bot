@@ -682,22 +682,10 @@ class Moderator(Cog):
         return await self.bot.dbutil.edit_timeout_log(ctx.guild.id, user_id, ctx.author.id,
                                                       reason, embed)
 
-    @group(aliases=['tlogs'], invoke_without_command=True)
-    @bot_has_permissions(embed_links=True)
-    @cooldown(1, 6, BucketType.user)
-    async def timeout_logs(self, ctx, *, user: discord.User=None):
-        user = user or ctx.author
-        rows = await self.bot.dbutil.get_timeout_logs(ctx.guild.id, user.id)
-        if rows is False:
-            return await ctx.send(f'Failed to get timeout logs for user {user}')
-
-        if not rows:
-            return await ctx.send(f'No timeouts for {user}')
-
-        paginator = Paginator(title=f'Timeouts for {user}', init_page=False)
+    def format_tlog_message(self, rows, title, fmt):
+        paginator = Paginator(title=title, init_page=False)
 
         description = ''
-        s_format = '`{id}` {time} ago {duration} by {author} for the reason "{reason}"\n'
         for row in rows:
             time = format_timedelta(datetime.utcnow() - row['time'], DateAccuracy.Day)
             if row['duration']:
@@ -706,13 +694,32 @@ class Moderator(Cog):
             else:
                 duration = 'permanently'
             author = self.bot.get_user(row['author'])
-            description += s_format.format(time=time, author=author or row['author'],
+            description += fmt.format(time=time, author=author or row['author'],
                                            reason=row['reason'], duration=duration,
-                                           id=row['id'])
+                                           id=row['id'], uid=row['uid'])
 
         paginator.add_page(description=description, paginate_description=True)
         paginator.finalize()
-        pages = paginator.pages
+        return paginator.pages
+
+    @group(aliases=['tlogs'], invoke_without_command=True)
+    @bot_has_permissions(embed_links=True)
+    @cooldown(1, 6, BucketType.user)
+    async def timeout_logs(self, ctx, *, user: PossibleUser=None):
+        """
+        Show timeouts for the specified user
+        Use `{prefix}{name} by` to see timeouts done by a specific user
+        """
+        user = user or ctx.author
+        rows = await self.bot.dbutil.get_timeout_logs(ctx.guild.id, user.id)
+        if rows is False:
+            return await ctx.send(f'Failed to get timeout logs for user {user}')
+
+        if not rows:
+            return await ctx.send(f'No timeouts for {user}')
+
+        pages = self.format_tlog_message(rows, f'Timeouts for {user}',
+                                         '`{id}` {time} ago {duration} by {author} for the reason "{reason}"\n')
 
         await send_paged_message(ctx, pages, embed=True)
 
@@ -725,6 +732,10 @@ class Moderator(Cog):
         the left side before all the other info.
         If you're a server admin you can delete logs from any user in your guild
         """
+        if not ids:
+            await ctx.send('No ids given')
+            return
+
         author = ctx.author
         is_admin = author.guild_permissions.administrator
         ids = ', '.join([str(i) for i in ids])
@@ -743,6 +754,23 @@ class Moderator(Cog):
             return
 
         await ctx.send(f'Successfully deleted {rows} tlog entries')
+
+    @timeout_logs.command(name='by', aliases=['from'])
+    @cooldown(1, 5, BucketType.user)
+    async def tlogs_by(self, ctx, *, user: PossibleUser=None):
+        """Shows timeouts done by the specified user"""
+        user = user or ctx.author
+        rows = await self.bot.dbutil.get_timeout_logs_by(ctx.guild.id, user.id)
+        if rows is False:
+            return await ctx.send(f'Failed to get timeout logs by user {user}')
+
+        if not rows:
+            return await ctx.send(f'No timeouts by {user}')
+
+        pages = self.format_tlog_message(rows, f'Timeouts by {user}',
+                                         '`{id}` <@{uid}> {time} ago {duration} for the reason "{reason}"\n')
+
+        await send_paged_message(ctx, pages, embed=True)
 
     @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)

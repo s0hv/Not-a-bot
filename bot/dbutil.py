@@ -721,13 +721,25 @@ class DatabaseUtils:
         return row
 
     async def get_timeout_logs(self, guild_id: int, user_id: int):
-        sql = 'SELECT author, reason, time, duration, id FROM timeout_logs WHERE ' \
+        sql = 'SELECT author, uid, reason, time, duration, id FROM timeout_logs WHERE ' \
               'guild=%s AND uid=%s AND show_in_logs=TRUE ORDER BY id DESC' % (guild_id, user_id)
 
         try:
             rows = await self.fetch(sql)
         except PostgresError:
             logger.exception('Failed to get timeout logs')
+            return False
+
+        return rows
+
+    async def get_timeout_logs_by(self, guild_id: int, author_id: int):
+        sql = 'SELECT uid, author, reason, time, duration, id FROM timeout_logs WHERE ' \
+              'guild=%s AND author=%s AND show_in_logs=TRUE ORDER BY id DESC' % (guild_id, author_id)
+
+        try:
+            rows = await self.fetch(sql)
+        except PostgresError:
+            logger.exception('Failed to get timeout logss by user')
             return False
 
         return rows

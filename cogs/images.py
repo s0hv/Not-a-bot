@@ -988,6 +988,30 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='v.png'))
 
+    @command()
+    @cooldown(2, 5, BucketType.guild)
+    async def chrollo(self, ctx, image=None):
+        img = await get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'chrollo.png'))
+            img = img.convert('RGBA')
+            size = (1280, 720)
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                           resample=Image.BICUBIC,
+                                           crop_to_size=True,
+                                           center_cropped=True)
+
+            template.alpha_composite(img, (0, 719))
+            return self.save_image(template)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='chrollo.png'))
+
     @command(aliases=['cj'])
     @cooldown(2, 5, BucketType.guild)
     async def ah_shit(self, ctx, stretch: Optional[bool]=True, image=None):
@@ -1017,6 +1041,40 @@ class Images(Cog):
         async with ctx.typing():
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='ah_shit.png'))
+
+    @command()
+    @cooldown(2, 5, BucketType.guild)
+    async def secco(self, ctx, image=None):
+        img = await get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'secco.png'))
+            bg = Image.new('RGBA', template.size, 'white')
+            img = img.convert('RGBA')
+            img = resize_keep_aspect_ratio(img, (250, 350), can_be_bigger=True,
+                                           resample=Image.BICUBIC,
+                                           crop_to_size=True,
+                                           center_cropped=True)
+            width, height = (409, 235)
+            w, h = img.size
+
+            coeffs = find_coeffs(
+                [(0, 20), (223, 0), (width, 185), (207, height)],
+                [(0, 0), (w, 0), (w, h), (0, h)])
+
+            img = img.transform((width, height), Image.PERSPECTIVE, coeffs,
+                                Image.BICUBIC)
+
+            bg.alpha_composite(img, (241, 251))
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='secco.png'))
 
     @command(aliases=['greatview'])
     @cooldown(2, 5, BucketType.guild)

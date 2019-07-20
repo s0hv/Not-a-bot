@@ -1154,6 +1154,12 @@ def format_on_delete(msg, message):
 
 # https://stackoverflow.com/a/14178717/6046713
 def find_coeffs(pa, pb):
+    """
+    Args:
+        pa: Coordinates of the created image edges rotating clockwise from
+            the top left corner
+        pb: Size of the image being transformed
+    """
     matrix = []
     for p1, p2 in zip(pa, pb):
         matrix.append([p1[0], p1[1], 1, 0, 0, 0, -p2[0]*p1[0], -p2[0]*p1[1]])

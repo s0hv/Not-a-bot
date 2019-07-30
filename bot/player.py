@@ -484,7 +484,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         if isinstance(after_input, str):
             args.extend(shlex.split(after_input))
 
-        args.extend(('-f', 's16le', '-ar', '48000', '-ac', '2', '-loglevel', 'error'))
+        args.extend(('-f', 's16le', '-ar', '48000', '-ac', '2', '-loglevel', 'panic'))
 
         if isinstance(options, str):
             args.extend(shlex.split(options))

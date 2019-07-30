@@ -34,7 +34,7 @@ terminal = logging.getLogger('terminal')
 
 
 opts = {
-    'format': 'bestaudio[abr<130]/bestaudio/best',
+    'format': 'bestaudio[abr<500]/bestaudio/best',
     'extractaudio': True,
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,

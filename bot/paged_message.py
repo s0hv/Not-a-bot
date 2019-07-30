@@ -32,13 +32,17 @@ class PagedMessage:
     def index(self):
         return self._idx
 
+    @property
+    def current_page(self):
+        return self._pages[self._idx]
+
     async def add_reactions(self, message):
         for e in (self._prev, self._next, self._stop, self._accept):
             if e:
                 await message.add_reaction(e)
 
     def check(self, reaction, user):
-        if reaction.emoji not in (self._prev, self._next, self._stop):
+        if reaction.emoji not in (self._prev, self._next, self._stop, self._accept):
             return False
         else:
             return True
@@ -69,6 +73,6 @@ class PagedMessage:
             return self.DELETE
 
         else:
-            return self.VALID
+            return Actions.VALID
 
         return page

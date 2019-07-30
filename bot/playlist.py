@@ -285,16 +285,17 @@ class Playlist:
             if entry is PagedMessage.INVALID:
                 continue
 
+            if entry is PagedMessage.DELETE:
+                await message.delete()
+                return
+
             if entry is PagedMessage.VALID:
                 if in_vc:
+                    entry = paged.current_page
                     await message.delete()
                     await self._add_url(get_url(entry), priority=priority,
                                         channel=channel, requested_by=ctx.author)
 
-                return
-
-            if entry is PagedMessage.DELETE:
-                await message.delete()
                 return
 
             try:

@@ -798,6 +798,10 @@ class Audio(commands.Cog):
                                                       url=song,
                                                       download=False,
                                                       on_error=on_error)
+            if not info:
+                await ctx.send('Nothing found or error')
+                return
+
             if 'entries' in info:
                 # Link was a playlist so we process it as one
                 entries = await Playlist.process_playlist(info, channel=ctx.channel)

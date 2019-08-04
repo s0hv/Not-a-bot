@@ -1319,11 +1319,50 @@ class Audio(commands.Cog):
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = seek_from_timestamp(sec)
-        options = self._parse_filters(current.options, 'atempo', value)
-        logger.debug('Filters parsed. Returned: {}'.format(options))
-        current.options = options
+        current.set_filter('atempo', value)
+        logger.debug('Filters parsed. Returned: {}'.format(current.options))
         musicplayer._speed_mod = v
-        await self._seek(musicplayer, current, seek, options=options, speed=v)
+        await self._seek(musicplayer, current, seek, options=current.options, speed=v)
+
+    @commands.cooldown(2, 5, BucketType.guild)
+    @command(no_pm=True, aliases=['cs', 'removesilence'])
+    async def cutsilence(self, ctx, is_enabled: bool):
+        """
+        Cut the silence at the end of audio
+        """
+
+        if not await self.check_voice(ctx):
+            return
+
+        musicplayer = await self.check_player(ctx)
+        if not musicplayer:
+            return
+
+        current = musicplayer.current
+
+        sec = musicplayer.duration
+        logger.debug('seeking with timestamp {}'.format(sec))
+        seek = seek_from_timestamp(sec)
+
+        if is_enabled:
+            value = '0:0:-50dB:1:5:-50dB'
+            if current:
+                current.set_filter('silenceremove', value)
+
+            musicplayer.cut_silence = value
+            s = 'Silence will be cut at the end of the song.\n' \
+                'Duration shows uncut length of the song but it might cut out before reaching end'
+        else:
+            if current:
+                current.remove_filter('silenceremove')
+
+            musicplayer.cut_silence = None
+            s = 'No more cutting silence at the end of the song'
+
+        logger.debug('Filters parsed. Returned: {}'.format(current.options))
+        await self._seek(musicplayer, current, seek, options=current.options)
+
+        await ctx.send(s)
 
     @commands.cooldown(1, 5, BucketType.guild)
     @command(no_pm=True)
@@ -1348,10 +1387,9 @@ class Audio(commands.Cog):
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = seek_from_timestamp(sec)
         value = 'g=%s' % value
-        options = self._parse_filters(current.options, 'bass', value)
-        logger.debug('Filters parsed. Returned: {}'.format(options))
-        current.options = options
-        await self._seek(musicplayer, current, seek, options=options)
+        current.set_filter('bass', value)
+        logger.debug('Filters parsed. Returned: {}'.format(current.options))
+        await self._seek(musicplayer, current, seek, options=current.options)
 
     @cooldown(1, 5, BucketType.guild)
     @command(no_pm=True)
@@ -1382,12 +1420,19 @@ class Audio(commands.Cog):
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = seek_from_timestamp(sec)
         if mode in ('left', 'right'):
-            mode = 'FL-FR' if mode == 'right' else 'FR-FL'
-            options = self._parse_filters(current.options, 'channelmap', 'map={}'.format(mode))
+            # https://trac.ffmpeg.org/wiki/AudioChannelManipulation
+            # For more info on channel manipulation with ffmpeg
+            mode = 'FR=FR|FR=FL' if mode == 'right' else 'FL=FL|FL=FR'
+            current.set_filter('pan', f'stereo|{mode}')
+
+        elif mode == 'off':
+            current.remove_filter('pan')
+            current.remove_filter('apulsator')
         else:
-            options = self._parse_filters(current.options, 'apulsator', 'mode={}'.format(mode), remove=(mode == 'off'))
-        current.options = options
-        await self._seek(musicplayer, current, seek, options=options)
+            current.set_filter('apulsator', f'mode={mode}')
+
+        logger.debug('Filters parsed. Returned: {}'.format(current.options))
+        await self._seek(musicplayer, current, seek, options=current.options)
 
     @group(no_pm=True, invoke_without_command=True)
     @cooldown(1, 4, type=BucketType.guild)

@@ -50,9 +50,9 @@ class PartialSong:
 class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
-                 'options', 'dl_folder', '_downloading', 'on_ready', 'volume',
+                 '_options', 'dl_folder', '_downloading', 'on_ready', 'volume',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live',
-                 'rms']
+                 'rms', 'filters', 'bitrate']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')
@@ -73,9 +73,13 @@ class Song:
         if '-nostdin' not in self.before_options:
             self.before_options = ' '.join(('-nostdin', self.before_options)).strip()
 
-        self.options = kwargs.pop('options', '')
-        if '-vn -b:a' not in self.options:
-            self.options = ' '.join((self.options, '-vn -b:a 128k -bufsize 256K')).strip()
+        self.bitrate = kwargs.pop('bitrate', 128)
+
+        self._options = kwargs.pop('options', '')
+        if '-vn -b:a' not in self._options:
+            self._options = ' '.join((self._options, '-vn -b:a {bitrate}k -bufsize {bitrate}K')).strip()
+
+        self.filters = kwargs.pop('filters', {})
 
         self.dl_folder = self.playlist.downloader.dl_folder if self.playlist else None
         self._downloading = False
@@ -89,6 +93,8 @@ class Song:
     def from_song(cls, song, **kwargs):
         s = Song(**{k: getattr(song, k, None) for k in song.__slots__})
         s.bpm = song.bpm
+        s.last_update = song.last_update
+        s.volume = song.volume
         for k in kwargs:
             if k in song.__slots__:
                 setattr(s, k, kwargs[k])
@@ -98,6 +104,25 @@ class Song:
     def __str__(self):
         string = '**{0.title}**'
         return string.format(self)
+
+    @property
+    def options(self):
+        fa = ''
+        if self.filters:
+            fa = ' -filter:a "' + ', '.join(
+                map(lambda kv: f'{kv[0]}={kv[1]}', self.filters.items())
+            ) + '"'
+
+        return self._options.format(bitrate=self.bitrate) + fa
+
+    def set_filter(self, filter_, value):
+        self.filters[filter_] = value
+
+    def remove_filter(self, filter_):
+        self.filters.pop(filter_, None)
+
+    def has_filter(self, filter_):
+        return filter_ in self.filters
 
     @property
     def long_str(self):
@@ -120,7 +145,8 @@ class Song:
         self.default_duration = self.duration
         self.uploader = kwargs.get('uploader', self.uploader)
         self.before_options = kwargs.get('before_options', self.before_options)
-        self.options = kwargs.get('options', self.options)
+        self._options = kwargs.get('options', self._options)
+        self.filters = kwargs.get('filters', self.filters)
         self.is_live = kwargs.pop('is_live', True)
 
         if 'url' in kwargs:

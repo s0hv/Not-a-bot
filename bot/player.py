@@ -73,6 +73,7 @@ class MusicPlayer:
         self._speed_mod = 1
         self._skip_votes = set()
         self._stop_votes = TimedSet(loop=self.bot.loop)
+        self.cut_silence = None
 
     def __del__(self):
         self.close_tasks()
@@ -312,6 +313,12 @@ class MusicPlayer:
                 continue
 
             logger.debug(f'Opening file with the name "{file}" and options "{self.current.before_options}" "{self.current.options}"')
+            # Dynamically set bitrate based on channel bitrate
+            self.current.bitrate = max(self.voice.channel.bitrate//1000, 128)
+
+            if self.cut_silence:
+                self.current.set_filter('silenceremove', self.cut_silence)
+
             source = FFmpegPCMAudio(file, before_options=self.current.before_options,
                                                  options=self.current.options)
             source = PCMVolumeTransformer(source, volume=self.volume)
@@ -620,7 +627,7 @@ class AudioPlayer(player.AudioPlayer):
     def _set_source(self, source, run_loops=None, speed=None):
         with self._lock:
             self.pause()
-            if run_loops:
+            if run_loops is not None:
                 self._run_loops = run_loops
 
             if speed:

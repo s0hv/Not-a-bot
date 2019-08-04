@@ -687,7 +687,7 @@ class BotAdmin(Cog):
         await ctx.send(f'Set the priority of {id} to {priority}')
 
     @command(name='todo')
-    async def list_todo(self, ctx, limit: int=3):
+    async def list_todo(self, ctx, limit: int=10):
         try:
             rows = await self.bot.dbutil.get_todo(limit)
         except PostgresError:

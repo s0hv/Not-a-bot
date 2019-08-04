@@ -502,7 +502,7 @@ class Utilities(Cog):
 
     @command(aliases=['tz'])
     @cooldown(2, 7)
-    async def timezone(self, ctx, timezone: str=None):
+    async def timezone(self, ctx, *, timezone: str=None):
         """
         Set or view your timezone. If timezone isn't given shows your current timezone
         If timezone is given sets your current timezone to that
@@ -518,6 +518,7 @@ class Utilities(Cog):
 
         if not tz:
             await ctx.send(f'Timezone {timezone} not found')
+            ctx.command.undo_use(ctx)
             return
 
         if await self.bot.dbutil.set_timezone(user.id, tz):

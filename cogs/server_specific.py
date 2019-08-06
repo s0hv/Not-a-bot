@@ -936,8 +936,8 @@ class ServerSpecific(Cog):
 
         desc = f"""
         Claimed by {claimer.mention}
-        Local ID: {random.randint(500, 3000)}
-        Global ID: {random.randint(2247321, 2847321)}
+        Local ID: {random.randint(2000, 5000)}
+        Global ID: {random.randint(17228389, 20228389)}
         Character ID: {character_id}
         Type: Zeta (ζ)
         

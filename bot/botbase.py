@@ -148,7 +148,7 @@ class BotBase(Bot):
             return True
 
         sql = 'SELECT auth_level FROM bot_staff WHERE uid=%s' % user_id
-        rows = await self.dbutil.fetch(sql)
+        rows = await self.dbutil.fetch(sql, fetchmany=False)
         if not rows:
             return False
 

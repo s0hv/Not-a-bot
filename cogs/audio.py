@@ -712,7 +712,7 @@ class Audio(commands.Cog):
     @command(no_pm=True, aliases=['play_p', 'pp'])
     @cooldown(1, 10, BucketType.user)
     async def play_playlist(self, ctx, user: Optional[discord.User], *, name):
-        """Queue a saved playlist"""
+        """Queue a saved playlist in random order"""
         musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
@@ -844,14 +844,25 @@ class Audio(commands.Cog):
     @command(no_pm=True, aliases=['atp'])
     @cooldown(1, 20, BucketType.user)
     async def add_to_playlist(self, ctx, playlist_name, *, song_links):
+        """
+        Adds songs to the given playlist.
+        If the keyword queue is given as in `{prefix}{name} queue` it will
+        add the current queue to the playlist. There is no limit to the max added
+        songs with this method.
+
+        Otherwise you can give it links to songs or playlists and it'll add
+        those to the playlist. Max amount of songs added this way is 30
+        """
         songs = load_playlist(playlist_name, ctx.author.id)
         if songs is False:
             await ctx.send(f"Couldn't find playlist {playlist_name}")
+            ctx.command.reset_cooldown(ctx)
             return
 
         if song_links.lower().strip(' \n') == 'queue':
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
+                ctx.command.reset_cooldown(ctx)
                 await ctx.send('No songs currently in queue')
 
             new_songs = list(musicplayer.playlist.playlist)
@@ -905,11 +916,13 @@ class Audio(commands.Cog):
         try:
             msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=60)
         except asyncio.TimeoutError:
+            ctx.command.reset_cooldown(ctx)
             return await ctx.send('Took too long.')
 
         if msg.content.lower() == 'yes':
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
+                ctx.command.reset_cooldown(ctx)
                 await ctx.send('No songs currently in queue')
 
             songs = list(musicplayer.playlist.playlist)
@@ -941,10 +954,12 @@ class Audio(commands.Cog):
         user = user if user else ctx.author
         src = validate_playlist(name, user.id)
         if src is False:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send(f"Couldn't find playlist {name} of user {user}")
             return
 
         if not validate_playlist_name(new_name):
+            ctx.command.reset_cooldown(ctx)
             return await ctx.send(f"{new_name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
 
         dst = os.path.join(PLAYLISTS, str(user.id))
@@ -953,6 +968,7 @@ class Audio(commands.Cog):
         dst = os.path.join(dst, new_name)
 
         if os.path.exists(dst):
+            ctx.command.reset_cooldown(ctx)
             await ctx.send(f'Filename {name} is already in use')
             return
 
@@ -960,7 +976,7 @@ class Audio(commands.Cog):
             shutil.copyfile(src, dst)
         except OSError:
             logger.exception('failed to copy playlist')
-            await ctx.send('Failed to copy playlist')
+            await ctx.send('Failed to copy playlist. Try again later')
             return
 
         await ctx.send(f'Successfully copied playlist {name} to {new_name}')
@@ -1156,6 +1172,7 @@ class Audio(commands.Cog):
         """
         src = validate_playlist(name, ctx.author.id)
         if not src:
+            ctx.command.reset_cooldown(ctx)
             await ctx.send(f"Couldn't find playlist with name {name}")
             return
 
@@ -1326,7 +1343,7 @@ class Audio(commands.Cog):
 
     @commands.cooldown(2, 5, BucketType.guild)
     @command(no_pm=True, aliases=['cs', 'removesilence'])
-    async def cutsilence(self, ctx, is_enabled: bool):
+    async def cutsilence(self, ctx, is_enabled: bool=None):
         """
         Cut the silence at the end of audio
         """
@@ -1344,19 +1361,22 @@ class Audio(commands.Cog):
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = seek_from_timestamp(sec)
 
+        if is_enabled is None:
+            is_enabled = musicplayer.persistent_filters.get('silenceremove') is None
+
         if is_enabled:
             value = '0:0:-50dB:1:5:-50dB'
             if current:
                 current.set_filter('silenceremove', value)
 
-            musicplayer.cut_silence = value
-            s = 'Silence will be cut at the end of the song.\n' \
-                'Duration shows uncut length of the song but it might cut out before reaching end'
+            musicplayer.persistent_filters['silenceremove'] = value
+            s = 'Silence will be now cut at the end of the song.\n' \
+                'Duration shows uncut length of the song so it might cut out before reaching the specified end'
         else:
             if current:
                 current.remove_filter('silenceremove')
 
-            musicplayer.cut_silence = None
+            musicplayer.persistent_filters.pop('silenceremove', None)
             s = 'No more cutting silence at the end of the song'
 
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
@@ -1364,10 +1384,37 @@ class Audio(commands.Cog):
 
         await ctx.send(s)
 
+    @command(no_pm=True, name='filter')
+    @commands.is_owner()
+    async def custom_filter(self, ctx, name, *, value=None):
+        """Set custom filter and value. owner only"""
+        if not await self.check_voice(ctx):
+            return
+
+        musicplayer = await self.check_player(ctx)
+        if not musicplayer:
+            return
+
+        current = musicplayer.current
+        if current is None:
+            return await ctx.send('Not playing anything right now', delete_after=20)
+
+        sec = musicplayer.duration
+        logger.debug('seeking with timestamp {}'.format(sec))
+        seek = seek_from_timestamp(sec)
+
+        if value:
+            current.set_filter(name, value)
+        else:
+            current.remove_filter(name)
+
+        logger.debug('Filters parsed. Returned: {}'.format(current.options))
+        await self._seek(musicplayer, current, seek, options=current.options)
+
     @commands.cooldown(1, 5, BucketType.guild)
     @command(no_pm=True)
     async def bass(self, ctx, value: int):
-        """Add bass boost or decrease to a song.
+        """Add or decrease the amount of bass boost. Value will persists for every song until set back to 0
         Value can range between -60 and 60"""
         if not (-60 <= value <= 60):
             return await ctx.send('Value must be between -60 and 60', delete_after=20)
@@ -1386,8 +1433,15 @@ class Audio(commands.Cog):
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
         seek = seek_from_timestamp(sec)
-        value = 'g=%s' % value
-        current.set_filter('bass', value)
+
+        if value:
+            value = 'g=%s' % value
+            current.set_filter('bass', value)
+            musicplayer.persistent_filters['bass'] = value
+        else:
+            current.remove_filter('bass')
+            musicplayer.persistent_filters.pop('bass', None)
+
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)
 
@@ -1396,9 +1450,10 @@ class Audio(commands.Cog):
     async def stereo(self, ctx, mode='sine'):
         """Works almost the same way {prefix}play does
         Default stereo type is sine.
-        All available modes are `sine`, `triangle`, `square`, `sawup`, `sawdown`, `left`, `right`, `off`
-        To set a different mode start your command parameters with -mode song_name
-        e.g. `{prefix}{name} -square stereo cancer music` would use the square mode
+        All available modes are `sine`, `triangle`, `square`, `sawup`, `sawdown`, `left`, `right`, `off`, `none`
+        left and right work independently of the other modes so you can have both
+        on at the same time. e.g. calling `{prefix}{name} left` and `{prefix}{name} sine` after that
+        would make the sinewave effect only on the left channel.
         """
 
         if not await self.check_voice(ctx):
@@ -1411,9 +1466,11 @@ class Audio(commands.Cog):
         current = musicplayer.current
         if current is None:
             return await ctx.send('Not playing anything right now', delete_after=20)
+
         mode = mode.lower()
-        modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off', 'left', 'right')
+        modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off', 'left', 'right', 'none')
         if mode not in modes:
+            ctx.command.reset_cooldown(ctx)
             return await ctx.send('Incorrect mode specified')
 
         sec = musicplayer.duration
@@ -1422,10 +1479,10 @@ class Audio(commands.Cog):
         if mode in ('left', 'right'):
             # https://trac.ffmpeg.org/wiki/AudioChannelManipulation
             # For more info on channel manipulation with ffmpeg
-            mode = 'FR=FR|FR=FL' if mode == 'right' else 'FL=FL|FL=FR'
+            mode = 'FR=FR' if mode == 'right' else 'FL=FL'
             current.set_filter('pan', f'stereo|{mode}')
 
-        elif mode == 'off':
+        elif mode in ('off', 'none'):
             current.remove_filter('pan')
             current.remove_filter('apulsator')
         else:
@@ -2210,6 +2267,10 @@ class Audio(commands.Cog):
         """Puts a song to the queue to be deleted from autoplaylist"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not name:
+            if not musicplayer or not musicplayer.current:
+                await ctx.send('Nothing playing and no link given')
+                return
+
             name = [musicplayer.current.webpage_url]
 
             if name is None:

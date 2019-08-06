@@ -73,7 +73,7 @@ class MusicPlayer:
         self._speed_mod = 1
         self._skip_votes = set()
         self._stop_votes = TimedSet(loop=self.bot.loop)
-        self.cut_silence = None
+        self.persistent_filters = {}
 
     def __del__(self):
         self.close_tasks()
@@ -316,8 +316,8 @@ class MusicPlayer:
             # Dynamically set bitrate based on channel bitrate
             self.current.bitrate = max(self.voice.channel.bitrate//1000, 128)
 
-            if self.cut_silence:
-                self.current.set_filter('silenceremove', self.cut_silence)
+            for k, v in self.persistent_filters.items():
+                self.current.set_filter(k, v)
 
             source = FFmpegPCMAudio(file, before_options=self.current.before_options,
                                                  options=self.current.options)

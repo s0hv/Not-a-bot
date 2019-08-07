@@ -864,6 +864,7 @@ class Audio(commands.Cog):
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
                 ctx.command.reset_cooldown(ctx)
                 await ctx.send('No songs currently in queue')
+                return
 
             new_songs = list(musicplayer.playlist.playlist)
             if musicplayer.current:
@@ -899,6 +900,38 @@ class Audio(commands.Cog):
 
         s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
         await ctx.send(f'{s}\nAdded {added} songs')
+
+    @command(no_pm=True, aliases=['dp', 'drp'])
+    @cooldown(1, 5, BucketType.user)
+    async def delete_from_playlist(self, ctx, playlist_name, *song_links):
+        """Delete the given links from the playlist.
+        If no links are given will delete the currently playing song.
+        There is no limit to how many links can be deleted from a playlist at once
+        other than discords maximum character limit"""
+
+        songs = load_playlist(playlist_name, ctx.author.id)
+
+        if songs is False:
+            await ctx.send(f"Couldn't find playlist {playlist_name}")
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        if not song_links:
+            musicplayer = self.get_musicplayer(ctx.guild.id)
+            if not musicplayer or musicplayer.player is None or musicplayer.current is None:
+                ctx.command.reset_cooldown(ctx)
+                await ctx.send('No songs currently in queue')
+                return
+
+            song_links = [musicplayer.current.webpage_url]
+
+        song_links = set(song_links)
+        old_len = len(songs)  # Used to check how many songs were deleted
+        songs = list(filter(lambda song: song['webpage_url'] not in song_links, songs))
+
+        deleted = old_len - len(songs)
+        s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
+        await ctx.send(f'{s}\nDeleted {deleted} song(s)')
 
     @command(no_pm=True, aliases=['crp'])
     @cooldown(1, 20, BucketType.user)
@@ -1493,7 +1526,7 @@ class Audio(commands.Cog):
 
     @group(no_pm=True, invoke_without_command=True)
     @cooldown(1, 4, type=BucketType.guild)
-    async def clear(self, ctx, *, items):
+    async def clear(self, ctx, *, items=None):
         """
         Clear the selected indexes from the playlist.
         "!clear all" empties the whole playlist
@@ -1501,6 +1534,11 @@ class Audio(commands.Cog):
             {prefix}{name} 1-4 7-9 5
             would delete songs at positions 1 to 4, 5 and 7 to 9
         """
+        if not items:
+            await ctx.send('No arguments given. To clear playlist completely give all'
+                           'as an argument. Otherwise the indexes of the songs')
+            return
+
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
             return

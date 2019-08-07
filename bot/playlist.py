@@ -27,10 +27,10 @@ import functools
 import json
 import logging
 import os
+import random
 import re
 import time
 from collections import deque
-from random import shuffle, choice
 
 import discord
 from validators import url as valid_url
@@ -141,7 +141,7 @@ class Playlist:
         return iter(self.playlist)
 
     async def shuffle(self):
-        shuffle(self.playlist)
+        random.shuffle(self.playlist)
         await self.download_next()
 
     def peek(self):
@@ -192,6 +192,7 @@ class Playlist:
     async def clear(self, indexes=None, channel=None):
         if indexes is None:
             self.playlist.clear()
+            await self.send('Playlist cleared completely', channel)
             return True
         else:
             if delete_by_indices is not None:
@@ -486,7 +487,7 @@ class Playlist:
 
         return added
 
-    async def add_from_playlist(self, user, name, channel=None):
+    async def add_from_playlist(self, user, name, channel=None, shuffle=True):
         if channel is None:
             channel = self.channel
 
@@ -496,6 +497,10 @@ class Playlist:
 
         await self.send('Processing {} songs'.format(len(songs)), delete_after=60, channel=channel)
         added = 0
+
+        if shuffle:
+            random.shuffle(songs)
+
         for song in songs:
             song = Song(self, config=self.bot.config, **song, requested_by=user)
             if await self._append_song(song) is not False:
@@ -584,7 +589,7 @@ class Playlist:
         songs = self._get_playlist(playlist + '.txt')
         if songs is None:
             return
-        return choice(songs)
+        return random.choice(songs)
 
     def _get_playlist(self, name):
         playlist = os.path.join(self.playlist_path, name)

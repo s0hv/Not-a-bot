@@ -319,8 +319,10 @@ class MusicPlayer:
             for k, v in self.persistent_filters.items():
                 self.current.set_filter(k, v)
 
+            options = self.current.options
+            logger.debug(f'Starting song with options {options}')
             source = FFmpegPCMAudio(file, before_options=self.current.before_options,
-                                                 options=self.current.options)
+                                          options=options)
             source = PCMVolumeTransformer(source, volume=self.volume)
             if self.current.volume is None and self.bot.config.auto_volume and isinstance(file, str) and not self.current.is_live:
                 volume_task = asyncio.ensure_future(self.set_mean_volume(file))

@@ -1398,7 +1398,7 @@ class Audio(commands.Cog):
             is_enabled = musicplayer.persistent_filters.get('silenceremove') is None
 
         if is_enabled:
-            value = '0:0:-50dB:1:5:-50dB'
+            value = '1:0:-60dB:1:5:-50dB'
             if current:
                 current.set_filter('silenceremove', value)
 

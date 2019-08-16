@@ -93,8 +93,10 @@ class Song:
     def from_song(cls, song, **kwargs):
         s = Song(**{k: getattr(song, k, None) for k in song.__slots__})
         s.bpm = song.bpm
+        s._options = song._options
         s.last_update = song.last_update
         s.volume = song.volume
+        s.success = song.success
         for k in kwargs:
             if k in song.__slots__:
                 setattr(s, k, kwargs[k])

@@ -1682,12 +1682,13 @@ class Audio(commands.Cog):
         if not musicplayer or musicplayer.player is None or musicplayer.current is None:
             await ctx.send('No songs currently in queue')
         else:
-            tr_pos = get_track_pos(musicplayer.current.duration, musicplayer.duration)
+            duration = musicplayer.current.duration
+            tr_pos = get_track_pos(duration, musicplayer.duration)
             s = musicplayer.current.long_str + f' {tr_pos}'
             s += ' 🔁\n' if musicplayer.repeat else '\n'
-            if musicplayer.current.duration:
-                pos = round(20 * min(1, musicplayer.duration/musicplayer.current.duration))
-                slider = f'00:00 {"─"*pos}●{"─"*(20-pos-1)}  {format_time(musicplayer.current.duration)}'
+            if duration:
+                pos = round(20 * min(1, musicplayer.duration/duration))
+                slider = f'00:00 {"─"*pos}●{"─"*(20-pos-1)}  {format_time(duration)}'
             else:
                 slider = f'00:00 {"─"*19}●  {format_time(musicplayer.duration)}'
 
@@ -2214,8 +2215,8 @@ class Audio(commands.Cog):
         if not musicplayer:
             return
         if musicplayer.is_playing():
-            dur = musicplayer.duration
-            msg = get_track_pos(musicplayer.current.duration, dur)
+            dur = musicplayer.current.duration
+            msg = get_track_pos(dur, musicplayer.duration)
             await ctx.send(msg)
         else:
             await ctx.send('No songs are currently playing')

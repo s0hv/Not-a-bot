@@ -122,6 +122,10 @@ class MusicPlayer:
             return self.history[-1]
 
     @property
+    def speed_mod(self):
+        return self.player._speed_mod
+
+    @property
     def source(self):
         if self.player:
             return self.player.source

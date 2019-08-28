@@ -476,7 +476,7 @@ class Pokemon(Cog):
         of that pokemon. Excluding also overrides including so if you put a pokemon
         to be excluded and included it will be excluded. Shinies are logged no matter the settings
         """
-        channel = utils.get(ctx.guild.channels, name='pokelog')
+        channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, discord.TextChannel), ctx.guild.channels)
         if not channel:
             if not check_botperm('manage_channels', ctx=ctx, me=ctx.author):
                 return await ctx.send('Pokelog channel not present')
@@ -498,7 +498,7 @@ class Pokemon(Cog):
         if not message.guild:
             return
 
-        channel = utils.get(message.guild.channels, name='pokelog')
+        channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, discord.TextChannel), message.guild.channels)
         if not channel:
             return
 

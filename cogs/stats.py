@@ -124,7 +124,10 @@ class Stats(Cog):
                 user_id = global_['uid']
 
         if username is None:
-            username = local['username']
+            if local:
+                username = local['username']
+            elif global_:
+                username = global_['username']
 
         msg = 'User {} `{}`\n'.format(username, user_id)
         if local:

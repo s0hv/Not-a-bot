@@ -492,6 +492,9 @@ async def dl_image(ctx, url):
         await ctx.send('Failed to download. File is too big')
     except TypeError:
         await ctx.send('Link is not a direct link to an image')
+    except OSError:
+        terminal.exception('Failed to dl image because of an unknown error')
+        await ctx.send('Failed to use image because of an unknown error. The image file is probably a bit broken')
     else:
         return img
 

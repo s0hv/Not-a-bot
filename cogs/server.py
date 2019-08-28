@@ -439,6 +439,8 @@ class Server(Cog):
     async def pls(self, ctx, image=None):
         """Add an image to the server banner rotation"""
         img = await get_image(ctx, image, True)
+        if img is None:
+            return
 
         def do_it():
             nonlocal img

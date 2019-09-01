@@ -1,15 +1,23 @@
 import asyncio
 import logging
 
-from sanic import Sanic
-from sanic.response import text
-
+try:
+    from sanic import Sanic
+    from sanic.response import text
+except ModuleNotFoundError:
+    Sanic = None
+    text = None
 
 logger = logging.getLogger('debug')
 
 
 class WebhookServer:
     def __init__(self, bot, listeners=None):
+        if not Sanic:
+            self._listeners = set()
+            logger.info('Sanic not installed. Webhook not initialized')
+            return
+
         app = Sanic(configure_logging=bot.test_mode)
         self.bot = bot
         self._listeners = set() if not listeners else set(listeners)

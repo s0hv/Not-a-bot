@@ -142,7 +142,7 @@ class NotABot(BotBase):
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         if self.config.default_activity:
             await self.change_presence(activity=discord.Activity(**self.config.default_activity))
-        if self._random_color is None:
+        if self._random_color is None or self._random_color.done():
             self._random_color = self.loop.create_task(self._random_color_task())
         terminal.debug('READY')
 

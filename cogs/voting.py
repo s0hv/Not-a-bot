@@ -545,7 +545,7 @@ class VoteManager(Cog):
             options += f'-g Giveaway mode. React with {emote} to participate\n'
         else:
             if parsed.strict:
-                fmt_emotes = ['<{}{}:{}>'.format(*emote) if isinstance(emote, tuple) else emote for emote in emotes]
+                fmt_emotes = ['<{}:{}:{}>'.format(*emote) if isinstance(emote, tuple) else emote for emote in emotes]
                 options += f'-s Strict mode on. Only specified emotes are counted. {" ".join(fmt_emotes)}\n'
 
             if parsed.no_duplicate_votes:

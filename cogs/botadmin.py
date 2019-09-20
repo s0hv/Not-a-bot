@@ -100,6 +100,7 @@ class BotAdmin(Cog):
             return f'Could not reload {name} because of {type(e).__name__}\nCheck logs for more info'
 
         except ExtensionError as e:
+            terminal.exception(f'Failed to reload {name}')
             return f'Could not reload {name} because of an error\n{e}'
 
         except Exception as e:

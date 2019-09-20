@@ -192,7 +192,7 @@ class Poll:
         votes = {}
         for reaction in msg.reactions:
             if self.strict:
-                id = reaction.emoji if isinstance(reaction.emoji, str) else reaction.emoji.id
+                id = reaction.emoji if isinstance(reaction.emoji, str) else str(reaction.emoji.id)
                 if id not in self._emotes:
                     continue
 

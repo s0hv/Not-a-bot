@@ -339,7 +339,7 @@ class VoteManager(Cog):
             poll.start()
 
     @command(owner_only=True)
-    async def recalculate(self, ctx, msg_id, channel_id, *, message):
+    async def recalculate(self, ctx, msg_id: int, channel_id: int, *, message):
         """Recalculate a poll result"""
         # Add -header if it's not present so argparser can recognise the argument
         message = '-header ' + message if not message.startswith('-h') else message

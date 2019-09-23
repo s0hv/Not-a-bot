@@ -153,9 +153,10 @@ class Settings(Cog):
         Mute role is used for timeouts, mutes, automutes and mute_roll"""
         guild = ctx.guild
         if role is None:
-            role = self.bot.guild_cache.mute_role(guild.id)
-            if role:
-                await ctx.send(f'Current role for muted people is {role} `{role.id}`\n'
+            role_id = self.bot.guild_cache.mute_role(guild.id)
+            if role_id:
+                role = guild.get_role(role_id) or '"Deleted role"'
+                await ctx.send(f'Current role for muted people is {role} `{role_id}`\n'
                                f'Specify a role with the command to change it')
             else:
                 await ctx.send('No role set for muted people. Specify a role to set it')

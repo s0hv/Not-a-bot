@@ -417,6 +417,7 @@ class CommandBlacklist(Cog):
                 role = guild.get_role(row['role'])
                 if role is None:
                     logger.warning('Role {} has been deleted and it has perms'.format(row['role']))
+                    last = None
                     continue
 
                 last_type = row['type']

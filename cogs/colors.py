@@ -475,7 +475,12 @@ class Colors(Cog):
         \u200b \u200b \u200b• Color name. All compatible names are listed [here](https://en.wikipedia.org/wiki/List_of_colors_(compact))
         \u200b \u200b \u200b• Any of `invisible`, `none`, `transparent` for transparent spot
         """
-        color_list = [shlex.split(c) for c in color_list.split('\n')]
+        try:
+            color_list = [shlex.split(c) for c in color_list.split('\n')]
+        except ValueError:
+            await ctx.send("Invalid string given. Make sure all quotes are closed")
+            return
+
         lengths = map(len, color_list)
         if sum(lengths) > 100:
             raise BadArgument('Maximum amount of colors is 100')
@@ -916,7 +921,12 @@ class Colors(Cog):
         if not roles:
             return await ctx.send('Give some roles to turn to guild colors')
 
-        roles = shlex.split(roles)
+        try:
+            roles = shlex.split(roles)
+        except ValueError:
+            await ctx.send('Invalid string given. Make sure all quotes are closed')
+            return
+
         guild = ctx.guild
         success = []
         failed = []

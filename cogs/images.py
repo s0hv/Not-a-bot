@@ -230,8 +230,10 @@ class Pokefusion:
         draw = ImageDraw.Draw(bg)
 
         name = name.strip()
-        pokename1 = self._poke_reverse[dex_n[0]]
-        pokename2 = self._poke_reverse[dex_n[1]]
+
+        # Names need to be taken in reverse since the site treats the first pokemon as the rightmost one on the site
+        pokename1 = self._poke_reverse[dex_n[1]]
+        pokename2 = self._poke_reverse[dex_n[0]]
 
         # if name not present generate our own
         if not name:
@@ -239,7 +241,7 @@ class Pokefusion:
 
         # If only half of name possibly present generate the other half based on
         # which name contains the given part
-        elif len(name) < 6:
+        elif len(name) <= 6:
             if name.lower() in pokename1:
                 name = name + pokename2[ceil(len(pokename2)/2):]
             elif name.lower() in pokename2:
@@ -248,7 +250,7 @@ class Pokefusion:
         w, h = draw.textsize(name, font)
         draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - h), name, font=font, fill='black')
 
-        s = 'Fusion of {} and {}'.format(pokename1, pokename2)
+        s = 'Fusion of {} and {}'.format(pokename2, pokename1)
         return bg, s
 
 
@@ -1233,7 +1235,7 @@ class Images(Cog):
         await ctx.send(file=File(file, filename='narancia.png'))
 
     @command(aliases=['poke', 'pf'])
-    @cooldown(2, 2, type=BucketType.guild)
+    @cooldown(1, 3, type=BucketType.guild)
     async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM):
         """
         Gets a random pokemon fusion from http://pokefusion.japeal.com

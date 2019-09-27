@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import logging
 import os
@@ -5,12 +6,12 @@ import time
 from asyncio import Lock
 from functools import partial
 from io import BytesIO
+from math import ceil
 from random import randint
 from typing import Optional
 
 from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
-from bs4 import BeautifulSoup
 from discord import File
 from discord.ext.commands import BucketType, BotMissingPermissions
 from discord.ext.commands.errors import BadArgument
@@ -41,6 +42,7 @@ class Pokefusion:
         self._last_dex_number = 0
         self._pokemon = {}
         self._poke_reverse = {}
+        self._poke_ids = []
         self._last_updated = 0
         self._client = client
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
@@ -63,25 +65,12 @@ class Pokefusion:
         return self._bot
 
     @property
-    def last_dex_number(self):
-        return self._last_dex_number
-
-    @property
     def client(self):
         return self._client
 
-    def is_dex_number(self, s):
-        # No need to convert when the number is that big
-        if len(s) > 5:
-            return False
-        try:
-            return int(s) <= self.last_dex_number
-        except ValueError:
-            return False
-
     async def cache_types(self, start=1):
         name = 'sprPKMType_{}.png'
-        url = 'http://pokefusion.japeal.com/sprPKMType_{}.png'
+        url = 'https://japeal.com/wordpress/wp-content/themes/total/PKM/others/sprPKMType_{}.png'
         while True:
             r = await self.client.get(url.format(start))
             if r.status == 404:
@@ -104,20 +93,21 @@ class Pokefusion:
         success = False
         try:
             logger.info('Updating pokecache')
-            r = await self.client.get('http://pokefusion.japeal.com/PKMSelectorV3.php')
-            soup = BeautifulSoup(await r.text(), 'lxml')
-            selector = soup.find(id='s1')
-            if selector is None:
-                logger.debug('Failed to update pokefusion cache')
-                return False
+            await self.get_url('https://japeal.com/pkm/')
 
-            pokemon = selector.find_all('option')
-            for idx, p in enumerate(pokemon[1:]):
-                name = ' #'.join(p.text.split(' #')[:-1])
-                self._pokemon[name.lower()] = idx + 1
-                self._poke_reverse[idx + 1] = name.lower()
+            # Get a list of tuples in the format of ("XXX Pokemon name", internal id)
+            rows = self.driver.execute_script('return [...document.getElementById("msdropdown20_child").querySelectorAll("*[value]")].map(p => [p.innerText, p.getAttribute("value")])')
 
-            self._last_dex_number = len(pokemon) - 1
+            for p in rows:
+                i = int(p[1])
+                name = p[0].split(' ', 1)[-1].lower().strip()
+                if name.endswith('(new)'):
+                    name = name[:-6]
+                self._pokemon[name] = i
+                self._poke_reverse[i] = name
+
+            self._poke_ids = list(self._poke_reverse.keys())
+
             types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
             await self.cache_types(start=max(len(list(types)), 1))
             self._last_updated = time.time()
@@ -136,14 +126,10 @@ class Pokefusion:
                     return v
         return poke
 
-    def get_by_dex_n(self, n: int):
-        return n if n <= self.last_dex_number else None
-
     def get_pokemon(self, name):
-        if name == self.RANDOM and self.last_dex_number > 0:
-            return randint(1, self._last_dex_number)
-        if self.is_dex_number(name):
-            return int(name)
+        if name == self.RANDOM and self._poke_ids:
+            # Get a random id of a pokemon
+            return self._poke_ids[randint(0, len(self._poke_ids) - 1)]
         else:
             return self.get_by_name(name)
 
@@ -159,14 +145,19 @@ class Pokefusion:
             unlock = True
 
         f = partial(self.driver.get, url)
-        await self.bot.loop.run_in_executor(self.bot.threadpool, f)
+        try:
+            await self.bot.loop.run_in_executor(self.bot.threadpool, f)
+        except UnexpectedAlertPresentException:
+            self.driver.get_screenshot_as_file('test.png')
+            self.driver.switch_to.alert.accept()
         if unlock:
             try:
                 self._driver_lock.release()
             except RuntimeError:
                 pass
 
-    async def fuse(self, poke1=RANDOM, poke2=RANDOM, poke3=None):
+    async def fuse(self, poke1=RANDOM, poke2=RANDOM):
+
         # Update cache once per day
         if time.time() - self._last_updated > 86400:
             if not await self.update_cache():
@@ -179,14 +170,9 @@ class Pokefusion:
                 raise NoPokeFoundException(p)
             dex_n.append(poke)
 
-        if poke3 is None:
-            color = 0
-        else:
-            color = self.get_pokemon(poke3)
-            if color is None:
-                raise NoPokeFoundException(poke3)
+        fmt = bytes(f'p1={dex_n[1]}@p2={dex_n[0]}', 'utf8')
 
-        url = 'http://pokefusion.japeal.com/PKMColourV5.php?ver=3.2&p1={}&p2={}&c={}&e=noone'.format(*dex_n, color)
+        url = f'https://japeal.com/pkm/?efc={base64.b64encode(fmt).decode("ascii")}'
         async with self._driver_lock:
             try:
                 await self.get_url(url)
@@ -194,16 +180,28 @@ class Pokefusion:
                 self.driver.switch_to.alert.accept()
                 raise BotException('Invalid pokemon given')
 
-            data = self.driver.execute_script("return document.getElementById('image1').src")
-            types = self.driver.execute_script("return document.querySelectorAll('*[width=\"30\"]')")
-            name = self.driver.execute_script("return document.getElementsByTagName('b')[0].textContent")
+            img_found = False
+            for _ in range(3):
+                data = self.driver.execute_script("return document.getElementById('image').src")
+                if data and data.startswith('data:image/png'):
+                    img_found = True
+                    break
+                await asyncio.sleep(1)
+
+            if not img_found:
+                raise BotException('Failed to get image of fused pokemon')
+
+            data = self.driver.execute_script("return document.getElementById('image').src")
+            types = self.driver.execute_script("return [document.getElementById('FusedTypeL').src, document.getElementById('FusedTypeR').src]")
+            name = self.driver.execute_script("return document.getElementById('fnametxt').textContent")
 
         data = data.replace('data:image/png;base64,', '', 1)
-        img = Image.open(BytesIO(base64.b64decode(data)))
+        # This fixes incorrect padding error
+        img = Image.open(BytesIO(base64.b64decode(data + '===')))
         type_imgs = []
 
         for tp in types:
-            file = tp.get_attribute('src').split('/')[-1].split('?')[0]
+            file = tp.split('/')[-1]
             try:
                 im = Image.open(os.path.join(self._data_folder, file))
                 type_imgs.append(im)
@@ -230,12 +228,27 @@ class Pokefusion:
 
         font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 36)
         draw = ImageDraw.Draw(bg)
+
+        name = name.strip()
+        pokename1 = self._poke_reverse[dex_n[0]]
+        pokename2 = self._poke_reverse[dex_n[1]]
+
+        # if name not present generate our own
+        if not name:
+            name = pokename1[:ceil(len(pokename1)/2)].title() + pokename2[ceil(len(pokename2)/2):]
+
+        # If only half of name possibly present generate the other half based on
+        # which name contains the given part
+        elif len(name) < 6:
+            if name.lower() in pokename1:
+                name = name + pokename2[ceil(len(pokename2)/2):]
+            elif name.lower() in pokename2:
+                name = pokename1[:ceil(len(pokename1)/2)].title() + name
+
         w, h = draw.textsize(name, font)
         draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - h), name, font=font, fill='black')
 
-        s = 'Fusion of {} and {}'.format(self._poke_reverse[dex_n[0]], self._poke_reverse[dex_n[1]])
-        if color:
-            s += ' using the color palette of {}'.format(self._poke_reverse[color])
+        s = 'Fusion of {} and {}'.format(pokename1, pokename2)
         return bg, s
 
 
@@ -1219,20 +1232,19 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='narancia.png'))
 
-    @command(aliases=['poke'])
+    @command(aliases=['poke', 'pf'])
     @cooldown(2, 2, type=BucketType.guild)
-    async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, color_poke=None):
+    async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM):
         """
         Gets a random pokemon fusion from http://pokefusion.japeal.com
-        You can specify the wanted fusion by specifying their pokedex index or their name or just a part of their name.
-        Color poke defines the pokemon whose color palette will be used. By default it's not used
-        Passing % as a parameter will randomize that value
+        You can specify the wanted fusion by their name or just a part of their name.
+        Passing % as a parameter will randomize that value. By default both pokemon are randomized
         """
         if not self._pokefusion:
             return await ctx.send('Pokefusion not supported')
         await ctx.trigger_typing()
         try:
-            img, s = await self._pokefusion.fuse(poke1, poke2, color_poke)
+            img, s = await self._pokefusion.fuse(poke1, poke2)
         except NoPokeFoundException as e:
             return await ctx.send(str(e))
 

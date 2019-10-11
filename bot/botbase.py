@@ -131,6 +131,9 @@ class BotBase(Bot):
                 await guild.leave()
                 continue
 
+    async def run_async(self, f, *args):
+        return await self.loop.run_in_executor(self.threadpool, f, *args)
+
     async def on_message(self, message):
         local = time.perf_counter()
         await self.wait_until_ready()

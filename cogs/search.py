@@ -24,10 +24,12 @@ SOFTWARE.
 
 import logging
 from collections import deque
+from urllib.parse import quote_plus
 
 from aiohttp import ClientSession
 from discord import DMChannel
 from discord.ext.commands import cooldown
+from requests_html import AsyncHTMLSession
 
 from bot.bot import command
 from cogs.cog import Cog
@@ -52,6 +54,7 @@ class Search(Cog):
         self.last_search = deque()
         self.key = bot.config.google_api_key
         self.cx = self.bot.config.custom_search
+        self.session = AsyncHTMLSession(loop=bot.loop)
 
     @command(aliases=['im', 'img'])
     @cooldown(2, 5)
@@ -67,6 +70,20 @@ class Search(Cog):
         #logger.debug('Web search query: {}'.format(query))
         safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'medium'
         return await self._search(ctx, query, safe=safe)
+
+    @command()
+    @cooldown(2, 4)
+    async def qt(self, ctx, *, query):
+
+        r = await self.session.get(f'https://doc.qt.io/qt-5/search-results.html?q={quote_plus(query)}')
+        await r.html.arender()
+        results = r.html.xpath('//*[@id="___gcse_1"]/div/div/div/div[5]/div[2]/div[2]/div/div[2]/div[1]/div[1]/div[1]/div/a')
+        if not results:
+            s = 'No results found'
+        else:
+            s = results[0].url
+
+        await ctx.send(s)
 
     async def _search(self, ctx, query, image=False, safe='off'):
         params = {'key': self.key,

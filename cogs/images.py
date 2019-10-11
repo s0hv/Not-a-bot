@@ -182,8 +182,11 @@ class Pokefusion:
 
             img_found = False
             for _ in range(3):
-                data = self.driver.execute_script("return document.getElementById('image').src")
-                if data and data.startswith('data:image/png'):
+                # Char0div is the pokemon without the blue bg
+                # If you want the blue bg use this
+                # return document.getElementById('image').src
+                data = self.driver.execute_script("return document.getElementById('Char0div').style.backgroundImage")
+                if data and data.startswith('url("data:image/png'):
                     img_found = True
                     break
                 await asyncio.sleep(1)
@@ -191,11 +194,10 @@ class Pokefusion:
             if not img_found:
                 raise BotException('Failed to get image of fused pokemon')
 
-            data = self.driver.execute_script("return document.getElementById('image').src")
             types = self.driver.execute_script("return [document.getElementById('FusedTypeL').src, document.getElementById('FusedTypeR').src]")
             name = self.driver.execute_script("return document.getElementById('fnametxt').textContent")
 
-        data = data.replace('data:image/png;base64,', '', 1)
+        data = data.replace('url("data:image/png;base64,', '', 1)[:-1]
         # This fixes incorrect padding error
         img = Image.open(BytesIO(base64.b64decode(data + '===')))
         type_imgs = []

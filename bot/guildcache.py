@@ -126,6 +126,12 @@ class GuildCache:
     async def set_mute_role(self, guild_id, role_id):
         return await self.set_value(guild_id, 'mute_role', role_id)
 
+    def log_unmutes(self, guild_id):
+        return self.get_settings(guild_id).get('log_unmutes', False)
+
+    async def set_log_unmutes(self, guild_id, boolean):
+        return await self.set_value(guild_id, 'log_unmutes', boolean)
+
     def keeproles(self, guild_id):
         if self.get_settings(guild_id).get('keeproles', 0):
             return True

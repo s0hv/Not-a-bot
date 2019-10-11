@@ -12,7 +12,8 @@ from bot.converters import TimeDelta
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
                              format_join_leave, timedelta2sql, seconds2str,
-                             sql2timedelta, test_member, test_message)
+                             sql2timedelta, test_member, test_message,
+                             basic_check)
 
 
 class Settings(Cog):
@@ -29,7 +30,11 @@ class Settings(Cog):
     @group(invoke_without_command=True, no_pm=True)
     @bot_has_permissions(embed_links=True)
     async def settings(self, ctx):
-        """Gets the current settings on the server"""
+        """
+        Gets the current settings on the server
+        To change the settings call `{prefix}{name} subcommand` where you replace
+        subcommand with the word in parentheses in the embed
+        """
         guild = ctx.guild
         embed = discord.Embed(title='Current settings for %s' % guild.name, description=
                               'To change these settings use {}settings <name> <value>\n'
@@ -38,14 +43,15 @@ class Settings(Cog):
         fields = OrderedDict([('modlog', 'Moderation log'), ('keeproles', 'Re-add roles to user if they rejoin'),
                               ('prefixes', 'Command prefixes'), ('mute_role', 'Role that is used with timeout, mute, mute_roll'),
                               ('random_color', 'Add a random color to a user when they join'),
-                              ('automute', 'Mute on too many mentions in a message')])
+                              ('automute', 'Mute on too many mentions in a message'),
+                              ('log_unmutes', 'Post message to modlog on unmutes')])
         type_conversions = {True: 'On', False: 'Off', None: 'Not set'}
 
         def convert_mute_role(r):
             r = guild.get_role(r)
             if not r:
                 return 'deleted role'
-            if ctx.guild.me.top_role < r:
+            if ctx.guild.me.top_role <= r:
                 return f'<@&{r.id}> Role is higher than my highest role so I cannot give it to others'
 
             return '<@&%s>' % r.id
@@ -145,6 +151,31 @@ class Settings(Cog):
         await channel.send('Modlog set to this channel')
 
     @settings.command(no_pm=True)
+    @cooldown(2, 5, type=BucketType.guild)
+    @has_permissions(manage_channels=True, manage_guild=True)
+    async def log_unmutes(self, ctx, value: bool=None):
+        """
+        Determines if successful unmutes will be logged to modlog
+        If no value is given will say current value
+        """
+
+        guild = ctx.guild
+        old = self.cache.log_unmutes(guild.id)
+        if value is None:
+            v = 'enabled' if old else 'disabled'
+
+            await ctx.send(f'Logging unmutes is currently {v}')
+            return
+
+        if value == old:
+            await ctx.send(f'Value is already set to {"on" if old else "off"}')
+            return
+
+        await self.cache.set_log_unmutes(guild.id, value)
+        v = 'enabled' if value else 'disabled'
+        await ctx.send(f'Logging unmutes is now {v}')
+
+    @settings.command(no_pm=True)
     @cooldown(1, 5, type=BucketType.guild)
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
@@ -157,7 +188,14 @@ class Settings(Cog):
             if role_id:
                 role = guild.get_role(role_id) or '"Deleted role"'
                 await ctx.send(f'Current role for muted people is {role} `{role_id}`\n'
-                               f'Specify a role with the command to change it')
+                               f'Specify a role with the command to change it or say `clear` to clear the current role')
+
+                msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=20)
+                if msg.content and msg.content.strip().lower() == 'clear':
+                    await self.bot.guild_cache.set_mute_role(guild.id, None)
+                    await ctx.send('Removed current mute_role')
+                    return
+
             else:
                 await ctx.send('No role set for muted people. Specify a role to set it')
             ctx.command.reset_cooldown(ctx)

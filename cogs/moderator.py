@@ -585,10 +585,29 @@ class Moderator(Cog):
             state.discard(user.id)
             state.discard(ctx.author.id)
 
-    async def remove_timeout(self, user_id, guild_id):
+    async def remove_timeout(self, user_id, guild_id, return_info=False):
+        """
+
+        Args:
+            user_id: id of user
+            guild_id: id of guild
+            return_info: If set to true will return info related on the timeout.
+                Returned fields are expires_on, reason, author, embed and time.
+                Do note that this makes the underlying sql query a lot more complex
+
+        Returns:
+
+        """
         try:
-            sql = 'DELETE FROM timeouts WHERE guild=$1 AND uid=$2'
-            await self.bot.dbutil.execute(sql, (guild_id, user_id))
+            if return_info:
+                sql = 'DELETE FROM timeouts t USING timeout_logs tl ' \
+                      'WHERE tl.id=(SELECT MAX(id) FROM timeout_logs WHERE guild=$1 AND uid=$2) ' \
+                      'AND tl.guild=t.guild AND tl.uid=t.uid ' \
+                      'RETURNING t.expires_on, tl.reason, tl.author, tl.embed, tl.time'
+                return await self.bot.dbutil.fetch(sql, (guild_id, user_id), fetchmany=False)
+            else:
+                sql = 'DELETE FROM timeouts WHERE guild=$1 AND uid=$2'
+                await self.bot.dbutil.execute(sql, (guild_id, user_id))
         except PostgresError:
             logger.exception('Could not delete untimeout')
 
@@ -861,29 +880,75 @@ class Moderator(Cog):
     @group(invoke_without_command=True, no_pm=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
-    async def unmute(self, ctx, user: MentionedMember):
+    async def unmute(self, ctx, user: MentionedMember, *, reason='idk kev'):
         """Unmute a user"""
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
-            return await ctx.send(f'No mute role set. You can set it with {ctx.prefix}settings mute_role role name')
+            await ctx.send(f'No mute role set. You can set it with {ctx.prefix}settings mute_role role name')
+            return
 
         if guild.id == 217677285442977792 and user.id == 123050803752730624:
-            return await ctx.send("Not today kiddo. I'm too powerful for you")
+            await ctx.send("Not today kiddo. I'm too powerful for you")
+            return
 
         mute_role = guild.get_role(mute_role)
         if mute_role is None:
-            return await ctx.send('Could not find the muted role')
+            await ctx.send('Could not find the muted role')
+            return
+
+        if mute_role not in user.roles:
+            await ctx.send('User not muted')
+            return
 
         try:
             await user.remove_roles(mute_role, reason=f'Responsible user {ctx.author}')
         except discord.HTTPException:
             await ctx.send('Could not unmute user {}'.format(user))
         else:
-            await ctx.send('Unmuted user {}'.format(user))
+            row = await self.remove_timeout(user.id, guild.id, return_info=True)
+            if not row:
+                row = await self.bot.dbutil.get_latest_timeout_log(guild.id, user.id)
+
+            if self.bot.guild_cache.log_unmutes(guild.id):
+                author = ctx.author
+                description = f'{author.mention} unmuted {user} {user.id}'
+                url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
+                embed = discord.Embed(title='🔊 Moderation action [UNMUTE]',
+                                      timestamp=datetime.utcnow(),
+                                      description=description)
+                embed.add_field(name='Reason for unmute', value=reason)
+                embed.add_field(name='link', value=url)
+                embed.add_field(name='Mute reason', value=row.get('reason', '?'))
+                expires_on = row.get('expires_on')
+                if expires_on:
+                    sentence_left = format_timedelta(expires_on - datetime.utcnow(), DateAccuracy.Day-DateAccuracy.Hour)
+                else:
+                    sentence_left = 'indefinite'
+
+                embed.add_field(name='Sentence left', value=sentence_left)
+
+                if row.get('time'):
+                    at = format_timedelta(datetime.utcnow() - row['time'], DateAccuracy.Day-DateAccuracy.Hour)
+                    embed.add_field(name='Got muted', value=at + ' ago')
+
+                # Set field for the person who muted if they exist
+                old_author = guild.get_member(row.get('author'))
+                if not old_author and row.get('author'):
+                    old_author = f'<@{row.get("author")}>'
+
+                if old_author:
+                    embed.add_field(name='Muted by', value=old_author)
+
+                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+                await self.send_to_modlog(guild, embed=embed)
+
             t = self.timeouts.get(guild.id, {}).get(user.id)
             if t:
                 t.cancel()
+
+            await ctx.send('Unmuted user {}'.format(user))
 
     async def _unmute_when(self, ctx, user, embed=True):
         guild = ctx.guild

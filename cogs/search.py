@@ -81,7 +81,7 @@ class Search(Cog):
         if not results:
             s = 'No results found'
         else:
-            s = results[0].url
+            s = results[0].attrs['href']
 
         await ctx.send(s)
 

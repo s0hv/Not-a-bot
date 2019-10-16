@@ -1,5 +1,4 @@
 import asyncio
-import base64
 import logging
 import ntpath
 import os
@@ -10,7 +9,7 @@ from math import ceil
 
 import discord
 from PIL import Image
-from discord.ext.commands import BucketType
+from discord.ext.commands import BucketType, PartialEmojiConverter, Greedy
 from discord.user import BaseUser
 from validators import url as is_url
 
@@ -22,9 +21,10 @@ from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
                               concatenate_images)
-from utils.utilities import (get_emote_url, get_emote_name, send_paged_message,
+from utils.utilities import (send_paged_message,
                              basic_check, format_timedelta, DateAccuracy,
-                             create_custom_emoji, wait_for_yes, get_image)
+                             wait_for_yes, get_image,
+                             get_emote_name_id)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -261,7 +261,7 @@ class Server(Cog):
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def add_emote(self, ctx, link, *name):
+    async def add_emote(self, ctx, link, name=None):
         """Add an emote to the server"""
         guild = ctx.guild
         author = ctx.author
@@ -276,31 +276,21 @@ class Server(Cog):
                 if not msg:
                     return await ctx.send('Took too long.')
             data = await self._dl(ctx, link)
-            name = ' '.join(name)
 
         else:
             if not ctx.message.attachments:
                 return await ctx.send('No image provided')
 
             data = await self._dl(ctx, ctx.message.attachments[0].url)
-            name = link + ' '.join(name)
+            name = link
 
         if not data:
             return
 
-        data, mime = data
-        if 'gif' in mime:
-            fmt = 'data:{mime};base64,{data}'
-            b64 = base64.b64encode(data.getvalue()).decode('ascii')
-            img = fmt.format(mime=mime, data=b64)
-            already_b64 = True
-        else:
-            img = data.getvalue()
-            already_b64 = False
+        data, _ = data
 
         try:
-            await create_custom_emoji(guild=guild, name=name, image=img, already_b64=already_b64,
-                                      reason=f'{ctx.author} created emote')
+            await guild.create_custom_emoji(name=name, image=data, reason=f'{ctx.author} created emote')
         except discord.HTTPException as e:
             await ctx.send('Failed to create emote because of an error\n%s\nDId you check if the image is under 256kb in size' % e)
         except:
@@ -313,50 +303,50 @@ class Server(Cog):
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def steal(self, ctx, *emoji):
+    async def steal(self, ctx, emoji: Greedy[PartialEmojiConverter]=None, message: discord.Message=None):
         """Add emotes to this server from other servers.
+        You can either use the emotes you want separated by spaces in the message
+        or you can give a message id in the channel that the command is run in to fetch
+        the emotes from that message. Both cannot be used at the same time tho.
         Usage:
-            {prefix}{name} :emote1: :emote2: :emote3:"""
-        if not emoji:
-            return await ctx.send('Specify the emotes you want to steal')
+            `{prefix}{name} :emote1: :emote2: :emote3:`
+            `{prefix}{name} message_id`
+        """
+        emotes = []
+        if message:
+            for e in message.content.split(' '):
+                animated, name, eid = get_emote_name_id(e)
+                if not eid:
+                    continue
+
+                emotes.append(
+                    discord.PartialEmoji.with_state(self.bot._connection,
+                                                    animated=animated,
+                                                    name=name,
+                                                    id=eid)
+                )
+
+        else:
+            for e in emoji:
+                emotes.append(e)
 
         errors = 0
         guild = ctx.guild
-        emotes = []
-        for e in emoji:
+        stolen = []
+        for emote in emotes:
             if errors >= 3:
                 return await ctx.send('Too many errors while uploading emotes. Aborting')
-            url = get_emote_url(e)
-            if not url:
-                continue
-
-            if e.startswith(url):
-                name = url.split('/')[-1].split('.')[0]
-            else:
-                _, name = get_emote_name(e)
-
-            if not name:
-                continue
-
-            data = await self._dl(ctx, url)
-
-            if not data:
-                continue
-
-            data, mime = data
-            if 'gif' in mime:
-                fmt = 'data:{mime};base64,{data}'
-                b64 = base64.b64encode(data.getvalue()).decode('ascii')
-                img = fmt.format(mime=mime, data=b64)
-                already_b64 = True
-            else:
-                img = data.getvalue()
-                already_b64 = False
 
             try:
-                emote = await create_custom_emoji(guild=guild, name=name, image=img, already_b64=already_b64,
-                                                  reason=f'{ctx.author} stole emote')
-                emotes.append(emote)
+                data = await emote.url.read()
+            except (discord.DiscordException, discord.HTTPException) as e:
+                await ctx.send(f'Failed to download emote {emote.name}\n{e}')
+                errors += 1
+                continue
+
+            try:
+                emote = await guild.create_custom_emoji(name=emote.name, image=data, reason=f'{ctx.author} stole emote')
+                stolen.append(emote)
             except discord.HTTPException as e:
                 if e.code == 400:
                     return await ctx.send('Emote capacity reached\n{}'.format(e))
@@ -367,8 +357,8 @@ class Server(Cog):
                 logger.exception('Failed to create emote')
                 errors += 1
 
-        if emotes:
-            await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), emotes))))
+        if stolen:
+            await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), stolen))))
         else:
             await ctx.send("Didn't steal anything")
 

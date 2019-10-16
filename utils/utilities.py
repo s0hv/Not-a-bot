@@ -373,8 +373,9 @@ def get_emote_url(emote):
     return 'https://cdn.discordapp.com/emojis/{}.{}'.format(emote_id, extension)
 
 
-def emote_url_from_id(id):
-    return 'https://cdn.discordapp.com/emojis/%s.png' % id
+def emote_url_from_id(id, animated=False):
+    extension = 'png' if not animated else 'gif'
+    return f'https://cdn.discordapp.com/emojis/{id}.{extension}'
 
 
 def get_picture_from_msg(msg):
@@ -464,6 +465,10 @@ def get_emote_name(s):
 
 
 def get_emote_name_id(s):
+    """
+    Returns:
+        (animated, name, id)
+    """
     emote = re.match(r'(?:<(a)?:)(\w+)(?::)(\d+)(?=>)', s)
     if emote:
         return emote.groups()

@@ -290,7 +290,7 @@ class Server(Cog):
         data, _ = data
 
         try:
-            await guild.create_custom_emoji(name=name, image=data, reason=f'{ctx.author} created emote')
+            await guild.create_custom_emoji(name=name, image=data.getvalue(), reason=f'{ctx.author} created emote')
         except discord.HTTPException as e:
             await ctx.send('Failed to create emote because of an error\n%s\nDId you check if the image is under 256kb in size' % e)
         except:

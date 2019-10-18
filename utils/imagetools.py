@@ -722,7 +722,7 @@ def apply_transparency(frames):
 
 
 def optimize_gif(gif_bytes):
-    cmd = '{}convert - -dither none -deconstruct -layers optimize -dispose background -matte -depth 8 gif:-'.format(MAGICK)
+    cmd = '{}convert - -dither none -layers optimize -dispose background -matte -depth 8 gif:-'.format(MAGICK)
     p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(gif_bytes)
     out, err = p.communicate()

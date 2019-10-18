@@ -716,9 +716,9 @@ class Images(Cog):
             file = File(*await self.image_func(do_it))
         await ctx.send(file=file)
 
-    @command(aliases=['gspd', 'gif_spd', 'speedup'])
+    @command(aliases=['gspd', 'gif_spd', 'speedup', 'gspeed'])
     @cooldown(2, 5)
-    async def gif_speed(self, ctx, image, speed=None):
+    async def gif_speed(self, ctx, image, speed: float=None):
         """
         Speed up or slow a gif down by multiplying the frame delay
         the specified speed (higher is faster, lower is slower, 1 is default speed)
@@ -760,7 +760,12 @@ class Images(Cog):
                 # as the pc can do it which is useless. Also rendering engines
                 # like to round delays higher up to 10 and most don't display the
                 # smallest delays
-                duration = min(max(duration//speed, 5), 65535)
+                # The smallest delay chromium accepts is 0.02 seconds or 20ms
+                # If the value goes below a way larger delay is used which is
+                # usually 100ms
+                if duration < 20:
+                    duration = 100
+                duration = min(max(duration//speed, 20), 65535)
                 return duration
 
             durations = list(map(transform, durations))

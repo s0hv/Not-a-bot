@@ -1,5 +1,6 @@
 import itertools
 import logging
+import operator
 
 import colors
 import discord
@@ -207,8 +208,8 @@ class HelpCommand(help.HelpCommand):
 
         if commands:
             paginator.add_field('Subcommands')
-            for cmd in commands:
-                paginator.add_to_field(f'`{cmd.name}` ')
+            for cmd in sorted(commands, key=operator.attrgetter('name')):
+                paginator.add_to_field(f' {cmd.name} ● ')
 
         # add the ending note
         ending_note = self.get_ending_note(ctx)
@@ -297,8 +298,8 @@ class HelpCommand(help.HelpCommand):
 
         """
         entries = []
-        for command in commands:
-            entries.append(f'`{command.name}` ')
+        for command in sorted(commands, key=operator.attrgetter('name')):
+            entries.append(f'{command.name} ● ')
 
         if not entries:
             return

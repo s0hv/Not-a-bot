@@ -633,6 +633,30 @@ class Images(Cog):
 
         await ctx.send(file=File(await self.image_func(do_it), filename='pucci_reset.png'))
 
+    @command()
+    @cooldown(2, 5, BucketType.guild)
+    async def dio(self, ctx, image=None):
+        img = await get_image(ctx, image)
+        if not img:
+            return
+        await ctx.trigger_typing()
+
+        def do_it():
+            nonlocal img
+            img = img.convert('RGBA')
+            template = Image.open(os.path.join(TEMPLATES, 'dio.png'))
+            bg = Image.new('RGBA', template.size, 'black')
+            size = (512, 376)
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=True,
+                                           resample=Image.BICUBIC)
+            x, y = (117, 386)
+            bg.paste(img, (x, y), mask=img)
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        await ctx.send(
+            file=File(await self.image_func(do_it), filename='dio.png'))
+
     @command(aliases=['epitaph'])
     @cooldown(2, 5, BucketType.guild)
     async def doppio(self, ctx, image=None):
@@ -663,6 +687,29 @@ class Images(Cog):
             return self.save_image(bg)
 
         await ctx.send(file=File(await self.image_func(do_it), filename='epitaph.png'))
+
+    @command(aliases=['cloud'])
+    @cooldown(2, 5, BucketType.guild)
+    async def clouds(self, ctx, image=None):
+        img = await get_image(ctx, image)
+        if not img:
+            return
+        await ctx.trigger_typing()
+
+        def do_it():
+            nonlocal img
+            img = img.convert('RGBA')
+            template = Image.open(os.path.join(TEMPLATES, 'cloud.png'))
+            size = (151, 212)
+            img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                           resample=Image.BICUBIC)
+            img = img.rotate(17, Image.BICUBIC, True)
+            x, y = (412, 1578)
+            template.paste(img, (x, y), mask=img)
+            return self.save_image(template)
+
+        await ctx.send(
+            file=File(await self.image_func(do_it), filename='dio.png'))
 
     @command()
     @cooldown(1, 10, BucketType.guild)

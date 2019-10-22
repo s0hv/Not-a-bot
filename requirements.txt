@@ -20,6 +20,7 @@ psutil
 pymysql
 python-magic
 pytz
+requests-html
 sanic
 selenium
 validators

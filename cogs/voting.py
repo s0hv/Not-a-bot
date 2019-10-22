@@ -11,6 +11,7 @@ from asyncpg.exceptions import PostgresError
 from discord.ext.commands import BucketType
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
+from bot.formatter import EmbedLimits
 from cogs.cog import Cog
 from utils.utilities import (get_emote_name_id, parse_time, get_avatar)
 
@@ -499,6 +500,10 @@ class VoteManager(Cog):
             return await ctx.send('Max winners cannot be bigger than 20')
 
         title = ' '.join(parsed.header)
+        if len(title) > EmbedLimits.Title:
+            await ctx.send(f'Max characters allowed for title is {EmbedLimits.Title}')
+            return
+
         expires_in = parse_time(' '.join(parsed.time))
         if expires_in.total_seconds() == 0:
             await ctx.send('No time specified or time given is 0 seconds')

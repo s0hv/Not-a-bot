@@ -312,7 +312,7 @@ class HelpCommand(help.HelpCommand):
             paginator.add_to_field(entry)
 
 
-class Limits:
+class EmbedLimits:
     Field = 1024
     Name = 256
     Title = 256
@@ -368,11 +368,11 @@ class Paginator:
         overflow = None
         if description:
             if paginate_description:
-                description_ = description[:Limits.Description]
-                overflow = description[Limits.Description:]
+                description_ = description[:EmbedLimits.Description]
+                overflow = description[EmbedLimits.Description:]
                 description = description_
             else:
-                description = description[:Limits.Description]
+                description = description[:EmbedLimits.Description]
 
         self._pages.append(Embed(title=title, description=description))
         self._current_page += 1
@@ -415,9 +415,9 @@ class Paginator:
         if self._current_field is not None and self._fields < 25:
             self._add_field()
 
-        name = name[:Limits.Title]
-        leftovers = value[Limits.Field:]
-        value = value[:Limits.Field]
+        name = name[:EmbedLimits.Title]
+        leftovers = value[EmbedLimits.Field:]
+        value = value[:EmbedLimits.Field]
         length = len(name) + len(value)
 
         if self._fields == 25:
@@ -428,7 +428,7 @@ class Paginator:
             if self._current_field is not None:
                 self._add_field()
 
-        elif length + self._char_count > Limits.Total:
+        elif length + self._char_count > EmbedLimits.Total:
             self._pages.append(Embed(title=self.title))
             self._current_page += 1
             self._fields = 0
@@ -441,7 +441,7 @@ class Paginator:
 
     def add_to_field(self, value):
         v = self._current_field['value']
-        if len(v) + len(value) > Limits.Field:
+        if len(v) + len(value) > EmbedLimits.Field:
             self.add_field(self._current_field['name'], value)
         else:
             self._current_field['value'] += value

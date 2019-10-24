@@ -694,7 +694,13 @@ class Colors(Cog):
 
             return
 
-        data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, list(colors.values()))
+        try:
+            data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, list(colors.values()))
+        except OSError:
+            terminal.exception('Failed to generate colors')
+            await ctx.send('Failed to generato colors. Try again later')
+            return
+
         await ctx.send(file=discord.File(data, 'colors.png'))
 
     @colors.command(no_pm=True)

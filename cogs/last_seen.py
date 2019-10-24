@@ -84,8 +84,13 @@ class LastSeen(Cog):
         if before.status != after.status:
             return True
 
-        if before.activity != after.activity:
-            return True
+        try:
+            if before.activity != after.activity:
+                return True
+
+        # KeyError is raised when activity start time doesn't exist
+        except KeyError:
+            pass
 
         if before.nick != after.nick:
             return True

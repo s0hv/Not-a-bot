@@ -919,7 +919,7 @@ class Moderator(Cog):
                                       description=description)
                 embed.add_field(name='Reason for unmute', value=reason)
                 embed.add_field(name='link', value=url)
-                embed.add_field(name='Mute reason', value=row.get('reason', '?'))
+                embed.add_field(name='Mute reason', value=row.get('reason', 'Mute reason not logged'))
                 expires_on = row.get('expires_on')
                 if expires_on:
                     sentence_left = format_timedelta(expires_on - datetime.utcnow(), DateAccuracy.Day-DateAccuracy.Hour)

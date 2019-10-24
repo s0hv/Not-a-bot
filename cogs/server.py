@@ -312,6 +312,10 @@ class Server(Cog):
             `{prefix}{name} :emote1: :emote2: :emote3:`
             `{prefix}{name} message_id`
         """
+        if not emoji and not message:
+            await ctx.send('Please either give emotes or a message id to fetch the emotes from')
+            return
+
         emotes = []
         if message:
             for e in message.content.split(' '):

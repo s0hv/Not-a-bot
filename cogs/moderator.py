@@ -908,7 +908,7 @@ class Moderator(Cog):
         else:
             row = await self.remove_timeout(user.id, guild.id, return_info=True)
             if not row:
-                row = await self.bot.dbutil.get_latest_timeout_log(guild.id, user.id)
+                row = (await self.bot.dbutil.get_latest_timeout_log(guild.id, user.id)) or {}
 
             if self.bot.guild_cache.log_unmutes(guild.id):
                 author = ctx.author

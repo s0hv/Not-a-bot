@@ -49,13 +49,14 @@ class MusicPlayer:
         for inst in cls.__instances__:
             yield inst
 
-    def __init__(self, bot, disconnect, channel=None, downloader=None):
+    def __init__(self, bot, disconnect, channel, downloader=None):
         self.__instances__.add(self)
         self.bot = bot
         self.play_next = asyncio.Event()
         self.voice = None
         self.current = None
         self.channel = channel
+        self.guild = channel.guild
         self.repeat = False
         self._disconnect = disconnect
 

@@ -1845,6 +1845,9 @@ class Audio(commands.Cog):
                 await musicplayer.voice.disconnect(force=True)
                 musicplayer.voice = None
 
+            if musicplayer.guild.voice_client:
+                await musicplayer.voice_client.disconnect(force=True)
+
         except Exception:
             terminal.exception('Error while stopping voice')
 
@@ -1867,10 +1870,9 @@ class Audio(commands.Cog):
         Not meant to be used for normal disconnecting
         """
         try:
-            res = await self.stop.callback(self, ctx)
+            await self.stop.callback(self, ctx)
         except Exception as e:
             print(e)
-            res = False
 
         # Just to be sure, delete every single musicplayer related to this server
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
@@ -1891,10 +1893,7 @@ class Audio(commands.Cog):
         import gc
         gc.collect()
 
-        if res is False:
-            if not ctx.voice_client:
-                return await ctx.send('Not connected to voice')
-
+        if ctx.voice_client:
             await ctx.voice_client.disconnect(force=True)
             await ctx.send('Forced disconnect')
         else:

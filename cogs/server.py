@@ -299,6 +299,21 @@ class Server(Cog):
         else:
             await ctx.send('created emote %s' % name)
 
+    @command(no_pm=True)
+    @cooldown(2, 6)
+    @has_permissions(manage_emojis=True)
+    @bot_has_permissions(manage_emojis=True)
+    async def rename(self, ctx, emote: discord.Emoji, new_name):
+        """Rename the given emote"""
+        if ctx.guild != emote.guild:
+            await ctx.send('The emote is not from this server')
+            return
+
+        try:
+            await emote.edit(name=new_name)
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to rename emote\n{e}')
+
     @command(no_pm=True, aliases=['trihard'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)

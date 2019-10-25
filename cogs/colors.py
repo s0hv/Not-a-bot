@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import shlex
+import typing
 from io import BytesIO
 from math import ceil, sqrt
 
@@ -59,6 +60,7 @@ class Color:
 class Colors(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        # {guild_id: {role_id: Color} }
         self._colors = {}
         self.bot.colors = self._colors
         self._color_jobs = set()
@@ -698,7 +700,7 @@ class Colors(Cog):
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, list(colors.values()))
         except OSError:
             terminal.exception('Failed to generate colors')
-            await ctx.send('Failed to generato colors. Try again later')
+            await ctx.send('Failed to generate colors. Try again later')
             return
 
         await ctx.send(file=discord.File(data, 'colors.png'))
@@ -914,6 +916,61 @@ class Colors(Cog):
             self._colors[guild.id] = {color_role.id: color_}
 
         await ctx.send('Added color {} {}'.format(name, str(d_color)))
+
+    @command(no_pm=True, aliases=['edit_colour'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
+    @cooldown(1, 5, type=BucketType.guild)
+    async def edit_color(self, ctx, color: typing.Union[discord.Role, str], *, new_color):
+        """
+        Edit the color of an existing color role.
+        Color is the name of the color role or the role id of the role it's assigned to
+        and new_color is the new color that's gonna be assigned to it
+        """
+        guild = ctx.guild
+        c = color
+        if isinstance(color, discord.Role):
+            color = self._colors[guild.id].get(color.id)
+        else:
+            color = self.get_color(color, guild.id)
+
+        if not color:
+            await ctx.send(f'No color role found with {c}')
+            return
+
+        rgb = self.match_color(new_color)
+        if not rgb:
+            return await ctx.send(f'Color {new_color} not found')
+
+        lab = self.rgb2lab(rgb)
+        rgb = convert_color(lab, sRGBColor)
+        value = int(rgb.get_rgb_hex()[1:], 16)
+
+        # Find a role with the same color value as this one
+        r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
+        if r:
+            k, r = r
+            if guild.get_role(r.role_id):
+                return await ctx.send(f'This color already exists {new_color} (#{value:06X}). Conflicting color {r.name} `{r.role_id}`')
+            else:
+                self._colors.get(guild.id, {}).pop(k, None)
+
+        role = guild.get_role(color.role_id)
+        if not role:
+            await ctx.send('No color role found')
+            return
+
+        try:
+            await role.edit(color=discord.Colour(value))
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to add color because of an error\n{e}')
+            return
+
+        color.value = value
+        color.lab = lab
+
+        await self._add_color2db(color, update=True)
+        await ctx.send(f'Updated color to value {new_color} (#{value:06X})')
 
     @command(no_pm=True, aliases=['colors_from_roles'])
     @has_permissions(manage_roles=True)

@@ -314,6 +314,8 @@ class Server(Cog):
         except discord.HTTPException as e:
             await ctx.send(f'Failed to rename emote\n{e}')
 
+        await ctx.send(f'Renamed the given emote to {new_name}')
+
     @command(no_pm=True, aliases=['trihard'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)

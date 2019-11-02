@@ -77,11 +77,11 @@ class Search(Cog):
 
         r = await self.session.get(f'https://doc.qt.io/qt-5/search-results.html?q={quote_plus(query)}')
         await r.html.arender()
-        results = r.html.xpath('//*[@id="___gcse_1"]/div/div/div/div[5]/div[2]/div[2]/div/div[2]/div[1]/div[1]/div[1]/div/a')
+        results = r.html.find('.gs-title')
         if not results:
             s = 'No results found'
         else:
-            s = results[0].attrs['href']
+            s = results[0].links.pop()
 
         await ctx.send(s)
 

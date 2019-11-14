@@ -1360,6 +1360,9 @@ class Moderator(Cog):
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, BucketType.guild)
     async def temprole(self, ctx, time: TimeDelta, user: discord.Member, *, role: discord.Role):
+        """
+        Temporarily give a user a role
+        """
         if time.days > 7:
             return await ctx.send('Max days is 7')
 
@@ -1396,6 +1399,15 @@ class Moderator(Cog):
     @command(no_pm=True)
     @cooldown(1, 4, BucketType.user)
     async def reason(self, ctx, user_or_message: Union[discord.User, int], *, reason):
+        """
+        Changes the reason on a mute or unmute
+        If message id is given, it will try to edit a message with that id in the modlog.
+        This works for both mutes and unmutes
+
+        If a user is mentioned this will fetch the latest mute that you've done to that user
+        and edit that. This method does not work for unmutes
+
+        """
         modlog = self.get_modlog(ctx.guild)
         if not modlog:
             return await ctx.send('Modlog not found')
@@ -1446,10 +1458,15 @@ class Moderator(Cog):
                     if msg.embeds:
                         embed = msg.embeds[0]
 
+        unmute = False
         if embed:
             idx = -1
-            for idx, field in enumerate(embed.fields):
-                if field.name == 'Reason':
+            # Check if embed is for unmutes or not
+            unmute = 'UNMUTE' in embed.title
+            field_name = "Reason for unmute" if unmute else 'Reason'
+            for index, field in enumerate(embed.fields):
+                if field.name == field_name:
+                    idx = index
                     break
 
             if idx < 0:
@@ -1458,7 +1475,7 @@ class Moderator(Cog):
 
                 s += 'No modlog reason found\n'
 
-            embed.set_field_at(idx, name='Reason', value=reason)
+            embed.set_field_at(idx, name=field_name, value=reason)
 
             if msg:
                 try:
@@ -1466,7 +1483,8 @@ class Moderator(Cog):
                 except discord.HTTPException as e:
                     s += f'Failed to edit modlog reason because of an error.\n{e}\n'
 
-        if user_id:
+        # Unmutes are not logged in database
+        if user_id and not unmute:
             if not await self.edit_mute_reason(ctx, user_id, reason):
                 return await ctx.send('Failed to edit reason because of an error')
 

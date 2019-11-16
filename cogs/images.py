@@ -28,7 +28,7 @@ from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
                               optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
 from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
-                             split_string, get_image, dl_image)
+                             split_string, get_image, dl_image, call_later)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -37,36 +37,63 @@ TEMPLATES = os.path.join('data', 'templates')
 
 class Pokefusion:
     RANDOM = '%'
+    LAST_UPDATED = 0
 
     def __init__(self, client, bot):
         self._last_dex_number = 0
         self._pokemon = {}
         self._poke_reverse = {}
         self._poke_ids = []
-        self._last_updated = 0
         self._client = client
+        self._quit_chrome_task = None
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
         self._driver_lock = Lock(loop=bot.loop)
         self._bot = bot
         self._update_lock = Lock(loop=bot.loop)
 
-        p = self.bot.config.chromedriver
         options = Options()
         options.add_argument('--headless')
         options.add_argument('--disable-gpu')
+        options.add_argument('--disable-background-networking')
+        options.add_argument('--no-first-run')
+        options.add_argument('--disable-pinch')
         binary = self.bot.config.chrome
         if binary:
             options.binary_location = binary
-
-        self.driver = Chrome(p, chrome_options=options)
+        self.opts = options
+        self._driver = None
 
     @property
     def bot(self):
         return self._bot
 
     @property
+    def driver(self):
+        # If driver is None create a driver for 60 seconds
+        # Driver won't quit until driver lock is released though
+        if self._driver is None:
+            self._driver = Chrome(self.bot.config.chromedriver, chrome_options=self.opts)
+            self._quit_chrome_task = call_later(self._quit_chrome, self.bot.loop, 60)
+            return self._driver
+
+        # Restart quit task if it's running so we dont end up with multiple overlapping tasks
+        if self._quit_chrome_task:
+            self._quit_chrome_task.cancel()
+            self._quit_chrome_task = call_later(self._quit_chrome, self.bot.loop, 60)
+
+        return self._driver
+
+    @property
     def client(self):
         return self._client
+
+    async def _quit_chrome(self):
+        if not self._driver:
+            return
+
+        async with self._driver_lock:
+            self._driver.quit()
+            self._driver = None
 
     async def cache_types(self, start=1):
         name = 'sprPKMType_{}.png'
@@ -96,7 +123,7 @@ class Pokefusion:
             await self.get_url('https://japeal.com/pkm/')
 
             # Get a list of tuples in the format of ("XXX Pokemon name", internal id)
-            rows = self.driver.execute_script('return [...document.getElementById("msdropdown20_child").querySelectorAll("*[value]")].map(p => [p.innerText, p.getAttribute("value")])')
+            rows = self._driver.execute_script('return [...document.getElementById("msdropdown20_child").querySelectorAll("*[value]")].map(p => [p.innerText, p.getAttribute("value")])')
 
             for p in rows:
                 i = int(p[1])
@@ -110,7 +137,7 @@ class Pokefusion:
 
             types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
             await self.cache_types(start=max(len(list(types)), 1))
-            self._last_updated = time.time()
+            self.LAST_UPDATED = time.time()
             success = True
         except:
             logger.exception('Failed to update pokefusion cache')
@@ -139,6 +166,7 @@ class Pokefusion:
         # Otherwise the browser will be locked
 
         # If lock is not locked lock it until this operation finishes
+        # This is required because some operations acquire the lock and call this function
         unlock = False
         if not self._driver_lock.locked():
             await self._driver_lock.acquire()
@@ -148,8 +176,8 @@ class Pokefusion:
         try:
             await self.bot.loop.run_in_executor(self.bot.threadpool, f)
         except UnexpectedAlertPresentException:
-            self.driver.get_screenshot_as_file('test.png')
-            self.driver.switch_to.alert.accept()
+            self._driver.get_screenshot_as_file('test.png')
+            self._driver.switch_to.alert.accept()
         if unlock:
             try:
                 self._driver_lock.release()
@@ -158,8 +186,8 @@ class Pokefusion:
 
     async def fuse(self, poke1=RANDOM, poke2=RANDOM):
 
-        # Update cache once per day
-        if time.time() - self._last_updated > 86400:
+        # Update cache once per week
+        if time.time() - self.LAST_UPDATED > 604800:
             if not await self.update_cache():
                 raise BotException('Could not cache pokemon')
 
@@ -173,11 +201,13 @@ class Pokefusion:
         fmt = bytes(f'p1={dex_n[1]}@p2={dex_n[0]}', 'utf8')
 
         url = f'https://japeal.com/pkm/?efc={base64.b64encode(fmt).decode("ascii")}'
+
         async with self._driver_lock:
+            driver = self.driver
             try:
                 await self.get_url(url)
             except UnexpectedAlertPresentException:
-                self.driver.switch_to.alert.accept()
+                driver.switch_to.alert.accept()
                 raise BotException('Invalid pokemon given')
 
             img_found = False
@@ -185,7 +215,7 @@ class Pokefusion:
                 # Char0div is the pokemon without the blue bg
                 # If you want the blue bg use this
                 # return document.getElementById('image').src
-                data = self.driver.execute_script("return document.getElementById('Char0div').style.backgroundImage")
+                data = driver.execute_script("return document.getElementById('Char0div').style.backgroundImage")
                 if data and data.startswith('url("data:image/png'):
                     img_found = True
                     break
@@ -194,8 +224,8 @@ class Pokefusion:
             if not img_found:
                 raise BotException('Failed to get image of fused pokemon')
 
-            types = self.driver.execute_script("return [document.getElementById('FusedTypeL').src, document.getElementById('FusedTypeR').src]")
-            name = self.driver.execute_script("return document.getElementById('fnametxt').textContent")
+            types = driver.execute_script("return [document.getElementById('FusedTypeL').src, document.getElementById('FusedTypeR').src]")
+            name = driver.execute_script("return document.getElementById('fnametxt').textContent")
 
         data = data.replace('url("data:image/png;base64,', '', 1)[:-1]
         # This fixes incorrect padding error
@@ -267,8 +297,9 @@ class Images(Cog):
             self._pokefusion = None
 
     def cog_unload(self):
-        if self._pokefusion:
-            self._pokefusion.driver.quit()
+        if self._pokefusion and self._pokefusion._driver:
+            self._pokefusion._driver.quit()
+            self._pokefusion._driver = None
 
     def cog_check(self, ctx):
         if not check_botperm('attach_files', ctx=ctx):

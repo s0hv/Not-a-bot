@@ -30,7 +30,7 @@ import time
 
 import aioredis
 import discord
-from asyncpg.exceptions import PostgresError
+from asyncpg.exceptions import PostgresError, InterfaceError
 
 from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
@@ -83,8 +83,12 @@ class NotABot(BotBase):
         sql = 'SELECT guild FROM guilds'
         guild_ids = {r[0] for r in await self.dbutil.fetch(sql)}
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
+
+        blacklisted = await self.dbutil.get_blacklisted_guilds()
+        blacklisted = set([row['guild_id'] for row in blacklisted])
+
         for guild in guilds:
-            if await self.dbutil.is_guild_blacklisted(guild.id):
+            if guild.id in blacklisted:
                 await guild.leave()
                 continue
 
@@ -133,7 +137,11 @@ class NotABot(BotBase):
         self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
         terminal.info('Logged in as {0.user.name}'.format(self))
         await self.dbutil.add_command('help')
-        await self.cache_guilds()
+        try:
+            await self.cache_guilds()
+        except InterfaceError as e:
+            terminal.exception("Failed to cache guilds")
+            raise e
 
         self.redis = await aioredis.create_redis((self.config.db_host, self.config.redis_port),
                                                  password=self.config.redis_auth,

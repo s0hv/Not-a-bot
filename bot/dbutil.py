@@ -264,9 +264,9 @@ class DatabaseUtils:
         ids = _args_to_string(ids)
         sql = 'INSERT INTO guilds (guild) VALUES %s ON CONFLICT DO NOTHING' % ids
         try:
-            await self.execute(sql, ids)
+            await self.execute(sql)
             sql = 'INSERT INTO prefixes (guild) VALUES %s ON CONFLICT DO NOTHING' % ids
-            await self.execute(sql, ids)
+            await self.execute(sql)
         except PostgresError:
             logger.exception('Failed to add new servers to db')
             return False
@@ -560,6 +560,10 @@ class DatabaseUtils:
         sql = 'SELECT 1 FROM guild_blacklist WHERE guild=%s' % guild_id
         r = await self.fetch(sql, fetchmany=False)
         return r is not None and r[0] == 1
+
+    async def get_blacklisted_guilds(self):
+        sql = 'SELECT guild FROM guild_blacklist'
+        return await self.fetch(sql)
 
     async def add_multiple_activities(self, data):
         """

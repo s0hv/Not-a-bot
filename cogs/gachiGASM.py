@@ -125,13 +125,13 @@ class gachiGASM(Cog):
             ctx.view.undo()
             await self.gachify2.invoke(ctx)
         else:
-            return await ctx.send(words.replace(' ', ' ♂ ').upper())
+            return await ctx.send(words.replace(' ', ' \♂ ').upper())
 
     @command()
     @cooldown(1, 2, BucketType.channel)
     async def gachify2(self, ctx, *, words):
         """An alternative way of gachifying"""
-        return await ctx.send('♂ ' + words.replace(' ', ' ♂ ').upper() + ' ♂')
+        return await ctx.send('\♂ ' + words.replace(' ', ' \♂ ').upper() + ' \♂')
 
     @command(aliases=['rg'])
     @cooldown(1, 5, BucketType.channel)

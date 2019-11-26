@@ -711,14 +711,14 @@ class Audio(commands.Cog):
 
     @command(no_pm=True, aliases=['play_p', 'pp'])
     @cooldown(1, 10, BucketType.user)
-    async def play_playlist(self, ctx, user: Optional[discord.User], *, name):
+    async def play_playlist(self, ctx, shuffle: Optional[bool], user: Optional[discord.User], *, name):
         """Queue a saved playlist in random order"""
         musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
 
         user = user if user else ctx.author
-        if not await musicplayer.playlist.add_from_playlist(user, name, ctx.channel):
+        if not await musicplayer.playlist.add_from_playlist(user, name, ctx.channel, shuffle=shuffle):
             await ctx.send(f"Couldn't find playlist {name} of user {user} or playlist was empty")
 
         if success:
@@ -1058,6 +1058,23 @@ class Audio(commands.Cog):
             return await ctx.send(f"{user} doesn't have any playlists")
 
         await ctx.send(f'Playlists of {user}\n\n' + '\n'.join(playlists))
+
+    @command(no_pm=True, aliases=['cd'])
+    @cooldown(1, 5, BucketType.user)
+    async def clear_playlist_duplicates(self, ctx, *, playlist_name):
+        """
+        Clears all duplicate links from the given playlist
+        """
+
+        songs = await self.get_playlist(ctx, ctx.author, playlist_name)
+        if not songs:
+            return
+
+        links = set()
+        # Adds non duplicates to the list and skips duplicates
+        new_songs = [song for song in songs if not song['webpage_url'] in links and not links.add(song['webpage_url'])]
+        write_playlist(new_songs, playlist_name, ctx.author.id, overwrite=True)
+        await ctx.send(f'Deleted {len(songs) - len(new_songs)} duplicate(s) from the playlist "{playlist_name}"')
 
     @group(no_pm=True, aliases=['vp'], invoke_without_command=True)
     @cooldown(1, 5, BucketType.user)

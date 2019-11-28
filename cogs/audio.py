@@ -923,7 +923,12 @@ class Audio(commands.Cog):
 
         else:
             await ctx.send('Getting song infos for playlist')
-            new_songs, failed = await self._process_links(ctx, song_links.replace('\n', ' ').split(' '))
+            res = await self._process_links(ctx, song_links.replace('\n', ' ').split(' '))
+            if not res:
+                await ctx.send('Failed to process links')
+                return
+
+            new_songs, failed = res
 
             if failed:
                 await ctx.send('Failed to add %s' % ', '.join(failed))
@@ -1361,6 +1366,9 @@ class Audio(commands.Cog):
                     await musicplayer.voice.channel.connect()
             except (discord.HTTPException, asyncio.TimeoutError) as e:
                 await ctx.send(f'Failed to join vc because of an error\n{e}')
+                return False
+            except discord.ClientException:
+                await ctx.send(f'Failed to join vc because of an error')
                 return False
 
         return True

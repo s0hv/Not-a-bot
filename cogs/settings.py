@@ -613,8 +613,8 @@ class Settings(Cog):
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
         await ctx.send(msg)
 
-    @join_message.command(name='remove', aliases=['del', 'delete'], no_pm=True)
     @cooldown(1, 10, BucketType.guild)
+    @join_message.command(name='remove', aliases=['del', 'delete'], no_pm=True)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_join(self, ctx):
         """
@@ -686,7 +686,7 @@ class Settings(Cog):
     @leave_message.command(name='remove', no_pm=True, aliases=['del', 'delete'])
     @cooldown(1, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
-    async def remove_join(self, ctx):
+    async def remove_leave(self, ctx):
         """
         Remove leave message from this server
         The message format will be saved if you decide to use this feature again

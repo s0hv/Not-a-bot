@@ -53,6 +53,7 @@ class Config:
 
         self.mashape_key = get_config_value(self.config, 'Credentials', 'MashapeKey', str, None)
         self.google_api_key = get_config_value(self.config, 'Credentials', 'GoogleAPI', str, None)
+        self.youtube_api_key = get_config_value(self.config, 'Credentials', 'YoutubeAPI', str, None)
         self.custom_search = get_config_value(self.config, 'Credentials', 'CustomSearch', str, None)
         self.wolfram_key = get_config_value(self.config, 'Credentials', 'WolframKey', str, None)
         self.feedback_webhook = get_config_value(self.config, 'Credentials', 'FeedbackWebhook', str, None)

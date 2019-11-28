@@ -49,6 +49,8 @@ from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
                           create_playlist, validate_playlist, write_playlist,
                           PLAYLISTS)
 from bot.song import Song, PartialSong
+from bot.youtube import (extract_playlist_id, extract_video_id, Part, id2url,
+                         parse_youtube_duration)
 from utils.utilities import (mean_volume, search, parse_seek,
                              seek_from_timestamp,
                              send_paged_message, basic_check,
@@ -775,10 +777,12 @@ class Audio(commands.Cog):
             musicplayer.start_playlist()
 
     async def _process_links(self, ctx, links, max_size=30):
-        max_size = max_size if ctx.author.id != self.bot.owner_id else 999
+        is_owner = ctx.author.id == self.bot.owner_id
         songs = links
         failed = []
         new_songs = []
+        youtube_vids = []
+        youtube_playlists = []
         song = None
 
         def on_error(_):
@@ -792,6 +796,16 @@ class Audio(commands.Cog):
 
             if not test_url(song):
                 failed.append(song.replace('@', '@\u200b'))
+                continue
+
+            video_id = extract_video_id(song)
+            if video_id:
+                youtube_vids.append(video_id)
+                continue
+
+            playlist_id = extract_playlist_id(song)
+            if playlist_id:
+                youtube_playlists.append(playlist_id)
                 continue
 
             info = await self.downloader.extract_info(self.bot.loop,
@@ -837,6 +851,30 @@ class Audio(commands.Cog):
                 new_songs.append(Song(webpage_url=info['webpage_url'],
                                       title=info.get('title'),
                                       duration=info.get('duration')))
+
+        # Max results for youtube api
+        max_results = 1000 if not is_owner else 5000
+        for playlist_id in youtube_playlists:
+            videos = await self.bot.run_async(self.bot.yt_api.playlist_items,
+                                              playlist_id, Part.ContentDetails,
+                                              max_results)
+            if not videos:
+                await ctx.send(f"Failed to download youtube playlist with the id {playlist_id}")
+            else:
+                youtube_vids.extend([vid['contentDetails']['videoId'] for vid in videos])
+
+        if youtube_vids:
+            if len(youtube_vids) > max_results:
+                await ctx.send(f'Youtube vid limit reached. Skipping {len(youtube_vids) - max_results} entries')
+
+            videos = await self.bot.run_async(self.bot.yt_api.video_info,
+                                              youtube_vids[:max_results], Part.combine(Part.ContentDetails, Part.Snippet))
+
+            for song in videos:
+                snippet = song['snippet']
+                new_songs.append(Song(webpage_url=id2url(song['id']),
+                                      title=snippet['title'],
+                                      duration=parse_youtube_duration(song['contentDetails']['duration'])))
 
         return new_songs, failed
 
@@ -933,7 +971,7 @@ class Audio(commands.Cog):
         s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
         await ctx.send(f'{s}\nDeleted {deleted} song(s)')
 
-    @command(no_pm=True, aliases=['crp'])
+    @command(no_pm=True, aliases=['crp'], cooldown_after_parsing=True)
     @cooldown(1, 20, BucketType.user)
     async def create_playlist(self, ctx, *, name):
         """
@@ -1100,8 +1138,8 @@ class Audio(commands.Cog):
     @cooldown(1, 5, BucketType.user)
     async def playlist_by_time(self, ctx, user: Optional[discord.User], name, longer_than: Optional[bool], *, duration: TimeDelta):
         """Filters playlist by song duration.
-        Longer than param is optional.
-        Usage:
+        Longer than parameter is optional.
+        Usage ([] means optional):
         `{prefix}{name} [User#1234] "playlist name" no 10m` will select all songs under 10min and
         `{prefix}{name} [User#1234] "playlist name" 10m` will select songs over 10min"""
         user = user if user else ctx.author

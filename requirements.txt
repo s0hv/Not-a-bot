@@ -9,9 +9,11 @@ colour
 dblpy
 emoji
 imagehash
+isodate
 opencv-python
 git+https://github.com/cristobalcl/geopatterns.git#egg=geopatterns
 gtts
+google-api-python-client
 lxml
 matplotlib
 numpy

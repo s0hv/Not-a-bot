@@ -1,6 +1,7 @@
 import discord
 
 from bot.botbase import BotBase
+from bot.youtube import YTApi
 
 
 class AudioBot(BotBase):
@@ -9,6 +10,7 @@ class AudioBot(BotBase):
         self.playlists = {}
         self.viewed_playlists = {}
         self.prefix = self.get_command_prefix
+        self.yt_api = YTApi(self.config.youtube_api_key)
 
     async def on_ready(self):
         await super().on_ready()

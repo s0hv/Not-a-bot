@@ -67,6 +67,17 @@ class Emotes(Cog):
             for s in strings:
                 await ctx.send(s)
 
+    @emotes.command(aliases=['counts', 'limit', 'count'])
+    @cooldown(1, 4, type=commands.BucketType.guild)
+    async def limits(self, ctx):
+        """
+        Shows limits on emoji counts and how much they're filled on this server
+        """
+        guild = ctx.guild
+        emote_limit = guild.emoji_limit
+        _, local, animated = self.get_emotes(guild)
+        await ctx.send(f"Emote limits\nStatic: {len(local)}/{emote_limit}\nAnimated: {len(animated)}/{emote_limit}")
+
     @cooldown(1, 10, type=commands.BucketType.guild)
     @emotes.command(name='global', no_pm=True)
     async def global_(self, ctx, include_name: bool=True):

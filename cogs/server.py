@@ -46,7 +46,21 @@ class Server(Cog):
 
         guild = ctx.guild
 
-        sorted_users = sorted(guild.members, key=lambda u: len(u.roles), reverse=True)
+        # remove some roles that have perms for my own guild
+        if guild.id == 217677285442977792:
+            # These should only be used for set operations
+            filtered_roles = {321374867557580801, 331811458012807169, 361889118210359297, 380814558769578003,
+                              337290275749756928, 422432520643018773, 322837972317896704, 323492471755636736,
+                              329293030957776896}
+            filtered_roles = {discord.Role(guild=None, state=None, data={"id": id_, "name": ""}) for id_ in filtered_roles}
+
+            def sort(member):
+                return len(set(member.roles) - filtered_roles)
+
+            sorted_users = sorted(guild.members, key=sort, reverse=True)
+        else:
+            sorted_users = sorted(guild.members, key=lambda u: len(u.roles), reverse=True)
+
         # Indexes of all of the pages
         pages = list(range(1, ceil(len(guild.members)/10)+1))
 

@@ -441,10 +441,24 @@ class CommandBlacklist(Cog):
         await send_paged_message(ctx, pages, embed=True)
 
     @command(no_pm=True, aliases=['sp'])
-    @cooldown(1, 15, BucketType.guild)
-    async def show_perms(self, ctx):
-        """Shows all server perms in one paged embed"""
+    @cooldown(1, 10, BucketType.guild)
+    async def show_perms(self, ctx, *, type_: typing.Union[discord.Role, discord.User, discord.TextChannel]=None):
+        """
+        Shows all server perms in one paged embed.
+        If type is a role, user or a text channel will only show permissions for that.
+        """
         sql = f'SELECT command, type, uid, role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
+
+        # Add extra filters to sql
+        if isinstance(type_, discord.Role):
+            sql += f" AND role={type_.id}"
+        elif isinstance(type_, discord.User):
+            sql += f" AND uid={type_.id}"
+        elif isinstance(type_, discord.TextChannel):
+            sql += f" AND channel={type_.id}"
+
+        sql += " ORDER BY uid, role, channel"
+
         rows = await self.bot.dbutil.fetch(sql)
 
         perms = {'guild': [], 'channel': [], 'role': [], 'user': []}

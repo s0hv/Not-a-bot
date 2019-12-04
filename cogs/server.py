@@ -45,6 +45,7 @@ class Server(Cog):
             page -= 1
 
         guild = ctx.guild
+        filtered_roles = {}
 
         # remove some roles that have perms for my own guild
         if guild.id == 217677285442977792:
@@ -64,20 +65,33 @@ class Server(Cog):
         # Indexes of all of the pages
         pages = list(range(1, ceil(len(guild.members)/10)+1))
 
+        # Count user roles filtered if a specific server
+        if guild.id == 217677285442977792:
+            author_role_count = len(set(ctx.author.roles) - filtered_roles)
+        else:
+            author_role_count = len(ctx.author.roles)
+
         def get_msg(page, _):
             s = 'Leaderboards for **{}**\n\n```md\n'.format(guild.name)
             added = 0
             p = page*10
             for idx, u in enumerate(sorted_users[p-10:p]):
+                # Count user roles filtered if a specific server
+                if guild.id == 217677285442977792:
+                    role_count = len(set(u.roles) - filtered_roles)
+                else:
+                    role_count = len(u.roles)
+
                 added += 1
-                s += '{}. {} with {} roles\n'.format(idx + p-9, u, len(u.roles) - 1)
+                # role_count - 1 to not count the default role
+                s += '{}. {} with {} roles\n'.format(idx + p-9, u, role_count - 1)
 
             if added == 0:
                 return 'Page out of range'
 
             try:
                 idx = sorted_users.index(ctx.author) + 1
-                s += '\nYour rank is {} with {} roles\n'.format(idx, len(ctx.author.roles) - 1)
+                s += '\nYour rank is {} with {} roles\n'.format(idx, author_role_count - 1)
             except:
                 pass
             s += '```'

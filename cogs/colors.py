@@ -318,6 +318,14 @@ class Colors(Cog):
 
             await self._update_color(color, before, to_role=False)
 
+        elif before.name != after.name:
+            color = self._colors.get(before.guild.id, {}).get(before.id)
+            if not color:
+                return
+
+            color.name = after.name
+            await self._add_color2db(color, update=True)
+
     async def _add_colors_from_roles(self, roles, ctx):
         guild = ctx.guild
         colors = self._colors.get(guild.id)

@@ -125,6 +125,23 @@ class Colors(Cog):
         else:
             return True
 
+    def get_color_from_type(self, color, guild_id):
+        """
+        Gets the color role from a role or string
+        Args:
+            color (discord.Role or str): color of the given server
+            guild_id (int): id of the guild
+
+        Returns:
+            Color if color found. None otherwise
+        """
+        if isinstance(color, discord.Role):
+            color = self._colors[guild_id].get(color.id)
+        else:
+            color = self.get_color(color, guild_id)
+
+        return color
+
     @staticmethod
     def check_rgb(rgb, to_role=True):
         """
@@ -917,6 +934,28 @@ class Colors(Cog):
 
         await ctx.send('Added color {} {}'.format(name, str(d_color)))
 
+    @command(no_pm=True, aliases=['rename_colour'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
+    @cooldown(1, 5, type=BucketType.guild)
+    async def rename_color(self, ctx, color: typing.Union[discord.Role, str], *, new_name):
+        """
+        Edit the name of the given color. This is not the same as changing the name of the role
+        that the color is associated with.
+        """
+        guild = ctx.guild
+        c = color
+        color = self.get_color_from_type(color, guild.id)
+
+        if not color:
+            await ctx.send(f'No color role found with {c}')
+            return
+
+        old_name = color.name
+        color.name = new_name
+        await self._add_color2db(color, update=True)
+        await ctx.send(f"Renamed {old_name} to {new_name}")
+
     @command(no_pm=True, aliases=['edit_colour'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
@@ -929,10 +968,7 @@ class Colors(Cog):
         """
         guild = ctx.guild
         c = color
-        if isinstance(color, discord.Role):
-            color = self._colors[guild.id].get(color.id)
-        else:
-            color = self.get_color(color, guild.id)
+        color = self.get_color_from_type(color, guild.id)
 
         if not color:
             await ctx.send(f'No color role found with {c}')

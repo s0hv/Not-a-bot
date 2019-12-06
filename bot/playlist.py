@@ -376,7 +376,7 @@ class Playlist:
                 except asyncio.CancelledError:
                     await message.delete()
                     return
-                except:
+                except discord.ClientException:
                     logger.exception('Failed to post progress')
                     return
 

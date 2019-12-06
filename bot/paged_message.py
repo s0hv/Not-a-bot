@@ -12,7 +12,8 @@ class PagedMessage:
     INVALID = Actions.INVALID
     VALID = Actions.VALID
 
-    def __init__(self, pages, prev='◀', next='▶', stop='⏹', accept=None, test_check=False, starting_idx=0):
+    def __init__(self, pages, prev='◀', next_='▶', stop='⏹', accept=None,
+                 test_check=False, starting_idx=0):
         """
         Paged message where pages can be changed by reacting to a message
 
@@ -23,7 +24,7 @@ class PagedMessage:
         self._pages = pages
         self._idx = starting_idx
         self._prev = prev
-        self._next = next
+        self._next = next_
         self._stop = stop
         self._accept = accept
         self.test_check = test_check

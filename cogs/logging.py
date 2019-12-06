@@ -17,7 +17,8 @@ class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    def format_for_db(self, message):
+    @staticmethod
+    def format_for_db(message):
         is_pm = isinstance(message.channel, PrivateChannel)
         guild = message.guild.id if not is_pm else None
         # guild_name = message.guild.name if not is_pm else 'DM'
@@ -64,7 +65,7 @@ class Logger(Cog):
               'VALUES %s' % self.bot.dbutil.create_bind_groups(len(roles), 3)
 
         data = []
-        for idx, role in enumerate(roles):
+        for role in roles:
             data.extend((guild.id, role.id, role.name))
 
         sql = sql.rstrip(',')

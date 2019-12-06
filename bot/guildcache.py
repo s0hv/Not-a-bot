@@ -270,5 +270,5 @@ class GuildCache:
     def __delitem__(self, key):
         try:
             del self.guilds[key]
-        except:
+        except KeyError:
             pass

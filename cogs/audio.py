@@ -452,34 +452,6 @@ class Audio(commands.Cog):
         return musicplayer
 
     @staticmethod
-    def parse_seek(string: str):
-        """Kept for archival purposes"""
-        raise NotImplementedError('Use utils.utilities.parse_seek instead')
-        hours = '00'
-        minutes = '00'
-        seconds = '00'
-        ms = '00'
-
-        # If we have m or s 2 time in the string this doesn't work so
-        # we replace the ms with a to circumvent this.
-        string = string.replace('ms', 'a')
-
-        if 'h' in string:
-            hours = string.split('h')[0]
-            string = ''.join(string.split('h')[1:])
-        if 'm' in string:
-            minutes = string.split('m')[0].strip()
-            string = ''.join(string.split('m')[1:])
-        if 's' in string:
-            seconds = string.split('s')[0].strip()
-            string = ''.join(string.split('s')[1:])
-        if 'a' in string:
-            ms = string.split('a')[0].strip()
-
-        return '-ss {0}:{1}:{2}.{3}'.format(hours.zfill(2), minutes.zfill(2),
-                                            seconds.zfill(2), ms)
-
-    @staticmethod
     def _parse_filters(options: str, filter_name: str, value: str, remove=False):
         logger.debug('Parsing filters: {0}, {1}, {2}'.format(options, filter_name, value))
         if remove:
@@ -610,7 +582,6 @@ class Audio(commands.Cog):
     async def _seek(self, musicplayer, current, seek_dict, options=None,
                     speed=None):
         """
-        
         Args:
             current: The song that we want to seek
 

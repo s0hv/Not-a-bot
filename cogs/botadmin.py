@@ -55,11 +55,11 @@ class NoStringWrappingPrettyPrinter(PrettyPrinter):
 
         return s
 
-    def _format(self, object, stream, *args):
-        if isinstance(object, str):
-            stream.write(self._format_str(object))
+    def _format(self, obj, stream, *args, **kwargs):
+        if isinstance(obj, str):
+            stream.write(self._format_str(obj))
         else:
-            super()._format(object, stream, *args)
+            super()._format(obj, stream, *args, **kwargs)
 
 
 class NonFormatted:

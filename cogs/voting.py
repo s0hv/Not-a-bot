@@ -242,7 +242,7 @@ class Poll:
         else:
 
             scores = {}
-            for u, reacts in votes.items():
+            for _, reacts in votes.items():
                 if reacts is None:
                     continue
 
@@ -368,7 +368,7 @@ class VoteManager(Cog):
                 if not emote.strip():
                     continue
 
-                animated, name, emote_id = get_emote_name_id(emote)
+                _, name, emote_id = get_emote_name_id(emote)
                 if name is None:
                     if len(emote) > 2:
                         # If length is more than 2 it's most likely not an unicode char
@@ -609,16 +609,16 @@ class VoteManager(Cog):
                     # add them so strict mode will count them in too
                     for emote in emotes:
                         if not isinstance(emote, tuple):
-                            name, id = emote, emote
-                            emotes_list.append(id)
+                            name, id_ = emote, emote
+                            emotes_list.append(id_)
                             guild = None
                         else:
                             # Prefix is the animated emoji prefix a: or empty str
-                            prefix, name, id = emote
+                            prefix, name, id_ = emote
                             name = prefix + name
-                            emotes_list.append(id)
+                            emotes_list.append(id_)
                             guild = ctx.guild.id
-                        values.append((name, str(id), guild))
+                        values.append((name, str(id_), guild))
 
                     # No need to run these if no user set emotes are used
                     if values:
@@ -628,8 +628,8 @@ class VoteManager(Cog):
 
                         sql = 'INSERT INTO pollemotes (poll_id, emote_id) VALUES ($1, $2) ON CONFLICT DO NOTHING '
                         values = []
-                        for id in emotes_list:
-                            values.append((msg.id, str(id)))
+                        for id_ in emotes_list:
+                            values.append((msg.id, str(id_)))
 
                         await conn.executemany(sql, values)
 

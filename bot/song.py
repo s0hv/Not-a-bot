@@ -28,6 +28,7 @@ import os
 import time
 
 import discord
+from aiohttp.web_exceptions import HTTPException
 
 logger = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')
@@ -178,7 +179,7 @@ class Song:
                     self.last_update = 0  # Reset last update so we dont end up in recursion loop
                     await self.download()
             return True
-        except:
+        except HTTPException:
             logger.exception('Failed to validate url')
             return False
 

@@ -48,7 +48,7 @@ class NotABot(BotBase):
         cdm = CooldownManager()
         cdm.add_cooldown('oshit', 3, 8)
         self.cdm = cdm
-        
+
         self._random_color = None
         self._tf_model = model
         self._poke_model = poke_model
@@ -56,7 +56,6 @@ class NotABot(BotBase):
         self.timeouts = {}
         self.temproles = {}
         self.gachilist = []
-        self.hi_new = {ord(c): '' for c in ", '"}
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
         self._server = WebhookServer(self)
@@ -77,7 +76,6 @@ class NotABot(BotBase):
 
     async def cache_guilds(self):
         terminal.info('Caching guilds')
-        import time
         t = time.time()
         guilds = self.guilds
         sql = 'SELECT guild FROM guilds'
@@ -135,7 +133,7 @@ class NotABot(BotBase):
 
     async def on_ready(self):
         self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
-        terminal.info('Logged in as {0.user.name}'.format(self))
+        terminal.info(f'Logged in as {self.user.name}')
         await self.dbutil.add_command('help')
         try:
             await self.cache_guilds()

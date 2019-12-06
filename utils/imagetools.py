@@ -137,7 +137,7 @@ def replace_color(im, color1, color2):
     im = im.convert('RGBA')
 
     data = np.array(im)  # "data" is a height x width x 4 numpy array
-    red, green, blue, alpha = data.T  # Temporarily unpack the bands for readability
+    red, green, blue, _ = data.T  # Temporarily unpack the bands for readability
 
     r, g, b = color1
     # Replace white with red... (leaves alpha values alone...)
@@ -336,7 +336,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=200,
     # merge with mask got on one of a previous steps
     img_a = cv2.merge((c_red, c_green, c_blue, mask.astype('float32') / 255.0))
 
-    r, buf = cv2.imencode('.png', img_a * 255)
+    _, buf = cv2.imencode('.png', img_a * 255)
     buffer = BytesIO(bytearray(buf))
     return Image.open(buffer)
 
@@ -347,7 +347,7 @@ async def image_from_url(url, client):
 
 async def raw_image_from_url(url, client, get_mime=False):
     if not url:
-        raise ImageDownloadError('No images found')
+        raise ImageDownloadError('No images found', '')
 
     url = url.strip('\u200b \n')
     data = None
@@ -679,7 +679,7 @@ def gradient_flash(im, get_raw=True, transparency=None):
     data = BytesIO()
     if isinstance(frames[0].info.get('duration', None), list):
         duration = frames[0].info['duration']
-        for i in range(1, extended):
+        for _ in range(1, extended):
             duration.extend(duration)
     else:
         duration = [frame.info.get('duration', 20) for frame in frames]
@@ -725,7 +725,7 @@ def optimize_gif(gif_bytes):
     cmd = '{}convert - -dither none -layers optimize -dispose background -matte -depth 8 gif:-'.format(MAGICK)
     p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     p.stdin.write(gif_bytes)
-    out, err = p.communicate()
+    out, _ = p.communicate()
     buff = BytesIO(out)
     return buff
 

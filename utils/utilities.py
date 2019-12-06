@@ -1011,13 +1011,13 @@ def is_image_url(url):
     if not test_url(url):
         return False
 
-    mimetype, encoding = mimetypes.guess_type(url)
+    mimetype, _ = mimetypes.guess_type(url)
     is_image = mimetype and mimetype.startswith('image')
     if not is_image:
         # This is needed because some images like from twitter
         # are usually in the format of someimage.jpg:large
         # and mimetypes doesn't recognize that
-        mimetype, encoding = mimetypes.guess_type((':'.join(url.split(':')[:-1])))
+        mimetype, _ = mimetypes.guess_type((':'.join(url.split(':')[:-1])))
         is_image = mimetype and mimetype.startswith('image')
 
     return is_image

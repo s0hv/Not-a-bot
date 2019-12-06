@@ -401,13 +401,13 @@ class Server(Cog):
                     return await ctx.send('Emote capacity reached\n{}'.format(e))
                 await ctx.send('Error while uploading emote\n%s' % e)
                 errors += 1
-            except:
+            except discord.ClientException:
                 await ctx.send('Failed to create emote because of an error')
                 logger.exception('Failed to create emote')
                 errors += 1
 
         if stolen:
-            await ctx.send('Successfully stole {}'.format(' '.join(map(lambda e: str(e), stolen))))
+            await ctx.send('Successfully stole {}'.format(' '.join(map(str, stolen))))
         else:
             await ctx.send("Didn't steal anything")
 

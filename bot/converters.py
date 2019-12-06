@@ -242,12 +242,12 @@ class CleanContent(converter.Converter):
             transformations.update(resolve_channel(channel) for channel in message.raw_channel_mentions)
 
         if self.use_nicknames and ctx.guild:
-            def resolve_member(id, *, _get=ctx.guild.get_member):
-                m = _get(id)
+            def resolve_member(id_, *, _get=ctx.guild.get_member):
+                m = _get(id_)
                 return '@' + m.display_name if m else '@deleted-user'
         else:
-            def resolve_member(id, *, _get=ctx.bot.get_user):
-                m = _get(id)
+            def resolve_member(id_, *, _get=ctx.bot.get_user):
+                m = _get(id_)
                 return '@' + m.name if m else '@deleted-user'
 
         transformations.update(

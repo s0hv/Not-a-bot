@@ -954,7 +954,7 @@ class ServerSpecific(Cog):
 
         desc = textwrap.dedent(desc).strip()
 
-        def check_(msg):
+        def check2_(msg):
             if msg.channel != channel:
                 return False
 
@@ -987,7 +987,7 @@ class ServerSpecific(Cog):
                 return
 
         try:
-            await self.bot.wait_for('message', check=check_, timeout=120)
+            await self.bot.wait_for('message', check=check2_, timeout=120)
         except asyncio.TimeoutError:
             return
 

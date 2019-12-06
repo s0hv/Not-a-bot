@@ -107,27 +107,25 @@ class AutoRoles(Cog):
                 if not color_ids.intersection(roles):
                     roles.add(choice(list(color_ids)))
 
-        if not roles:
-            return
+        if roles:
+            roles = [Snowflake(r) for r in roles]
 
-        roles = [Snowflake(r) for r in roles]
+            try:
+                await member.add_roles(*roles, atomic=len(roles) > 3, reason='Keeproles')
+            except discord.NotFound:
+                # If member left before adding roles dont do anything
+                return
 
-        try:
-            await member.add_roles(*roles, atomic=len(roles) > 3, reason='Keeproles')
-        except discord.NotFound:
-            # If member left before adding roles dont do anything
-            return
-
-        except discord.HTTPException:
-            for role in roles:
-                try:
-                    await member.add_roles(role, reason='Keeproles')
-                except discord.Forbidden:
-                    pass
-                except discord.NotFound:
-                    return
-                except:
-                    logger.exception('Failed to give role on join')
+            except discord.HTTPException:
+                for role in roles:
+                    try:
+                        await member.add_roles(role, reason='Keeproles')
+                    except discord.Forbidden:
+                        pass
+                    except discord.NotFound:
+                        return
+                    except discord.ClientException:
+                        logger.exception('Failed to give role on join')
 
         if guild.id == 217677285442977792:
             await wants_to_be_noticed(member, guild)

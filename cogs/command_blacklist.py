@@ -24,7 +24,8 @@ class CommandBlacklist(Cog):
     @group(no_pm=True, invoke_without_command=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def blacklist(self, ctx, commands: commands.Greedy[CommandConverter]=None, *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]=None):
+    async def blacklist(self, ctx, commands_: commands.Greedy[CommandConverter] = None,
+                        *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User] = None):
         """Blacklist a command for a user, role or channel
         To blacklist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -48,7 +49,7 @@ class CommandBlacklist(Cog):
         For dangers of whitelisting see `{prefix}help whitelist`"""
         guild = ctx.guild
 
-        if not commands and mention is None:
+        if not commands_ and mention is None:
             return await ctx.send('No parameters given')
 
         async def _blacklist(name):
@@ -71,17 +72,17 @@ class CommandBlacklist(Cog):
                 return await self._add_channel_blacklist(ctx, name, mention, guild)
 
         s = ''
-        if commands is None:
+        if commands_ is None:
             val = await self._set_all_commands(ctx, mention)
             if isinstance(val, str):
                 s += val
         else:
-            for command in commands:
-                if command.name == 'privacy':
+            for command_ in commands_:
+                if command_.name == 'privacy':
                     await ctx.send("Cannot blacklist privacy command as it's required that anyone can see it")
                     continue
 
-                val = await _blacklist(command.name)
+                val = await _blacklist(command_.name)
                 if isinstance(val, str):
                     s += val + '\n'
 
@@ -152,7 +153,7 @@ class CommandBlacklist(Cog):
     @command(no_pm=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def whitelist(self, ctx, commands: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]):
+    async def whitelist(self, ctx, commands_: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]):
         """Whitelist a command for a user, role or channel
         To whitelist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -187,8 +188,8 @@ class CommandBlacklist(Cog):
                 return await self._add_channel_whitelist(ctx, name, mention, guild)
 
         s = ''
-        for command in commands:
-            val = await _whitelist(command)
+        for command_ in commands_:
+            val = await _whitelist(command_)
             if isinstance(val, str):
                 s += val + '\n'
 

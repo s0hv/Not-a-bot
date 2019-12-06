@@ -121,7 +121,7 @@ class BotBase(Bot):
 
     async def on_ready(self):
         self._mention_prefix = (self.user.mention, f'<@!{self.user.id}>')
-        terminal.info('Logged in as {0.user.name}'.format(self))
+        terminal.info(f'Logged in as {self.user.name}')
         await self.dbutil.add_command('help')
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         terminal.debug('READY')

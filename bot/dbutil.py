@@ -171,7 +171,6 @@ class DatabaseUtils:
         return row
 
     async def index_guild_member_roles(self, guild):
-        import time
         t = time.time()
         default_role = guild.default_role.id
 
@@ -330,7 +329,7 @@ class DatabaseUtils:
         return True
 
     async def remove_user_roles(self, role_ids, user_id: int):
-        sql = 'DELETE FROM userroles WHERE uid=%s and role IN (%s)' % (user_id, ', '.join(map(lambda i: str(i), role_ids)))
+        sql = 'DELETE FROM userroles WHERE uid=%s and role IN (%s)' % (user_id, ', '.join(map(str, role_ids)))
         try:
             await self.execute(sql)
             return True
@@ -810,6 +809,16 @@ class DatabaseUtils:
 
         Returns: int, bool, None
             See fetch_raw to see possible return values
+
+        Here are the returns
+            1 user AND whitelist
+            3 user AND blacklist
+            4 whitelist AND role
+            6 blacklist AND role
+            8 channel AND whitelist
+            10 channel AND blacklist
+            16 whitelist AND server
+            18 blacklist AND server
         """
         sql = 'SELECT * FROM command_blacklist WHERE type=%s AND %s ' \
               'AND (uid=%s OR uid IS NULL) LIMIT 1' % (BlacklistTypes.GLOBAL, command, user.id)
@@ -823,7 +832,7 @@ class DatabaseUtils:
 
         channel = ctx.channel
         if isinstance(user, discord.Member) and user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(str, user.roles)))
         else:
             roles = 'role IS NULL'
 
@@ -832,17 +841,5 @@ class DatabaseUtils:
         rows = await self.fetch(sql)
         if not rows:
             return None
-
-        """
-        Here are the returns
-            1 user AND whitelist
-            3 user AND blacklist
-            4 whitelist AND role
-            6 blacklist AND role
-            8 channel AND whitelist
-            10 channel AND blacklist
-            16 whitelist AND server
-            18 blacklist AND server
-        """
 
         return check_perms(rows, return_raw=fetch_raw)

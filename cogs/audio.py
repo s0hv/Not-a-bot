@@ -889,7 +889,8 @@ class Audio(commands.Cog):
         songs with this method.
 
         Otherwise you can give it links to songs or playlists and it'll add
-        those to the playlist. Max amount of songs added this way is 30
+        those to the playlist. Max amount of songs added this way is 30 for
+        non youtube links and hundreds for youtube links
         """
         songs = load_playlist(playlist_name, ctx.author.id)
         if songs is False:
@@ -987,7 +988,9 @@ class Audio(commands.Cog):
             ctx.command.reset_cooldown(ctx)
             return await ctx.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
 
-        await ctx.send('What would you like the contents of the playlist to be\nFor current music queue say `yes` otherwise post all the links you want in your playlist. Max amount of self posted links is 30')
+        await ctx.send('What would you like the contents of the playlist to be\n'
+                       'For current music queue say `yes` otherwise post all the links you want in your playlist.\n'
+                       'Max amount of self posted links is 30 for non youtube links and hundreds for youtube links')
 
         try:
             msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=60)
@@ -999,7 +1002,8 @@ class Audio(commands.Cog):
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
                 ctx.command.reset_cooldown(ctx)
-                await ctx.send('No songs currently in queue')
+                await ctx.send("No songs currently in queue. Playlist wasn't created")
+                return
 
             songs = list(musicplayer.playlist.playlist)
             if musicplayer.current:

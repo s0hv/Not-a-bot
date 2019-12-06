@@ -107,7 +107,7 @@ async def create_playlist(songs, user, name, channel):
         return await channel.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
 
     if not songs:
-        return await channel.send('Empty playlist', delete_after=60)
+        return await channel.send('Empty playlist. Playlist not created', delete_after=60)
 
     new_songs = []
     added = 0

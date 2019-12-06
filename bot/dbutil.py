@@ -832,7 +832,7 @@ class DatabaseUtils:
 
         channel = ctx.channel
         if isinstance(user, discord.Member) and user.roles:
-            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(str, user.roles)))
+            roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
 

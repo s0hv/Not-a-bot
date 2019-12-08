@@ -976,6 +976,9 @@ class ServerSpecific(Cog):
             if content.startswith('.claim '):
                 return True
 
+            if msg.author.id == 472141928578940958:
+                return True
+
             return False
 
         name = waifu[0]
@@ -992,6 +995,16 @@ class ServerSpecific(Cog):
 
             if ctx.guild.id in self._zetas and ctx.message.id != self._zetas[ctx.guild.id]:
                 return
+
+            if msg.author.id == 472141928578940958:
+                if not msg.embeds:
+                    continue
+
+                # If waifubot spawns a new character remove this zeta spawn
+                if msg.embeds[0].title == 'Character':
+                    guessed = None
+
+                continue
 
             # Check if correct character name given
             guess = ' '.join(msg.content.split(' ')[1:]).lower()

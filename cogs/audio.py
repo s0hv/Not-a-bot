@@ -691,7 +691,7 @@ class Audio(commands.Cog):
             return
 
         user = user if user else ctx.author
-        if not await musicplayer.playlist.add_from_playlist(user, name, ctx.channel, shuffle=shuffle):
+        if not await musicplayer.playlist.add_from_playlist(user, name, ctx.channel, shuffle=shuffle, author=ctx.author):
             await ctx.send(f"Couldn't find playlist {name} of user {user} or playlist was empty")
 
         if success:
@@ -995,7 +995,7 @@ class Audio(commands.Cog):
 
     @command(no_pm=True, aliases=['cop'])
     @cooldown(1, 20, BucketType.user)
-    async def copy_playlist(self, ctx, user: Optional[discord.User], name, *, new_name):
+    async def copy_playlist(self, ctx, user: Optional[discord.User], *, name):
         """
         Copy a playlist to your own playlists with a name
         Usage:
@@ -1009,14 +1009,10 @@ class Audio(commands.Cog):
             await ctx.send(f"Couldn't find playlist {name} of user {user}")
             return
 
-        if not validate_playlist_name(new_name):
-            ctx.command.reset_cooldown(ctx)
-            return await ctx.send(f"{new_name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
-
         dst = os.path.join(PLAYLISTS, str(user.id))
         if not os.path.exists(dst):
             os.mkdir(dst)
-        dst = os.path.join(dst, new_name)
+        dst = os.path.join(dst, name)
 
         if os.path.exists(dst):
             ctx.command.reset_cooldown(ctx)
@@ -1030,7 +1026,7 @@ class Audio(commands.Cog):
             await ctx.send('Failed to copy playlist. Try again later')
             return
 
-        await ctx.send(f'Successfully copied playlist {name} to {new_name}')
+        await ctx.send(f'Successfully copied {user}\'s playlist {name} to {name}')
 
     @staticmethod
     async def get_playlist(ctx, user, name):

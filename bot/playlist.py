@@ -487,7 +487,7 @@ class Playlist:
 
         return added
 
-    async def add_from_playlist(self, user, name, channel=None, shuffle=True):
+    async def add_from_playlist(self, user, name, channel=None, shuffle=True, author=None):
         if channel is None:
             channel = self.channel
 
@@ -501,8 +501,9 @@ class Playlist:
         if shuffle:
             random.shuffle(songs)
 
+        requested_by = author or user
         for song in songs:
-            song = Song(self, config=self.bot.config, **song, requested_by=user)
+            song = Song(self, config=self.bot.config, **song, requested_by=requested_by)
             if await self._append_song(song) is not False:
                 added += 1
 

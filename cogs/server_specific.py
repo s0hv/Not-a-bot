@@ -1007,8 +1007,8 @@ class ServerSpecific(Cog):
                 continue
 
             # Check if correct character name given
-            guess = ' '.join(msg.content.split(' ')[1:]).lower()
-            if guess != name.lower():
+            guess = ' '.join(msg.content.split(' ')[1:]).replace('-', '').lower()
+            if guess != name.replace('-', '').lower():
                 await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.avatar_url)
                 continue
 

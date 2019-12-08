@@ -504,7 +504,7 @@ class ServerSpecific(Cog):
     @cooldown(1, 600)
     @bot_has_permissions(manage_guild=True)
     @check(main_check)
-    async def rotate(self, ctx, emoji=None):
+    async def rotate(self, ctx, rotate_emoji=None):
         emoji_faces = {'😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉',
                        '😊', '😋', '😎', '😍', '😘', '😗', '😙', '😚', '☺',
                        '🙂', '🤗', '\U0001f929', '🤔', '\U0001f928', '😐', '😑',
@@ -521,31 +521,47 @@ class ServerSpecific(Cog):
                        '🍆', '🥚', '👌', '👏', '🌚', '🌝', '🌞', '⭐', '🦆', '👖',
                        '🍑', '🌈', '♿', '💯', '🐛', '💣', '🔞', '🆗', '🚼', '🇫',
                        '🇭', '🅱', '🎃', '💀', '👻', '🍞 ', '🍌'}
+        emoji_blacklist = {'🇦', '🇧', '🇨', '🇩', '🇪', '🇫', '🇬', '🇭', '🇮', '🇯', '🇰', '🇱',
+                           '🇲', '🇳', '🇴', '🇵', '🇶', '🇷', '🇹', '🇺', '🇻', '🇼', '🇽', '🇾',
+                           '🇿', '🇸'}
 
-        if emoji is not None:
+        if rotate_emoji is not None:
+            rotate_emoji = ''.join(rotate_emoji[:2])
             invalid = True
-            emoji_check = emoji
-            if len(emoji) > 1:
+            emoji_check = rotate_emoji
+
+            if len(rotate_emoji) > 1:
                 try:
-                    emojis = self.extract_emojis(emoji)
+                    emojis = self.extract_emojis(rotate_emoji)
                 except ValueError:
+                    ctx.command.reset_cooldown(ctx)
                     return await ctx.send('Invalid emoji')
 
-                if len(emojis) == 1:
-                    emoji_check = emojis[0]
+                if len(emojis) > 1:
+                    ctx.command.reset_cooldown(ctx)
+                    await ctx.send('Invalid emoji given')
+                    return
 
-            if emoji_check in emoji_faces:
+                emoji_check = emojis[0]
+
+            if emoji_check in emoji_blacklist:
+                ctx.command.reset_cooldown(ctx)
+                await ctx.send('Invalid emoji')
+                return
+
+            if len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
                 invalid = False
 
             if invalid:
                 ctx.command.reset_cooldown(ctx)
                 return await ctx.send('Invalid emoji')
 
-        elif emoji is None:
-            emoji = random.choice(list(emoji_faces))
+        elif rotate_emoji is None:
+            rotate_emoji = random.choice(list(emoji_faces))
 
         try:
-            await ctx.guild.edit(name=emoji*(100//(len(emoji))))
+            pass
+            await ctx.guild.edit(name=rotate_emoji * (100 // (len(rotate_emoji))))
         except discord.HTTPException as e:
             await ctx.send(f'Failed to change name because of an error\n{e}')
         else:

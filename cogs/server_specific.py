@@ -5,6 +5,7 @@ import textwrap
 import unicodedata
 from datetime import datetime
 from datetime import timedelta
+from difflib import ndiff
 from typing import Union
 
 import discord
@@ -906,7 +907,7 @@ class ServerSpecific(Cog):
         await mod._set_channel_lock(ctx, True)
 
     @command(hidden=True)
-    @cooldown(1, 1, BucketType.channel)
+    @cooldown(1, 60, BucketType.channel)
     async def zeta(self, ctx, channel: discord.TextChannel=None):
         try:
             await ctx.message.delete()
@@ -985,6 +986,8 @@ class ServerSpecific(Cog):
         claimer = None
         self._zetas[ctx.guild.id] = ctx.message.id
 
+        name_formatted = name.replace('-', '').lower()
+
         # Claim check loop
         while guessed is False:
             try:
@@ -1008,8 +1011,18 @@ class ServerSpecific(Cog):
 
             # Check if correct character name given
             guess = ' '.join(msg.content.split(' ')[1:]).replace('-', '').lower()
-            if guess != name.replace('-', '').lower():
-                await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.avatar_url)
+            if guess != name_formatted:
+                # Check if name was close
+                diff = len([c for c in ndiff(name_formatted, guess) if c.startswith('+')])
+                if diff == 0:
+                    diff = len([c for c in ndiff(name_formatted, guess) if c.startswith('-')])
+
+                if 0 < diff < 6:
+                    await wh.send(f"You were close, but wrong. What you gave was {diff} letter(s) off.",
+                                  username=wb.name, avatar_url=wb.avatar_url)
+                else:
+                    await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.avatar_url)
+
                 continue
 
             await wh.send(f'Nice {msg.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.avatar_url)

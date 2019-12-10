@@ -753,16 +753,51 @@ class Colors(Cog):
 
         await ctx.send(file=discord.File(data, 'colors.png'))
 
-    def get_colorpie(self, role_data, color2name):
+    def _format_color_names(self, guild, use_role_names):
+        """
+        Used in colorpie to get hex to name dict
+        """
+        if not use_role_names:
+            # Only resolve names for guild colors
+            colors = self._colors.get(guild.id, {})
+            color2name = {c.value: c.name for c in colors.values()}
+        else:
+            # Resolve names for all roles
+            color2name = {}
+
+            # Roles are ordered in hierarchy from lowest to highest
+            # so higher roles with same color will override other colors
+            for r in guild.roles:
+                color2name[r.color.value] = r.name
+
+            # Exception for no color
+            color2name[0] = '@everyone'
+
+        return color2name
+
+    @staticmethod
+    def _get_colorpie(members, color2name):
         """
 
         Args:
-            role_data (dict[str, int]): Member counts for each hex string
+            members (list of discord.Member): Members to be used in colorpie
             color2name (dict[str, str]): Convert hex strings to color names
 
         Returns:
             color pie image
         """
+
+        # dict of
+        # hex value: amount of users with said value
+        role_data = {}
+
+        for m in members:
+            val = m.color.value
+            if val in role_data:
+                role_data[val] += 1
+            else:
+                role_data[val] = 1
+
         member_count = sum(role_data.values())
 
         data = list(sorted(role_data.items(), key=lambda kv: kv[1], reverse=True))
@@ -827,7 +862,7 @@ class Colors(Cog):
         buf.seek(0)
         return buf
 
-    @group(no_pm=True, aliases=['colorpie'])
+    @group(no_pm=True, aliases=['colorpie'], invoke_without_command=True)
     @cooldown(1, 10, BucketType.guild)
     async def color_pie(self, ctx, all_roles: typing.Optional[bool]=False):
         """
@@ -840,40 +875,8 @@ class Colors(Cog):
         """
         guild = ctx.guild
 
-        if ctx.invoked_subcommand:
-            members = [m for m in guild.members if len(m.roles) > 3]
-        else:
-            members = guild.members.copy()
-
         def do():
-            # dict of
-            # hex value: amount of users with said value
-            data = {}
-
-            if not all_roles:
-                # Only resolve names for guild colors
-                colors = self._colors.get(guild.id, {})
-                color2name = {c.value: c.name for c in colors.values()}
-            else:
-                # Resolve names for all roles
-                color2name = {}
-
-                # Roles are ordered in hierarchy from lowest to highest
-                # so higher roles with same color will override other colors
-                for r in guild.roles:
-                    color2name[r.color.value] = r.name
-
-                # Exception for no color
-                color2name[0] = '@everyone'
-
-            for m in members:
-                val = m.color.value
-                if val in data:
-                    data[val] += 1
-                else:
-                    data[val] = 1
-
-            return self.get_colorpie(data, color2name)
+            return self._get_colorpie(guild.members.copy(), self._format_color_names(guild, all_roles))
 
         async with ctx.typing():
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, do)
@@ -883,10 +886,31 @@ class Colors(Cog):
 
         await ctx.send(file=discord.File(data, 'colors.png'))
 
-    @color_pie.command(name="actives")
+    @color_pie.command(name="actives", no_pm=True)
     @cooldown(1, 10, BucketType.guild)
-    async def colorpie_filtered(self, ctx):
-        pass
+    async def colorpie_filtered(self, ctx, role_amount: typing.Optional[int]=3,
+                                all_roles: typing.Optional[bool]=False):
+        """
+        Same as colorpie but will only count users with at least role_amount of roles.
+        everyone isn't counted as a role
+        """
+        guild = ctx.guild
+        members = [m for m in guild.members.copy() if len(m.roles) > role_amount]
+        if not members:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send(f'No members found with at least {role_amount} roles')
+            return
+
+        def do():
+            return self._get_colorpie(members, self._format_color_names(guild, all_roles))
+
+        async with ctx.typing():
+            data = await self.bot.loop.run_in_executor(self.bot.threadpool, do)
+
+        if not data:
+            return
+
+        await ctx.send(file=discord.File(data, 'colors.png'))
 
     @command(aliases=['search_colour'])
     @cooldown(1, 3, BucketType.user)

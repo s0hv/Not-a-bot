@@ -841,7 +841,7 @@ class Colors(Cog):
         guild = ctx.guild
 
         if ctx.invoked_subcommand:
-            members = [m for m in guild.members if len(m.roles) > 2]
+            members = [m for m in guild.members if len(m.roles) > 3]
         else:
             members = guild.members.copy()
 

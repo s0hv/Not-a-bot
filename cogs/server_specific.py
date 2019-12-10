@@ -12,6 +12,7 @@ import discord
 import emoji
 from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError
+from colour import Color
 from discord.errors import HTTPException
 from discord.ext.commands import (BucketType, check)
 from numpy import sqrt
@@ -975,7 +976,9 @@ class ServerSpecific(Cog):
 
         # Create spawn message
         desc = textwrap.dedent(desc).format(initials, link).strip()
-        e = discord.Embed(title='Character', color=16745712, description=desc)
+        c = random.choice(list(Color('#e767e4').range_to('#b442c3', 100)))
+        e = discord.Embed(title='Character', color=int(c.get_hex_l().replace('#', ''), 16),
+                          description=desc)
         e.set_image(url=link)
         wb = self.bot.get_user(472141928578940958)
 

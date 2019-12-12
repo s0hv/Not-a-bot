@@ -962,6 +962,8 @@ class Moderator(Cog):
             return await ctx.send('%s is not muted' % member)
 
         row = await self.bot.dbutil.get_latest_timeout_log(guild.id, member.id)
+        utcnow = datetime.utcnow()
+
         if row is False:
             return await ctx.send('Failed to check mute status')
 
@@ -970,11 +972,11 @@ class Moderator(Cog):
 
         td = f'User {member} is permamuted\n'
         if row['expires_on']:
-            delta = row['expires_on'] - datetime.utcnow()
+            delta = row['expires_on'] - utcnow
             td = seconds2str(delta.total_seconds(), False)
-            # Sometimes it
+            # Most likely happens when unmute when called after unmute has happened
             if td.startswith('-'):
-                terminal.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {datetime.utcnow()}\nTimedelta: {delta}')
+                terminal.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {utcnow}\nTimedelta: {delta}')
                 td = 'soon'
             else:
                 td = 'in ' + td
@@ -990,7 +992,7 @@ class Moderator(Cog):
             author = f'User responsible for timeout: {author_user} `{author_user.id}`\n'
 
         muted_at = row['time']
-        td_at = datetime.utcnow() - muted_at
+        td_at = utcnow - muted_at
         author += f'Muted on `{muted_at.strftime("%Y-%m-%d %H:%M")}` UTC which was {format_timedelta(td_at, DateAccuracy.Day)} ago\n'
 
         if embed:

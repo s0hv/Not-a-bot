@@ -451,7 +451,7 @@ class Pokemon(Cog):
 
         await ctx.send(f'Pokelog created in {channel.mention}')
 
-    @command()
+    @command(no_pm=True)
     @cooldown(1, 5, BucketType.guild)
     async def pokelog(self, ctx):
         """

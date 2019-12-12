@@ -17,7 +17,7 @@ from bot.formatter import Paginator
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
-                             datetime2sql, get_avatar, is_image_url,
+                             get_avatar, is_image_url,
                              seconds2str, get_role, get_channel, Snowflake,
                              basic_check, sql2timedelta, check_botperm,
                              format_timedelta, DateAccuracy, send_paged_message)
@@ -1155,8 +1155,13 @@ class Moderator(Cog):
                 return
 
         t = datetime.utcnow() - timedelta(days=14)
-        t = datetime2sql(t)
-        sql = "SELECT message_id, channel FROM messages WHERE guild=%s AND user_id=%s AND time > '%s'::date " % (guild.id, user, t)
+
+        # Create a snowflake from date because that way we dont need a date column
+        # https://discordapp.com/developers/docs/reference#snowflakes-snowflake-id-format-structure-left-to-right
+        # snowflake reference
+        t = ((int(t.timestamp()*1000)-1420070400000) << 22) | (11111 << 18) | (11111 << 12) | 111111111111
+
+        sql = "SELECT message_id, channel FROM messages WHERE guild=%s AND user_id=%s AND message_id > %s " % (guild.id, user, t)
 
         if channel is not None:
             sql += 'AND channel=%s ' % channel.id

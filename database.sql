@@ -198,7 +198,6 @@ create table messages
   channel    bigint,
   user_id    bigint,
   message_id bigint    default 0                 not null,
-  time       timestamp default CURRENT_TIMESTAMP not null,
   constraint idx_27225_primary
     primary key (message_id)
 );

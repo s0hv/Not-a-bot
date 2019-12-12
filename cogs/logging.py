@@ -41,8 +41,7 @@ class Logger(Cog):
         return (guild,
                 channel,
                 user_id,
-                message_id,
-                message.created_at), attachment
+                message_id), attachment
 
     async def check_mentions(self, message):
         if message.guild is None:
@@ -75,8 +74,8 @@ class Logger(Cog):
     @Cog.listener()
     async def on_message(self, message):
         await self.check_mentions(message)
-        sql = "INSERT INTO messages (guild, channel, user_id, message_id, time) " \
-              "VALUES ($1, $2, $3, $4, $5)"
+        sql = "INSERT INTO messages (guild, channel, user_id, message_id) " \
+              "VALUES ($1, $2, $3, $4)"
 
         d, attachment = self.format_for_db(message)
         await self.bot.dbutil.execute(sql, d)

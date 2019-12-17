@@ -651,6 +651,26 @@ class DatabaseUtils:
         rowid = await self.fetchval(sql, (changes, ))
         return rowid
 
+    async def index_join_dates(self, guild):
+        sql = "INSERT INTO join_dates (uid, guild, first_join) VALUES %s ON CONFLICT DO NOTHING"
+        if not guild.chunked:
+            logger.warning(f'Guild {guild.id} not chunked before join date update')
+
+        chunk_size = 10000
+        values = []
+        sqls = []
+        members = guild.members.copy()
+
+        for i in range(0, len(members), chunk_size):
+            data = []
+            for m in members[i:i+chunk_size]:
+                data.extend((m.id, guild.id, m.joined_at))
+
+            values.append(data)
+            sqls.append(sql % self.create_bind_groups(len(data)//3, 3))
+
+        await self.execute_chunked(sqls, values)
+
     async def add_timeout_log(self, guild_id, user_id, author_id, reason, embed=None,
                               timestamp=None, modlog_message_id=None, duration=None,
                               show_in_logs=True):

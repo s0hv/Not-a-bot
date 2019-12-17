@@ -96,6 +96,7 @@ class NotABot(BotBase):
                 continue
 
             await self.dbutil.index_guild_roles(guild)
+            await self.dbutil.index_join_dates(guild)
 
         logger.debug('Caching prefixes')
         await self.dbutils.add_guilds(*new_guilds)

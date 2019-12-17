@@ -295,6 +295,16 @@ create table roles
     primary key (id)
 );
 
+create table join_dates
+(
+    uid bigint not null,
+    guild bigint not null,
+    first_join timestamp,
+
+    constraint join_date_index
+        primary key (uid, guild)
+);
+
 create table automute_whitelist
 (
   role  bigint not null,

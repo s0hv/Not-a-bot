@@ -94,6 +94,9 @@ class Logger(Cog):
 
         await self.bot.dbutil.execute(sql, (member.id, guild.id, 1))
 
+        sql = "INSERT INTO join_dates (uid, guild, first_join) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
+        await self.bot.dbutil.execute(sql, (member.id, guild.id, member.joined_at))
+
         channel = self.bot.guild_cache.join_channel(guild.id)
         channel = guild.get_channel(channel)
         if channel is None:

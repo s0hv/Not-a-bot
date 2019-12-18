@@ -463,6 +463,21 @@ class Server(Cog):
             await ctx.send(embed=page)
 
     @command(no_pm=True)
+    @cooldown(1, 10, BucketType.user)
+    async def join_date(self, ctx):
+        """
+        Returns the first recorded join date to this server.
+        Dates before December 17th 2019 might not be the earliest join date
+        """
+        user = ctx.author
+        date = await self.bot.dbutil.get_join_date(user.id, ctx.guild.id)
+        if not date:
+            await ctx.send('No join date logged for user or an error happened')
+            return
+
+        await ctx.send(f'First recorded join for {user} is {date.strftime("%Y-%m-%d %H:%M")} (YYYY-MM-DD)')
+
+    @command(no_pm=True)
     @has_permissions(administrator=True)
     @cooldown(1, 10)
     async def delete_server(self, ctx):

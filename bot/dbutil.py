@@ -671,6 +671,16 @@ class DatabaseUtils:
 
         await self.execute_chunked(sqls, values)
 
+    async def get_join_date(self, uid: int, guild_id: int):
+        sql = f"SELECT first_join FROM join_dates WHERE uid={uid} AND guild={guild_id}"
+        try:
+            row = await self.fetch(sql, fetchmany=False)
+        except PostgresError:
+            return None
+
+        if row:
+            return row[0]
+
     async def add_timeout_log(self, guild_id, user_id, author_id, reason, embed=None,
                               timestamp=None, modlog_message_id=None, duration=None,
                               show_in_logs=True):

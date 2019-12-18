@@ -1500,7 +1500,20 @@ class Moderator(Cog):
             # td formatted from day to hour
             td = format_timedelta(td, DateAccuracy.Day-DateAccuracy.Hour)
             s += f'Reason for the mute of {user_or_message} from {td} ago was edited'
+            sql = "UPDATE timeout_logs SET reason=$1 WHERE id=$2"
+            try:
+                await self.bot.dbutil.execute(sql, (reason, row['id']))
+            except PostgresError:
+                pass
         else:
+            if msg:
+                sql = "UPDATE timeout_logs SET reason=$1 WHERE message=$2 and guild=$3"
+
+                try:
+                    await self.bot.dbutil.execute(sql, (reason, msg.id, ctx.guild.id))
+                except PostgresError:
+                    pass
+
             s += 'Reason edited'
 
         await ctx.send(s)

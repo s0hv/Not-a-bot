@@ -1106,6 +1106,9 @@ class ServerSpecific(Cog):
 
         # Return if role get or not
         def role_get(s, r):
+            if s < 8000:
+                return False
+
             return random.random() < (s / 3000 + 70 / r) * (r**-3 + (r * 0.5)**-2 + (r * 100)**-1)
 
         try:

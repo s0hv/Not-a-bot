@@ -638,7 +638,7 @@ class ServerSpecific(Cog):
                     ctx.command.reset_cooldown(ctx)
                     return await ctx.send('Invalid emoji')
 
-                if len(emojis) > 1:
+                if len(emojis) != 1:
                     ctx.command.reset_cooldown(ctx)
                     await ctx.send('Invalid emoji given')
                     return
@@ -1121,7 +1121,7 @@ class ServerSpecific(Cog):
         got_new_role = role_get(int(score), role_count)
 
         if got_new_role:
-            logger.debug(f'Role got with a score of {score} and {role_count} roles')
+            terminal.debug(f'Role got with a score of {score} and {role_count} roles')
 
             role = choice(list(roles))
             await ctx.author.add_roles(role)

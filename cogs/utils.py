@@ -171,14 +171,22 @@ class Utilities(Cog):
             await ctx.send('You can find the source code for this bot here https://github.com/s0hv/Not-a-bot')
             return
 
-        source = inspect.getsource(cmd.callback)
+        source, line_number = inspect.getsourcelines(cmd.callback)
         filename = inspect.getsourcefile(cmd.callback).replace(os.getcwd(), '').strip('\\/')
-        original_source = textwrap.dedent(source)
+
+        # unformatted source
+        original_source = textwrap.dedent(''.join(source))
+
+        # Url pointing to the command in github
+        url = f'https://github.com/s0hv/Not-a-bot/tree/master/{filename}#L{line_number}'
+
+        # Source code in message
         source = original_source.replace('```', '`\u200b`\u200b`')  # Put zero width space between backticks so they can be within a codeblock
-        source = f'{filename}\n```py\n{source}\n```'
+        source = f'<{url}>\n```py\n{source}\n```'
+
         if len(source) > 2000:
             file = discord.File(StringIO(original_source), filename=f'{full_name}.py')
-            await ctx.send(f'Content was longer than 2000 ({len(source)} > 2000)\n{filename}', file=file)
+            await ctx.send(f'Content was longer than 2000 ({len(source)} > 2000)\n<{url}>', file=file)
             return
         await ctx.send(source)
 

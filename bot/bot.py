@@ -34,7 +34,7 @@ from discord.ext.commands import CheckFailure
 from bot.commands import command, group, Command, Group, cooldown
 from bot.cooldowns import CooldownMapping
 from bot.formatter import HelpCommand
-from utils.utilities import seconds2str
+from utils.utilities import seconds2str, call_later
 
 try:
     import uvloop
@@ -69,6 +69,8 @@ class Context(commands.context.Context):
     __slots__ = ('override_perms', 'skip_check', 'original_user', 'domain',
                  'received_at')
 
+    undo_messages = {}
+
     def __init__(self, **attrs):
         super().__init__(**attrs)
         self.override_perms = attrs.pop('override_perms', None)
@@ -77,6 +79,37 @@ class Context(commands.context.Context):
         self.skip_check = attrs.pop('skip_check', False)
         self.domain = attrs.get('domain', None)
         self.received_at = attrs.get('received_at', None)
+
+    async def undo(self):
+        old = self.undo_messages.pop(self.author.id, None)
+        if not old:
+            return False
+
+        msg, t = old
+        t.cancel()
+        try:
+            await msg.delete()
+        except discord.HTTPException:
+            return False
+
+        return True
+
+    async def send(self, content=None, *, tts=False, embed=None, file=None, files=None,
+                   delete_after=None, nonce=None, undoable=False):
+        msg = await super().send(content, tts=tts, embed=embed, file=file,
+                                 files=files, delete_after=delete_after, nonce=nonce)
+
+        if undoable and msg:
+            old = self.undo_messages.pop(self.author.id, None)
+            if old:
+                old[1].cancel()
+
+            async def a():
+                self.undo_messages.pop(self.author.id, None)
+
+            self.undo_messages[self.author.id] = (msg, call_later(a, self.bot.loop, 60))
+
+        return msg
 
 
 class Client(discord.Client):

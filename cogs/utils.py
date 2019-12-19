@@ -191,6 +191,18 @@ class Utilities(Cog):
         await ctx.send(source)
 
     @command()
+    @cooldown(1, 5, BucketType.user)
+    async def undo(self, ctx):
+        """
+        Undoes the last undoable command result. Not all messages will be undoable
+        and undoable messages override each other because only one message can be
+        undone.
+        """
+        if not await ctx.undo():
+            await ctx.send('Failed to undo the latest undoable command for you.\n'
+                           'Do note that they expire in one minute')
+
+    @command()
     @cooldown(1, 10, BucketType.user)
     async def invite(self, ctx):
         """This bots invite link"""
@@ -454,7 +466,7 @@ class Utilities(Cog):
 
             new_text += '\n'
 
-        await ctx.send(new_text[:2000])
+        await ctx.send(new_text[:2000], undoable=True)
 
     @command(name='pip')
     @cooldown(1, 5, BucketType.channel)

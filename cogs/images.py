@@ -767,7 +767,7 @@ class Images(Cog):
         await ctx.send(file=File(img, filename='party.gif'))
 
     @command()
-    @cooldown(2, 2, type=BucketType.guild)
+    @cooldown(2, 5, type=BucketType.guild)
     async def blurple(self, ctx, image=None):
         img = await get_image(ctx, image)
         if img is None:
@@ -888,6 +888,51 @@ class Images(Cog):
         async with ctx.typing():
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='smug_man.png'))
+
+    @command()
+    @cooldown(2, 5, BucketType.guild)
+    async def linus(self, ctx, stretch: Optional[bool]=True, image=None):
+        """
+        if you set stretch off the image will won't be stretched.
+        Default behavior is stretch on
+
+        `{prefix}{name} off image`
+        This will set image stretching off
+        """
+        img = await get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img
+            template = Image.open(os.path.join(TEMPLATES, 'linus.png'))
+            bg = Image.new('RGBA', template.size, color="black")
+
+            w, h = 1230, 792
+            if stretch:
+                img = img.resize((w, h), resample=Image.BICUBIC)
+            else:
+                img = resize_keep_aspect_ratio(img, (w, h), can_be_bigger=True,
+                                               crop_to_size=True,
+                                               center_cropped=True,
+                                               resample=Image.BICUBIC)
+
+            # Top and bottom left corner not transformed
+            # right corners transformed inwards
+            coeffs = find_coeffs(
+                [(0, 0), (w, 66), (w, 730), (0, h)],
+                [(0, 0), (w, 0), (w, h), (0, h)])
+
+            img = img.transform((w, h), Image.PERSPECTIVE, coeffs,
+                                Image.BICUBIC)
+
+            bg.alpha_composite(img.convert('RGBA'), (155, 12))
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='linus.png'))
 
     @command()
     @cooldown(2, 5, BucketType.guild)

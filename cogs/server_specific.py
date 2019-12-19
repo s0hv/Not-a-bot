@@ -1042,7 +1042,7 @@ class ServerSpecific(Cog):
             return
 
     @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
-    @check(create_check(217677285442977792))
+    @check(create_check((217677285442977792,)))
     @cooldown(1, 10, BucketType.user)
     async def role_get(self, ctx, mentionable: bool=False):
         """

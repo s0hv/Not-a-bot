@@ -116,6 +116,8 @@ class Search(Cog):
                                                     page_method=lambda p,
                                                                        i: str(
                                                         p))
+            elif r.status == 403:
+                return await ctx.send('Search quota filled for today. Resets every day at midnight Pacific Time (PT)')
             else:
                 return await ctx.send('Http error {}'.format(r.status))
 

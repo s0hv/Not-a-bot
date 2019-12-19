@@ -753,6 +753,14 @@ class DatabaseUtils:
 
         return row
 
+    async def get_last_role_time(self, user: int):
+        sql = f'SELECT last_use FROM role_cooldown WHERE uid={user}'
+        return await self.fetch(sql, fetchmany=False)
+
+    async def update_last_role_time(self, user: int, last_use):
+        sql = f'INSERT INTO role_cooldown (uid, last_use) VALUES ($1, $2) ON CONFLICT(uid) DO UPDATE SET last_use=$2'
+        await self.execute(sql, (user, last_use))
+
     async def get_timeout_logs(self, guild_id: int, user_id: int):
         sql = 'SELECT author, uid, reason, time, duration, id FROM timeout_logs WHERE ' \
               'guild=%s AND uid=%s AND show_in_logs=TRUE ORDER BY id DESC' % (guild_id, user_id)

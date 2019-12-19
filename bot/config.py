@@ -56,6 +56,7 @@ class Config:
         self.youtube_api_key = get_config_value(self.config, 'Credentials', 'YoutubeAPI', str, None)
         self.custom_search = get_config_value(self.config, 'Credentials', 'CustomSearch', str, None)
         self.wolfram_key = get_config_value(self.config, 'Credentials', 'WolframKey', str, None)
+        self.tatsumaki_key = get_config_value(self.config, 'Credentials', 'TatsumakiKey', str, None)
         self.feedback_webhook = get_config_value(self.config, 'Credentials', 'FeedbackWebhook', str, None)
         self.dbl_token = get_config_value(self.config, 'Credentials', 'DBApiKey', str, None)
 

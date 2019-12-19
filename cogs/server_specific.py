@@ -10,6 +10,8 @@ from typing import Union
 
 import discord
 import emoji
+from aiohttp.client_exceptions import ClientError
+from aiohttp.http_exceptions import HttpProcessingError
 from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError
 from colour import Color
@@ -23,7 +25,7 @@ from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, call_later,
                              get_avatar, retry, send_paged_message,
-                             check_botperm)
+                             check_botperm, format_timedelta, DateAccuracy)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -158,6 +160,104 @@ chances = [t[1] for t in waifus]
 _s = sum(chances)
 chances = [p/_s for p in chances]
 del _s
+
+FILTERED_ROLES = {321374867557580801, 331811458012807169, 361889118210359297,
+                  380814558769578003, 337290275749756928, 422432520643018773,
+                  322837972317896704, 323492471755636736, 329293030957776896}
+FILTERED_ROLES = {discord.Role(guild=None, state=None,  data={"id": id_, "name": ""})
+                  for id_ in FILTERED_ROLES}
+
+AVAILABLE_ROLES = {10: {
+    discord.Role(guild=None, state=None,  data={"id": 320674825423159296, "name": "No dignity"}),
+    discord.Role(guild=None, state=None,  data={"id": 322063025903239178, "name": "meem"}),
+    discord.Role(guild=None, state=None,  data={"id": 320667990116794369, "name": "HELL 2 U"}),
+    discord.Role(guild=None, state=None,  data={"id": 320673902047264768, "name": "I refuse"}),
+    discord.Role(guild=None, state=None,  data={"id": 322737580778979328, "name": "SHIIIIIIIIIIIIZZZZZAAAAAAA"}),
+    discord.Role(guild=None, state=None,  data={"id": 322438861537935360, "name": "CHEW"}),
+    discord.Role(guild=None, state=None,  data={"id": 322425271791910922, "name": "deleted-role"}),
+    discord.Role(guild=None, state=None,  data={"id": 322760382542381056, "name": "Couldn't beat me 1 2 3"}),
+    discord.Role(guild=None, state=None,  data={"id": 322761051303051264, "name": "ok"}),
+    discord.Role(guild=None, state=None,  data={"id": 322416531520749568, "name": "degenerate"}),
+    discord.Role(guild=None, state=None,  data={"id": 322450803602358273, "name": "new role"}),
+    discord.Role(guild=None, state=None,  data={"id": 322837341926457367, "name": "Pineapple on pizza"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497232211116042, "name": "What the fuck did you just fucking say about my hair, you little「STAND USER」? I’ll have you know I"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497233670602753, "name": "graduated top of my class in Budogaoka Middle & High School, and I’ve been involved in numerous"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497236551958540, "name": "I’m the top 「STAND USER」in the entire Morioh armed forces. You are nothing to me but just another"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497235302187008, "name": "secret raids on DIO, and I have over 300 confirmed DORARARARARAs. I am trained in Stand warfare and"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497240058527745, "name": "Duwang, mark my fucking words. You think you can get away with saying that shit to me over Echoes"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497244793896961, "name": "Diamond, maggot. The Stand that wipes out the pathetic little thing you call your life. You’re"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497238175285250, "name": "Kira. I will wipe you the fuck out with precision the likes of which has never been seen before in"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497241459294211, "name": "Act 1? Think again, fucker. As we speak I am contacting my secret network of the Speedwagon"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497246446452740, "name": "fucking dead,「STAND USER 」. I can be anywhere, anytime, and I can heal and then kill you in over"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497243212513281, "name": "Foundation across Japan and your Stand is being traced right now so you better prepare for Crazy"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497248136626199, "name": "seven hundred ways, and that’s just with my Stand. Not only am I extensively trained in Stand"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497250003353600, "name": "combat, but I have access to the entire arsenal of the Speedwagon Foundation and I will use it to"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497253123915776, "name": "could have known what unholy retribution your little “clever” Killer Queen was about to bring down"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497251408314369, "name": "its full extent to wipe your miserable ass off the face of Morioh, you little shit. If only you"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497254348521475, "name": "upon you, maybe you would have held your fucking tongue. But you couldn’t, you didn’t, and now"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497255992819713, "name": "you’re paying the price, you goddamn idiot. I will shit DORARARARARARAs all over you and you will"}),
+    discord.Role(guild=None, state=None,  data={"id": 323497257749970955, "name": "drown in it. You’re fucking dead, Kira."}),
+    discord.Role(guild=None, state=None,  data={"id": 325627566406893570, "name": "he"}),
+    discord.Role(guild=None, state=None,  data={"id": 325415104894074881, "name": "ew no"}),
+    discord.Role(guild=None, state=None,  data={"id": 325629356309479424, "name": "she"}),
+    discord.Role(guild=None, state=None,  data={"id": 326096831777996800, "name": "new tole"}),
+    discord.Role(guild=None, state=None,  data={"id": 329331992778768397, "name": "to role or not to role"}),
+    discord.Role(guild=None, state=None,  data={"id": 329333048917229579, "name": "DORARARARARARARARARARARARARARARARA"}),
+    discord.Role(guild=None, state=None,  data={"id": 330058759986479105, "name": "The entire horse"}),
+    discord.Role(guild=None, state=None,  data={"id": 330079869599744000, "name": "baguette"}),
+    discord.Role(guild=None, state=None,  data={"id": 330080088597200896, "name": "4 U"}),
+    discord.Role(guild=None, state=None,  data={"id": 330080062441259019, "name": "big guy"}),
+    discord.Role(guild=None, state=None,  data={"id": 336219409251172352, "name": "The whole horse"}),
+    discord.Role(guild=None, state=None,  data={"id": 338238407845216266, "name": "ok masta let's kill da ho"}),
+    discord.Role(guild=None, state=None,  data={"id": 338238532101472256, "name": "BEEEEEEEEEEEEEETCH"}),
+    discord.Role(guild=None, state=None,  data={"id": 340950870483271681, "name": "FEEL THE HATRED OF TEN THOUSAND YEARS!"}),
+    discord.Role(guild=None, state=None,  data={"id": 349982610161926144, "name": "Fruit mafia"}),
+    discord.Role(guild=None, state=None,  data={"id": 380074801076633600, "name": "Attack helicopter"}),
+    discord.Role(guild=None, state=None,  data={"id": 381762837199978496, "name": "Gappy makes me happy"}),
+    discord.Role(guild=None, state=None,  data={"id": 389133241216663563, "name": "Comfortably numb"}),
+    discord.Role(guild=None, state=None,  data={"id": 398957784185438218, "name": "Bruce U"}),
+    discord.Role(guild=None, state=None,  data={"id": 523192033544896512, "name": "Today I will +t random ham"}),
+    },
+
+    365: {
+        discord.Role(guild=None, state=None,  data={"id": 321863210884005906, "name": "What did you say about my hair"}),
+        discord.Role(guild=None, state=None,  data={"id": 320885539408707584, "name": "Your next line's gonna be"}),
+        discord.Role(guild=None, state=None,  data={"id": 321285882860535808, "name": "JJBA stands for Johnny Joestar's Big Ass"}),
+        discord.Role(guild=None, state=None,  data={"id": 330317213133438976, "name": "Dik brothas"}),
+        discord.Role(guild=None, state=None,  data={"id": 322667100340748289, "name": "Wannabe staff"}),
+        discord.Role(guild=None, state=None,  data={"id": 324084336083075072, "name": "rng fucks me in the ASS!"})
+    },
+
+    548: {
+        discord.Role(guild=None, state=None,  data={"id": 323486994179031042, "name": "I got 2 steel balls and I ain't afraid to use them"}),
+        discord.Role(guild=None, state=None,  data={"id": 321697480351940608, "name": "ORA ORA ORA ORA ORA ORA ORA ORA ORA ORA MUDA MUDA MUDA MUDA MUDA MUDA MUDA MUDA"}),
+        discord.Role(guild=None, state=None,  data={"id": 330440908187369472, "name": "CEO of Heterosexuality"}),
+        discord.Role(guild=None, state=None,  data={"id": 329350731918344193, "name": "4 balls"}),
+        discord.Role(guild=None, state=None,  data={"id": 358615843120218112, "name": "weirdo"}),
+        discord.Role(guild=None, state=None,  data={"id": 336437276156493825, "name": "Wannabe owner"}),
+        discord.Role(guild=None, state=None,  data={"id": 327519034545537024, "name": "food"})
+
+    },
+
+    730: {
+        discord.Role(guild=None, state=None,  data={"id": 326686698782195712, "name": "Made in heaven"}),
+        discord.Role(guild=None, state=None,  data={"id": 320916323821682689, "name": "Filthy acts at a reasonable price"}),
+        discord.Role(guild=None, state=None,  data={"id": 321361294555086858, "name": "Speedwagon best waifu"}),
+        discord.Role(guild=None, state=None,  data={"id": 320879943703855104, "name": "Passione boss"}),
+        discord.Role(guild=None, state=None,  data={"id": 320638312375386114, "name": "Dolphin l̶o̶v̶e̶r̶ fucker"}),
+        discord.Role(guild=None, state=None,  data={"id": 318683559462436864, "name": "Sex pistols ( ͡° ͜ʖ ͡°)"}),
+        discord.Role(guild=None, state=None,  data={"id": 318843712098533376, "name": "Taste of a liar"}),
+        discord.Role(guild=None, state=None,  data={"id": 323474940298788864, "name": "Wannabe bot"})
+    },
+
+    900: {
+        discord.Role(guild=None, state=None,  data={"id": 321310583200677889, "name": "The fucking strong"}),
+        discord.Role(guild=None, state=None,  data={"id": 318432714984521728, "name": "Za Warudo"}),
+        discord.Role(guild=None, state=None,  data={"id": 376789104794533898, "name": "no u"}),
+        discord.Role(guild=None, state=None,  data={"id": 348900633979518977, "name": "Role to die"}),
+        discord.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"})
+    }
+}
 
 
 class ServerSpecific(Cog):
@@ -922,6 +1022,115 @@ class ServerSpecific(Cog):
             return await ctx.send("This bot doesn't support locking")
 
         await mod._set_channel_lock(ctx, True)
+
+    async def get_user_score(self, uid, guild_id):
+        if not self.bot.config.tatsumaki_key:
+            return None
+
+        url = f'https://api.tatsumaki.xyz/guilds/{guild_id}/members/{uid}/stats'
+        headers = {'Authorization': self.bot.config.tatsumaki_key}
+
+        try:
+            async with self.bot.aiohttp_client.get(url, headers=headers) as r:
+                if r.status != 200:
+                    return
+
+                data = await r.json()
+                if data.get('user_id') == str(uid):
+                    return data.get('score')
+        except (HttpProcessingError, ClientError):
+            return
+
+    @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
+    @check(create_check(217677285442977792))
+    @cooldown(1, 10, BucketType.user)
+    async def role_get(self, ctx, mentionable: bool=False):
+        """
+        Chance to get a role. By default you don't get mentionable roles.
+        This can be changed if you use set mentionable to true.
+        e.g.
+        `{prefix}{name} on` will also take mentionable roles into account
+        """
+
+        # Get last use timestamp
+        try:
+            row = await self.dbutil.get_last_role_time(ctx.author.id)
+        except PostgresError:
+            await ctx.send('Failed to get timestamp of last use of this command. Try again later')
+            return
+
+        # Check that cooldown has passed
+        if row:
+            role_cooldown = (datetime.utcnow() - row[0])
+            if role_cooldown.days < 7:
+                t = format_timedelta(timedelta(days=7) - role_cooldown,
+                                     DateAccuracy.Day-DateAccuracy.Hour)
+                await ctx.send(f"You're still ratelimited for this command. Cooldown ends in {t}")
+                return
+
+        guild = ctx.guild
+        first_join = await self.dbutil.get_join_date(ctx.author.id, guild.id) or ctx.author.joined_at
+        delta_days = (datetime.utcnow() - first_join).days
+
+        # Set of all the roles a user can get
+        roles = set()
+
+        # Get available roles
+        for days, toles in AVAILABLE_ROLES.items():
+            if days < delta_days:
+                for role in toles:
+                    role = guild.get_role(role.id)
+                    # Check that the role exists and the if it can be mentionable
+                    if not role or (not mentionable and role.mentionable):
+                        continue
+
+                    roles.add(role)
+
+        # Check that we got the score and that roles are available
+        user_roles = set(ctx.author.roles)
+        roles = roles - user_roles
+        if not roles:
+            await ctx.send('No roles available to you at the moment. Try again after being more active')
+            return
+
+        score = await self.get_user_score(ctx.author.id, ctx.guild.id)
+        if not score:
+            await ctx.send('Failed to get server score. Try again later')
+            return
+
+        score = int(score)
+        old_score = score
+        # Give points to people who've been in server for long time
+        if score > 100000:
+            score += 110 * delta_days
+
+        # Return if role get or not
+        def role_get(s, r):
+            return random.random() < (s / 3000 + 70 / r) * (r**-3 + (r * 0.5)**-2 + (r * 100)**-1)
+
+        try:
+            await self.dbutil.update_last_role_time(ctx.author.id, datetime.utcnow())
+        except PostgresError:
+            await ctx.send('Failed to update cooldown of the command. Try again in a bit')
+            return
+
+        role_count = len(user_roles - FILTERED_ROLES)
+        got_new_role = role_get(int(score), role_count)
+
+        if got_new_role:
+            logger.debug(f'Role got with a score of {score} and {role_count} roles')
+
+            role = choice(list(roles))
+            await ctx.author.add_roles(role)
+            await ctx.send(f'You got a new role ({role})')
+
+        else:
+            fails = ['Never lucky',
+                     'Not today',
+                     'Due to a technical error the role went to a gang of traps instead',
+                     '404 Role not found',
+                     'No tole']
+            await ctx.send(choice(fails))
 
     @command(hidden=True)
     @cooldown(1, 60, BucketType.channel)

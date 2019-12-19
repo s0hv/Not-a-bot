@@ -305,6 +305,15 @@ create table join_dates
         primary key (uid, guild)
 );
 
+create table role_cooldown
+(
+    uid bigint not null,
+    last_use timestamp,
+
+    constraint last_use_index
+        primary key (uid)
+);
+
 create table automute_whitelist
 (
   role  bigint not null,

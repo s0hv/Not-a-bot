@@ -1140,10 +1140,14 @@ class Moderator(Cog):
         if channel is None and not ctx.author.guild_permissions.manage_messages and not ctx.override_perms:
             return await ctx.send("You don't have the permission to purge from all channels")
 
+        elif channel and not channel.permissions_for(ctx.author).manage_messages:
+            await ctx.send(f"You don't have manage messages in {channel}")
+            return
+
         max_messages = min(300, max_messages)
         modlog = self.get_modlog(guild)
 
-        if isinstance(user, discord.User):
+        if not isinstance(user, int):
             user = user.id
 
         if channel is not None:

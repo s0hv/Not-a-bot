@@ -85,6 +85,17 @@ class HelpCommand(help.HelpCommand):
 
         return new_commands
 
+    def get_destination(self):
+        return self.context
+
+    @staticmethod
+    async def send_messages(dest, paginator, can_undo=True):
+        for page in paginator.pages:
+            try:
+                await dest.send(embed=page, undoable=can_undo)
+            except discord.HTTPException:
+                return
+
     async def send_bot_help(self, mapping):
         """
         Handles the implementation of the bot command page in the help command.
@@ -150,11 +161,7 @@ class HelpCommand(help.HelpCommand):
         # Flush page buffer
         paginator.finalize()
 
-        for page in paginator.pages:
-            try:
-                await dest.send(embed=page)
-            except discord.HTTPException:
-                return
+        await self.send_messages(dest, paginator)
 
     async def send_cog_help(self, cog):
         ctx = self.context
@@ -189,11 +196,7 @@ class HelpCommand(help.HelpCommand):
         paginator.add_field('Note', ending_note)
         paginator.finalize()
 
-        for page in paginator.pages:
-            try:
-                await dest.send(embed=page)
-            except discord.HTTPException:
-                return
+        await self.send_messages(dest, paginator)
 
     async def send_group_help(self, group):
         ctx = self.context
@@ -216,11 +219,7 @@ class HelpCommand(help.HelpCommand):
         paginator.add_field('Note', ending_note)
         paginator.finalize()
 
-        for page in paginator.pages:
-            try:
-                await dest.send(embed=page)
-            except discord.HTTPException:
-                return
+        await self.send_messages(dest, paginator)
 
     async def send_command_help(self, command):
         ctx = self.context
@@ -229,11 +228,7 @@ class HelpCommand(help.HelpCommand):
 
         paginator.finalize()
 
-        for page in paginator.pages:
-            try:
-                await dest.send(embed=page)
-            except discord.HTTPException:
-                return
+        await self.send_messages(dest, paginator)
 
     async def create_command_page(self, ctx, command):
         """

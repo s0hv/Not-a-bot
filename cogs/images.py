@@ -1393,7 +1393,7 @@ class Images(Cog):
         then message lookup. If data is an image url this will just return that url"""
         img = await get_image_from_ctx(ctx, data)
         s = img if img else 'No image found'
-        return await ctx.send(s)
+        return await ctx.send(s, undoable=True)
 
     @command(owner_only=True)
     async def update_poke_cache(self, ctx):

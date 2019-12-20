@@ -10,8 +10,10 @@ from math import ceil
 from random import randint
 from typing import Optional
 
+import matplotlib.pyplot as plt
 from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
+from asyncpg.exceptions import PostgresError
 from discord import File
 from discord.ext.commands import BucketType, BotMissingPermissions
 from discord.ext.commands.errors import BadArgument
@@ -1401,6 +1403,44 @@ class Images(Cog):
             await ctx.send('Failed to update cache')
         else:
             await ctx.send('Successfully updated cache')
+
+    @command(no_pm=True)
+    @cooldown(1, 10, BucketType.guild)
+    async def abc(self, ctx):
+        sql = 'SELECT wins::decimal/games FROM mute_roll_stats WHERE guild=%s AND games>3' % ctx.guild.id
+        try:
+            rows = await self.bot.dbutil.fetch(sql)
+        except PostgresError:
+            await ctx.send('Failed to get mute roll stats')
+            return
+
+        if not rows:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send('No applicable mute roll data found')
+            return
+
+        def do_histogram():
+            buf = None
+            try:
+                plt.hist([float(row[0]) for row in rows], bins=20, range=(0, 1))
+                plt.xlabel('Winrate')
+                plt.ylabel('Amount of users')
+
+                buf = BytesIO()
+                plt.savefig(buf, format='png', bbox_inches='tight')
+                buf.seek(0)
+            finally:
+                plt.close()
+                return buf
+
+        await ctx.trigger_typing()
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_histogram)
+
+        if not data:
+            await ctx.send('Failed to create histogram of mute roll stats')
+            return
+
+        await ctx.send(file=File(data, 'mute_roll_stats.png'))
 
 
 def setup(bot):

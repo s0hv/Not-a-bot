@@ -527,6 +527,15 @@ class DatabaseUtils:
         return True
 
     async def get_mute_roll(self, guild: int, sort=None):
+        """
+
+        Args:
+            guild:
+            sort: set as "" to disable sorting
+
+        Returns:
+
+        """
         if sort is None:
             # Algorithm based on https://stackoverflow.com/a/27710046
             # Gives priority to wins and winrate.
@@ -534,7 +543,11 @@ class DatabaseUtils:
             sort = '1/SQRT( POWER( wins / games::decimal - 1 , 2) * 0.06 + ' \
                    'POWER(1 / games::decimal, 2) * 3 + ' \
                    'POWER(1 / GREATEST(wins::decimal, 1) , 2) )'
-        sql = 'SELECT * FROM mute_roll_stats WHERE guild=%s ORDER BY %s DESC' % (guild, sort)
+
+        if sort:
+            sort = "ORDER BY %s DESC" % sort
+
+        sql = 'SELECT * FROM mute_roll_stats WHERE guild=%s' % (guild, sort)
 
         rows = await self.fetch(sql)
         return rows

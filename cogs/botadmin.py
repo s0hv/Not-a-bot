@@ -11,6 +11,7 @@ import sys
 import textwrap
 import time
 import traceback
+from datetime import datetime
 from enum import IntEnum
 from importlib import reload, import_module
 from io import BytesIO, StringIO
@@ -31,9 +32,9 @@ from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
 from utils.utilities import split_string
 from utils.utilities import (y_n_check, basic_check, y_check, check_import,
-                             parse_timeout, is_owner,
+                             parse_timeout, is_owner, format_timedelta,
                              call_later, seconds2str, test_url,
-                             wants_to_be_noticed)
+                             wants_to_be_noticed, DateAccuracy)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -700,10 +701,11 @@ class BotAdmin(Cog):
 
         s = ''
         for row in rows:
-            s += f'ID: {row["id"]} at {row["time"].strftime("%Y-%m-%d %H:%M:%S")} `{row["priority"]}` {row["todo"]}\n\n'
+            s += f'ID: {row["id"]} at {format_timedelta(datetime.utcnow() - row["time"], DateAccuracy.Day)} `{row["priority"]}` {row["todo"]}\n\n'
 
-        if len(rows) > 2000:
+        if len(s) > 2000:
             return await ctx.send('Too long todo')
+
         await ctx.send(s)
 
     @command()

@@ -1050,6 +1050,8 @@ class ServerSpecific(Cog):
         This can be changed if you use set mentionable to true.
         e.g.
         `{prefix}{name} on` will also take mentionable roles into account
+
+        Original idea by xerd
         """
 
         # Get last use timestamp

@@ -1404,9 +1404,9 @@ class Images(Cog):
         else:
             await ctx.send('Successfully updated cache')
 
-    @command(no_pm=True)
+    @command(no_pm=True, aliases=['mr_graph'])
     @cooldown(1, 10, BucketType.guild)
-    async def abc(self, ctx):
+    async def mute_roll_histogram(self, ctx):
         sql = 'SELECT wins::decimal/games FROM mute_roll_stats WHERE guild=%s AND games>3' % ctx.guild.id
         try:
             rows = await self.bot.dbutil.fetch(sql)

@@ -1061,9 +1061,15 @@ class ServerSpecific(Cog):
 
         # Check that cooldown has passed
         if row:
+            cooldown_days = 7
+
+            # Boosters have 1 day lower cooldown
+            if ctx.author.premium_since:
+                cooldown_days -= 1
+
             role_cooldown = (datetime.utcnow() - row[0])
-            if role_cooldown.days < 7:
-                t = format_timedelta(timedelta(days=7) - role_cooldown,
+            if role_cooldown.days < cooldown_days:
+                t = format_timedelta(timedelta(days=cooldown_days) - role_cooldown,
                                      DateAccuracy.Day-DateAccuracy.Hour)
                 await ctx.send(f"You're still ratelimited for this command. Cooldown ends in {t}")
                 return

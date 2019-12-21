@@ -26,7 +26,7 @@ from bot.bot import command, has_permissions, cooldown, group, \
 from bot.globals import WORKING_DIR
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
-                             Snowflake, check_botperm)
+                             Snowflake, check_botperm, send_paged_message)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -44,6 +44,24 @@ class Color:
         else:
             self.lab = LabColor(*lab)
         self.guild_id = guild_id
+
+    @classmethod
+    def from_hex(cls, name, hex_s, set_lab=False):
+        """
+        Create a color from hex without id support
+        Args:
+            name (str): Name of the color
+            hex_s (str): hex string of the color starting with #
+            set_lab (bool): Determines if lab conversion should be used.
+                            This function is ~10 times faster or more when this is False
+        Returns:
+            (Color): Color instance
+        """
+        c = Color(0, name, int(hex_s[1:], 16), 0, (0, 0, 0))
+        if set_lab:
+            lab = convert_color(sRGBColor(*c.to_rgb(), is_upscaled=True), LabColor)
+            c.lab = lab
+        return c
 
     def __str__(self):
         return self.name
@@ -231,18 +249,16 @@ class Colors(Cog):
 
     def search_color_(self, name):
         name = name.lower()
-        names = list(self._color_names.keys())
-        if name in names:
-            return name, self._color_names[name]
 
-        else:
-            matches = [n for n in names if name in n]
-            if not matches:
-                return
-            if len(matches) == 1:
-                return matches[0], self._color_names[matches[0]]
+        matches = []
+        for color, value in self._color_names.items():
+            if color == name:
+                matches.insert(0, (color, value))
 
-            return matches
+            elif name in color:
+                matches.append((color, value))
+
+        return matches
 
     def match_color(self, color, convert2discord=True):
         color = color.lower()
@@ -641,10 +657,13 @@ class Colors(Cog):
         name = str(color)
         text_size = font.getsize(name)
         text_color = self.text_color(color)
-        if text_size[0] > size[0]:
+        x_margin = 1
+
+        if text_size[0] > size[0] - x_margin*2:
             all_lines = []
-            lines = split_string(name, maxlen=len(name)//(text_size[0]/size[0]))
-            margin = 2
+            lines = split_string(name, maxlen=len(name)//(text_size[0]/(size[0] - 2*x_margin)))
+
+            y_margin = 2
             total_y = 0
             for line in lines:
                 line = line.strip()
@@ -654,24 +673,26 @@ class Colors(Cog):
                 if text_size[1] + total_y > size[1]:
                     break
 
-                x = (size[0] - font.getsize(line)[0]) // 2
+                x = (size[0] + x_margin - font.getsize(line)[0]) // 2
                 all_lines.append((line, x))
-                total_y += margin + text_size[1]
+                total_y += y_margin + text_size[1]
 
             y = (size[1] - total_y) // 2
             for line, x in all_lines:
                 draw.text((x, y), line, font=font, fill=text_color)
-                y += margin + text_size[1]
+                y += y_margin + text_size[1]
 
         else:
-            x = (size[0] - text_size[0]) // 2
+            x = (size[0] + x_margin - text_size[0]) // 2
             y = (size[1] - text_size[1]) // 2
             draw.text((x, y), name, font=font, fill=text_color)
         return im
 
     def _sorted_color_image(self, colors):
+        return self._color_image(self.sort_by_color(colors))
+
+    def _color_image(self, colors):
         size = (100, 100)
-        colors = self.sort_by_color(colors)
         side = ceil(sqrt(len(colors)))
         font = ImageFont.truetype(
             os.path.join(WORKING_DIR, 'M-1c', 'mplus-1c-bold.ttf'),
@@ -912,21 +933,73 @@ class Colors(Cog):
 
         await ctx.send(file=discord.File(data, 'colors.png'))
 
-    @command(aliases=['search_colour'])
-    @cooldown(1, 3, BucketType.user)
-    async def search_color(self, ctx, *, name):
-        """Search a color using a name and return it's hex value if found"""
-        matches = self.search_color_(name)
-        if matches is None:
-            return await ctx.send('No colors found with {}'.format(name))
+    @group(aliases=['search_colour', 'sc'], invoke_without_command=True)
+    @cooldown(1, 4, BucketType.user)
+    async def search_color(self, ctx, *, color_name):
+        """
+        Search a color using a name and return it's hex value if found
+        and all other similarly named colors
+        """
+        matches = self.search_color_(color_name)
+        if not matches:
+            return await ctx.send('No colors found with {}'.format(color_name))
 
-        if isinstance(matches, list):
-            total = len(matches)
-            matches = choice(matches, 10)
-            return await ctx.send('Found matches a total of {0} matches\n{1}\n{2} of {0}'.format(total, '\n'.join(matches), len(matches)))
+        total = len(matches)
+        page_size = 10
+        pages = [None for _ in range(0, total, page_size)]
 
-        name, match = matches
-        await ctx.send('Found color {0} {1[hex]}'.format(name, match))
+        def get_page(page, page_idx):
+            nonlocal pages
+            if page:
+                return page
+
+            s = ""
+            idx = page_size*page_idx
+            for match in matches[idx:idx+page_size]:
+                s += f'{match[0]} `{match[1]["hex"]}`\n'
+
+            s += f'{page_idx+1}/{len(pages)}'
+            pages[page_idx] = s
+            return s
+
+        await send_paged_message(ctx, pages, page_method=get_page)
+
+    @search_color.command(name='pic')
+    @cooldown(1, 5, BucketType.user)
+    async def search_as_picture(self, ctx, sort: typing.Optional[bool], page: typing.Optional[int], *, color_name):
+        """
+        Search colors but display the first 30 of them in a picture
+        If you dont want search words to be converted to a boolean or integer escape
+        them with \\ like this `{prefix}{name} \\on \\2 color`
+        """
+        color_name = color_name.replace('\\', '')
+        if page is None:
+            page = 1
+
+        if page < 1:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send('Page cannot be less than one')
+            return
+
+        matches = self.search_color_(color_name)
+        if not matches:
+            return await ctx.send('No colors found with {}'.format(color_name))
+
+        page_size = 42
+        page -= 1  # Offset page to start indices at 0
+        page *= page_size
+        if len(matches) < page:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send('Page out of bounds')
+            return
+
+        def do_pic():
+            colors = [Color.from_hex(name.replace('-', ' '), color['hex'], bool(sort)) for name, color in matches[page:page+page_size]]
+            return self._sorted_color_image(colors)
+
+        await ctx.trigger_typing()
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_pic)
+        await ctx.send(file=discord.File(data, 'colors.png'))
 
     @command(no_pm=True, aliases=['add_colour'])
     @has_permissions(manage_roles=True)

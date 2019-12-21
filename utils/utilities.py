@@ -1225,8 +1225,8 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
         embed: Determines if the content of the list is Embed or str
         starting_idx: What page index we starting at
         page_method:
-            Method that returns the actual page when give an index and
-            the page that corresponds that index
+            Method that returns the actual page when given the page and
+            index of the page in that order
         timeout: How long to wait before stopping listening to reactions
     """
     bot = ctx.bot

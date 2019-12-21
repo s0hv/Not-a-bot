@@ -542,7 +542,7 @@ class Colors(Cog):
                         ims.append(im)
                         if isinstance(color, tuple):
                             color = self.rgb2hex(*color)
-                        hex_colors.append(color)
+                        hex_colors.append(color[:7])
                     except (TypeError, ValueError):
                         raise BadArgument(f'Failed to create image using color {color}')
 

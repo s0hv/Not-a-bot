@@ -547,7 +547,7 @@ class DatabaseUtils:
         if sort:
             sort = "ORDER BY %s DESC" % sort
 
-        sql = 'SELECT * FROM mute_roll_stats WHERE guild=%s' % (guild, sort)
+        sql = 'SELECT * FROM mute_roll_stats WHERE guild=%s %s' % (guild, sort)
 
         rows = await self.fetch(sql)
         return rows

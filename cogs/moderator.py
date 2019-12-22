@@ -8,10 +8,10 @@ from typing import Union
 
 import discord
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import BucketType
+from discord.ext.commands import BucketType, Greedy
 
-from bot.bot import command, group, has_permissions, cooldown, \
-    bot_has_permissions
+from bot.bot import (command, group, has_permissions, cooldown,
+                     bot_has_permissions)
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
 from bot.formatter import Paginator
 from bot.globals import DATA
@@ -421,53 +421,88 @@ class Moderator(Cog):
     @command(no_pm=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
-    async def mute(self, ctx, user: MentionedMember, *, reason):
-        """Mute a user. Only works if the server has set the mute role"""
+    async def mute(self, ctx, users: Greedy[MentionedMember], *, reason):
+        """
+        Mute a user(s). Only works if the server has set the mute role.
+        Maximum amount of users muted at once is 10
+        """
+        if not users:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send('No users given to mute')
+            return
+
+        if len(users) > 10:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send(f'Tried to mute {len(users)} users while maximum amount is 10')
+            return
+
         mute_role = await self._mute_check(ctx)
         if not mute_role:
             return
 
         guild = ctx.guild
-        if guild.id == 217677285442977792 and user.id == 123050803752730624:
-            return await ctx.send("Not today kiddo. I'm too powerful for you")
-
-        if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
-            return await ctx.send('No <:peepoWeird:423445885180051467>')
-
-        if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
-            return await ctx.send('The one you are trying to mute is higher or same as you in the role hierarchy')
-
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
-        try:
-            await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
-        except discord.HTTPException:
-            await ctx.send('Could not mute user {}'.format(user))
-            return
-
         guild_timeouts = self.timeouts.get(guild.id, {})
-        task = guild_timeouts.get(user.id)
-        if task:
-            task.cancel()
-            await self.remove_timeout(user.id, guild.id)
+        muted_users = []
+        failed = []
 
-        try:
-            await ctx.send('Muted user {} `{}`'.format(user.name, user.id))
-        except discord.HTTPException:
-            pass
+        for user in users:
+            if guild.id == 217677285442977792 and user.id == 123050803752730624:
+                failed.append(f"Couldn't mute {user}. Not today kiddo. I'm too powerful for you")
+                continue
+
+            if guild.id == 217677285442977792 and ctx.author.id == 117256618617339905 and user.id == 189458911886049281:
+                failed.append(f"Couldn't mute {user}. No <:peepoWeird:423445885180051467>")
+                continue
+
+            if ctx.author != guild.owner and ctx.author.top_role <= user.top_role:
+                failed.append(f'{user} is higher or same as you in the role hierarchy')
+                continue
+
+            try:
+                await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
+                muted_users.append(user)
+            except discord.HTTPException:
+                failed.append(f'Could not mute user {user}')
+                continue
+
+            task = guild_timeouts.get(user.id)
+            if task:
+                task.cancel()
+                await self.remove_timeout(user.id, guild.id)
 
         author = ctx.author
-        description = '{} muted {} {}'.format(author.mention, user, user.id)
-        url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
-        embed = discord.Embed(title='🤐 Moderation action [MUTE]',
-                              timestamp=datetime.utcnow(),
-                              description=description)
-        embed.add_field(name='Reason', value=reason)
-        embed.add_field(name='link', value=url)
-        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-        embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
-        msg = await self.send_to_modlog(guild, embed=embed)
-        await self.add_mute_reason(ctx, user.id, reason,
-                                   modlog_message_id=msg.id if msg else None)
+
+        if muted_users:
+            user_string = '\n'.join(map(lambda u: f'{u} `{u.id}`', muted_users))
+            description = f'{author.mention} muted {user_string}'
+            url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
+            embed = discord.Embed(title='🤐 Moderation action [MUTE]',
+                                  timestamp=datetime.utcnow(),
+                                  description=description)
+            embed.add_field(name='Reason', value=reason)
+            embed.add_field(name='link', value=url)
+
+            if len(muted_users) == 1:
+                usr = muted_users[0]
+                embed.set_thumbnail(url=usr.avatar_url or usr.default_avatar_url)
+
+            embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+            msg = await self.send_to_modlog(guild, embed=embed)
+
+            for user in muted_users:
+                await self.add_mute_reason(ctx, user.id, reason,
+                                           modlog_message_id=msg.id if msg else None)
+
+        s = ""
+        if muted_users:
+            s += "Muted user" + ("s " if len(muted_users) > 1 else " ")
+            s += ', '.join(map(str, muted_users)) + '\n'
+
+        if failed:
+            s += "\n".join(failed)
+
+        await ctx.send(s)
 
     @command(no_dm=True)
     @cooldown(2, 3, BucketType.guild)
@@ -611,22 +646,31 @@ class Moderator(Cog):
         except PostgresError:
             logger.exception('Could not delete untimeout')
 
-    async def add_timeout(self, ctx, guild_id, user_id, expires_on, as_seconds,
+    async def add_timeout(self, ctx, guild_id, user_ids, expires_on, as_seconds,
                           reason='No reason', author=None, modlog_msg=None, show_in_logs=True):
+        """
+        Args:
+            user_ids (int or list[int]): User id(s) to be muted
+        """
 
         try:
-            await self.add_mute_reason(ctx, user_id, reason, author=author,
+            await self.add_mute_reason(ctx, user_ids, reason, author=author,
                                        modlog_message_id=modlog_msg,
                                        duration=as_seconds,
                                        show_in_logs=show_in_logs)
 
-            await self.bot.dbutil.add_timeout(guild_id, user_id, expires_on)
+            await self.bot.dbutil.add_timeout(guild_id, user_ids, expires_on)
         except PostgresError:
             logger.exception('Could not save timeout')
             await ctx.send('Could not save timeout. Canceling action')
             return False
 
-        self.register_timeout(user_id, guild_id, as_seconds)
+        if isinstance(user_ids, int):
+            user_ids = (user_ids, )
+
+        for user_id in user_ids:
+            self.register_timeout(user_id, guild_id, as_seconds)
+
         return True
 
     async def untimeout(self, user_id, guild_id):
@@ -794,15 +838,28 @@ class Moderator(Cog):
     @command(aliases=['temp_mute'], no_pm=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
-    @cooldown(1, 3, BucketType.user)
-    async def timeout(self, ctx, user: MentionedMember, *, timeout):
-        """Mute user for a specified amount of time
-         `timeout` is the duration of the mute.
-         The format is `n d|days` `n h|hours` `n m|min|minutes` `n s|sec|seconds` `reason`
-         where at least one of them must be provided.
-         Maximum length for a timeout is 30 days
-         e.g. `{prefix}{name} <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
+    @cooldown(1, 5, BucketType.user)
+    async def timeout(self, ctx, users: Greedy[MentionedMember], *, timeout):
         """
+        Mute user/users for a specified amount of time
+        Users must be pinged or their id used for them to be timeouted.
+        Max amount of users muted at one time is 10
+        `timeout` is the duration of the mute.
+        The format is `n d|days` `n h|hours` `n m|min|minutes` `n s|sec|seconds` `reason`
+        where at least one of them must be provided.
+        Maximum length for a timeout is 30 days
+        e.g. `{prefix}{name} <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
+        """
+        if not users:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send('No users given to timeout')
+            return
+
+        if len(users) > 10:
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send(f'Tried to timeout {len(users)} users while maximum amount is 10')
+            return
+
         mute_role = await self._mute_check(ctx)
         if not mute_role:
             return
@@ -816,66 +873,97 @@ class Moderator(Cog):
         if not time:
             return await ctx.send('Invalid time string')
 
+        if time.days > 30:
+            await ctx.send("Timeout can't be longer than 30 days")
+            return
+
+        if guild.id == 217677285442977792:
+            if time.total_seconds() < 500:
+                await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
+                return
+
+        if time.total_seconds() < 59:
+            await ctx.send('Minimum timeout is 1 minute')
+            return
+
         author = ctx.author
-
-        # Ignore checks if in test mode
-        if not self.bot.test_mode:
-            if user.id == author.id and time.total_seconds() < 21600:
-                return await ctx.send('If you gonna timeout yourself at least make it a longer timeout')
-
-            if guild.id == 217677285442977792 and user.id == 123050803752730624:
-                return await ctx.send("Not today kiddo. I'm too powerful for you")
-
-            r = guild.get_role(339841138393612288)
-            if not author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in author.roles:
-                return await ctx.send('All hail our leader <@!222399701390065674>')
-
-            if author != guild.owner and author.top_role <= user.top_role:
-                return await ctx.send('The one you are trying to timeout is higher or same as you in the role hierarchy')
-
-            if time.days > 30:
-                return await ctx.send("Timeout can't be longer than 30 days")
-            if guild.id == 217677285442977792:
-                if time.total_seconds() < 500:
-                    return await ctx.send('This server is retarded so I have to hardcode timeout limits and the given time is too small')
-
-                rtm = guild.get_role(339841138393612288)
-                if rtm in author.roles and rtm in user.roles:
-                    if ctx.channel.id == 361830510646788098:
-                        return
-
-            if time.total_seconds() < 59:
-                return await ctx.send('Minimum timeout is 1 minute')
+        muted_users = []
+        failed = []
 
         now = datetime.utcnow()
-
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         expires_on = now + time
 
-        try:
-            await user.add_roles(mute_role, reason=f'[{author}] {reason}')
-            await ctx.send('Muted user {} for {}'.format(user, time))
-        except discord.HTTPException:
-            await ctx.send('Could not mute user {}'.format(user))
-            return
+        for user in users:
+            # Ignore checks if in test mode
+            if not self.bot.test_mode:
+                if user.id == author.id and time.total_seconds() < 21600:
+                    failed.append('If you gonna timeout yourself at least make it a longer timeout')
+                    continue
 
-        description = '{} muted {} `{}` for {}'.format(author.mention,
-                                                       user, user.id, time)
+                if guild.id == 217677285442977792 and user.id == 123050803752730624:
+                    failed.append(f"Couldn't mute {user}. Not today kiddo. I'm too powerful for you")
+                    continue
 
-        url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
-        embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
-                              timestamp=datetime.utcnow() + time,
-                              description=description)
-        embed.add_field(name='Reason', value=reason)
-        embed.add_field(name='link', value=url)
-        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-        embed.set_footer(text='Expires at', icon_url=author.avatar_url or author.default_avatar_url)
+                r = guild.get_role(339841138393612288)
+                if not author.id == 123050803752730624 and self.bot.anti_abuse_switch and r in user.roles and r in author.roles:
+                    failed.append('All hail our leader <@!222399701390065674>')
+                    continue
 
-        msg = await self.send_to_modlog(guild, embed=embed)
-        await self.add_timeout(ctx, guild.id, user.id, expires_on,
-                               time.total_seconds(),
-                               reason=reason,
-                               modlog_msg=msg.id if msg else None)
+                if author != guild.owner and author.top_role <= user.top_role:
+                    failed.append(f'{user} is higher or same as you in the role hierarchy')
+                    continue
+
+                if guild.id == 217677285442977792:
+                    rtm = guild.get_role(339841138393612288)
+                    if rtm in author.roles and rtm in user.roles:
+                        if ctx.channel.id == 361830510646788098:
+                            continue
+
+            try:
+                await user.add_roles(mute_role, reason=f'[{author}] {reason}')
+                muted_users.append(user)
+            except discord.HTTPException:
+                failed.append('Could not mute user {}'.format(user))
+                continue
+
+        msg = None
+        if muted_users:
+            user_string = '\n'.join(map(lambda u: f'{u} `{u.id}`', muted_users))
+            description = f'{author.mention} muted {user_string} for {time}'
+
+            url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
+            embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
+                                  timestamp=datetime.utcnow() + time,
+                                  description=description)
+            embed.add_field(name='Reason', value=reason)
+            embed.add_field(name='link', value=url)
+
+            if len(muted_users) == 1:
+                u = muted_users[0]
+                embed.set_thumbnail(url=u.avatar_url or u.default_avatar_url)
+
+            embed.set_footer(text='Expires at',
+                             icon_url=author.avatar_url or author.default_avatar_url)
+
+            msg = await self.send_to_modlog(guild, embed=embed)
+
+        for user in muted_users:
+            await self.add_timeout(ctx, guild.id, user.id, expires_on,
+                                   time.total_seconds(),
+                                   reason=reason,
+                                   modlog_msg=msg.id if msg else None)
+
+        s = ""
+        if muted_users:
+            s += "Muted user" + ("s " if len(muted_users) > 1 else " ")
+            s += ', '.join(map(str, muted_users))
+            s += f' for {time}\n'
+
+        if failed:
+            s += "\n".join(failed)
+
+        await ctx.send(s)
 
     @group(invoke_without_command=True, no_pm=True)
     @bot_has_permissions(manage_roles=True)
@@ -1413,10 +1501,13 @@ class Moderator(Cog):
         """
         Changes the reason on a mute or unmute
         If message id is given, it will try to edit a message with that id in the modlog.
-        This works for both mutes and unmutes
+        This works for both mutes and unmutes and will edit reason for everyone
+        involved in that action
 
         If a user is mentioned this will fetch the latest mute that you've done to that user
-        and edit that. This method does not work for unmutes
+        and edit that. This method does not work for unmutes. Also in the case of
+        muting/timeouting multiple users this will update the reason only for the user
+        given
 
         """
         modlog = self.get_modlog(ctx.guild)
@@ -1426,6 +1517,8 @@ class Moderator(Cog):
         is_msg = isinstance(user_or_message, int)
         s = ''
         row = None
+        embed = None
+        msg = None
 
         if is_msg:
             message_id = user_or_message
@@ -1446,7 +1539,7 @@ class Moderator(Cog):
 
             user_id = re.findall(r'(\d+)', msg.embeds[0].description)
             if user_id:
-                user_id = int(user_id[-1])
+                user_id = user_id[-1]
 
         else:
             user = user_or_message
@@ -1458,8 +1551,6 @@ class Moderator(Cog):
             if not row:
                 return await ctx.send(f"You have never muted {user}")
 
-            msg = None
-            embed = None
             if row['message']:
                 try:
                     msg = await modlog.fetch_message(row['message'])
@@ -1494,21 +1585,21 @@ class Moderator(Cog):
                 except discord.HTTPException as e:
                     s += f'Failed to edit modlog reason because of an error.\n{e}\n'
 
-        # Unmutes are not logged in database
-        if user_id and not unmute:
-            if not await self.edit_mute_reason(ctx, user_id, reason):
-                return await ctx.send('Failed to edit reason because of an error')
+        if unmute:
+            s += 'Edited unmute reason'
 
-        if row:
+        elif row:
             td = datetime.utcnow() - row['time']
             # td formatted from day to hour
             td = format_timedelta(td, DateAccuracy.Day-DateAccuracy.Hour)
             s += f'Reason for the mute of {user_or_message} from {td} ago was edited'
+
             sql = "UPDATE timeout_logs SET reason=$1 WHERE id=$2"
             try:
                 await self.bot.dbutil.execute(sql, (reason, row['id']))
             except PostgresError:
                 pass
+
         else:
             if msg:
                 sql = "UPDATE timeout_logs SET reason=$1 WHERE message=$2 and guild=$3"
@@ -1517,6 +1608,9 @@ class Moderator(Cog):
                     await self.bot.dbutil.execute(sql, (reason, msg.id, ctx.guild.id))
                 except PostgresError:
                     pass
+
+            elif not await self.edit_mute_reason(ctx, user_id, reason):
+                return await ctx.send('Failed to edit reason because of an error')
 
             s += 'Reason edited'
 

@@ -625,9 +625,19 @@ class DatabaseUtils:
 
     async def add_timeout(self, guild: int, user, expires_on):
         sql = 'INSERT INTO timeouts (guild, uid, expires_on) VALUES ' \
-              '($1, $2, $3) ON CONFLICT (guild, uid) DO UPDATE SET expires_on=$3'
+              '%s ON CONFLICT (guild, uid) DO UPDATE SET expires_on=$3'
 
-        await self.execute(sql, (guild, user, expires_on))
+        if isinstance(user, int):
+            arg_string = '($1, $2, $3)'
+            args = (guild, user, expires_on)
+
+        else:
+            arg_string = self.create_bind_groups(len(user), 3)
+            args = []
+            for uid in user:
+                args.extend((guild, uid, expires_on))
+
+        await self.execute(sql % arg_string, args)
 
     async def add_todo(self, todo, priority=0):
         sql = 'INSERT INTO todo (todo, priority) VALUES ($1, $2) RETURNING id'
@@ -697,21 +707,32 @@ class DatabaseUtils:
     async def add_timeout_log(self, guild_id, user_id, author_id, reason, embed=None,
                               timestamp=None, modlog_message_id=None, duration=None,
                               show_in_logs=True):
+
+        args = [
+            guild_id,
+            user_id,
+            author_id,
+            reason,
+            embed,
+            modlog_message_id,
+            timestamp,
+            duration,
+            show_in_logs
+        ]
+
+        if isinstance(user_id, int):
+            arg_string = '($1, $2, $3)'
+
+        else:
+            arg_string = self.create_bind_groups(len(user_id), len(args))
+            new_args = []
+            for uid in user_id:
+                args[1] = uid
+                new_args.extend(args)
+
         try:
             sql = 'INSERT INTO timeout_logs (guild, uid, author, reason, embed, message, time, duration, show_in_logs) VALUES ' \
-                  '($1, $2, $3, $4, $5, $6, $7, $8, $9)'
-
-            args = (
-                guild_id,
-                user_id,
-                author_id,
-                reason,
-                embed,
-                modlog_message_id,
-                timestamp,
-                duration,
-                show_in_logs
-            )
+                  '%s' % arg_string
 
             await self.bot.dbutils.execute(sql, args)
         except PostgresError:

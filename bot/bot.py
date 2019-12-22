@@ -124,26 +124,6 @@ class Bot(commands.Bot, Client):
         super().__init__(prefix, owner_id=config.owner, **options)
         self._runas = None
 
-        '''
-        self.remove_command('help')
-
-        @self.group(invoke_without_command=True)
-        @bot_has_permissions(embed_links=True)
-        @cooldown(2, 10, commands.BucketType.guild)
-        async def help(ctx, *commands_: str):
-            """Shows all commands you can use on this server.
-            Use {prefix}{name} all to see all commands"""
-            await self._help(ctx, *commands_)
-
-        @help.command(name='all')
-        @bot_has_permissions(embed_links=True)
-        @cooldown(1, 10, commands.BucketType.guild)
-        async def all_(ctx, *commands_: str):
-            """Shows all available commands even if you don't have the correct
-            permissions to use the commands. Bot owner only commands are still hidden tho"""
-            await self._help(ctx, *commands_, type=Formatter.Generic)
-        '''
-
         log.debug('Using loop {}'.format(self.loop))
         if aiohttp is None:
             aiohttp = ClientSession(loop=self.loop)
@@ -220,6 +200,15 @@ class Bot(commands.Bot, Client):
 
         error_msg = None
         if isinstance(exception, commands.errors.CommandOnCooldown):
+            # Delete message if hidden command
+            if context.command.hidden:
+                try:
+                    await context.message.delete()
+                except discord.HTTPException:
+                    pass
+
+                return
+
             error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
         elif isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument) or isinstance(exception, commands.BadUnionArgument):

@@ -1450,7 +1450,7 @@ class Moderator(Cog):
             time = 1
 
         task = call_later(self.remove_role, self.bot.loop, time,
-                          user, role, guild, after=lambda _: temproles.pop(user))
+                          user, role, guild, after=lambda _: temproles.pop(user, None))
 
         temproles[user] = task
 

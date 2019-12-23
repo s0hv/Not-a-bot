@@ -721,7 +721,7 @@ class DatabaseUtils:
         ]
 
         if isinstance(user_id, int):
-            arg_string = '($1, $2, $3)'
+            arg_string = '($1, $2, $3, $4, $5, $6, $7, $8, $9)'
 
         else:
             arg_string = self.create_bind_groups(len(user_id), len(args))

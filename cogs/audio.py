@@ -2322,7 +2322,7 @@ class Audio(commands.Cog):
     @cooldown(1, 10, type=BucketType.guild)
     async def link(self, ctx):
         """Link to the current song"""
-        if not await self.check_voice(ctx):
+        if not await self.check_voice(ctx, user_connected=False):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)

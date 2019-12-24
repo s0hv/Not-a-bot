@@ -461,6 +461,9 @@ class CommandBlacklist(Cog):
         sql += " ORDER BY uid, role, channel"
 
         rows = await self.bot.dbutil.fetch(sql)
+        if not rows:
+            await ctx.send(f'No perms found for {type_ or "guild"}')
+            return
 
         perms = {'guild': [], 'channel': [], 'role': [], 'user': []}
 

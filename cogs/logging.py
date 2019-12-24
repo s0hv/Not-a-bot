@@ -253,7 +253,10 @@ class Logger(Cog):
             entries.append(command.name)
         entries = list(reversed(entries))
         entries.append(cmd.name)
-        await self.bot.dbutil.command_used(entries[0], ' '.join(entries[1:]) or "")
+        guild = ctx.guild.id if ctx.guild else None
+        await self.bot.dbutil.command_used(entries[0], ' '.join(entries[1:]) or "",
+                                           ctx.message.created_at, ctx.author.id,
+                                           guild)
 
 
 def setup(bot):

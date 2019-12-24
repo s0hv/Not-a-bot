@@ -89,6 +89,17 @@ create index idx_27177_uses
 create unique index idx_27177_parent
   on command_stats (parent, cmd);
 
+create table command_usage
+(
+    cmd TEXT NOT NULL,
+    used_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    uid BIGINT DEFAULT NULL,
+    guild BIGINT DEFAULT NULL
+);
+
+create index cmd_name_index
+    on command_usage (cmd);
+
 create table emotes
 (
   name  text        not null,

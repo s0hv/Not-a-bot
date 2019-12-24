@@ -482,15 +482,37 @@ class DatabaseUtils:
 
         return True
 
-    async def command_used(self, parent, name=""):
+    async def add_command_uses(self, values):
+        if not values:
+            return
+
+        await self.insertmany('command_usage',
+                              records=values,
+                              columns=('cmd', 'used_at', 'uid', 'guild'))
+
+    async def command_used(self, parent, name, used_at, user_id=None, guild=None):
         if name is None:
             name = ""
-        sql = 'UPDATE command_stats SET uses=(uses+1) WHERE parent=$1 AND cmd=$2'
-        try:
-            await self.execute(sql, (parent, name))
-        except PostgresError:
-            logger.exception('Failed to update command {} {} usage'.format(parent, name))
-            return False
+
+        async with self.bot.pool.acquire() as conn:
+            async with conn.transaction():
+                sql = 'UPDATE command_stats SET uses=(uses+1) WHERE parent=$1 AND cmd=$2'
+                try:
+                    await conn.execute(sql, *(parent, name))
+                except PostgresError:
+                    logger.exception('Failed to update command {} {} usage'.format(parent, name))
+                    return False
+
+                sql = 'INSERT INTO command_usage (cmd, used_at, uid, guild) ' \
+                      'VALUES ($1, $2, $3, $4)'
+                cmd = parent
+                if name:
+                    cmd += ' ' + name
+                try:
+                    await conn.execute(sql, *(cmd, used_at, user_id, guild))
+                except PostgresError:
+                    logger.exception(f'Failed to update command use {cmd} {used_at}')
+                    return False
 
         return True
 

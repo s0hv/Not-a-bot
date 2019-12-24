@@ -254,6 +254,12 @@ class Server(Cog):
         sort = '1/SQRT( POWER((1 - wins / games::decimal), 2) + POWER(1 / games::decimal, 2)* 0.9 )'
         await self._post_mr_top(ctx, user or ctx.author, sort=sort)
 
+    @mute_roll_top.command(no_dm=True, aliases=['ws'])
+    @cooldown(2, 5, BucketType.guild)
+    async def winstreak(self, ctx, *, user: PossibleUser=None):
+        """Sort mute roll stats by highest winstreak"""
+        await self._post_mr_top(ctx, user or ctx.author, sort='biggest_streak')
+
     async def _dl(self, ctx, url):
         try:
             data, mime_type = await raw_image_from_url(url, self.bot.aiohttp_client,

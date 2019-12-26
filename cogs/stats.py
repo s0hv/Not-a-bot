@@ -1,14 +1,15 @@
 import logging
-from datetime import datetime
+import typing
+from datetime import datetime, timedelta
 
 import discord
 from asyncpg.exceptions import PostgresError
 from discord.ext.commands import BucketType
 
-from bot.bot import command, cooldown, bot_has_permissions
-from bot.converters import AnyUser, CommandConverter
+from bot.bot import command, cooldown, bot_has_permissions, group, Group
+from bot.converters import AnyUser, CommandConverter, TimeDelta
 from cogs.cog import Cog
-from utils.utilities import send_paged_message, format_timedelta
+from utils.utilities import send_paged_message, format_timedelta, DateAccuracy
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -183,6 +184,91 @@ class Stats(Cog):
             return embed
 
         await send_paged_message(ctx, pages, embed=True, page_method=get_page)
+
+    async def post_command_activity_stats(self, ctx, cmd, time, user=None,
+                                          guild=None, limit=None):
+
+        # Recursively get all group command names
+        def get_group_cmds(c):
+            n = []
+            if isinstance(c, Group):
+                n.append(c.qualified_name)
+                for cc in c.commands:
+                    n.extend(get_group_cmds(cc))
+            else:
+                n.append(c.qualified_name)
+
+            return n
+
+        # Get command names
+        if not cmd:
+            names = ()
+        elif isinstance(cmd, Group):
+            names = []
+            names.extend(get_group_cmds(cmd))
+        else:
+            names = (cmd.name,)
+
+        # If time not given use the default of half a year
+        time = time or timedelta(days=182)
+        rows = await self.bot.dbutil.get_command_activity(names,
+                                                          datetime.utcnow() - time,
+                                                          guild=guild,
+                                                          user=user,
+                                                          limit=limit)
+        if rows is False:
+            return await ctx.send('Failed to get command usage statistics')
+
+        # List all found command names in a set
+        cmds_found = {r['cmd'] for r in rows}
+
+        # If a command name isn't in rows that means it has 0 uses
+        # commands with 0 uses aren't returned so we add them manually
+        not_found = set(names) - cmds_found
+        for name in not_found:
+            rows.append({'count': 0, 'cmd': name})
+
+        pages = list(rows)
+        size = 15
+        pages = [pages[i:i + size] for i in range(0, len(pages), size)]
+
+        def get_page(page, idx):
+            if isinstance(page, discord.Embed):
+                return page
+
+            desc = ''
+            for r in page:
+                desc += f'`{r["cmd"]}'
+                desc += f'` {r["count"]} uses\n'
+
+            title = f'Command usage stats for the past {format_timedelta(time, DateAccuracy.Day)}'
+            embed = discord.Embed(title=title, description=desc)
+            embed.set_footer(text=f'{idx + 1}/{len(pages)}')
+            pages[idx] = embed
+            return embed
+
+        await send_paged_message(ctx, pages, embed=True, page_method=get_page)
+
+    @group(aliases=['cmd_a', 'cmd_activity'], invoke_without_command=True)
+    @cooldown(1, 5)
+    async def command_activity(self, ctx, cmd: typing.Optional[CommandConverter]=None,
+                               time: TimeDelta=None):
+        """
+        Show command uses in the given time. Maximum time is one year and by default
+        it's half a year.
+        If command name is given as the first parameter will give use count for that command and it's subcommands.
+        To see command usage for this server only use `{prefix}{name} server` which takes
+        the exact same parameters as this command
+        """
+        await self.post_command_activity_stats(ctx, cmd, time)
+
+    @command_activity.command(no_pm=True, name='server', aliases=['s', 'g', 'guild'])
+    async def cmd_a_guild(self, ctx, cmd: typing.Optional[CommandConverter]=None,
+                               time: TimeDelta=None):
+        """
+        Return the command usage statistics for this servers in the specified time frame
+        """
+        await self.post_command_activity_stats(ctx, cmd, time, guild=ctx.guild.id)
 
 
 def setup(bot):

@@ -531,6 +531,47 @@ class DatabaseUtils:
             logger.exception('Failed to get command stats')
             return False
 
+    async def get_command_activity(self, names, after, user=None, guild=None, limit: int=None):
+
+        where = []
+        # Optimizations for single command cases
+        if len(names) == 1:
+            where.append('cmd=$1')
+            select = 'COUNT(*), $1 as cmd'
+
+        # Selection when no names specified
+        elif not names:
+            select = 'COUNT(cmd), cmd'
+
+        else:
+            where.append('cmd IN ' + self.create_bind_groups(1, len(names)))
+            select = 'COUNT(cmd), cmd '
+
+        sql = f'SELECT {select} FROM command_usage WHERE '
+
+        if user:
+            where.append(f'uid={int(user)}')
+
+        if guild:
+            where.append(f'guild={int(guild)}')
+
+        idx = len(names) + 1
+        where.append(f'used_at > ${idx}')
+
+        sql += ' AND '.join(where)
+
+        if len(names) != 1:
+            sql += ' GROUP BY cmd ORDER BY COUNT(cmd) DESC'
+
+        if limit:
+            sql += f' LIMIT {int(limit)}'
+
+        try:
+            return await self.fetch(sql, (*names, after))
+        except PostgresError:
+            logger.exception('Failed to get command stats')
+            return False
+
     async def increment_mute_roll(self, guild: int, user: int, win: bool):
         if win:
             sql = 'INSERT INTO mute_roll_stats AS m (guild, uid, wins, current_streak, biggest_streak) VALUES ($1, $2, 1, 1, 1)' \

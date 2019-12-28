@@ -17,6 +17,7 @@ import psutil
 import pytz
 from asyncpg.exceptions import PostgresError
 from dateutil import parser
+from dateutil.tz import gettz
 from discord.ext.commands import (BucketType, Group, clean_content)
 from discord.ext.commands.errors import BadArgument
 
@@ -537,13 +538,23 @@ class Utilities(Cog):
 
         tz = fuzzy_tz.get(timezone)
 
+        # Extra info to be sent
+        extra = ''
+
+        if not tz:
+            tz = tz_dict.get(timezone.upper())
+            if tz:
+                tz = fuzzy_tz.get(f'utc{int(tz)//3600:+d}')
+                extra = "UTC offset used. Consider using a locality based timezone instead. " \
+                        "You can set it usually by using your country's capital's name"
+
         if not tz:
             await ctx.send(f'Timezone {timezone} not found')
             ctx.command.undo_use(ctx)
             return
 
         if await self.bot.dbutil.set_timezone(user.id, tz):
-            await ctx.send(f'Timezone set to {tz}')
+            await ctx.send(f'Timezone set to {tz}\n{extra}')
         else:
             await ctx.send('Failed to set timezone because of an error')
 
@@ -596,13 +607,31 @@ class Utilities(Cog):
                 else:
                     t = ' '.join(timezones[:2])
 
-                date = parser.parse(t.upper(), tzinfos=tz_dict, parserinfo=parserinfo)
+                def get_date():
+
+                    def get_tz(name, offset):
+                        # If name specified get by name
+                        if name:
+                            found_tz = tz_dict.get(name)
+                            if not found_tz:
+                                # Default value cannot be None or empty string
+                                found_tz = gettz(fuzzy_tz.get(name.lower(), 'a'))
+
+                            return found_tz
+                        # if offset specified get by utc offset and reverse it
+                        # because https://stackoverflow.com/questions/53076575/time-zones-etc-gmt-why-it-is-other-way-round
+                        elif offset:
+                            return offset*-1
+
+                    return parser.parse(t.upper(), tzinfos=get_tz, parserinfo=parserinfo)
+
+                date = await self.bot.run_async(get_date)
 
                 if not date.tzinfo:
                     duration = user_tz.localize(date) - datetime.now(user_tz)
                 else:
                     # UTC timezones are inverted in dateutil UTC+3 gives UTC-3
-                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(None).total_seconds()//-60)
+                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(None).total_seconds()//60)
                     duration = date.replace(tzinfo=tz) - datetime.now(user_tz)
 
                 addition = duration.days >= 0

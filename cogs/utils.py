@@ -631,7 +631,7 @@ class Utilities(Cog):
                     duration = user_tz.localize(date) - datetime.now(user_tz)
                 else:
                     # UTC timezones are inverted in dateutil UTC+3 gives UTC-3
-                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(None).total_seconds()//60)
+                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(datetime.utcnow()).total_seconds()//60)
                     duration = date.replace(tzinfo=tz) - datetime.now(user_tz)
 
                 addition = duration.days >= 0

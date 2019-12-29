@@ -91,7 +91,11 @@ def write_playlist(data, name, user_id, overwrite=False):
     file = os.path.join(file, name)
 
     if not overwrite and os.path.exists(file):
-        return f'Filename {name} is already in use'
+        raise FileExistsError(f'Filename {name} is already in use')
+
+    if os.path.islink(file):
+        raise PermissionError(f'Filename {name} is a copied playlist and thus cannot be edited.\n'
+                              f'In order to make it editable use a deep copy (check help for copy_playlist)')
 
     with open(file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -122,7 +126,10 @@ async def create_playlist(songs, user, name, channel):
         new_songs.append({'webpage_url': song.webpage_url, 'title': song.title,
                           'duration': song.duration})
 
-    await channel.send(write_playlist(new_songs, name, user.id))
+    try:
+        await channel.send(write_playlist(new_songs, name, user.id))
+    except (FileExistsError, PermissionError) as e:
+        await channel.send(str(e))
 
 
 class Playlist:

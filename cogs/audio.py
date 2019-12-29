@@ -869,6 +869,12 @@ class Audio(commands.Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
+        path = os.path.join(PLAYLISTS, str(ctx.author.id), playlist_name)
+        if os.path.islink(path):
+            await ctx.send('Playlist cannot be edited because it\'s a shallow copy.\n'
+                           'See help of copy_playlist for info on how to make a deep copy')
+            return
+
         if song_links.lower().strip(' \n') == 'queue':
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
@@ -913,7 +919,12 @@ class Audio(commands.Cog):
                 songs.append({'webpage_url': song.webpage_url, 'title': song.title,
                               'duration': song.duration})
 
-        s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
+        try:
+            s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
+        except (FileExistsError, PermissionError) as e:
+            await ctx.send(str(e))
+            return
+
         await ctx.send(f'{s}\nAdded {added} songs')
 
     @command(no_pm=True, aliases=['dp', 'drp'])
@@ -945,7 +956,13 @@ class Audio(commands.Cog):
         songs = list(filter(lambda song: song['webpage_url'] not in song_links, songs))
 
         deleted = old_len - len(songs)
-        s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
+
+        try:
+            s = write_playlist(songs, playlist_name, ctx.author.id, overwrite=True)
+        except (FileExistsError, PermissionError) as e:
+            await ctx.send(str(e))
+            return
+
         await ctx.send(f'{s}\nDeleted {deleted} song(s)')
 
     @command(no_pm=True, aliases=['crp'], cooldown_after_parsing=True)
@@ -993,15 +1010,8 @@ class Audio(commands.Cog):
             if failed:
                 await ctx.send('Failed to add %s' % ', '.join(failed))
 
-    @command(no_pm=True, aliases=['cop'])
-    @cooldown(1, 20, BucketType.user)
-    async def copy_playlist(self, ctx, user: Optional[discord.User], *, name):
-        """
-        Copy a playlist to your own playlists with a name
-        Usage:
-        `{prefix}{name} User#1234 "name of playlist" name of new playlist`
-        """
-
+    @staticmethod
+    async def _copy_playlist(ctx, user, name, deep=False):
         user = user if user else ctx.author
         src = validate_playlist(name, user.id)
         if src is False:
@@ -1009,7 +1019,7 @@ class Audio(commands.Cog):
             await ctx.send(f"Couldn't find playlist {name} of user {user}")
             return
 
-        dst = os.path.join(PLAYLISTS, str(user.id))
+        dst = os.path.join(PLAYLISTS, str(ctx.author.id))
         if not os.path.exists(dst):
             os.mkdir(dst)
         dst = os.path.join(dst, name)
@@ -1020,13 +1030,43 @@ class Audio(commands.Cog):
             return
 
         try:
-            shutil.copyfile(src, dst)
+            if deep:
+                shutil.copyfile(src, dst)
+            else:
+                os.symlink(src, dst)
         except OSError:
             logger.exception('failed to copy playlist')
             await ctx.send('Failed to copy playlist. Try again later')
             return
 
         await ctx.send(f'Successfully copied {user}\'s playlist {name} to {name}')
+
+    @group(no_pm=True, aliases=['cop'], invoke_without_command=True)
+    @cooldown(1, 20, BucketType.user)
+    async def copy_playlist(self, ctx, user: Optional[discord.User], *, name):
+        """
+        Copy a playlist to your own playlists with a name. By default you can't edit
+        a playlist you've copied but it mirrors all changes the original user will make to it.
+        This means if the original owner deletes the playlist the copy will also become empty.
+
+        If you want to make a deep copy that doesn't mirror changes but will work and be editable by you
+        no matter what happens to the original use the subcommand deep as shown in the example
+        Usage:
+        Shallow copy
+        `{prefix}{name} User#1234 "name of playlist" name of new playlist`
+
+        Deep copy
+        `{prefix}{name} deep User#1234 "name of playlist" name of new playlist`
+        """
+        await self._copy_playlist(ctx, user, name)
+
+    @copy_playlist.command(no_pm=True, name='deep')
+    async def copy_deep(self, ctx, user: Optional[discord.User], *, name):
+        """
+        Makes a deep copy of the playlist meaning all contents are copied to their own file.
+        The advantage it has is that you can later edit that playlist unlike the default method
+        """
+        await self._copy_playlist(ctx, user, name, deep=True)
 
     @staticmethod
     async def get_playlist(ctx, user, name):
@@ -1087,7 +1127,13 @@ class Audio(commands.Cog):
         links = set()
         # Adds non duplicates to the list and skips duplicates
         new_songs = [song for song in songs if not song['webpage_url'] in links and not links.add(song['webpage_url'])]
-        write_playlist(new_songs, playlist_name, ctx.author.id, overwrite=True)
+
+        try:
+            write_playlist(new_songs, playlist_name, ctx.author.id, overwrite=True)
+        except (FileExistsError, PermissionError) as e:
+            await ctx.send(str(e))
+            return
+
         await ctx.send(f'Deleted {len(songs) - len(new_songs)} duplicate(s) from the playlist "{playlist_name}"')
 
     @group(no_pm=True, aliases=['vp'], invoke_without_command=True)
@@ -1157,8 +1203,13 @@ class Audio(commands.Cog):
 
         length = len(songs)
 
-        s = write_playlist([song.__dict__() for song in selected], name, user.id, overwrite=True)
-        s += f'\n{length-len(selected)} songs deleted'
+        try:
+            s = write_playlist([song.__dict__() for song in selected], name, user.id, overwrite=True)
+        except (FileExistsError, PermissionError) as e:
+            await ctx.send(str(e))
+            return
+
+        s += f'\n{length-len(selected)} songs deleted that were longer than {duration}'
         await ctx.send(s)
 
     @view_playlist.group(no_pm=True, name='name', invoke_without_command=True)
@@ -1224,8 +1275,13 @@ class Audio(commands.Cog):
 
         length = len(songs)
 
-        s = write_playlist([song.__dict__() for song in selected], name, user.id, overwrite=True)
-        s += f'\n{length-len(selected)} songs deleted'
+        try:
+            s = write_playlist([song.__dict__() for song in selected], name, user.id, overwrite=True)
+        except (FileExistsError, PermissionError) as e:
+            await ctx.send(str(e))
+            return
+
+        s += f'\n{length-len(selected)} songs deleted that matched `{song_name}`'
         await ctx.send(s)
 
     @command(no_pm=True)

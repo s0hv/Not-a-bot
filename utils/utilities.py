@@ -476,6 +476,101 @@ def get_emote_name_id(s):
     return None, None, None
 
 
+async def get_images(ctx, content, current_message_only=False):
+    """
+    Get all images from a message
+    """
+    images = []
+    msg_id = None
+
+    def add_link(url):
+        if not url or url in images:
+            return
+
+        images.append(url)
+
+    # Check if message id given and fetch that message if that is the case
+    if not current_message_only:
+        try:
+            msg_id = int(content)
+        except (ValueError, TypeError):
+            pass
+
+        if msg_id:
+            try:
+                ctx.message = await ctx.channel.fetch_message(msg_id)
+            except discord.HTTPException:
+                pass
+
+    # Images from attachments
+    for attachment in ctx.message.attachments:
+        if not isinstance(attachment.width, int):
+            continue
+
+        add_link(attachment.url)
+
+    # Images from message contents
+    content = ctx.message.content or ''
+    for word in content.split(' '):
+        # Image url
+        if is_image_url(word):
+            add_link(word)
+            continue
+
+        # emote url
+        emote = get_emote_url(word)
+        if emote:
+            add_link(emote)
+            continue
+
+        # Check ids after ths
+        try:
+            snowflake = int(word)
+        except ValueError:
+            continue
+
+        # Check if guild id given
+        if snowflake == ctx.guild.id:
+            add_link(str(ctx.guild.icon_url))
+            add_link(str(ctx.guild.banner_url))
+            add_link(str(ctx.guild.splash_url))
+            continue
+
+        # Check for user id
+        user = ctx.bot.get_user(snowflake)
+        if user:
+            add_link(get_avatar(user))
+            continue
+
+    # Mentioned user avatars
+    for user in ctx.message.mentions:
+        add_link(get_avatar(user))
+
+    # Embed images
+    for embed in ctx.message.embeds:
+        embed_type = embed.type
+        attachments = ()
+
+        if embed_type == 'video':
+            attachments = (embed.thumbnail.url, )
+        elif embed_type == 'rich':
+            attachments = (embed.image.url, embed.thumbnail.url)
+        elif embed_type == 'image':
+            attachments = (embed.url, embed.thumbnail.url)
+
+        for attachment in attachments:
+            if attachment != EmptyEmbed and is_image_url(attachment):
+                add_link(attachment)
+
+    if not images:
+        add_link(await get_image_from_ctx(ctx, content))
+
+    if not images:
+        images.append('No images found')
+
+    return images
+
+
 async def get_image(ctx, image, current_message_only=False):
     img = await get_image_from_ctx(ctx, image, current_message_only)
     if img is None:
@@ -1015,9 +1110,11 @@ def is_image_url(url):
     is_image = mimetype and mimetype.startswith('image')
     if not is_image:
         # This is needed because some images like from twitter
-        # are usually in the format of someimage.jpg:large
+        # are usually in the format of someimage.jpg:large or someimage.jpg?size=1
         # and mimetypes doesn't recognize that
-        mimetype, _ = mimetypes.guess_type((':'.join(url.split(':')[:-1])))
+        url = re.sub(r'(:\w+|\?\w+=\w+)$', '', url)
+
+        mimetype, _ = mimetypes.guess_type(url)
         is_image = mimetype and mimetype.startswith('image')
 
     return is_image
@@ -1216,7 +1313,8 @@ def is_superset(ctx):
     return True
 
 
-async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_method=None, timeout=60):
+async def send_paged_message(ctx, pages, embed=False, starting_idx=0,
+                             page_method=None, timeout=60, undoable=False):
     """
     Send a paged message
     Args:
@@ -1228,6 +1326,7 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
             Method that returns the actual page when given the page and
             index of the page in that order
         timeout: How long to wait before stopping listening to reactions
+        undoable: Determines if message can be undone
     """
     bot = ctx.bot
     try:
@@ -1239,9 +1338,9 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0, page_metho
         return await ctx.channel.send(f'Page index {starting_idx} is out of bounds')
 
     if embed:
-        message = await ctx.channel.send(embed=page)
+        message = await ctx.send(embed=page, undoable=undoable)
     else:
-        message = await ctx.channel.send(page)
+        message = await ctx.send(page, undoable=undoable)
     if len(pages) == 1:
         return
 

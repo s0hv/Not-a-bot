@@ -30,7 +30,8 @@ from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
                               optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
 from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
-                             split_string, get_image, dl_image, call_later)
+                             split_string, get_image, dl_image, call_later,
+                             get_images, send_paged_message)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -1387,7 +1388,7 @@ class Images(Cog):
         file.seek(0)
         await ctx.send(s, file=File(file, filename='pokefusion.png'))
 
-    @command(aliases=['get_im'])
+    @command(aliases=['get_im', 'getim'])
     @cooldown(3, 3, BucketType.guild)
     async def get_image(self, ctx, *, data=None):
         """Get's the latest image in the channel if data is None
@@ -1395,7 +1396,21 @@ class Images(Cog):
         then message lookup. If data is an image url this will just return that url"""
         img = await get_image_from_ctx(ctx, data)
         s = img if img else 'No image found'
-        return await ctx.send(s, undoable=True)
+        await ctx.send(s, undoable=True)
+
+    @command(aliases=['get_ims', 'getims'])
+    @cooldown(3, 3, BucketType.guild)
+    async def get_images(self, ctx, *, data=None):
+        """Get all images from given data.
+        To get images from another message give the id of that message (only 1 id, no more).
+        If data contains an id, first it compared to server id and then user ids.
+        All urls will be returned as is and embed urls will be extracted"""
+        imgs = await get_images(ctx, data)
+
+        def get_page(_, idx):
+            return f'{idx+1}/{len(imgs)}\n{imgs[idx]}'
+
+        await send_paged_message(ctx, imgs, page_method=get_page, undoable=True)
 
     @command(owner_only=True)
     async def update_poke_cache(self, ctx):

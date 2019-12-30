@@ -1104,14 +1104,19 @@ class Images(Cog):
 
     @command()
     @cooldown(2, 8, BucketType.guild)
-    async def v(self, ctx, image1, image2):
+    async def v(self, ctx, *, images=''):
         """Image of V reading a book. Needs 2 images for both of the pages"""
-        img1 = await dl_image(ctx, image1)
-        if img1 is None:
+        images = await get_images(ctx, images)
+        if len(images) < 2:
+            await ctx.send("Did not find 2 images in your message")
             return
 
-        img2 = await dl_image(ctx, image2)
-        if not img2:
+        img1 = await dl_image(ctx, images[0])
+        img2 = None
+        if img1:
+            img2 = await dl_image(ctx, images[1])
+
+        if not img1 or not img2:
             return
 
         def do_it():

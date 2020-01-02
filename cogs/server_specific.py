@@ -260,6 +260,42 @@ AVAILABLE_ROLES = {10: {
 }
 
 
+class RoleResponse:
+    def __init__(self, msg, image_url=None):
+        self.msg = msg
+        self.img = image_url
+
+    async def send_message(self, ctx, role=None):
+        author = ctx.author
+        description = self.msg.format(author=author, role=role, bot=ctx.bot.user)
+
+        if self.img:
+            embed = discord.Embed(description=description)
+            embed.set_image(url=self.img)
+            await ctx.send(embed=embed)
+
+        else:
+            await ctx.send(description)
+
+
+role_response_success = [
+    RoleResponse("You escape **{bot}**'s hold and get your friend to beat him up. You successfully steal the role \"{role}\"", 'https://i.imgur.com/Z6qmUEV.gif'),
+    RoleResponse("His smile radiates on your face and blesses you with \"{role}\"", 'https://i.imgur.com/egiCht9.jpg'),
+    RoleResponse("You scientifically prove that traps aren't gay and get a role as a reward. ({role})"),
+    RoleResponse("You have a moment of silence for Billy as he looks upon you and grants you a role. ({role})", 'https://i.imgur.com/PRnTXpc.png'),
+    RoleResponse("You recite some classical poetry and get a role as a reward for your performance. ({role})", 'https://manly.gachimuchi.men/HzmKEk7k.png')
+]
+
+role_response_fail = [
+    RoleResponse("Never lucky <a:tyler1Rage:592360154775945262>"),
+    RoleResponse("Due to a technical error the role went to a gang of traps instead <:AstolfoPlushie:592595615188385802><a:AstolfoPlushie:474085216651051010><:AstolfoPlushie:592595615188385802>"),
+    RoleResponse("404 Role not found"),
+    RoleResponse("{bot} flexes on you as you lay on the ground with no tole", 'https://i.imgur.com/VFruiTR.gif'),
+    RoleResponse("When you realize that you didn't get any roles this time", 'https://i.imgur.com/YIP6W84.png'),
+    RoleResponse("You get offered black market roles but you don't know how to respond and the chance to acquire a role passes by", 'https://i.imgur.com/Xo7s9Vx.jpg')
+]
+
+
 class ServerSpecific(Cog):
     def __init__(self, bot):
         super().__init__(bot)
@@ -1133,15 +1169,10 @@ class ServerSpecific(Cog):
 
             role = choice(list(roles))
             await ctx.author.add_roles(role)
-            await ctx.send(f'You got a new role ({role})')
+            await choice(role_response_success).send_message(ctx, role)
 
         else:
-            fails = ['Never lucky',
-                     'Not today',
-                     'Due to a technical error the role went to a gang of traps instead',
-                     '404 Role not found',
-                     'No tole']
-            await ctx.send(choice(fails))
+            await choice(role_response_fail).send_message(ctx)
 
     @command(hidden=True)
     @cooldown(1, 60, BucketType.channel)

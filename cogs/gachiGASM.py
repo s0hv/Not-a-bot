@@ -62,7 +62,19 @@ wrestling_gifs = [
     WrestlingGif('https://i.imgur.com/6khggL1.gif', "**{author.name}** pulls the hair of **{recipient.name}**"),
     WrestlingGif('https://i.imgur.com/bq0Bjbl.gif', "**{author.name}** got the moves"),
     WrestlingGif('https://i.imgur.com/aIVoytr.gif', "**{author.name}** throws **{recipient.name}** on the ground"),
-    WrestlingGif('https://i.imgur.com/l137Zzh.gif', "**{recipient.name}** gets elbow struck by **{author.name}**")
+    WrestlingGif('https://i.imgur.com/l137Zzh.gif', "**{recipient.name}** gets elbow struck by **{author.name}**"),
+    WrestlingGif('https://i.imgur.com/tFZv2j9.gif', "**{recipient.name}** and **{author.name}** engage in a fight. **{author.name}** makes the first move"),
+    WrestlingGif('https://i.imgur.com/kVXjE3Q.gif',  "**{author.name}** pulls **{recipient.name}**'s hands"),
+    WrestlingGif('https://i.imgur.com/4IsfXSD.gif', "**{author.name}** has **{recipient.name}** locked down"),
+    WrestlingGif('https://i.imgur.com/HnLRl26.gif', "**{author.name}** spins right round baby right round"),
+    WrestlingGif('https://i.imgur.com/uJtuZ4V.gif', "**{author.name}** beats **{recipient.name}** up and locks him down"),
+    WrestlingGif('https://i.imgur.com/ZgXNVIb.gif', "**{recipient.name}** flails his arms around helplessly"),
+    WrestlingGif('https://i.imgur.com/Jcu4NyL.gif', "**{author.name}** manages to get a quick jab in"),
+    WrestlingGif('https://i.imgur.com/XUpxidH.gif', "**{author.name}** pulls on **{recipient.name}**'s leg"),
+    WrestlingGif('https://i.imgur.com/pTBy6ap.gif', "**{recipient.name}** and **{author.name}** engage in a hugging competition"),
+    WrestlingGif('https://i.imgur.com/ggTj4xI.gif', "**{author.name}** escapes **{recipient.name}**'s hold and counters"),
+    WrestlingGif('https://i.imgur.com/lS2zZre.gif', "**{author.name}** locks **{recipient.name}**'s legs"),
+    WrestlingGif('https://i.imgur.com/fdgI1Br.gif', "**{recipient.name}** gets choked by **{author.name}** and tries to escape but fails"),
 ]
 
 

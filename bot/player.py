@@ -535,10 +535,11 @@ class AudioPlayer(player.AudioPlayer):
 
     def _do_run(self):
         self.loops = 0
-        self._start = time.time()
+        self._start = time.perf_counter()
         frameskip = 0
         # getattr lookup speed ups
         play_audio = self.client.send_audio_packet
+        self._speak(True)
 
         while not self._end.is_set():
             # are we paused?
@@ -553,7 +554,7 @@ class AudioPlayer(player.AudioPlayer):
                 self._connected.wait()
                 # reset our internal data
                 self.loops = 0
-                self._start = time.time()
+                self._start = time.perf_counter()
 
             self.loops += 1
             data = self.source.read()
@@ -583,7 +584,7 @@ class AudioPlayer(player.AudioPlayer):
             play_audio(data, encode=not self.source.is_opus())
             self._run_loops += 1
             next_time = self._start + self.DELAY * self.loops
-            delay = max(0, self.DELAY + (next_time - time.time()))
+            delay = max(0, self.DELAY + (next_time - time.perf_counter()))
             if delay < 0:
                 frameskip = min(self.frameskip, abs(int(delay/self.DELAY)))
                 continue

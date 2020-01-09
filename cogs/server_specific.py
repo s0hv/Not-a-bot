@@ -283,7 +283,9 @@ role_response_success = [
     RoleResponse("His smile radiates on your face and blesses you with \"{role}\"", 'https://i.imgur.com/egiCht9.jpg'),
     RoleResponse("You scientifically prove that traps aren't gay and get a role as a reward. ({role})"),
     RoleResponse("You have a moment of silence for Billy as he looks upon you and grants you a role. ({role})", 'https://i.imgur.com/PRnTXpc.png'),
-    RoleResponse("You recite some classical poetry and get a role as a reward for your performance. ({role})", 'https://manly.gachimuchi.men/HzmKEk7k.png')
+    RoleResponse("You recite some classical poetry and get a role as a reward for your performance. ({role})", 'https://manly.gachimuchi.men/HzmKEk7k.png'),
+    RoleResponse("You stare in awe as Pucci removes a disc from his White Snake. He places it in your hand, bestowing upon you the role {role}", 'https://cdn.discordapp.com/attachments/252872751319089153/664747484190343179/image0.png'),
+    RoleResponse("You gain a role. That turns you on. ({role})", 'https://i.imgur.com/TZIKltp.gif')
 ]
 
 role_response_fail = [
@@ -292,7 +294,10 @@ role_response_fail = [
     RoleResponse("404 Role not found"),
     RoleResponse("{bot} flexes on you as you lay on the ground with no tole", 'https://i.imgur.com/VFruiTR.gif'),
     RoleResponse("When you realize that you didn't get any roles this time", 'https://i.imgur.com/YIP6W84.png'),
-    RoleResponse("You get offered black market roles but you don't know how to respond and the chance to acquire a role passes by", 'https://i.imgur.com/Xo7s9Vx.jpg')
+    RoleResponse("You get offered black market roles but you don't know how to respond and the chance to acquire a role passes by", 'https://i.imgur.com/Xo7s9Vx.jpg'),
+    RoleResponse("You get abused by moderators and gain nothing"),
+    RoleResponse("You're just dead weight", 'https://i.redd.it/m1866wrhfnl21.jpg'),
+    RoleResponse("soap rigs the game! <:PeepoEvil:635509941309800478>")
 ]
 
 

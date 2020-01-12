@@ -802,7 +802,9 @@ class Images(Cog):
     async def gif_speed(self, ctx, image, speed: float=None):
         """
         Speed up or slow a gif down by multiplying the frame delay
-        the specified speed (higher is faster, lower is slower, 1 is default speed)
+        the specified speed (higher is faster, lower is slower, 1 is default speed).
+        When gif speed cannot be increased by usual means this will start removing frames from the gif
+        which makes the gif faster up to a point. After being sped up too much the gif will be reduced to a single frame.
         Due to the fact that different engines render gifs differently higher speed
         might not actually mean faster gif. After a certain threshold
         the engine will start throttling and set the frame delay to a preset default
@@ -834,8 +836,10 @@ class Images(Cog):
         def do_speedup():
             frames = convert_frames(img, 'RGBA')
             durations = get_duration(frames)
+            duration_changed = 0
 
             def transform(duration):
+                nonlocal duration_changed
                 # Frame delay is stored as an unsigned 2 byte int
                 # A delay of 0 would mean that the frame would change as fast
                 # as the pc can do it which is useless. Also rendering engines
@@ -846,10 +850,28 @@ class Images(Cog):
                 # usually 100ms
                 if duration < 20:
                     duration = 100
+
+                original = duration
+
                 duration = min(max(duration//speed, 20), 65535)
+                if duration != original:
+                    duration_changed += 1
+
                 return duration
 
             durations = list(map(transform, durations))
+            # Percentage of frame delays that were changed
+            percentage_changed = duration_changed/len(durations)
+
+            # If under 5% of durations changed start removing frames
+            # This will always leave at least one frame intact
+            if speed > 1 and percentage_changed <= 0.05:
+                # We remove every 11//speed indice. The number 5 was chosen
+                # for no particular reason
+                step = max(int(5//speed), 2)  # Values lower than 2 will remove every frame
+                del durations[1::step]
+                del frames[1::step]
+
             frames[0].info['duration'] = durations
             for f, d in zip(frames, durations):
                 f.info['duration'] = d

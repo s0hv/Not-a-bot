@@ -1334,7 +1334,7 @@ class Images(Cog):
             # Split lines based on average width
             # If max characters per line is less than the given max word
             # use max line width as max word width
-            max_line = int(len(text) // (text_size[0] / size[0]))
+            max_line = int(len(text) // ((text_size[0] or 1) / size[0]))
             lines = split_string(text, maxlen=max_line, max_word=min(max_line, 30))
             total_y = 0
 

@@ -469,7 +469,7 @@ class Utilities(Cog):
 
         await ctx.send(new_text[:2000], undoable=True)
 
-    @command(name='pip', enabled=False, hidden=True)
+    @command(name='pip')
     @cooldown(1, 5, BucketType.channel)
     @bot_has_permissions(embed_links=True)
     async def get_package(self, ctx, *, name):
@@ -479,7 +479,7 @@ class Utilities(Cog):
 
         def search():
             try:
-                search_command = SearchCommand(name, "")
+                search_command = SearchCommand()
                 options, _ = search_command.parse_args([])
                 hits = search_command.search(name, options)
                 if hits:

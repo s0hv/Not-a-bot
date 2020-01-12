@@ -157,6 +157,8 @@ class Colors(Cog):
             color = self._colors[guild_id].get(color.id)
         else:
             color = self.get_color(color, guild_id)
+            if color:
+                color = self._colors[guild_id].get(color[0])
 
         return color
 

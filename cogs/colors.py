@@ -334,7 +334,7 @@ class Colors(Cog):
             if before.name != after.name and before.name == color.name:
                 color.name = after.name
 
-            await self._update_color(color, before, to_role=False)
+            await self._update_color(color, after, to_role=False)
 
         elif before.name != after.name:
             color = self._colors.get(before.guild.id, {}).get(before.id)
@@ -1128,7 +1128,11 @@ class Colors(Cog):
             return
 
         try:
-            await role.edit(color=discord.Colour(value))
+            if role.name.lower() == color.name.lower():
+                await role.edit(name=new_color, color=discord.Colour(value))
+                color.name = new_color
+            else:
+                await role.edit(color=discord.Colour(value))
         except discord.HTTPException as e:
             await ctx.send(f'Failed to add color because of an error\n{e}')
             return

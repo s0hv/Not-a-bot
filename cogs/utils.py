@@ -506,9 +506,9 @@ class Utilities(Cog):
         embed = discord.Embed(title=hit['name'],
                               description=description,
                               url=info["package_url"])
-        embed.add_field(name='Author', value=info['author'])
-        embed.add_field(name='Version', value=info['version'])
-        embed.add_field(name='License', value=info['license'])
+        embed.add_field(name='Author', value=info['author'] or 'None')
+        embed.add_field(name='Version', value=info['version'] or 'None')
+        embed.add_field(name='License', value=info['license'] or 'None')
 
         await ctx.send(embed=embed)
 

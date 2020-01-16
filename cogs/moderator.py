@@ -541,10 +541,26 @@ class Moderator(Cog):
         try:
             await ctx.send(f'{user.mention} type accept to join this mute roll of {minutes} minutes')
 
-            _check = basic_check(user, ctx.channel)
+            _check_recipient = basic_check(user, ctx.channel)
+            _check_author = basic_check(ctx.author, ctx.channel)
 
+            # Will return true only when a valid message is given
+            # This means message author can't accept mute roll in behalf of the other
             def check(msg):
-                return _check(msg) and msg.content.lower() in ('accept', 'reject', 'no', 'deny', 'decline', 'i refuse')
+                is_author = False
+                # Check who is the author
+                if not _check_recipient(msg):
+                    if _check_author(msg):
+                        is_author = True
+                    else:
+                        return
+
+                content = msg.content.lower()
+                deny = content in ('reject', 'no', 'deny', 'decline', 'i refuse')
+                accept = content == 'accept'
+
+                # Only accept initiating the mute_roll from the recipient
+                return (not is_author and accept) or deny
 
             try:
                 msg = await self.bot.wait_for('message', check=check, timeout=120)
@@ -552,7 +568,7 @@ class Moderator(Cog):
                 return await ctx.send('Took too long.')
 
             if msg.content.lower() != 'accept':
-                return await ctx.send(f'{user} declined')
+                return await ctx.send(f'{msg.author} declined')
 
             td = timedelta(minutes=minutes)
 

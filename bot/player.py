@@ -345,7 +345,8 @@ class MusicPlayer:
             await self.send(s, delete_after=self.current.duration)
 
             await self.skip(None)
-            play(self.voice, source, after=self.on_stop, speed=speed)
+            play(self.voice, source, after=self.on_stop, speed=speed,
+                 bitrate=self.current.bitrate)
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')
@@ -643,7 +644,7 @@ class AudioPlayer(player.AudioPlayer):
         del old
 
 
-def play(voice_client, source, *, after=None, speed=1):
+def play(voice_client, source, *, after=None, speed=1, bitrate=128):
     """Plays an :class:`AudioSource`.
     Uses a custom AudioPlayer class
 
@@ -666,6 +667,8 @@ def play(voice_client, source, *, after=None, speed=1):
         optional exception that was raised during playing.
     speed
         The speed at which the audio is playing
+    bitrate
+        Bitrate of the audio playing
 
     Raises
     -------
@@ -686,6 +689,8 @@ def play(voice_client, source, *, after=None, speed=1):
 
     if not voice_client.encoder and not source.is_opus():
         voice_client.encoder = opus.Encoder()
+
+    voice_client.encoder.set_bitrate(bitrate)
 
     voice_client._player = AudioPlayer(source, voice_client, after=after, speed_mod=speed)
     voice_client._player.start()

@@ -1082,6 +1082,50 @@ class ServerSpecific(Cog):
         except (HttpProcessingError, ClientError):
             return
 
+    async def get_role_chance(self, ctx, member, user_roles=None,
+                              delta_days=None):
+        if not user_roles:
+            user_roles = set(ctx.author.roles)
+
+        if not delta_days:
+            first_join = await self.dbutil.get_join_date(member.id, ctx.guild.id) \
+                         or ctx.author.joined_at
+            delta_days = (datetime.utcnow() - first_join).days
+
+        score = await self.get_user_score(member.id, ctx.guild.id)
+        if not score:
+            await ctx.send('Failed to get server score. Try again later')
+            return
+
+        score = int(score)
+        # Give points to people who've been in server for long time
+        if score > 100000:
+            score += 110 * delta_days
+
+        # Return chances of role
+        def role_get(s, r):
+            if s < 8000:
+                return 0
+
+            return (s / 3000 + 70 / r) * (r**-3 + (r * 0.5)**-2 + (r * 100)**-1)
+
+        role_count = len(user_roles - FILTERED_ROLES)
+        return role_get(int(score), role_count)
+
+    @command(aliases=['tc', 'tolechance'])
+    @check(create_check((217677285442977792,)))
+    @cooldown(1, 10, BucketType.user)
+    async def rolechance(self, ctx):
+        """
+        Chance of tole
+        """
+        chances = await self.get_role_chance(ctx, ctx.author)
+        if chances is None:
+            return
+
+        chances = min(1, chances)
+        await ctx.send(f'Your chances of getting a role is {chances*100:.1f}%')
+
     @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
     @check(create_check((217677285442977792,)))
     @cooldown(1, 10, BucketType.user)
@@ -1135,30 +1179,16 @@ class ServerSpecific(Cog):
 
                     roles.add(role)
 
-        # Check that we got the score and that roles are available
+        # Check that roles are available
         user_roles = set(ctx.author.roles)
         roles = roles - user_roles
         if not roles:
             await ctx.send('No roles available to you at the moment. Try again after being more active')
             return
 
-        score = await self.get_user_score(ctx.author.id, ctx.guild.id)
-        if not score:
-            await ctx.send('Failed to get server score. Try again later')
+        chances = await self.get_role_chance(ctx, ctx.author, user_roles, delta_days)
+        if chances is None:
             return
-
-        score = int(score)
-        old_score = score
-        # Give points to people who've been in server for long time
-        if score > 100000:
-            score += 110 * delta_days
-
-        # Return if role get or not
-        def role_get(s, r):
-            if s < 8000:
-                return False
-
-            return random.random() < (s / 3000 + 70 / r) * (r**-3 + (r * 0.5)**-2 + (r * 100)**-1)
 
         try:
             await self.dbutil.update_last_role_time(ctx.author.id, datetime.utcnow())
@@ -1166,12 +1196,8 @@ class ServerSpecific(Cog):
             await ctx.send('Failed to update cooldown of the command. Try again in a bit')
             return
 
-        role_count = len(user_roles - FILTERED_ROLES)
-        got_new_role = role_get(int(score), role_count)
-
+        got_new_role = random.random() < chances
         if got_new_role:
-            terminal.debug(f'Role got with a score of {score} and {role_count} roles')
-
             role = choice(list(roles))
             await ctx.author.add_roles(role)
             await choice(role_response_success).send_message(ctx, role)

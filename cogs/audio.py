@@ -411,6 +411,9 @@ class Audio(commands.Cog):
         self.viewed_playlists = self.bot.viewed_playlists
         self.downloader = Downloader()
 
+        if not discord.opus.is_loaded():
+            discord.opus.load_opus('libopus.so')
+
     def get_musicplayer(self, guild_id: int, is_on: bool=True):
         """
         Gets the musicplayer for the guild if it exists

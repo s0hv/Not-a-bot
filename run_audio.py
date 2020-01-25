@@ -28,8 +28,6 @@ SOFTWARE.
 import logging
 import sys
 
-import discord
-
 from bot.audio_bot import AudioBot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
@@ -58,9 +56,6 @@ except:
 
 config = Config()
 
-if not discord.opus.is_loaded():
-    discord.opus.load_opus('opus')
-
 initial_cogs = [
     'audio',
     'botadmin',
@@ -70,7 +65,7 @@ terminal.info('Main bot starting up')
 logger.info('Starting bot')
 config.default_activity = {'type': 1, 'name': 'Music'}
 bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True), conf=config, max_messages=100, cogs=initial_cogs)
-bot.run(config.audio_token)
+bot.run(config.test_token)
 
 # We have systemctl set up in a way that different exit codes
 # have different effects on restarting behavior

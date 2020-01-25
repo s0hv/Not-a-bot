@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import shlex
-import subprocess
 import time
 import weakref
 from math import ceil
@@ -483,9 +482,12 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         The subprocess failed to be created.
     """
     def __init__(self, source, *, executable='ffmpeg', pipe=False, stderr=None,
-                             before_options=None, after_input=None, options=None, reconnect=True):
-        stdin = None if not pipe else source
-        args = [executable]
+                 before_options=None, after_input=None, options=None,
+                 reconnect=True):
+
+        args = []
+        subprocess_kwargs = {'stdin': source if pipe else None, 'stderr': stderr}
+
         if reconnect:
             args.extend(('-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5'))
 
@@ -498,27 +500,18 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         if isinstance(after_input, str):
             args.extend(shlex.split(after_input))
 
-        args.extend(('-f', 's16le', '-ar', '48000', '-ac', '2', '-loglevel', 'panic'))
+        args.extend(('-f', 's16le',
+                     '-ar', '48000',
+                     '-ac', '2',
+                     '-loglevel', 'panic'))
 
         if isinstance(options, str):
             args.extend(shlex.split(options))
 
         args.append('pipe:1')
 
-        self._process = None
-        try:
-            self._process = subprocess.Popen(args, stdin=stdin, stdout=subprocess.PIPE, stderr=stderr)
-            self._stdout = self._process.stdout
-        except FileNotFoundError:
-            raise ClientException(executable + ' was not found.') from None
-        except subprocess.SubprocessError as e:
-            raise ClientException('Popen failed: {0.__class__.__name__}: {0}'.format(e)) from e
-
-    def read(self):
-        ret = self._stdout.read(OpusEncoder.FRAME_SIZE)
-        if len(ret) != OpusEncoder.FRAME_SIZE:
-            return b''
-        return ret
+        super(player.FFmpegPCMAudio, self).__init__(source, executable=executable,
+                                                    args=args, **subprocess_kwargs)
 
 
 class AudioPlayer(player.AudioPlayer):
@@ -535,7 +528,7 @@ class AudioPlayer(player.AudioPlayer):
 
     def _do_run(self):
         self.loops = 0
-        self._start = time.time()
+        self._start = time.perf_counter()
         frameskip = 0
         # getattr lookup speed ups
         play_audio = self.client.send_audio_packet
@@ -554,7 +547,7 @@ class AudioPlayer(player.AudioPlayer):
                 self._connected.wait()
                 # reset our internal data
                 self.loops = 0
-                self._start = time.time()
+                self._start = time.perf_counter()
 
             self.loops += 1
             data = self.source.read()
@@ -584,7 +577,7 @@ class AudioPlayer(player.AudioPlayer):
             play_audio(data, encode=not self.source.is_opus())
             self._run_loops += 1
             next_time = self._start + self.DELAY * self.loops
-            delay = max(0, self.DELAY + (next_time - time.time()))
+            delay = max(0, self.DELAY + (next_time - time.perf_counter()))
             if delay < 0:
                 frameskip = min(self.frameskip, abs(int(delay/self.DELAY)))
                 continue

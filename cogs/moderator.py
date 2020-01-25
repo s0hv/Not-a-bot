@@ -981,6 +981,9 @@ class Moderator(Cog):
         if failed:
             s += "\n".join(failed)
 
+        if not s:
+            s = 'Muted no one'
+
         await ctx.send(s)
 
     @group(invoke_without_command=True, no_pm=True)
@@ -1218,7 +1221,12 @@ class Moderator(Cog):
         try:
             messages = await channel.purge(limit=max_messages, bulk=True)  # , reason=f'{ctx.author} purged messages')
         except discord.HTTPException as e:
-            return await ctx.send(f'Failed to purge messages\n{e}')
+            try:
+                await ctx.send(f'Failed to purge messages\n{e}')
+            except discord.HTTPException:
+                pass
+
+            return
 
         modlog = self.get_modlog(channel.guild)
         if not modlog:

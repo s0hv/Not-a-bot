@@ -73,7 +73,7 @@ class Stats(Cog):
         """Get when a user was last seen on this server and elsewhere
         User can be a mention, user id, or full discord username with discrim Username#0001"""
 
-        if isinstance(user, discord.User):
+        if isinstance(user, discord.User) or isinstance(user, discord.ClientUser):
             user_id = user.id
             username = str(user)
         elif isinstance(user, int):

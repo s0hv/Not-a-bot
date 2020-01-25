@@ -28,8 +28,6 @@ SOFTWARE.
 import logging
 import sys
 
-import discord
-
 from bot.Not_a_bot import NotABot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
@@ -69,9 +67,6 @@ except:
     terminal.exception('test exception')
 
 config = Config()
-
-if not discord.opus.is_loaded():
-    discord.opus.load_opus('opus')
 
 initial_cogs = [
     'admin',

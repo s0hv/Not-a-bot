@@ -6,7 +6,7 @@ import weakref
 from math import ceil
 from math import floor
 
-from discord import player
+from discord import player, opus
 from discord.activity import Activity, ActivityType
 from discord.errors import ClientException
 from discord.errors import HTTPException
@@ -683,6 +683,9 @@ def play(voice_client, source, *, after=None, speed=1):
 
     if not isinstance(source, player.AudioSource):
         raise TypeError('source must an AudioSource not {0.__class__.__name__}'.format(source))
+
+    if not voice_client.encoder and not source.is_opus():
+        voice_client.encoder = opus.Encoder()
 
     voice_client._player = AudioPlayer(source, voice_client, after=after, speed_mod=speed)
     voice_client._player.start()

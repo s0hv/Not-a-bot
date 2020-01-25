@@ -65,7 +65,7 @@ terminal.info('Main bot starting up')
 logger.info('Starting bot')
 config.default_activity = {'type': 1, 'name': 'Music'}
 bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True), conf=config, max_messages=100, cogs=initial_cogs)
-bot.run(config.test_token)
+bot.run(config.audio_token)
 
 # We have systemctl set up in a way that different exit codes
 # have different effects on restarting behavior

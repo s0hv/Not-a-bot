@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import functools
 import inspect
 import logging
@@ -193,23 +194,29 @@ class BotAdmin(Cog):
                 lines[-1] = '  return ' + last.strip()  # if code doesn't have a return make one
 
         lines = '\n'.join(lines)
-        code = f'def f():\n{lines}\nx = f()'  # Transform the code to a function
-        local = {}  # The variables outside of the function f() get stored here
+        code = f'def f():\n{lines}'  # Transform the code to a function
 
         try:
+            stdout = StringIO()
+
             def run():
-                exec(compile(code, '<eval>', 'exec'), context, local)
-            await self.bot.loop.run_in_executor(self.bot.threadpool, run)
-            retval = local['x']
+                exec(compile(code, '<eval>', 'exec'), context)
+                with contextlib.redirect_stdout(stdout):
+                    return context['f']()
+
+            retval = await self.bot.loop.run_in_executor(self.bot.threadpool, run)
             self._last_result = retval
-            if not isinstance(retval, str) and not isinstance(retval, NonFormatted):
-                retval = NoStringWrappingPrettyPrinter(width=1).pformat(retval)
+
         except Exception as e:
             self._last_result = e
             retval = f'```py\n{e}\n{traceback.format_exc()}\n```'
-
-        if not isinstance(retval, str):
-            retval = str(retval)
+        else:
+            if retval:
+                if not isinstance(retval, str) and not isinstance(retval, NonFormatted):
+                    retval = NoStringWrappingPrettyPrinter(width=1).pformat(retval)
+                retval = f'{retval}\n{stdout.getvalue()}'
+            else:
+                retval = f'{stdout.getvalue() or None}'
 
         if len(retval) > 2000:
             await ctx.send(file=discord.File(StringIO(retval), filename='result.py'))

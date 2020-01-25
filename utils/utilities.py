@@ -489,6 +489,14 @@ async def get_images(ctx, content, current_message_only=False):
 
         images.append(url)
 
+    def add_activities(member):
+        if not isinstance(member, discord.Member):
+            return
+
+        for activity in member.activities:
+            if isinstance(activity, discord.CustomActivity) and activity.emoji:
+                add_link(activity.emoji.url)
+
     # Check if message id given and fetch that message if that is the case
     if not current_message_only:
         try:
@@ -537,14 +545,16 @@ async def get_images(ctx, content, current_message_only=False):
             continue
 
         # Check for user id
-        user = ctx.bot.get_user(snowflake)
+        user = ctx.guild.get_member(snowflake) or ctx.bot.get_user(snowflake)
         if user:
             add_link(get_avatar(user))
+            add_activities(user)
             continue
 
     # Mentioned user avatars
     for user in ctx.message.mentions:
         add_link(get_avatar(user))
+        add_activities(user)
 
     # Embed images
     for embed in ctx.message.embeds:

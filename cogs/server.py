@@ -3,6 +3,7 @@ import logging
 import ntpath
 import os
 import random
+import typing
 from datetime import datetime
 from io import BytesIO
 from math import ceil
@@ -354,7 +355,9 @@ class Server(Cog):
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def steal(self, ctx, emoji: Greedy[PartialEmojiConverter]=None, message: discord.Message=None):
+    async def steal(self, ctx, emoji: Greedy[PartialEmojiConverter]=None,
+                    message: typing.Optional[discord.Message]=None,
+                    user: discord.Member=None):
         """Add emotes to this server from other servers.
         You can either use the emotes you want separated by spaces in the message
         or you can give a message id in the channel that the command is run in to fetch
@@ -363,8 +366,8 @@ class Server(Cog):
             `{prefix}{name} :emote1: :emote2: :emote3:`
             `{prefix}{name} message_id`
         """
-        if not emoji and not message:
-            await ctx.send('Please either give emotes or a message id to fetch the emotes from')
+        if not emoji and not message and not user:
+            await ctx.send('Please either give emotes, a message id or a user to fetch the emotes from')
             return
 
         emotes = []
@@ -381,6 +384,17 @@ class Server(Cog):
                                                     id=eid)
                 )
 
+        elif user:
+            for activity in user.activities:
+                if isinstance(activity, discord.CustomActivity):
+                    e = activity.emoji
+                    emotes.append(
+                        discord.PartialEmoji.with_state(self.bot._connection,
+                                                        animated=e.animated,
+                                                        name=e.name,
+                                                        id=e.id)
+                    )
+                    break
         else:
             for e in emoji:
                 emotes.append(e)

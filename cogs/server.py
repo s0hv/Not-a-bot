@@ -165,14 +165,15 @@ class Server(Cog):
         if not stats:
             return await ctx.send('No mute roll stats on this server')
 
-        page_length = ceil(len(stats) / 10)
-        pages = [False for _ in range(page_length)]
+        page_entries = 5
+        page_count = ceil(len(stats) / page_entries)
+        pages = [False for _ in range(page_count)]
 
         title = f'Mute roll stats for guild {ctx.guild}'
 
         def cache_page(idx, custom_description=None):
-            i = idx * 10
-            rows = stats[i:i + 10]
+            i = idx * page_entries
+            rows = stats[i:i + page_entries]
             if custom_description:
                 embed = discord.Embed(title=title, description=custom_description)
             else:
@@ -182,9 +183,11 @@ class Server(Cog):
             for row in rows:
                 winrate = round(row['wins'] * 100 / row['games'], 1)
                 v = f'<@{row["uid"]}>\n' \
-                    f'Winrate: {winrate}% with {row["wins"]} wins \n' \
-                    f'Current streak: {row["current_streak"]}\n' \
-                    f'Biggest streak: {row["biggest_streak"]}'
+                    f'Winrate: {winrate}% with {row["wins"]} wins\n' \
+                    f'Current win streak: {row["current_streak"]}\n' \
+                    f'Biggest win streak: {row["biggest_streak"]}\n' \
+                    f'Current loss streak: {row["current_lose_streak"]}\n' \
+                    f'Biggest loss streak: {row["biggest_lose_streak"]}'
                 embed.add_field(name=f'{row["games"]} games', value=v)
 
             pages[idx] = embed
@@ -207,14 +210,14 @@ class Server(Cog):
         if user_id:
             for idx, r in enumerate(stats):
                 if r['uid'] == user_id:
-                    i = idx // 10
+                    i = idx // page_entries
 
                     winrate = round(r['wins'] * 100 / r['games'], 1)
                     d = f'Stats for <@{user_id}> at page {i + 1}\n' \
                         f'Winrate: {winrate}% with {r["wins"]} wins \n' \
                         f'Games: {r["games"]}\n' \
-                        f'Current streak: {r["current_streak"]}\n' \
-                        f'Biggest streak: {r["biggest_streak"]}\n' \
+                        f'Current/Biggest win streak: {r["current_streak"]}/{r["biggest_streak"]}\n' \
+                        f'Current/Biggest loss streak: {r["current_lose_streak"]}/{r["biggest_lose_streak"]}\n' \
                         f'Ranking {idx + 1}/{len(stats)}'
 
                     custom_desc = d

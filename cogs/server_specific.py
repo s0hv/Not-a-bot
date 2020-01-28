@@ -382,6 +382,10 @@ class ServerSpecific(Cog):
         if author.id in no and user.id in no and user.id != author.id:
             return await ctx.send('no')
 
+        noV2 = (189458911886049281, 326524736521633792)
+        if author.id in noV2 and user.id in noV2 and user.id != author.id:
+            return await ctx.send('👌')
+
         can_grant = await self._check_role_grant(ctx, author, role.id, guild.id)
 
         if can_grant is None:

@@ -297,7 +297,8 @@ role_response_fail = [
     RoleResponse("You get offered black market roles but you don't know how to respond and the chance to acquire a role passes by", 'https://i.imgur.com/Xo7s9Vx.jpg'),
     RoleResponse("You get abused by moderators and gain nothing"),
     RoleResponse("You're just dead weight", 'https://i.redd.it/m1866wrhfnl21.jpg'),
-    RoleResponse("soap rigs the game! <:PeepoEvil:635509941309800478>")
+    RoleResponse("soap rigs the game! <:PeepoEvil:635509941309800478>"),
+    RoleResponse("No role goddammit", 'https://cdn.discordapp.com/attachments/341610158755020820/591706871237312561/1547775958351.gif')
 ]
 
 

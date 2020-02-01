@@ -312,6 +312,7 @@ class ServerSpecific(Cog):
         self.redis = self.bot.redis
         self._zetas = {}
         self._redis_fails = 0
+        self._users_every = set()
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
@@ -1069,9 +1070,36 @@ class ServerSpecific(Cog):
 
         await mod._set_channel_lock(ctx, True)
 
-    async def get_user_score(self, uid, guild_id):
+    async def edit_user_points(self, uid, guild_id, score: int, action='remove'):
+        raise NotImplementedError('Tatsu api broke')
         if not self.bot.config.tatsumaki_key:
-            return None
+            return
+
+        limit = 50000
+        m, left = divmod(score, limit)
+        scores = [limit for _ in range(m)]
+        if left:
+            scores.append(left)
+
+        if not scores:
+            return
+
+        url = f'https://api.tatsumaki.xyz/guilds/{guild_id}/members/{uid}/points'
+        headers = {'Authorization': self.bot.config.tatsumaki_key,
+                   'Content-Type': 'application/json'}
+        body = {'action': action}
+
+        for score in scores:
+            body['amount'] = score
+            async with self.bot.aiohttp_client.put(url, headers=headers, json=body) as r:
+                if r.status != 200:
+                    return False
+
+        return True
+
+    async def get_user_stats(self, uid, guild_id):
+        if not self.bot.config.tatsumaki_key:
+            return
 
         url = f'https://api.tatsumaki.xyz/guilds/{guild_id}/members/{uid}/stats'
         headers = {'Authorization': self.bot.config.tatsumaki_key}
@@ -1083,7 +1111,7 @@ class ServerSpecific(Cog):
 
                 data = await r.json()
                 if data.get('user_id') == str(uid):
-                    return data.get('score')
+                    return data
         except (HttpProcessingError, ClientError):
             return
 
@@ -1097,7 +1125,8 @@ class ServerSpecific(Cog):
                          or ctx.author.joined_at
             delta_days = (datetime.utcnow() - first_join).days
 
-        score = await self.get_user_score(member.id, ctx.guild.id)
+        score = await self.get_user_stats(member.id, ctx.guild.id) or {}
+        score = score.get('score')
         if not score:
             await ctx.send('Failed to get server score. Try again later')
             return
@@ -1116,6 +1145,65 @@ class ServerSpecific(Cog):
 
         role_count = len(user_roles - FILTERED_ROLES)
         return role_get(int(score), role_count)
+
+    @command(aliases=['goodbye_every'])
+    @check(create_check((217677285442977792,)))
+    #@check(main_check)
+    @cooldown(1, 20, BucketType.user)
+    async def remove_every(self, ctx):
+        """
+        Remove every role. This costs 100k tatsu server points
+        """
+        member = ctx.author
+        guild = ctx.guild
+        if member.id in self._users_every:
+            await ctx.send('Not now')
+            return
+
+        every = guild.get_role(323098643030736919)
+        #every = guild.get_role(355372842088660992)
+        if not every:
+            return
+
+        if every not in member.roles:
+            await ctx.send("You don't have the every role")
+            return
+
+        points = await self.get_user_stats(member.id, guild.id) or {}
+        points = points.get('points')
+        if not points:
+            await ctx.send('Failed to get server points. Try again later')
+            return
+
+        points = int(points)
+        cost = 100000  # 100k
+
+        if points < cost:
+            await ctx.send(f"You don't have enough tatsu points. You have {points} points and you need {cost-points} more")
+            return
+
+        try:
+            await member.remove_roles(every, reason='Every removal for 100k tatsu points')
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to remove every because of an error.\n{e}')
+            await self.edit_user_points(member.id, guild.id, cost, 'add')
+            return
+
+        c = guild.get_channel(252872751319089153)
+        await c.send(f't#points remove {member.id} {cost}\n<@123050803752730624>')
+        self._users_every.add(member.id)
+
+        await ctx.send('Every removed successfully')
+
+        def e_check(msg):
+            if msg.channel.id != c.id:
+                return False
+
+            return msg.content and msg.content.startswith('t#points')
+
+        asyncio.create_task(self.bot.wait_for('message', check=e_check,
+                                              timeout=60*60*8)).\
+            add_done_callback(lambda _: self._users_every.discard(member.id))
 
     @command(aliases=['tc', 'tolechance'])
     @check(create_check((217677285442977792,)))

@@ -1128,7 +1128,7 @@ class Images(Cog):
     @cooldown(2, 8, BucketType.guild)
     async def v(self, ctx, *, images=''):
         """Image of V reading a book. Needs 2 images for both of the pages"""
-        images = await get_images(ctx, images)
+        images = await get_images(ctx, images, leave_empty=True)
         if len(images) < 2:
             await ctx.send("Did not find 2 images in your message")
             return

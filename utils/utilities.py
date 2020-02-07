@@ -476,9 +476,11 @@ def get_emote_name_id(s):
     return None, None, None
 
 
-async def get_images(ctx, content, current_message_only=False):
+async def get_images(ctx, content, current_message_only=False, leave_empty=False):
     """
     Get all images from a message
+    Args:
+        leave_empty (bool): If set to true will return an empty list when no images were found
     """
     images = []
     msg_id = None
@@ -495,7 +497,7 @@ async def get_images(ctx, content, current_message_only=False):
 
         for activity in member.activities:
             if isinstance(activity, discord.CustomActivity) and activity.emoji:
-                add_link(activity.emoji.url)
+                add_link(str(activity.emoji.url))
 
     # Check if message id given and fetch that message if that is the case
     if not current_message_only:
@@ -575,7 +577,7 @@ async def get_images(ctx, content, current_message_only=False):
     if not images:
         add_link(await get_image_from_ctx(ctx, content))
 
-    if not images:
+    if not images and not leave_empty:
         images.append('No images found')
 
     return images

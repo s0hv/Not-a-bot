@@ -1201,8 +1201,7 @@ class ServerSpecific(Cog):
 
             return msg.content and msg.content.startswith('t#points')
 
-        asyncio.create_task(self.bot.wait_for('message', check=e_check,
-                                              timeout=60*60*8)).\
+        self.bot.loop.create_task(self.bot.wait_for('message', check=e_check, timeout=60*60*8)).\
             add_done_callback(lambda _: self._users_every.discard(member.id))
 
     @command(aliases=['tc', 'tolechance'])

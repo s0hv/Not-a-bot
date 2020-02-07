@@ -3,6 +3,7 @@ import logging
 import ntpath
 import os
 import random
+import time
 import typing
 from datetime import datetime
 from io import BytesIO
@@ -10,13 +11,15 @@ from math import ceil
 
 import discord
 from PIL import Image
-from discord.ext.commands import BucketType, PartialEmojiConverter, Greedy
+from discord.ext.commands import BucketType, PartialEmojiConverter, Greedy, \
+    clean_content
 from discord.user import BaseUser
 from validators import url as is_url
 
 from bot.bot import (command, has_permissions, cooldown, group,
                      guild_has_features, bot_has_permissions)
 from bot.converters import PossibleUser, GuildEmoji
+from bot.cooldowns import CooldownMapping, Cooldown
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
@@ -25,7 +28,7 @@ from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
 from utils.utilities import (send_paged_message,
                              basic_check, format_timedelta, DateAccuracy,
                              wait_for_yes, get_image,
-                             get_emote_name_id)
+                             get_emote_name_id, split_string)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -34,9 +37,19 @@ terminal = logging.getLogger('terminal')
 THUMB_SIZE = (288, 162)
 
 
+class AFK:
+    def __init__(self, user, message):
+        self.user = user
+        self.message = message
+        self.timestamp = time.time()
+
+
 class Server(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+        self.afks = getattr(bot, 'afks', {})
+        self.bot.afks = self.afks
+        self._afk_cd = CooldownMapping(Cooldown(1, 4, BucketType.guild))
 
     @group(no_pm=True, invoke_without_command=True)
     @cooldown(1, 20, type=BucketType.user)
@@ -771,6 +784,78 @@ class Server(Cog):
 
         await self.bot.dbutil.set_last_banner(guild.id, filename)
         await ctx.send('♻')
+
+    @Cog.listener()
+    async def on_message(self, message):
+        if message.author.bot:
+            return
+
+        g = message.guild
+        guild_afk = self.afks.get(g.id, {})
+        if not guild_afk:
+            return
+
+        user = message.author
+        if user.id in guild_afk:
+            guild_afk.pop(user.id, None)
+            await message.channel.send(f'`{user}` is no longer afk', delete_after=10)
+            return
+
+        mentions = message.mentions
+        afks = []
+        for mention in mentions:
+            afk = guild_afk.get(mention.id, None)
+            if afk:
+                afks.append(afk)
+
+        if not afks:
+            return
+
+        if self._afk_cd.valid:
+            bucket = self._afk_cd.get_bucket(message)
+            retry_after = bucket.update_rate_limit()
+            if retry_after:
+                return
+
+        if len(afks) > 1:
+            messages = []
+            for afk in afks:
+                messages.append(f'{afk.user} is afk {format_timedelta(int(time.time() - afk.timestamp), DateAccuracy.Hour - DateAccuracy.Minute)} ago: {afk.message}'[:2000])
+
+            messages = split_string(messages)[:2]
+        else:
+            afk = afks[0]
+            messages = (f'{afk.user} is afk {format_timedelta(int(time.time()-afk.timestamp), DateAccuracy.Hour-DateAccuracy.Minute)} ago: {afk.message}'[:2000], )
+
+        for msg in messages:
+            await message.channel.send(msg)
+
+    @command()
+    @cooldown(1, 5, BucketType.user)
+    async def afk(self, ctx, *, message: clean_content()=''):
+        """
+        Set an afk message on this server that will be posted every time someone
+        pings you until you send your next message
+        """
+        g = ctx.guild
+        if g.id not in self.afks:
+            self.afks[g.id] = {}
+
+        if ctx.message.attachments:
+            message += ' ' + ctx.message.attachments[0].url
+
+        self.afks[ctx.guild.id][ctx.author.id] = AFK(ctx.author, message.strip())
+        await ctx.send(f'`{ctx.author}` is now afk')
+
+    @command()
+    @has_permissions(manage_roles=True)
+    @cooldown(2, 4, BucketType.guild)
+    async def remove_afk(self, ctx, *, user: discord.Member):
+        """
+        Removes the afk of the mentioned user on this server
+        """
+        self.afks.get(ctx.guild.id, {}).pop(user.id, None)
+        await ctx.send(f'Removed afk message of the user {user}')
 
 
 def setup(bot):

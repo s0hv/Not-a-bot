@@ -176,6 +176,7 @@ class BotAdmin(Cog):
             return f'```py\n{s}\n```'
 
         context['await'] = disgusting
+        context['awaitt'] = disgusting
         context['source'] = get_source
         context['code_block'] = code_block
         context['no_format'] = no_pformat

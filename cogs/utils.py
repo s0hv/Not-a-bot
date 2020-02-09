@@ -408,7 +408,7 @@ class Utilities(Cog):
     @cooldown(1, 10, BucketType.guild)
     async def vote(self, ctx):
         """Pls vote thx"""
-        await ctx.send('https://discordbots.org/bot/214724376669585409/vote')
+        await ctx.send('https://top.gg/bot/214724376669585409/vote')
 
     @command(aliases=['sellout'])
     @cooldown(1, 10)

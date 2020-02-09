@@ -312,7 +312,7 @@ class ServerSpecific(Cog):
         self.redis = self.bot.redis
         self._zetas = {}
         self._redis_fails = 0
-        self._users_every = set()
+        self._removing_every = False
 
     def __unload(self):
         for g in list(self.bot.every_giveaways.values()):
@@ -1156,8 +1156,8 @@ class ServerSpecific(Cog):
         """
         member = ctx.author
         guild = ctx.guild
-        if member.id in self._users_every:
-            await ctx.send('Not now')
+        if self._removing_every:
+            await ctx.send('Try again later')
             return
 
         every = guild.get_role(323098643030736919)
@@ -1191,7 +1191,7 @@ class ServerSpecific(Cog):
 
         c = guild.get_channel(252872751319089153)
         await c.send(f't#points remove {member.id} {cost}\n<@123050803752730624>')
-        self._users_every.add(member.id)
+        self._removing_every = True
 
         await ctx.send('Every removed successfully')
 
@@ -1201,8 +1201,11 @@ class ServerSpecific(Cog):
 
             return msg.content and msg.content.startswith('t#points')
 
-        self.bot.loop.create_task(self.bot.wait_for('message', check=e_check, timeout=60*60*8)).\
-            add_done_callback(lambda _: self._users_every.discard(member.id))
+        def set_false(_):
+            self._removing_every = False
+
+        self.bot.loop.create_task(self.bot.wait_for('message', check=e_check, timeout=60*60*16)).\
+            add_done_callback(set_false)
 
     @command(aliases=['tc', 'tolechance'])
     @check(create_check((217677285442977792,)))

@@ -307,6 +307,7 @@ class ServerSpecific(Cog):
         super().__init__(bot)
 
         asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
+        self.bot.server.add_listener(self.reduce_role_cooldown)
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
         self.redis = self.bot.redis
@@ -314,9 +315,20 @@ class ServerSpecific(Cog):
         self._redis_fails = 0
         self._removing_every = False
 
-    def __unload(self):
+    def cog_unload(self):
+        self.bot.server.remove_listener(self.reduce_role_cooldown)
         for g in list(self.bot.every_giveaways.values()):
             g.cancel()
+
+    async def reduce_role_cooldown(self, data):
+        user = data.get('user', None)
+        if not user:
+            return
+
+        user = int(user)
+
+        sql = "UPDATE role_cooldown SET last_use=(last_use - INTERVAL '150' MINUTE ) WHERE uid=$1"
+        await self.bot.dbutil.execute(sql, (user,))
 
     async def load_giveaways(self):
         sql = 'SELECT * FROM giveaways'

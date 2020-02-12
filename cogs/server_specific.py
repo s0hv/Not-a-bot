@@ -348,7 +348,7 @@ class ServerSpecific(Cog):
             if message in self.bot.every_giveaways:
                 self.bot.every_giveaways[message].cancel()
 
-            fut = call_later(self.remove_every, self.bot.loop, timeout, guild, channel, message, title, winners,
+            fut = call_later(self._remove_every, self.bot.loop, timeout, guild, channel, message, title, winners,
                              after=lambda f: self.bot.every_giveaways.pop(message))
             self.bot.every_giveaways[message] = fut
 
@@ -777,7 +777,7 @@ class ServerSpecific(Cog):
             logger.exception('Failed to create every toggle')
             return await channel.send('SQL error')
 
-        task = call_later(self.remove_every, self.bot.loop, expires_in.total_seconds(),
+        task = call_later(self._remove_every, self.bot.loop, expires_in.total_seconds(),
                           guild.id, channel.id, message.id, title, winners)
 
         self.bot.every_giveaways[message.id] = task
@@ -814,7 +814,7 @@ class ServerSpecific(Cog):
         except PostgresError:
             logger.exception('Failed to delete giveaway {}'.format(message_id))
 
-    async def remove_every(self, guild, channel, message, title, winners):
+    async def _remove_every(self, guild, channel, message, title, winners):
         guild = self.bot.get_guild(guild)
         if not guild:
             await self.delete_giveaway_from_db(message)

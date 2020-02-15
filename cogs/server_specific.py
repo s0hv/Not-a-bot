@@ -349,7 +349,7 @@ class ServerSpecific(Cog):
                 self.bot.every_giveaways[message].cancel()
 
             fut = call_later(self._remove_every, self.bot.loop, timeout, guild, channel, message, title, winners,
-                             after=lambda f: self.bot.every_giveaways.pop(message))
+                             after=lambda f: self.bot.every_giveaways.pop(message, None))
             self.bot.every_giveaways[message] = fut
 
     @property

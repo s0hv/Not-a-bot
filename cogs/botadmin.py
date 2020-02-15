@@ -28,7 +28,7 @@ from discord.user import BaseUser
 
 from bot.bot import command
 from bot.config import Config
-from bot.converters import PossibleUser
+from bot.converters import PossibleUser, CommandConverter
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
 from utils.utilities import split_string
@@ -724,11 +724,7 @@ class BotAdmin(Cog):
         await ctx.send(f'{res.split(" ")[-1]} rows updated')
 
     @command()
-    async def reset_cooldown(self, ctx, command):
-        cmd = self.bot.all_commands.get(command, None)
-        if not cmd:
-            return await ctx.send(f'Command {command} not found')
-
+    async def reset_cooldown(self, ctx, cmd: CommandConverter):
         cmd.reset_cooldown(ctx)
         await ctx.send(f'Cooldown of {cmd.name} reset')
 
@@ -750,6 +746,20 @@ class BotAdmin(Cog):
             return await ctx.send('Failed to add to todo')
 
         await ctx.send(f'Added changes with id {rowid}')
+
+    @command()
+    async def disable(self, ctx, cmd: CommandConverter):
+        if cmd == self.disable:
+            await ctx.send('Cannot disable this command')
+            return
+
+        cmd.enabled = False
+        await ctx.send(f'Disabled {cmd.name}')
+
+    @command()
+    async def enable(self, ctx, cmd: CommandConverter):
+        cmd.enabled = True
+        await ctx.send(f'Enabled {cmd.name}')
 
 
 def setup(bot):

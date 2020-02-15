@@ -787,7 +787,7 @@ class Server(Cog):
 
     @Cog.listener()
     async def on_message(self, message):
-        if message.author.bot:
+        if message.author.bot or not message.guild:
             return
 
         g = message.guild
@@ -830,7 +830,7 @@ class Server(Cog):
         for msg in messages:
             await message.channel.send(msg)
 
-    @command()
+    @command(np_pm=True)
     @cooldown(1, 5, BucketType.user)
     async def afk(self, ctx, *, message: clean_content()=''):
         """

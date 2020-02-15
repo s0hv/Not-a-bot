@@ -50,7 +50,6 @@ class BotMod(Cog):
                 succeeded += 1
             except KeyError:
                 failed += 1
-                terminal.exception('Failed to delete all from autoplaylist')
 
         write_playlist(AUTOPLAYLIST, songs)
 

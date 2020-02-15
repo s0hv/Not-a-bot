@@ -11,7 +11,7 @@ from bot.converters import CommandConverter
 from bot.formatter import Paginator
 from bot.globals import BlacklistTypes, PermValues
 from cogs.cog import Cog
-from utils.utilities import (split_string, get_role, send_paged_message)
+from utils.utilities import (split_string, send_paged_message)
 
 logger = logging.getLogger('debug')
 perms = discord.Permissions(8)
@@ -388,16 +388,12 @@ class CommandBlacklist(Cog):
 
     @command(no_pm=True)
     @cooldown(1, 30, BucketType.user)
-    async def role_perms(self, ctx, *role):
+    async def role_perms(self, ctx, *, role: discord.Role=None):
         """Show white- and blacklist for all or specified role"""
         guild = ctx.guild
 
         if role:
-            role = ' '.join(role)
-            role_ = get_role(role, guild.roles, name_matching=True)
-            if not role_:
-                return await ctx.send('No role found with {}'.format(role))
-            where = 'guild={} AND uid IS NULL AND channel IS NULL AND role={}'.format(guild.id, role_.id)
+            where = 'guild={} AND uid IS NULL AND channel IS NULL AND role={}'.format(guild.id, role.id)
         else:
             where = 'guild={} AND uid IS NULL AND channel IS NULL AND NOT role IS NULL ORDER BY role, type'.format(guild.id)
 

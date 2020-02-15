@@ -720,7 +720,6 @@ class ServerSpecific(Cog):
             rotate_emoji = random.choice(list(emoji_faces))
 
         try:
-            pass
             await ctx.guild.edit(name=rotate_emoji * (100 // (len(rotate_emoji))))
         except discord.HTTPException as e:
             await ctx.send(f'Failed to change name because of an error\n{e}')
@@ -766,7 +765,7 @@ class ServerSpecific(Cog):
         message = await channel.send(embed=embed)
         try:
             await message.add_reaction('GWjojoGachiGASM:363025405562585088')
-        except:
+        except (discord.HTTPException, discord.ClientException):
             pass
 
         try:

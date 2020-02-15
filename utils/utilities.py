@@ -433,7 +433,7 @@ def slots2dict(obj, d: dict=None, replace=True):
 
 async def retry(f, *args, retries_=3, break_on=(), **kwargs):
     e = None
-    for i in range(0, retries_):
+    for _ in range(0, retries_):
         try:
             retval = await f(*args, **kwargs)
         except break_on as e_:
@@ -957,8 +957,8 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         # appendleft
         times.insert(0, last)
 
-        for i in range(len(times)):
-            if times[i] == 0:
+        for i, t, in enumerate(times):
+            if t == 0:
                 continue
 
             times = times[i:i + accuracy]
@@ -1038,14 +1038,14 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         raise TypeError('Accuracy must be of instance int or DateAccuracy')
 
     s = ''
-    for i in range(len(times)):
-        if times[i] == 0:
+    for i, t in enumerate(times):
+        if t == 0:
             continue
 
         if long_format:
-            s += check_plural(names[i], times[i])
+            s += check_plural(names[i], t)
         else:
-            s += f'{times[i]}{names[i]} '
+            s += f'{t}{names[i]} '
 
     return s.strip()
 

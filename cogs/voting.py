@@ -410,9 +410,9 @@ class VoteManager(Cog):
             return await ctx.send('Embed not found')
 
         embed = None
-        for e in msg.embeds:
-            if isinstance(e, discord.Embed):
-                embed = e
+        for em in msg.embeds:
+            if isinstance(em, discord.Embed):
+                embed = em
                 break
 
         if not embed:

@@ -36,7 +36,7 @@ from bot.botbase import BotBase
 from bot.cooldown import CooldownManager
 from bot.server import WebhookServer
 from utils.init_tf import LoadedModel
-from utils.utilities import (split_string, slots2dict, retry, random_color)
+from utils.utilities import (random_color)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -179,16 +179,7 @@ class NotABot(BotBase):
                     return
 
     async def on_message(self, message):
-        local = time.perf_counter()
-        await self.wait_until_ready()
-        if message.author == self.user:
-            return
-
-        # Ignore if user is botbanned
-        if message.author.id != self.owner_id and (await self.dbutil.fetch('SELECT 1 FROM banned_users WHERE uid=%s' % message.author.id, fetchmany=False)):
-            return
-
-        await self.process_commands(message, local_time=local)
+        await super().on_message(message)
 
         oshit = self.cdm.get_cooldown('oshit')
         channel = message.channel
@@ -234,32 +225,3 @@ class NotABot(BotBase):
 
     async def on_guild_role_delete(self, role):
         await self.dbutils.delete_role(role.id, role.guild.id)
-
-    async def _wants_to_be_noticed(self, member, guild, remove=True):
-        role = guild.get_role(318762162552045568)
-        if not role:
-            return
-
-        name = member.name if not member.nick else member.nick
-        if ord(name[0]) <= 46:
-            await retry(member.add_roles, role, break_on=discord.Forbidden, reason="Wants attention")
-            return True
-
-        elif remove and role in member.roles:
-            await retry(member.remove_roles, role, break_on=discord.Forbidden, reason="Doesn't want attention")
-            return False
-
-    @staticmethod
-    def _parse_on_delete(msg, conf):
-        content = msg.content
-        user = msg.author
-
-        message = conf['message']
-        d = slots2dict(msg)
-        d = slots2dict(user, d)
-        for e in ['name', 'message']:
-            d.pop(e, None)
-
-        d['channel'] = msg.channel.mention
-        message = message.format(name=str(user), message=content, **d)
-        return split_string(message)

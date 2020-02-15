@@ -51,7 +51,7 @@ async def math(calculation, client, key):
                 try:
                     txt = pod.find('plaintext').text
                     answers += '`' + txt.strip() + '`' + '\n'
-                except Exception:
+                except AttributeError:
                     terminal.exception('Error while getting wolfram answer')
-                    pass
+
             return answers or 'No answer...'

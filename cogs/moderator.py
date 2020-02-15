@@ -18,9 +18,9 @@ from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              get_avatar, is_image_url,
-                             seconds2str, get_role, get_channel, Snowflake,
-                             basic_check, sql2timedelta, check_botperm,
-                             format_timedelta, DateAccuracy, send_paged_message)
+                             seconds2str, get_channel, Snowflake, basic_check,
+                             sql2timedelta, check_botperm, format_timedelta,
+                             DateAccuracy, send_paged_message)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -256,7 +256,7 @@ class Moderator(Cog):
         """Show roles whitelisted from automutes"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
-        roles = map(lambda r: guild.get_role(r), roles)
+        roles = map(guild.get_role, roles)
         roles = [r for r in roles if r]
         if not roles:
             return await ctx.send('No roles whitelisted from automutes')
@@ -270,7 +270,7 @@ class Moderator(Cog):
     @automute_whitelist_.command(no_pm=True)
     @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
-    async def add(self, ctx, *, role):
+    async def add(self, ctx, *, role: discord.Role):
         """Add a role to the automute whitelist"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id)
@@ -281,33 +281,26 @@ class Moderator(Cog):
         if len(roles) >= 10:
             return await ctx.send('Maximum of 10 roles can be added to automute whitelist.')
 
-        role_ = get_role(role, guild.roles, name_matching=True)
-        if not role_:
-            return await ctx.send('Role {} not found'.format(role))
-
-        if ctx.author.top_role <= role:
+        if ctx.author != guild.owner and ctx.author.top_role <= role:
             return await ctx.send('The role you are trying to add is higher than your top role in the hierarchy')
 
-        success = await self.bot.dbutils.add_automute_whitelist(guild.id, role_.id)
+        success = await self.bot.dbutils.add_automute_whitelist(guild.id, role.id)
         if not success:
             return await ctx.send('Failed to add role because of an error')
 
-        roles.add(role_.id)
-        await ctx.send('Added role {0.name} `{0.id}`'.format(role_))
+        roles.add(role.id)
+        await ctx.send('Added role {0.name} `{0.id}`'.format(role))
 
     @automute_whitelist_.command(aliases=['del', 'delete'], no_pm=True)
     @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
-    async def remove(self, ctx, *, role):
+    async def remove(self, ctx, *, role: discord.Role):
         """Remove a role from the automute whitelist"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
-        role_ = get_role(role, guild.roles, name_matching=True)
-        if not role_:
-            return await ctx.send('Role {} not found'.format(role))
 
-        if role_.id not in roles:
-            return await ctx.send('Role {0.name} not found in whitelist'.format(role_))
+        if role.id not in roles:
+            return await ctx.send('Role {0.name} not found in whitelist'.format(role))
 
         if ctx.author.top_role <= role:
             return await ctx.send('The role you are trying to remove is higher than your top role in the hierarchy')
@@ -316,8 +309,8 @@ class Moderator(Cog):
         if not success:
             return await ctx.send('Failed to remove role because of an error')
 
-        roles.discard(role_.id)
-        await ctx.send('Role {0.name} `{0.id}` removed from automute whitelist'.format(role_))
+        roles.discard(role.id)
+        await ctx.send('Role {0.name} `{0.id}` removed from automute whitelist'.format(role))
 
     @group(invoke_without_command=True, name='automute_blacklist', aliases=['mute_blacklist'], no_pm=True)
     @cooldown(2, 5, BucketType.guild)

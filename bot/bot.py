@@ -164,22 +164,13 @@ class Bot(commands.Bot, Client):
         if hasattr(exception, 'original'):
             exception = exception.original
 
-        if isinstance(exception, commands.errors.CommandNotFound):
-            return
-
-        if isinstance(exception, exceptions.SilentException):
-            return
-
-        if isinstance(exception, exceptions.PermException):
-            return
-
-        if isinstance(exception, discord.Forbidden):
-            return
-
-        if isinstance(exception, exceptions.NotOwner):
-            return
-
-        if isinstance(exception, ClientConnectionError):
+        if isinstance(exception, commands.errors.CommandNotFound) or \
+                isinstance(exception, exceptions.SilentException) or \
+                isinstance(exception, exceptions.PermException) or \
+                isinstance(exception, discord.Forbidden) or \
+                isinstance(exception, exceptions.NotOwner) or \
+                isinstance(exception, ClientConnectionError) or \
+                isinstance(exception, commands.errors.DisabledCommand):
             return
 
         channel = context.channel
@@ -211,7 +202,10 @@ class Bot(commands.Bot, Client):
 
             error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
-        elif isinstance(exception, commands.errors.BadArgument) or isinstance(exception, commands.errors.MissingRequiredArgument) or isinstance(exception, commands.BadUnionArgument):
+        elif isinstance(exception, commands.errors.BadArgument) or \
+             isinstance(exception, commands.errors.MissingRequiredArgument) or \
+             isinstance(exception, commands.BadUnionArgument) or \
+             isinstance(exception, commands.errors.UnexpectedQuoteError):
             error_msg = str(exception)
 
         elif isinstance(exception, exceptions.CommandBlacklisted):
@@ -222,7 +216,7 @@ class Bot(commands.Bot, Client):
         elif isinstance(exception, exceptions.BotException):
             error_msg = str(exception)
 
-        if isinstance(exception, OSError) and 'Errno 12' in str(exception):
+        elif isinstance(exception, OSError) and 'Errno 12' in str(exception):
             error_msg = "Couldn't allocate memory. Try again a bit later"
 
         if error_msg:

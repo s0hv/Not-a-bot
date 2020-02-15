@@ -205,7 +205,8 @@ class Bot(commands.Bot, Client):
         elif isinstance(exception, commands.errors.BadArgument) or \
              isinstance(exception, commands.errors.MissingRequiredArgument) or \
              isinstance(exception, commands.BadUnionArgument) or \
-             isinstance(exception, commands.errors.UnexpectedQuoteError):
+             isinstance(exception, commands.errors.UnexpectedQuoteError) or \
+             isinstance(exception, commands.errors.InvalidEndOfQuotedStringError):
             error_msg = str(exception)
 
         elif isinstance(exception, exceptions.CommandBlacklisted):

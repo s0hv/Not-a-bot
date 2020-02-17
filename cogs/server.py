@@ -413,12 +413,13 @@ class Server(Cog):
                     break
         else:
             for e in emoji:
-                emotes.append(e)
+                if e.is_custom_emoji():
+                    emotes.append(e)
 
         errors = 0
         guild = ctx.guild
         stolen = []
-        for emote in emotes:
+        for emote in set(emotes):
             if errors >= 3:
                 return await ctx.send('Too many errors while uploading emotes. Aborting')
 

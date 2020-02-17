@@ -46,12 +46,32 @@ async def math(calculation, client, key):
                 return "I don't even math"
 
             pods = soup.find_all('pod', primary='true')
-            answers = ''
+            answers = []
             for pod in pods:
                 try:
                     txt = pod.find('plaintext').text
-                    answers += '`' + txt.strip() + '`' + '\n'
                 except AttributeError:
-                    terminal.exception('Error while getting wolfram answer')
+                    continue
 
-            return answers or 'No answer...'
+                title = pod.attrs.get('title', '')
+                answers.append(f'{title}: `{txt.strip()}`')
+                if len(answers) > 5:
+                    break
+
+            if not answers:
+                for pod in soup.find_all('pod', error='false'):
+                    if pod.attrs.get('id') == 'Input':
+                        continue
+                    try:
+                        txt = pod.find('plaintext').text
+                        if not txt:
+                            continue
+                    except AttributeError:
+                        continue
+
+                    title = pod.attrs.get('title', '')
+                    answers.append(f'{title}: `{txt.strip()}`')
+                    if len(answers) > 3:
+                        break
+
+            return '\n'.join(answers) or 'No answer...'

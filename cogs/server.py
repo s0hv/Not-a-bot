@@ -277,6 +277,12 @@ class Server(Cog):
         """Sort mute roll stats by highest winstreak"""
         await self._post_mr_top(ctx, user or ctx.author, sort='biggest_streak')
 
+    @mute_roll_top.command(no_dm=True, aliases=['ls'])
+    @cooldown(2, 5, BucketType.guild)
+    async def losestreak(self, ctx, *, user: PossibleUser=None):
+        """Sort mute roll stats by highest losing streak"""
+        await self._post_mr_top(ctx, user or ctx.author, sort='biggest_lose_streak')
+
     async def _dl(self, ctx, url):
         try:
             data, mime_type = await raw_image_from_url(url, self.bot.aiohttp_client,

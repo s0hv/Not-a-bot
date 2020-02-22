@@ -10,10 +10,10 @@ class Misc(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command()
+    @command(aliases=['math'])
     @cooldown(1, 2, type=BucketType.user)
-    async def math(self, ctx, *, query):
-        """Queries a math problem to be solved by wolfram alpha"""
+    async def wolfram(self, ctx, *, query):
+        """Queries a problem to be solved by wolfram alpha"""
         await ctx.send(await wolfram.math(query, self.bot.aiohttp_client,
                                           self.bot.config.wolfram_key))
 

@@ -54,7 +54,18 @@ async def math(calculation, client, key):
                     continue
 
                 title = pod.attrs.get('title', '')
-                answers.append(f'{title}: `{txt.strip()}`')
+                subpods = pod.find_all('subpod')
+                if subpods:
+                    for subpod in subpods:
+                        try:
+                            txt = subpod.find('plaintext').text
+                        except AttributeError:
+                            continue
+
+                        answers.append(f'{title}: `{txt.strip()}`')
+
+                else:
+                    answers.append(f'{title}: `{txt.strip()}`')
                 if len(answers) > 5:
                     break
 

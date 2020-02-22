@@ -53,7 +53,8 @@ legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'terrakion', 'thundurus', 'tornadus', 'type: null', 'uxie',
                'victini', 'virizion', 'volcanion', 'xerneas', 'xurkitree',
                'yveltal', 'zapdos', 'zekrom', 'zeraora', 'zygarde',
-               'meltan', 'melmetal']
+               'meltan', 'melmetal', 'zacian', 'zamazenta', 'eternatus',
+               'kubfu', 'urshifu', 'calyrex']
 
 
 # Stats taken from https://www.kaggle.com/mylesoneill/pokemon-sun-and-moon-gen-7-stats

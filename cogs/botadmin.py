@@ -421,7 +421,7 @@ class BotAdmin(Cog):
         await ctx.send(':ok_hand:')
 
     @command()
-    async def cache_guilds(self):
+    async def cache_guilds(self, ctx):
         for guild in self.bot.guilds:
             sql = 'SELECT * FROM `guilds` WHERE guild=%s' % guild.id
             row = await self.bot.dbutil.execute(sql).first()
@@ -439,6 +439,8 @@ class BotAdmin(Cog):
                 del d['guild']
 
             self.bot.guild_cache.update_guild(guild.id, **d)
+
+        await ctx.send('Done caching guilds')
 
     @command()
     async def reload_module(self, ctx, module_name):

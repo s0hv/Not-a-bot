@@ -408,7 +408,7 @@ class Server(Cog):
 
         elif user:
             for activity in user.activities:
-                if isinstance(activity, discord.CustomActivity):
+                if isinstance(activity, discord.CustomActivity) and activity.emoji:
                     e = activity.emoji
                     emotes.append(
                         discord.PartialEmoji.with_state(self.bot._connection,

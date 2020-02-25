@@ -75,15 +75,19 @@ class HelpCommand(help.HelpCommand):
         def check(command):
             rows = command_blacklist.get(command.name, None)
             if not rows:
-                return True
+                return None
             return check_perms(rows)
 
         new_commands = []
+        whitelist = []
         for cmd in commands:
-            if check(cmd):
+            retval = check(cmd)
+            if retval:
+                whitelist.append(cmd)
+            elif retval is None:
                 new_commands.append(cmd)
 
-        return new_commands
+        return new_commands, whitelist
 
     def get_destination(self):
         return self.context
@@ -128,6 +132,9 @@ class HelpCommand(help.HelpCommand):
 
         if not skip_checks:
             command_blacklist = await self._get_db_perms(ctx)
+            whitelisted = ()
+            if command_blacklist:
+                commands, whitelisted = self.check_blacklist(commands, command_blacklist)
 
             # We dont wanna check db perms again for each individual command
             ctx.skip_check = True
@@ -136,9 +143,7 @@ class HelpCommand(help.HelpCommand):
 
             # We also dont wanna leave it on
             ctx.skip_check = False
-
-            if command_blacklist:
-                commands = self.check_blacklist(commands, command_blacklist)
+            commands.extend(whitelisted)
 
         else:
             commands = commands if self.show_hidden else filter(lambda c: not c.hidden, commands)
@@ -173,6 +178,9 @@ class HelpCommand(help.HelpCommand):
 
         if not skip_checks:
             command_blacklist = await self._get_db_perms(ctx)
+            whitelisted = ()
+            if command_blacklist:
+                commands, whitelisted = self.check_blacklist(commands, command_blacklist)
 
             # We dont wanna check db perms again for each individual command
             ctx.skip_check = True
@@ -181,9 +189,7 @@ class HelpCommand(help.HelpCommand):
 
             # We also dont wanna leave it on
             ctx.skip_check = False
-
-            if command_blacklist:
-                commands = self.check_blacklist(commands, command_blacklist)
+            commands.extend(whitelisted)
 
         else:
             commands = commands if self.show_hidden else filter(lambda c: not c.hidden, commands)

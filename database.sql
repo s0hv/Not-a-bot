@@ -473,3 +473,8 @@ create table users
   constraint idx_27309_primary
     primary key (id)
 );
+
+CREATE TABLE r9k
+(
+    message TEXT PRIMARY KEY
+);

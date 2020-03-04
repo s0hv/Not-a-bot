@@ -1,9 +1,11 @@
 import asyncio
+import logging
 import re
 
 from cogs.cog import Cog
 from utils import unzalgo
 
+logger = logging.getLogger('terminal')
 
 class R9K(Cog):
     def __init__(self, bot):
@@ -30,16 +32,15 @@ class R9K(Cog):
 
             try:
                 sql = 'INSERT INTO r9k (message) VALUES ($1) ON CONFLICT DO NOTHING'
-                await self.bot.dbutil.execute(sql, messages)
+                await self.bot.dbutil.execute(sql, messages, insertmany=True)
             except:
-                pass
+                logger.exception('Failed to insert r9k')
 
             await asyncio.sleep(10)
 
     @Cog.listener()
     async def on_message(self, msg):
-        if msg.channel.id != 297061271205838848:
-            return
+
 
         # Don't wanna log bot messages
         if msg.author.bot:
@@ -52,7 +53,7 @@ class R9K(Cog):
         content = unzalgo.unzalgo(content)
         content = self.emote_regex.sub(r'\1', content)
 
-        self._messages.append(content)
+        self._messages.append((content,))
         if self._update_task.done():
             self._update_task = asyncio.run_coroutine_threadsafe(self._update_loop(), loop=self.bot.loop)
 

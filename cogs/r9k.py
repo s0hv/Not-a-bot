@@ -1,4 +1,5 @@
 import asyncio
+import re
 
 from cogs.cog import Cog
 from utils import unzalgo
@@ -9,12 +10,13 @@ class R9K(Cog):
         super().__init__(bot)
         self._messages = []
         self._update_task = asyncio.run_coroutine_threadsafe(self._update_loop(), loop=bot.loop)
+        self.emote_regex = re.compile(r'<:(\w+):\d+>')
 
     def cog_unload(self):
         self._update_task.cancel()
         try:
             self._update_task.result(timeout=20)
-        except TimeoutError:
+        except (TimeoutError, asyncio.CancelledError):
             pass
 
     async def _update_loop(self):
@@ -48,6 +50,8 @@ class R9K(Cog):
 
         # Remove zalgo text
         content = unzalgo.unzalgo(content)
+        content = self.emote_regex.sub(r'\1', content)
+
         self._messages.append(content)
         if self._update_task.done():
             self._update_task = asyncio.run_coroutine_threadsafe(self._update_loop(), loop=self.bot.loop)

@@ -40,7 +40,8 @@ class R9K(Cog):
 
     @Cog.listener()
     async def on_message(self, msg):
-
+        if not msg.guild or msg.guild.id != 217677285442977792:
+            return
 
         # Don't wanna log bot messages
         if msg.author.bot:

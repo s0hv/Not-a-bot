@@ -248,9 +248,10 @@ class BotAdmin(Cog):
 
         await ctx.send(retval)
 
-    @command(aliases=['db_eval'])
+    @command()
     async def dbeval(self, ctx, *, query):
         # Choose between fetch and execute based on first keyword
+        query = query.strip('`')
         if query.lower().startswith('select '):
             f = self.bot.dbutil.fetch(query, measure_time=True)
         else:

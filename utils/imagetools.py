@@ -70,7 +70,7 @@ def make_shiftable(color):
 
 
 class ColorThief(CF):
-    def __init__(self, img):
+    def __init__(self, img):  # skipcq: PYL-W0231
         if isinstance(img, Image.Image):
             self.image = img
         else:
@@ -269,7 +269,7 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
 # http://stackoverflow.com/a/41048793/6046713
 def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=200,
                       mask_dilate_iter=10, mask_erode_iter=10):
-    global cv2
+    global cv2  # skipcq: PYL-W0603
     if cv2 is None:
         try:
             import cv2

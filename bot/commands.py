@@ -59,7 +59,7 @@ class Command(commands.Command):
 
 
 class Group(Command, commands.Group):
-    def __init__(self, *args, **attrs):
+    def __init__(self, *args, **attrs):  # skipcq: PYL-W0231
         Command.__init__(self, *args, **attrs)
         self.invoke_without_command = attrs.pop('invoke_without_command', False)
 

@@ -23,11 +23,11 @@ SOFTWARE.
 """
 
 import asyncio
+import functools
 import logging
 import os
 import re
 import shutil
-from functools import partial
 from math import floor
 from random import choice
 from typing import Optional
@@ -1578,7 +1578,7 @@ class Audio(commands.Cog):
 
         from utils.utilities import write_wav
 
-        await self.bot.loop.run_in_executor(self.bot.threadpool, partial(write_wav, p.stdout, tempfile))
+        await self.bot.loop.run_in_executor(self.bot.threadpool, functools.partial(write_wav, p.stdout, tempfile))
 
         try:
             win_s = 512  # fft size
@@ -1824,7 +1824,7 @@ class Audio(commands.Cog):
                 redo_pages = False
                 for song in page:
                     try:
-                        idx = full_playlist.index(song)
+                        idx = full_playlist.index(song)  # skipcq: PYL-W0621
                     except ValueError:
                         redo_pages = True
                         playlist.remove(song)

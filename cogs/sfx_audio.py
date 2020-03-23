@@ -188,8 +188,6 @@ class Audio(Cog):
                 terminal.exception('Failed to join vc')
                 if ctx.guild.id in self.bot._connection._voice_clients:
                     state.voice = self.bot._connection._voice_clients.get(ctx.guild.id)
-            except:
-                return False
             state.create_tasks()
         else:
             await state.voice.move_to(summoned_channel)

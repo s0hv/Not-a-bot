@@ -102,7 +102,7 @@ class JoJo(Cog):
             self.parser.add_argument(arg, type=int, default=argparse.SUPPRESS,
                                      required=False)
 
-    def cog_unload(self):
+    def cog_unload(self):  # skipcq: PYL-R0201
         plt.close('all')
 
     def create_empty_stats_circle(self, color='k'):
@@ -432,7 +432,7 @@ class JoJo(Cog):
                 if _color:
                     try:
                         color = Color(_color)
-                    except:
+                    except (ValueError, AttributeError):
                         await ctx.send('{} {} not an available color'.format(author, _color),
                                        delete_after=20)
 
@@ -459,7 +459,7 @@ class JoJo(Cog):
                 try:
                     color = Color(msg)
                     shift = 0
-                except:
+                except (ValueError, AttributeError):
                     await ctx.send(f'{author} Could not set color or color change int. Using default values',
                                    delete_after=15)
 
@@ -468,7 +468,7 @@ class JoJo(Cog):
                 color = Color(color.get_hex_l())
 
             bg_color = Color(color)
-        except AttributeError:
+        except (AttributeError, ValueError):
             logger.exception(f'Failed to set bg color from {color}')
             return await ctx.send('Failed to set bg color')
 
@@ -550,7 +550,7 @@ class JoJo(Cog):
                     if msg is not None:
                         try:
                             kwargs = self.parser.parse_known_args(msg.split(' '))[0].__dict__
-                        except:
+                        except (SystemExit, IndexError, AttributeError):
                             await ctx.send(f'{author} Could not get arguments from {msg}',
                                            delete_after=20)
 

@@ -34,7 +34,7 @@ terminal = logging.getLogger('terminal')
 
 try:
     _wd = Path(__file__).parent.parent.__str__()
-except:
+except OSError:
     _wd = os.getcwd()
 
 DATA = join(_wd, 'data')

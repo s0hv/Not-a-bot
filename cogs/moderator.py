@@ -716,15 +716,12 @@ class Moderator(Cog):
         try:
             await ctx.channel.edit(slowmode_delay=time)
         except discord.HTTPException as e:
-            await ctx.send('Failed to set slowmode because of an error\n%s' % e)
-        except:
-            logger.exception('Failed to set slowmode')
-            await ctx.send('Failed to set slowmode because of an unknown error')
-
+            await ctx.send(f'Failed to set slowmode because of an error\n{e}')
         else:
-            await ctx.send('Slowmode set to %ss' % time)
+            await ctx.send(f'Slowmode set to {time}s')
 
-    def _reason_url(self, ctx, reason):
+    @staticmethod
+    def _reason_url(ctx, reason):
         embed = None
 
         if ctx.message.attachments:

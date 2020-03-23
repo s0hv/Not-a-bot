@@ -145,10 +145,7 @@ class Poll:
 
     def stop(self):
         if self._task:
-            try:
-                self._task.cancel()
-            except:
-                pass
+            self._task.cancel()
 
     def count_now(self):
         self._stopper.set()
@@ -169,6 +166,7 @@ class Poll:
             await self.count_votes()
         except:
             logger.exception('Failed to count votes')
+            raise
 
     async def count_votes(self):
         if isinstance(self.message, discord.Message):
@@ -346,8 +344,9 @@ class VoteManager(Cog):
         message = '-header ' + message if not message.startswith('-h') else message
         try:
             parsed = self.parser.parse_args(message.split(' '))
-        except:
-            return await ctx.send('Failed to parse arguments')
+        except SystemExit:
+            await ctx.send('Failed to parse arguments')
+            return
 
         if parsed.strict and not parsed.emotes:
             return await ctx.send('Cannot set strict mode without specifying any emotes')
@@ -483,8 +482,9 @@ class VoteManager(Cog):
         message = '-header ' + message if not message.startswith('-h') else message
         try:
             parsed = self.parser.parse_args(message.split(' '))
-        except:
-            return await ctx.send('Failed to parse arguments')
+        except SystemExit:
+            await ctx.send('Failed to parse arguments')
+            return
 
         if not parsed.giveaway:
             if parsed.strict and not parsed.emotes:

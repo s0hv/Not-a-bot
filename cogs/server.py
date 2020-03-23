@@ -106,7 +106,7 @@ class Server(Cog):
             try:
                 idx = sorted_users.index(ctx.author) + 1
                 s += '\nYour rank is {} with {} roles\n'.format(idx, author_role_count - 1)
-            except:
+            except ValueError:
                 pass
             s += '```'
             return s
@@ -114,7 +114,8 @@ class Server(Cog):
         await send_paged_message(ctx, pages, starting_idx=page,
                                  page_method=get_msg)
 
-    async def _date_sort(self, ctx, page, key, dtype='joined'):
+    @staticmethod
+    async def _date_sort(ctx, page, key, dtype='joined'):
         if page > 0:
             page -= 1
 
@@ -130,7 +131,7 @@ class Server(Cog):
             t = datetime.utcnow() - key(ctx.author)
             t = format_timedelta(t, DateAccuracy.Day)
             own_rank = f'\nYour rank is {idx}. You {dtype} {t} ago at {key(ctx.author).strftime("%a, %d %b %Y %H:%M:%S GMT")}\n'
-        except:
+        except ValueError:
             pass
 
         def get_page(pg, _):
@@ -300,16 +301,13 @@ class Server(Cog):
     @bot_has_permissions(manage_emojis=True)
     async def delete_emote(self, ctx, *, emote: GuildEmoji):
         await ctx.send('Do you want to delete the emoji {0} {0.name} `{0.id}`'.format(emote))
-        if not await wait_for_yes(ctx, 60):
+        if not await wait_for_yes(ctx, 30):
             return
 
         try:
             await emote.delete()
         except discord.HTTPException as e:
             await ctx.send('Failed to delete emote because of an error\n%s' % e)
-        except:
-            logger.exception('Failed to delete emote')
-            await ctx.send('Failed to delete emote because of an error')
 
         else:
             await ctx.send(f'Deleted emote {emote.name} `{emote.id}`')
@@ -350,9 +348,6 @@ class Server(Cog):
             await guild.create_custom_emoji(name=name, image=data.getvalue(), reason=f'{ctx.author} created emote')
         except discord.HTTPException as e:
             await ctx.send('Failed to create emote because of an error\n%s\nDId you check if the image is under 256kb in size' % e)
-        except:
-            await ctx.send('Failed to create emote because of an error')
-            logger.exception('Failed to create emote')
         else:
             await ctx.send('created emote %s' % name)
 
@@ -573,7 +568,7 @@ class Server(Cog):
 
         try:
             file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
-        except:
+        except OSError:
             terminal.exception('Failed to save banner')
             await ctx.send('Failed to save banner image')
             return
@@ -722,7 +717,7 @@ class Server(Cog):
             for data, filenames in await self.bot.loop.run_in_executor(self.bot.threadpool, do_it):
                 filenames = '\n'.join(filenames)
                 await ctx.send(f'```\n{filenames}\n```', file=discord.File(data, 'banners.png'))
-        except:
+        except OSError:
             terminal.exception('Failed to load banners')
             await ctx.send('Failed to show banners')
             return

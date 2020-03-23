@@ -209,13 +209,10 @@ class MusicPlayer:
     async def _activity_check(self):
         async def stop():
             self.__instances__.discard(self)
-            try:
-                if self.audio_player:
-                    self.audio_player.cancel()
-                await self._disconnect(self)
-                self.voice = None
-            except:
-                pass
+            if self.audio_player:
+                self.audio_player.cancel()
+            await self._disconnect(self)
+            self.voice = None
 
         while True:
             await asyncio.sleep(60)

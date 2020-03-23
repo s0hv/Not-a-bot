@@ -142,7 +142,7 @@ class Pokefusion:
             await self.cache_types(start=max(len(list(types)), 1))
             self.LAST_UPDATED = time.time()
             success = True
-        except:
+        except:  # skipcq: FLK-E722
             logger.exception('Failed to update pokefusion cache')
         finally:
             self._update_lock.release()
@@ -304,7 +304,7 @@ class Images(Cog):
             self._pokefusion._driver.quit()
             self._pokefusion._driver = None
 
-    def cog_check(self, ctx):
+    def cog_check(self, ctx):  # skipcq: PYL-R0201
         if not check_botperm('attach_files', ctx=ctx):
             raise BotMissingPermissions(('attach_files', ))
 

@@ -1579,7 +1579,7 @@ class Audio(commands.Cog):
         from utils.utilities import write_wav
 
         await self.bot.loop.run_in_executor(self.bot.threadpool, functools.partial(write_wav, p.stdout, tempfile))
-
+        s = None
         try:
             win_s = 512  # fft size
             hop_s = win_s // 2  # hop size
@@ -1613,9 +1613,8 @@ class Audio(commands.Cog):
         finally:
             try:
                 s.close()
-            except:
-                pass
-            os.remove(tempfile)
+            finally:
+                os.remove(tempfile)
 
     @cooldown(1, 4, type=BucketType.guild)
     @command(no_pm=True)
@@ -1658,7 +1657,7 @@ class Audio(commands.Cog):
     async def disconnect_voice(self, musicplayer):
         try:
             del self.musicplayers[musicplayer.channel.guild.id]
-        except:
+        except (KeyError, AttributeError):
             pass
 
         await self.close_player(musicplayer)
@@ -2166,8 +2165,8 @@ class Audio(commands.Cog):
         with open(ADD_AUTOPLAYLIST, 'a', encoding='utf-8') as f:
             f.write(data + '\n')
 
-        terminal.info('Added entry %s to autoplaylist' % name)
-        await ctx.send('Added entry %s' % name, delete_after=60)
+        terminal.info(f'Added entry {name} to autoplaylist')
+        await ctx.send(f'Added entry {name}', delete_after=60)
 
     @command(no_pm=True)
     @cooldown(1, 5, type=BucketType.guild)

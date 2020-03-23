@@ -36,7 +36,7 @@ class DBApi(Cog):
             task = self.bot.loop.create_task(self.dbl.close())
             try:
                 task.result(timeout=20)
-            except:
+            except (asyncio.CancelledError, asyncio.InvalidStateError, asyncio.TimeoutError):
                 return
 
     async def update_stats(self):

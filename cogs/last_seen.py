@@ -41,7 +41,7 @@ class LastSeen(Cog):
         self.bot.loop.call_soon_threadsafe(self._update_now.set)
         try:
             self._update_task.result(timeout=20)
-        except:
+        except (asyncio.CancelledError, asyncio.TimeoutError, asyncio.InvalidStateError):
             self._update_task.cancel()
 
     async def save_updates(self):

@@ -280,7 +280,7 @@ class Colors(Cog):
                     return rgb.get_hex_l()
 
                 rgb = rgb.rgb
-            except:
+            except (ValueError, AttributeError):
                 return
 
         return self.check_rgb(rgb)
@@ -1042,9 +1042,6 @@ class Colors(Cog):
         except discord.HTTPException as e:
             logger.exception('guild {0.id} rolename: {1} perms: {2} color: {3} {4}'.format(guild, name, default_perms.value, str(rgb), value))
             return await ctx.send('Failed to add color because of an error\n```%s```' % e)
-        except:
-            logger.exception('Failed to create color role')
-            return await ctx.send('Failed to add color because of an error')
 
         color_ = Color(color_role.id, name, value, guild.id, color)
         success = await self._add_color2db(color_)
@@ -1222,9 +1219,6 @@ class Colors(Cog):
             await self._delete_color(guild.id, role_id)
         except discord.HTTPException as e:
             return await ctx.send(f'Failed to remove color because of an error\n```{e}```')
-        except:
-            logger.exception('Failed to remove color')
-            return await ctx.send('Failed to remove color because of an error')
 
         await ctx.send(f'Removed color {color[1]}')
 
@@ -1309,7 +1303,7 @@ class Colors(Cog):
                     removed_roles.remove(found[0].id)
                     await member.remove_roles(*map(Snowflake, removed_roles), reason='Removing duplicate colors', atomic=False)
                     duplicate_colors += 1
-                except:
+                except (discord.HTTPException, discord.ClientException, ValueError):
                     logger.exception('failed to remove duplicate colors')
 
         self._color_jobs.discard(guild.id)

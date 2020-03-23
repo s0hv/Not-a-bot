@@ -12,6 +12,7 @@ from email.utils import formatdate as format_rfc2822
 from io import StringIO
 from urllib.parse import quote
 
+import aiohttp
 import discord
 import psutil
 import pytz
@@ -246,6 +247,7 @@ class Utilities(Cog):
 
             except:
                 logger.exception('Failed to get extended mem usage')
+                raise
 
         users = 0
         for _ in self.bot.get_all_members():
@@ -384,7 +386,7 @@ class Utilities(Cog):
         success = False
         try:
             r = await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
-        except:
+        except aiohttp.ClientError:
             terminal.exception('')
         else:
             status = str(r.status)
@@ -486,7 +488,7 @@ class Utilities(Cog):
                     return hits[0]
             except:
                 logger.exception('Failed to search package from PyPi')
-                return
+                raise
 
         hit = await self.bot.loop.run_in_executor(self.bot.threadpool, search)
         if not hit:

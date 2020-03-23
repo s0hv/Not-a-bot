@@ -571,7 +571,7 @@ def fixed_gif_frames(img, func=None):
                 raise ImageProcessingError(str(e))
             else:
                 raise ImageProcessingError()
-        except:
+        except:  # skipcq: FLK-E722
             raise ImageProcessingError()
 
         try:

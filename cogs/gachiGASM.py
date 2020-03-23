@@ -105,7 +105,7 @@ class gachiGASM(Cog):
 
             try:
                 await channel.send(f'Daily gachi {vid}')
-            except:
+            except discord.HTTPException:
                 pass
 
         self.reload_call = call_later(self._reload_and_post, self.bot.loop,

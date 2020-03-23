@@ -17,6 +17,9 @@ class AudioBot(BotBase):
         if self.config.default_activity:
             await self.change_presence(activity=discord.Activity(**self.config.default_activity))
 
+    # The prefix function is defined to take bot as it's first parameter
+    # no matter what so in order to not have the same object added in twice
+    # I made this a staticmethod instead
     @staticmethod
-    def get_command_prefix(self, message):
+    def get_command_prefix(self, message):  # skipcq: PYL-W0211
         return self.default_prefix

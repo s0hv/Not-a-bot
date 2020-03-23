@@ -83,7 +83,7 @@ class NotABot(BotBase):
         new_guilds = {s.id for s in guilds}.difference(guild_ids)
 
         blacklisted = await self.dbutil.get_blacklisted_guilds()
-        blacklisted = set([row['guild_id'] for row in blacklisted])
+        blacklisted = {row['guild_id'] for row in blacklisted}
 
         for guild in guilds:
             if guild.id in blacklisted:

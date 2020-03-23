@@ -72,8 +72,11 @@ class BotBase(Bot):
                                                min_size=10,
                                                max_size=20)
 
+    # The prefix function is defined to take bot as it's first parameter
+    # no matter what so in order to not have the same object added in twice
+    # I made this a staticmethod instead
     @staticmethod
-    def get_command_prefix(self, message):
+    def get_command_prefix(self, message):  # skipcq: PYL-W0211
         guild = message.guild
         if not guild:
             prefixes = (*self._mention_prefix, self.default_prefix)

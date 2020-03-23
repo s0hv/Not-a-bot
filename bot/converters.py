@@ -45,13 +45,13 @@ class PossibleUser(converter.IDConverter):
             if len(arg) > 5 and arg[-5] == '#':
                 discrim = arg[-4:]
                 name = arg[:-5]
-                predicate = lambda u: u.name == name and u.discriminator == discrim
-                user = discord.utils.find(predicate, state._users.values())
+                user = discord.utils.find(lambda u: u.name == name and u.discriminator == discrim,
+                                          state._users.values())
                 if user is not None:
                     return user
 
-            predicate = lambda u: u.name == arg
-            result = discord.utils.find(predicate, state._users.values())
+            result = discord.utils.find(lambda u: u.name == arg,
+                                        state._users.values())
             if result is None:
                 raise BadArgument(f'No user id or user found with "{argument}"')
 
@@ -289,10 +289,10 @@ class CleanContent(converter.Converter):
             result = pattern.sub(replace, result)
 
         if self.fix_emotes:
-            def repl(obj):
+            def repl(obj):  # skipcq: PYL-E0102
                 return obj.groups()[0]
 
-            pattern = re.compile('<:(\w+):[0-9]{17,21}>')
+            pattern = re.compile(r'<:(\w+):[0-9]{17,21}>')
             result = pattern.sub(repl, result)
 
         # Completely ensure no mentions escape:

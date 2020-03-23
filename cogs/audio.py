@@ -25,10 +25,8 @@ SOFTWARE.
 import asyncio
 import logging
 import os
-import random
 import re
 import shutil
-from collections import deque
 from functools import partial
 from math import floor
 from random import choice
@@ -51,7 +49,7 @@ from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
 from bot.song import Song, PartialSong
 from bot.youtube import (extract_playlist_id, extract_video_id, Part, id2url,
                          parse_youtube_duration)
-from utils.utilities import (mean_volume, search, parse_seek,
+from utils.utilities import (search, parse_seek,
                              seek_from_timestamp,
                              send_paged_message, basic_check,
                              format_timedelta, test_url, wait_for_words)
@@ -115,293 +113,6 @@ def select_by_predicate(songs, pred):
 
 def playlist2partialsong(songs):
     return [PartialSong(**song) for song in songs]
-
-
-class MusicPlayder:
-    def __init__(self, bot, stop_state):
-        raise NotImplementedError('Deprecated')
-        self.play_next_song = asyncio.Event()  # Trigger for next song
-        self.right_version = asyncio.Event()  # Determines if right version be played
-        self.right_version_playing = asyncio.Event()
-        self.voice = None  # Voice channel that this is connected to
-        self.current = None  # Current song
-        self.channel = None  # Channel where all the automated messages will be posted to
-        self.server = None
-        self.activity_check = None
-        self.gachi = bot.config.gachi
-        self.bot = bot
-        self.audio_player = None  # Main audio loop. Gets set when summon is called in :create_audio_task:
-        self.volume = self.bot.config.default_volume
-        self.playlist = Playlist(bot, download=True)
-        self.autoplaylist = bot.config.autoplaylist
-        self.volume_multiplier = bot.config.volume_multiplier
-        self.messages = deque()
-        self.stop = stop_state
-
-    def is_playing(self):
-        if self.voice is None or self.current is None or self.player is None:
-            return False
-
-        return not self.player.is_done()
-
-    def reload_voice(self, voice_client):
-        self.voice = voice_client
-        if self.player:
-            self.player.player = voice_client.play_audio
-            self.player._resumed.clear()
-            self.player._connected.set()
-
-    async def websocket_check(self):
-        terminal.debug("Creating websocket check loop")
-        logger.debug("Creating websocket check loop")
-
-        while self.voice is not None:
-            try:
-                self.voice.ws.ensure_open()
-                assert self.voice.ws.open
-            except:
-                terminal.debug("Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
-                logger.debug("Voice websocket is %s, reconnecting" % self.voice.ws.state_name)
-                await self.bot.reconnect_voice_client(self.voice.channel.server)
-                await asyncio.sleep(4)
-            finally:
-                await asyncio.sleep(1)
-
-    def create_audio_task(self):
-        self.audio_player = self.bot.loop.create_task(self.play_audio())
-        self.activity_check = self.bot.loop.create_task(self._activity_check())
-        # self.bot.loop.create_task(self.websocket_check())
-
-    @property
-    def player(self):
-        return self.current.player
-
-    def on_stop(self):
-        if self.right_version.is_set():
-            if self.current.seek:
-                return
-            elif not self.current.seek:
-                self.bot.loop.call_soon_threadsafe(self.right_version_playing.set)
-            return
-        elif self.current.seek:
-            return
-
-        self.bot.loop.create_task(self.delete_current())
-
-        self.bot.loop.call_soon_threadsafe(self.play_next_song.set)
-        self.playlist.on_stop()
-
-    async def delete_current(self):
-        if self.current is not None and self.bot.config.delete_after and not self.playlist.in_list(self.current.webpage_url):
-            await self.current.delete_file()
-
-    async def wait_for_right_version(self):
-        await self.right_version_playing.wait()
-
-    async def wait_for_not_empty(self):
-        await self.playlist.not_empty.wait()
-
-    async def set_mean_volume(self, file):
-        try:
-            db = await asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool,
-                                        duration=self.current.duration), timeout=20, loop=self.bot.loop)
-            if db is not None and abs(db) >= 0.1:
-                volume = self._get_volume_from_db(db)
-                self.current.player.volume = volume
-
-        except asyncio.TimeoutError:
-            logger.debug('Mean volume timed out')
-        except asyncio.CancelledError:
-            pass
-
-    async def _wait_for_next_song(self):
-        try:
-            await asyncio.wait_for(self.wait_for_not_empty(), 1, loop=self.bot.loop)
-            logger.debug('Play was called on empty playlist. Waiting for download')
-            self.current = await self.playlist.next_song()
-            if self.current is not None:
-                logger.debug(str(self.current.__dict__))
-            else:
-                logger.debug('Current is None')
-
-        except asyncio.TimeoutError:
-            logger.debug('Got TimeoutError. adding_songs = {}'.format(self.playlist.adding_songs))
-            if self.autoplaylist and not self.playlist.adding_songs:
-                song_ = await self.playlist.get_from_autoplaylist()
-
-                if song_ is None:
-                    terminal.warning('None returned from get_from_autoplaylist. Waiting for next song')
-                    return None
-
-                else:
-                    self.current = song_
-
-            else:
-                try:
-                    await asyncio.wait_for(self.wait_for_not_empty(), 5, loop=self.bot.loop)
-                except asyncio.TimeoutError:
-                    return None
-
-                await self.playlist.not_empty.wait()
-                self.current = await self.playlist.next_song()
-
-        return self.current
-
-    def _get_volume_from_db(self, db):
-        rms = pow(10, db / 20) * 32767
-        return 1 / rms * self.volume_multiplier
-
-    async def _activity_check(self):
-        async def stop():
-            await self.stop(self)
-            self.voice = None
-
-        while True:
-            await asyncio.sleep(60)
-            if self.voice is None:
-                return await stop()
-
-            users = self.voice.channel.voice_members
-            users = list(filter(lambda x: not x.bot, users))
-            if not users:
-                await self.say('No voice activity. Disconnecting')
-                await stop()
-                return
-
-    async def play_audio(self):
-        while True:
-            self.play_next_song.clear()
-            if self.voice is None:
-                break
-
-            if self.current is None or not self.current.seek:
-                if self.playlist.peek() is None:
-                    if self.autoplaylist:
-                        self.current = await self.playlist.get_from_autoplaylist()
-                    else:
-                        continue
-                else:
-                    self.current = await self.playlist.next_song()
-
-                if self.current is None:
-                    continue
-
-                logger.debug('Next song is {}'.format(self.current))
-                logger.debug('Waiting for dl')
-
-                try:
-                    await asyncio.wait_for(self.current.on_ready.wait(), timeout=6,
-                                           loop=self.bot.loop)
-                except asyncio.TimeoutError:
-                    self.playlist.playlist.appendleft(self.current)
-                    continue
-
-                logger.debug('Done waiting')
-                if not self.current.success:
-                    terminal.error('Download unsuccessful')
-                    continue
-
-                if self.current.filename is not None:
-                    file = self.current.filename
-                elif self.current.url != 'None':
-                    file = self.current.url
-                else:
-                    terminal.error('No valid file to be played')
-                    continue
-
-                logger.debug('Opening file with the name "{0}" and options "{1.before_options}" "{1.options}"'.format(file, self.current))
-
-                self.current.player = self.voice.create_ffmpeg_player(file,
-                                                                      after=self.on_stop,
-                                                                      before_options=self.current.before_options,
-                                                                      options=self.current.options)
-
-            if self.bot.config.auto_volume and not self.current.seek and isinstance(file, str) and not self.current.is_live:
-                volume_task = asyncio.ensure_future(self.set_mean_volume(file))
-            else:
-                volume_task = None
-
-            self.current.player.volume = self.volume
-
-            if not self.current.seek:
-                dur = get_track_pos(self.current.duration, 0)
-                s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, self.current.player.volume)
-                if self.current.requested_by:
-                    s += ' enqueued by %s' % self.current.requested_by
-                await self.say(s, self.current.duration)
-
-            logger.debug(self.player)
-            self.current.player.start()
-            logger.debug('Started player')
-            await self.change_status(self.current.title)
-            logger.debug('Downloading next')
-            await self.playlist.download_next()
-
-            if self.gachi and not self.current.seek and random.random() < 0.01:
-                await self.prepare_right_version()
-
-            self.current.seek = False
-            await self.play_next_song.wait()
-            if volume_task is not None:
-                volume_task.cancel()
-                volume_task = None
-            self.right_version_playing.clear()
-
-    async def prepare_right_version(self):
-        if self.gachi:
-            return
-
-        self.bot.loop.call_soon_threadsafe(self.right_version.set)
-
-        try:
-            await asyncio.wait_for(self.wait_for_right_version(), self.current.duration * 0.8)
-        except asyncio.TimeoutError:
-            pass
-
-        file = self._get_right_version()
-        if file is None:
-            return
-
-        vol = self._get_volume_from_db(await mean_volume(file, self.bot.loop, self.bot.threadpool, duration=self.current.duration))
-        self.current.player.stop()
-        self.current.player = self.voice.create_ffmpeg_player(file,
-                                                              after=self.on_stop,
-                                                              options=self.current.options)
-
-        self.current.player.volume = vol + 0.05
-        await self.change_status('Right version gachiGASM')
-        self.current.player.start()
-        self.right_version.clear()
-
-    @staticmethod
-    def _get_right_version():
-        path = os.path.join(os.getcwd(), 'data', 'audio', 'right_versions')
-        files = os.listdir(path)
-        return os.path.join(path, random.choice(files))
-
-    async def change_status(self, name):
-        if self.bot.config.now_playing:
-            await self.bot.change_presence(game=Game(name=name))
-
-    async def skip(self, author):
-        if self.is_playing():
-
-            if self.right_version.is_set():
-                self.bot.loop.call_soon_threadsafe(self.right_version_playing.set)
-                return
-
-            if self.right_version_playing.is_set():
-                author = author.mention
-                await ctx.send('FUCK YOU! %s' % author)
-                return
-
-            self.player.stop()
-
-    async def say(self, message, timeout=None, channel=None):
-        if channel is None:
-            channel = self.channel
-
-        return await self.bot.send_message(channel, message, delete_after=timeout)
 
 
 class Audio(commands.Cog):
@@ -796,6 +507,9 @@ class Audio(commands.Cog):
 
                 def error(_):
                     nonlocal entry
+                    # skipcq: PYL-W0631
+                    # We want to get the error for the current entry in the loop so
+                    # we access the loop variable here
                     failed.append(entry)
 
                 infos = []
@@ -2409,8 +2123,8 @@ class Audio(commands.Cog):
         with open(DELETE_AUTOPLAYLIST, 'a', encoding='utf-8') as f:
             f.write(' '.join(name) + '\n')
 
-        terminal.info('Added entry %s to the deletion list' % name)
-        await ctx.send('Added entry %s to the deletion list' % ' '.join(name), delete_after=60)
+        terminal.info(f'Added entry {name} to the deletion list')
+        await ctx.send(f'Added entry {" ".join(name)} to the deletion list', delete_after=60)
 
     @command(name='add', no_pm=True, auth=Auth.BOT_MOD)
     async def add_to_ap(self, ctx, *name):

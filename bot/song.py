@@ -261,25 +261,25 @@ class Song:
 
                 if self.filename is not None:
                     if os.path.exists(self.filename):
-                        terminal.info('File exists for %s' % self.title)
-                        logger.debug('File exists for %s' % self.title)
+                        terminal.info(f'File exists for {self.title}')
+                        logger.debug(f'File exists for {self.title}')
                         self.success = True
                         return
 
-            logger.debug('Getting info and downloading {}'.format(self.webpage_url))
+            logger.debug(f'Getting info and downloading {self.webpage_url}')
             info = await self.playlist.downloader.extract_info(loop, url=self.webpage_url, download=dl)
             logger.debug('Got info')
 
             self.info_from_dict(**info)
-            terminal.info('Downloaded ' + self.webpage_url)
-            logger.debug('Filename set to {}'.format(self.filename))
+            terminal.info(f'Downloaded {self.webpage_url}')
+            logger.debug(f'Filename set to {self.webpage_url}')
             self.success = True
 
         except Exception as e:
             if self.success is not False:
-                logger.exception('Download error: {}'.format(e))
+                logger.exception(f'Download error: {e}')
                 try:
-                    await self.playlist.channel.send('Failed to download {0}\nlink: <{1}>'.format(self.title, self.webpage_url))
+                    await self.playlist.channel.send(f'Failed to download {self.title}\nlink: <{self.webpage_url}>')
                 except discord.HTTPException:
                     pass
 
@@ -297,7 +297,7 @@ class Song:
                     return
 
                 os.remove(self.filename)
-                terminal.info('Deleted ' + self.filename)
+                terminal.info(f'Deleted {self.filename}')
                 break
             except PermissionError:
                 await asyncio.sleep(1)

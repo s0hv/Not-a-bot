@@ -2,8 +2,8 @@ from enum import Enum
 
 
 class Actions(Enum):
-    DELETE = 0,
-    INVALID = 1,
+    DELETE = 0
+    INVALID = 1
     VALID = 2
 
 

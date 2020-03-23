@@ -57,7 +57,7 @@ class NoStringWrappingPrettyPrinter(PrettyPrinter):
 
         return s
 
-    def _format(self, obj, stream, *args, **kwargs):
+    def _format(self, obj, stream, *args, **kwargs):  # skipcq: PYL-W0221
         if isinstance(obj, str):
             stream.write(self._format_str(obj))
         else:
@@ -97,8 +97,8 @@ class BotAdmin(Cog):
         # We wanna exclude ExtensionFailed errors since they can contain sensitive
         # data because they give the contents of the parent error message
         except ExtensionFailed as e:
-            logger.exception('Failed to reload extension %s' % name)
-            terminal.exception('Failed to reload extension %s' % name)
+            logger.exception(f'Failed to reload extension {name}')
+            terminal.exception(f'Failed to reload extension {name}')
             return f'Could not reload {name} because of {type(e).__name__}\nCheck logs for more info'
 
         except ExtensionError as e:
@@ -123,7 +123,8 @@ class BotAdmin(Cog):
         We are using 2 functions to optimize the usage of run_in_executor
         """
         if not names:
-            return "No module names given",
+            # We want to return a tuple
+            return "No module names given",  # skipcq: PYL-R1707
 
         messages = []
 
@@ -447,7 +448,7 @@ class BotAdmin(Cog):
     async def reload_module(self, ctx, module_name):
         try:
             reload(import_module(module_name))
-        except Exception as e:
+        except Exception as e:  # skipcq: PYL-W0703
             return await ctx.send('Failed to reload module %s because of %s' % (module_name, e.__name__))
         await ctx.send('Reloaded module %s' % module_name)
 
@@ -532,7 +533,7 @@ class BotAdmin(Cog):
             data.seek(0)
 
         except aiohttp.ClientError:
-            logger.exception('Could not download image %s' % url)
+            logger.exception(f'Could not download image {url}')
             await ctx.send('Failed to download %s' % url)
         else:
             def write():
@@ -624,7 +625,7 @@ class BotAdmin(Cog):
         await ctx.send(f'Unblacklisted guild {s}')
 
     @command()
-    async def restart_db(self, ctx):
+    async def restart_db(self, ctx):  # skipcq: PYL-W0212
         def reconnect():
             t = time.perf_counter()
             session = self.bot._Session
@@ -752,7 +753,7 @@ class BotAdmin(Cog):
 
     @command()
     async def disable(self, ctx, cmd: CommandConverter):
-        if cmd == self.disable:
+        if cmd == self.disable:  # skipcq: PYL-W0143
             await ctx.send('Cannot disable this command')
             return
 

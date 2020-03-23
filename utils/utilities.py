@@ -87,7 +87,7 @@ class DateAccuracy(Enum):
         # When slicing weeks are off so we can assume we are working
         # from year (value of 1) to second (value of 6)
         # that's why slice value = 6-DateAccuracy.value
-        if self.value > other.value:
+        if self.value > other.value:  # skipcq: PYL-W0143
             return slice(other.value, self.value)
         else:
             return slice(self.value, other.value)
@@ -238,7 +238,7 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
     out, err = await loop.run_in_executor(threadpool, process.communicate)
     out += err
 
-    matches = re.findall('mean_volume: [\-\d.]+ dB', str(out))
+    matches = re.findall(r'mean_volume: [\-\d.]+ dB', str(out))
 
     if not matches:
         return
@@ -393,7 +393,7 @@ def get_picture_from_msg(msg):
 
 def normalize_text(s):
     # Get cleaned emotes
-    matches = re.findall('<:\w+:\d+>', s)
+    matches = re.findall(r'<:\w+:\d+>', s)
 
     for match in matches:
         s = s.replace(match, match.split(':')[1])
@@ -1099,14 +1099,25 @@ def find_user(s, members, case_sensitive=False, ctx=None):
             if member.nick and predicate(member.nick):
                 return member
 
-    p = lambda u: str(u).startswith(s) if case_sensitive else lambda u: str(u).lower().startswith(s)
-    found = filter_users(p)
-    s = '`<@!{}>` {}'
+    if case_sensitive:
+        def pred(u):
+            return str(u).startswith(s)
+    else:
+        def pred(u):
+            return str(u).lower().startswith(s)
+
+    found = filter_users(pred)
+    # s = '`<@!{}>` {}'  what is this????
     if found:
         return found
 
-    p = lambda u: s in str(u) if case_sensitive else lambda u: s in str(u).lower()
-    found = filter_users(p)
+    if case_sensitive:
+        def predicate(u):
+            return s in str(u)
+    else:
+        def predicate(u):
+            return s in str(u).lower()
+    found = filter_users(predicate)
 
     return found
 

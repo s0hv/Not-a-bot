@@ -137,7 +137,7 @@ def replace_color(im, color1, color2):
     im = im.convert('RGBA')
 
     data = np.array(im)  # "data" is a height x width x 4 numpy array
-    red, green, blue, _ = data.T  # Temporarily unpack the bands for readability
+    red, green, blue, _ = data.T  # Temporarily unpack the bands for readability skipcq: PYL-E0633
 
     r, g, b = color1
     # Replace white with red... (leaves alpha values alone...)
@@ -380,7 +380,7 @@ async def raw_image_from_url(url, client, get_mime=False):
                 data.write(d)
         data.seek(0)
     except aiohttp.ClientError:
-        logger.exception('Could not download image %s' % url)
+        logger.exception(f'Could not download image {url}')
         raise ImageDownloadError('unknown error', url)
 
     if data is None:
@@ -558,7 +558,7 @@ def get_duration(frames):
 
 def fixed_gif_frames(img, func=None):
     if func is None:
-        def func(im):
+        def func(im):  # skipcq: PYL-E0102
             return im.copy()
 
     frames = []

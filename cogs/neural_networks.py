@@ -15,7 +15,7 @@ class NNLogger(Cog):
 
     @staticmethod
     def alnum(s):
-        return ' '.join([''.join(filter(str.isalnum, ss)) for ss in s.split(' ')])
+        return ' '.join(''.join(filter(str.isalnum, ss)) for ss in s.split(' '))
 
     @Cog.listener()
     async def on_message(self, msg):

@@ -25,9 +25,9 @@ def _args_to_string(args):
         String of args in format (1,2),(3,4),(5,6),...
     """
     if isinstance(args, types.GeneratorType) or isinstance(args[0], list) or isinstance(args[0], tuple):
-        return ','.join([f"({','.join(map(str, arg))})" for arg in args])
+        return ','.join(f"({','.join(map(str, arg))})" for arg in args)
     else:
-        return ','.join([f"({arg})" for arg in args])
+        return ','.join(f"({arg})" for arg in args)
 
 
 class DatabaseUtils:
@@ -186,12 +186,12 @@ class DatabaseUtils:
         if not success:
             return success
 
-        logger.info('added roles in %s' % (time.time() - t))
+        logger.info(f'added roles in {time.time() - t}')
         t1 = time.time()
 
         try:
             await self.bot.request_offline_members(guild)
-            logger.info('added offline users in %s' % (time.time() - t1))
+            logger.info(f'added offline users in {time.time() - t1}')
         except InvalidArgument:
             pass
         _m = list(guild.members)
@@ -205,7 +205,7 @@ class DatabaseUtils:
         # sql = 'DELETE userRoles FROM userRoles INNER JOIN roles WHERE roles.server=%s AND userRoles.role_id=roles.id'
         if not await execute(sql):
             return False
-        logger.info('Deleted old records in %s' % (time.time() - t1))
+        logger.info(f'Deleted old records in {time.time() - t1}')
         t1 = time.time()
 
         args = []
@@ -220,7 +220,7 @@ class DatabaseUtils:
             # This piece of spaghetti code basically creates the
             # VALUES (1,2), (3,4), (5,6)...
             # part because asyncpg doesn't support any meaningful way to do it
-            s = '(' + '),('.join([', '.join((str(u), str(r))) for u, r in args[i:i+chunk_size]]) + ')'
+            s = '(' + '),('.join(', '.join((str(u), str(r))) for u, r in args[i:i+chunk_size]) + ')'
             sql_statements.append('INSERT INTO userroles (uid, role) VALUES %s ON CONFLICT DO NOTHING' % s)
 
         try:
@@ -228,8 +228,8 @@ class DatabaseUtils:
         except PostgresError:
             return False
 
-        logger.info('added user roles in %s' % (time.time() - t1))
-        logger.info('indexed users in %s seconds' % (time.time() - t))
+        logger.info(f'added user roles in {time.time() - t1}')
+        logger.info(f'indexed users in {time.time() - t} seconds')
         return True
 
     async def index_guild_roles(self, guild):

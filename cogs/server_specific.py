@@ -859,7 +859,7 @@ class ServerSpecific(Cog):
         winners = choice(candidates, min(winners, len(candidates)), replace=False)
         if len(winners) > 0:
             winners = sorted(winners, key=lambda u: u.name)
-            description = 'Winners: {}'.format('\n'.join([user.mention for user in winners]))
+            description = 'Winners: {}'.format('\n'.join(user.mention for user in winners))
 
         added = 0
         removed = 0

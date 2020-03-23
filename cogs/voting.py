@@ -453,6 +453,7 @@ class VoteManager(Cog):
         except ValueError as e:
             return await ctx.send(f'Sanity check failed\n{e}')
 
+        # skipcq: PYL-E1102
         poll = Poll(self.bot, msg.id, ctx.channel.id, title, **args.__dict__())
         poll.start()
 

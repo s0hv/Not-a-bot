@@ -577,7 +577,7 @@ class Colors(Cog):
             return await ctx.send("This guild doesn't have any color roles")
 
         ids = set(colors.keys())
-        roles = set([r.id for r in ctx.author.roles])
+        roles = {r.id for r in ctx.author.roles}
         if not color:
             ctx.command.reset_cooldown(ctx)
             user_colors = roles.intersection(ids)
@@ -1173,10 +1173,10 @@ class Colors(Cog):
 
         s = ''
         if success:
-            s += 'Adding roles {}\n'.format(', '.join(['`%s`' % r.name for r in success]))
+            s += 'Adding roles {}\n'.format(', '.join('`%s`' % r.name for r in success))
 
         if failed:
-            s += 'Failed to find roles {}'.format(', '.join([f'`{r}`' for r in failed]))
+            s += 'Failed to find roles {}'.format(', '.join(f'`{r}`' for r in failed))
 
         for s in split_string(s, splitter=', '):
             await ctx.send(s)

@@ -42,13 +42,10 @@ class Command(commands.Command):
         self.owner_only = kwargs.pop('owner_only', False)
         self.auth = kwargs.pop('auth', Auth.NONE)
 
-        if 'required_perms' in kwargs:
-            raise DeprecationWarning('Required perms is deprecated, use "from bot.bot import has_permissions" instead')
-
         self.checks.insert(0, check_blacklist)
 
         if self.owner_only:
-            terminal.info('registered owner_only command %s' % self.name)
+            terminal.info(f'registered owner_only command {self.name}')
             self.checks.insert(0, is_owner)
 
         if 'no_pm' in kwargs or 'no_dm' in kwargs:

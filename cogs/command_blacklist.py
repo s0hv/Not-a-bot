@@ -232,8 +232,8 @@ class CommandBlacklist(Cog):
                 try:
                     await self.bot.dbutil.execute(sql, whereargs)
                 except PostgresError:
-                    logger.exception('Could not update %s with whereclause %s' % (type_string, whereclause))
-                    await ctx.send('Failed to remove %s' % type_string)
+                    logger.exception(f'Could not update {type_string} with whereclause {whereclause}')
+                    await ctx.send(f'Failed to remove {type_string}')
                     return False
                 else:
                     return
@@ -242,8 +242,8 @@ class CommandBlacklist(Cog):
                 try:
                     await self.bot.dbutil.execute(sql, (type_, row['id']))
                 except PostgresError:
-                    logger.exception('Could not update %s with whereclause %s' % (type_string, whereclause))
-                    await ctx.send('Failed to remove %s' % type_string)
+                    logger.exception(f'Could not update {type_string} with whereclause {whereclause}')
+                    await ctx.send(f'Failed to remove {type_string}')
                     return False
                 else:
                     return True
@@ -266,8 +266,8 @@ class CommandBlacklist(Cog):
             try:
                 await self.bot.dbutil.execute(sql, values.values())
             except PostgresError:
-                logger.exception('Could not set values %s' % values)
-                await ctx.send('Failed to set %s' % type_string)
+                logger.exception(f'Could not set values {values}')
+                await ctx.send(f'Failed to set {type_string}')
                 return False
 
         return True

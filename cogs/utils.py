@@ -236,7 +236,7 @@ class Utilities(Cog):
                                       stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
                 s2 = subprocess.Popen(
-                    shlex.split('grep -Po "total +\K([0-9])+(?=K)"'),
+                    shlex.split(r'grep -Po "total +\K([0-9])+(?=K)"'),
                     stdin=s1.stdout, stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
                 s1.stdin.close()

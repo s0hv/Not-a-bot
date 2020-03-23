@@ -29,8 +29,6 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
 
 from bot.bot import Bot, command
 from bot.dbutil import DatabaseUtils
@@ -47,23 +45,10 @@ class Ganypepe(Bot):
     def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
         super().__init__(prefix, conf, aiohttp, **options)
         self.test_mode = test_mode
-        self._setup()
         self.threadpool = ThreadPoolExecutor(max_workers=4)
         self._dbutil = DatabaseUtils(self)
         self.music_players = {}
         self._exit_code = 0
-
-    def _setup(self):
-        db = 'discord' if not self.test_mode else 'test'
-        engine = create_engine('mysql+pymysql://{0.sfx_db_user}:{0.sfx_db_pass}@{0.db_host}:{0.db_port}/{1}?charset=utf8mb4'.format(self.config, db),
-                               encoding='utf8', pool_recycle=36000)
-        session_factory = sessionmaker(bind=engine)
-        Session = scoped_session(session_factory)
-        self._Session = Session
-
-    @property
-    def get_session(self):
-        return self._Session()
 
     @property
     def dbutil(self):
@@ -84,7 +69,7 @@ class Ganypepe(Bot):
                     pass
 
     async def on_ready(self):
-        terminal.info('Logged in as {0.user.name}'.format(self))
+        terminal.info(f'Logged in as {self.user}')
         await self.change_presence(activity=discord.Game(name=self.config.sfx_game))
         await self._load_cogs()
         try:

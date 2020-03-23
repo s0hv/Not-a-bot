@@ -65,8 +65,8 @@ def create_folders():
     _create_folder(join(_wd, 'data'))
 
     if not os.path.exists(PLAYLISTS):
-        terminal.error('Path %s does not exist' % PLAYLISTS)
-        raise FileNotFoundError('Path %s does not exist' % PLAYLISTS)
+        terminal.error(f'Path {PLAYLISTS} does not exist')
+        raise FileNotFoundError(f'Path {PLAYLISTS} does not exist')
 
     _create_folder(SFX_FOLDER)
 
@@ -80,7 +80,7 @@ create_folders()
 if not os.path.exists(AUTOPLAYLIST) and os.path.exists(join(PLAYLISTS, '_autoplaylist.txt')):
     try:
         shutil.copyfile(join(PLAYLISTS, '_autoplaylist.txt'), AUTOPLAYLIST)
-    except Exception:
+    except OSError:
         terminal.exception('Autoplaylist copying failed')
 
 

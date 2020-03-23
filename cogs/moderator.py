@@ -706,7 +706,7 @@ class Moderator(Cog):
             except discord.Forbidden:
                 pass
             except discord.HTTPException:
-                terminal.exception('Could not autounmute user %s' % user.id)
+                terminal.exception(f'Could not autounmute user {user.id}')
         await self.remove_timeout(user.id, guild.id)
 
     @command(no_pm=True)
@@ -812,7 +812,7 @@ class Moderator(Cog):
 
         author = ctx.author
         is_admin = author.guild_permissions.administrator
-        ids = ', '.join([str(i) for i in ids])
+        ids = ', '.join(map(str, ids))
 
         if is_admin:
             where = f'guild={ctx.guild.id} AND '
@@ -1308,7 +1308,7 @@ class Moderator(Cog):
                 ids.extend(channel_messages[k])
 
         if ids:
-            sql = 'DELETE FROM messages WHERE message_id IN (%s)' % ', '.join([str(i.id) for i in ids])
+            sql = 'DELETE FROM messages WHERE message_id IN (%s)' % ', '.join(str(i.id) for i in ids)
             try:
                 await self.bot.dbutil.execute(sql)
             except PostgresError:

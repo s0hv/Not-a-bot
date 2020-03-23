@@ -394,6 +394,9 @@ class Playlist:
         async def _on_error(e):
             try:
                 if not no_message:
+                    # skipcq: PYL-W0631
+                    # We want to get the error for the current entry in the loop so
+                    # we access the loop variable here
                     await channel.send('Failed to process {}'.format(entry.get('id')))
             except discord.HTTPException:
                 pass

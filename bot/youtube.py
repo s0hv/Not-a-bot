@@ -73,7 +73,7 @@ class Part(Enum):
 
     @staticmethod
     def combine(*parts):
-        return ','.join([p.value for p in parts])
+        return ','.join(p.value for p in parts)
 
 
 class YTApi:

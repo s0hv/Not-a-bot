@@ -508,6 +508,9 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
 
         args.append('pipe:1')
 
+        # skipcq: PYL-E1003
+        # This is an intentional choice since we don't wanna call the parent
+        # init but instead the init of its parent
         super(player.FFmpegPCMAudio, self).__init__(source, executable=executable,
                                                     args=args, **subprocess_kwargs)
 
@@ -623,7 +626,7 @@ class AudioPlayer(player.AudioPlayer):
 
         self.set_source(new_source, run_loops, speed)
 
-    def _set_source(self, source, run_loops=None, speed=None):
+    def _set_source(self, source, run_loops=None, speed=None):  # skipcq: PYL-W0221
         with self._lock:
             self.pause()
             if run_loops is not None:

@@ -124,7 +124,7 @@ class R9K(Cog):
                 logger.exception('Failed to mute for r9k violation')
                 return
 
-            time = timedelta(minutes=10)
+            time = timedelta(minutes=5)
             await moderator.add_timeout(
                 await self.bot.get_context(msg), guild.id, msg.author.id,
                 datetime.utcnow() + time,

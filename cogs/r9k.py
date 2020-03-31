@@ -96,6 +96,7 @@ class R9K(Cog):
         # Remove zalgo text
         content = unzalgo.unzalgo(content)
         content = self.emote_regex.sub(r'\1', content)
+        content = content.replace('\u200d', '').replace('\u200b', '').replace('  ', ' ')
 
         # All values will be indexed in lowercase
         sql = 'INSERT INTO r9k (message) VALUES ($1) ON CONFLICT DO NOTHING RETURNING 1'

@@ -75,7 +75,7 @@ class AprilFools(Cog):
         def f(u):
             return u.id not in self._infected
 
-        m = random.choice(list(map(f, list(self.bot.get_guild(self._guild).members))))
+        m = random.choice(list(filter(f, list(self.bot.get_guild(self._guild).members))))
         await self.add_infected(m.id)
 
     async def cache_infected(self):

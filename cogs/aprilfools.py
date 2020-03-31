@@ -36,7 +36,7 @@ class User:
 class AprilFools(Cog):
     INFECTION_RATE = 0.08
     SPAM_RATE = 0.03
-    DEATH_RATE = 0.1
+    DEATH_RATE = 0.2
     RECOVERY_RATE = 0.03
     USER_COUNT = 5
     INFECTION_DURATION_MAX = 60*120

@@ -800,7 +800,10 @@ class Server(Cog):
         user = message.author
         if user.id in guild_afk:
             guild_afk.pop(user.id, None)
-            await message.channel.send(f'`{user}` is no longer afk', delete_after=10)
+            try:
+                await message.channel.send(f'`{user}` is no longer afk', delete_after=10)
+            except discord.HTTPException:
+                pass
             return
 
         mentions = message.mentions
@@ -829,8 +832,11 @@ class Server(Cog):
             afk = afks[0]
             messages = (f'{afk.user} is afk {format_timedelta(int(time.time()-afk.timestamp), DateAccuracy.Hour-DateAccuracy.Minute)} ago: {afk.message}'[:2000], )
 
-        for msg in messages:
-            await message.channel.send(msg)
+        try:
+            for msg in messages:
+                await message.channel.send(msg)
+        except discord.HTTPException:
+            return
 
     @command(np_pm=True)
     @cooldown(1, 5, BucketType.user)

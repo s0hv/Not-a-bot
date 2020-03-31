@@ -920,6 +920,9 @@ class ServerSpecific(Cog):
         if message.type != discord.MessageType.default:
             return
 
+        if isinstance(message.author, discord.User):
+            return
+
         moderator = self.bot.get_cog('Moderator')
         if not moderator:
             return

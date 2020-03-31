@@ -164,20 +164,20 @@ class Bot(commands.Bot, Client):
         if hasattr(exception, 'original'):
             exception = exception.original
 
-        if isinstance(exception, commands.errors.CommandNotFound) or \
-                isinstance(exception, exceptions.SilentException) or \
-                isinstance(exception, exceptions.PermException) or \
-                isinstance(exception, discord.Forbidden) or \
-                isinstance(exception, exceptions.NotOwner) or \
-                isinstance(exception, ClientConnectionError) or \
-                isinstance(exception, commands.errors.DisabledCommand):
+        if isinstance(exception, (commands.errors.CommandNotFound,
+                                  exceptions.SilentException,
+                                  exceptions.PermException,
+                                  discord.Forbidden,
+                                  exceptions.NotOwner,
+                                  ClientConnectionError,
+                                  commands.errors.DisabledCommand)):
             return
 
         channel = context.channel
 
-        if isinstance(exception, commands.errors.BotMissingPermissions) or \
-           isinstance(exception, commands.errors.MissingPermissions) or \
-           isinstance(exception, exceptions.MissingFeatures):
+        if isinstance(exception, (commands.errors.BotMissingPermissions,
+                                  commands.errors.MissingPermissions,
+                                  exceptions.MissingFeatures)):
 
             if self._check_error_cd(context.message):
                 try:
@@ -202,11 +202,12 @@ class Bot(commands.Bot, Client):
 
             error_msg = 'Command on cooldown. Try again in {}'.format(seconds2str(exception.retry_after, False))
 
-        elif isinstance(exception, commands.errors.BadArgument) or \
-             isinstance(exception, commands.errors.MissingRequiredArgument) or \
-             isinstance(exception, commands.BadUnionArgument) or \
-             isinstance(exception, commands.errors.UnexpectedQuoteError) or \
-             isinstance(exception, commands.errors.InvalidEndOfQuotedStringError):
+        elif isinstance(exception, (commands.errors.BadArgument,
+                                    commands.errors.MissingRequiredArgument,
+                                    commands.BadUnionArgument,
+                                    commands.UnexpectedQuoteError,
+                                    commands.ExpectedClosingQuoteError,
+                                    commands.InvalidEndOfQuotedStringError)):
             error_msg = str(exception)
 
         elif isinstance(exception, exceptions.CommandBlacklisted):

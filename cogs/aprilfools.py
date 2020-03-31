@@ -191,8 +191,7 @@ class AprilFools(Cog):
         await guild.get_channel(694606250830331935).set_permissions(guild.default_role, read_messages=True)
 
         for c in guild.categories:
-            if c.id in (561966590124490763, 360692585687285761, 360730963598245891,
-                        360694903824580608, 360699176394293248, 360697181558145024):
+            if c.id not in (360692585687285761,):
                 continue
 
             for cc in c.channels:

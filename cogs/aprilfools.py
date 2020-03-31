@@ -100,7 +100,7 @@ class AprilFools(Cog):
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        if payload.message_id != 561980345239601173:
+        if payload.message_id != 694618933847916554:
             return
 
         guild = self.bot.get_guild(217677285442977792)

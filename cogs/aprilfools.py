@@ -41,7 +41,7 @@ class AprilFools(Cog):
     USER_COUNT = 5
     INFECTION_DURATION_MAX = 60*120
     INFECTION_DURATION_MIN = 60*60
-    RANDOM_INFECTION_INTERVAL = 60*30
+    RANDOM_INFECTION_INTERVAL = 60*18
 
     def __init__(self, bot):
         super().__init__(bot)
@@ -75,7 +75,7 @@ class AprilFools(Cog):
         def f(u):
             return u.id not in self._infected
 
-        m = random.choice(map(f, self.bot.get_guild(self._guild).members))
+        m = random.choice(list(map(f, list(self.bot.get_guild(self._guild).members))))
         await self.add_infected(m.id)
 
     async def cache_infected(self):

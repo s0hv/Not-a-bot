@@ -474,7 +474,14 @@ create table users
     primary key (id)
 );
 
+CREATE EXTENSION IF NOT EXISTS citext;
 CREATE TABLE r9k
 (
-    message TEXT PRIMARY KEY
+    message CITEXT PRIMARY KEY
+);
+
+CREATE TABLE infections (
+    uid BIGINT PRIMARY KEY,
+    status BOOL DEFAULT NULL,
+    infected_at timestamp DEFAULT current_timestamp NOT NULL
 );

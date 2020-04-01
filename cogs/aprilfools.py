@@ -132,13 +132,13 @@ class AprilFools(Cog):
         try:
             rows = await self.bot.dbutil.fetch("SELECT uid "
                                                "FROM infections "
-                                               "WHERE status IS NULL AND %s - infected_at > $1",
+                                               "WHERE status IS NULL AND $1 - infected_at > $2",
                                             (datetime.utcnow(), timedelta(seconds=self.INFECTION_DURATION_MAX),))
 
             for row in rows:
                 await self.recover(row['uid'])
 
-            row = await self.bot.dbutil.fetch("SELECT MIN(%s - infected_at) as min FROM infections WHERE status IS NULL", (datetime.utcnow()), fetchmany=False)
+            row = await self.bot.dbutil.fetch("SELECT MIN($1 - infected_at) as min FROM infections WHERE status IS NULL", (datetime.utcnow()), fetchmany=False)
         except:
             logger.exception('Failed to process infected')
             row = None

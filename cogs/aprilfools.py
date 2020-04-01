@@ -187,20 +187,47 @@ class AprilFools(Cog):
     @command()
     @is_owner()
     async def create_perms(self, ctx):
-        guild = ctx.guild
+        g = ctx.guild
+        df = g.default_role
 
-        await guild.get_channel(694606250830331935).set_permissions(guild.default_role, read_messages=True)
+        rows = await self.bot.dbutil.fetch("SELECT uid "
+                                           "FROM infections "
+                                           "WHERE status IS NULL")
 
-        for c in guild.categories:
-            if c.id not in (360692585687285761,):
+        for row in rows:
+            await self.recover(row['uid'])
+
+        self.bot.unload_extension('cogs.r9k')
+
+        # april fools channels
+        for c in [694606329964134551, 694606250830331935, 694606372813406369]:
+            c = g.get_channel(c)
+            await c.set_permissions(df, send_messages=False, read_messages=None)
+
+        # talk here
+        cat = g.get_channel(360694488290689024)
+        await cat.set_permissions(df, read_messages=None)
+        for c in cat.channels:
+            if c.id in (341610158755020820, 509462073432997890, 515620023457546243, 384422173462364163):
                 continue
+            await c.set_permissions(df, read_messages=None)
 
-            for cc in c.channels:
-                await cc.set_permissions(guild.default_role, read_messages=False)
+        r = g.get_role(492737863931265034)
+        await g.get_channel(509462073432997890).set_permissions(r, read_messages=True)
+        await g.get_channel(515620023457546243).set_permissions(r, read_messages=True)
 
-        chn = [484450452243742720, 384422173462364163, 509462073432997890]
-        for c in chn:
-            await guild.get_channel(c).set_permissions(guild.default_role, read_messages=False)
+        r = g.get_role(455444415960317952)
+        await g.get_channel(384422173462364163).set_permissions(r, read_messages=True)
+
+        await g.get_channel(360699176394293248).set_permissions(df, read_messages=None)
+
+        for c in g.get_channel(360695301457313792).channels:
+            if c.id in (499656404399947796, 338523738997915649):
+                continue
+            await c.set_permissions(df, read_messages=None)
+
+        await g.get_channel(694606250830331935).send('Hopefully this automated system ended the event successfully. Some channels will be reactivated later')
+        self.bot.unload_extension('cogs.aprilfools')
 
     @Cog.listener()
     async def on_message(self, msg):

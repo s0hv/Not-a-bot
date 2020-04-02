@@ -573,8 +573,6 @@ class Moderator(Cog):
             if not counter_counter:
                 counter = random() < 0.05
 
-            counter = not counter_counter
-
             choices = [user, ctx.author]
 
             if random() < 0.5:

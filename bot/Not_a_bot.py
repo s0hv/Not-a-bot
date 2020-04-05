@@ -61,6 +61,7 @@ class NotABot(BotBase):
         self._server = WebhookServer(self)
         self.redis = None
         self.antispam = True
+        self._ready = False
 
     @property
     def server(self):
@@ -133,8 +134,18 @@ class NotABot(BotBase):
         logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
 
     async def on_ready(self):
-        self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
         terminal.info(f'Logged in as {self.user.name}')
+
+        # If this has been already called once only do a subset of actions
+        if self._ready:
+            if self._random_color is None or self._random_color.done():
+                self._random_color = self.loop.create_task(self._random_color_task())
+
+            if self.config.default_activity:
+                await self.change_presence(activity=discord.Activity(**self.config.default_activity))
+            return
+
+        self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
         await self.dbutil.add_command('help')
         try:
             await self.cache_guilds()
@@ -152,6 +163,7 @@ class NotABot(BotBase):
         if self._random_color is None or self._random_color.done():
             self._random_color = self.loop.create_task(self._random_color_task())
         terminal.debug('READY')
+        self._ready = True
 
     async def _random_color_task(self):
         if self.test_mode:

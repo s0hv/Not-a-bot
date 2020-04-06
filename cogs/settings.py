@@ -383,11 +383,12 @@ class Settings(Cog):
         message = self.cache.on_delete_message(guild.id)
         channel = self.cache.on_delete_channel(guild.id)
         embed = self.cache.on_delete_embed(guild.id)
-        if message is None and channel is None:
+        if message is None:
+            message = self.cache.on_delete_message(guild.id, default_message=True)
+
+        if channel is None:
             return await ctx.send("On message delete channel hasn't been set\n"
                                   f"Use `{ctx.prefix}{ctx.invoked_with} channel <channel>` to set one")
-        elif message is None:
-            message = self.cache.on_delete_message(guild.id, default_message=True)
 
         msg = f'Current format in channel <#{channel}>{" using embed" if embed else ""}\n{message}'
         await ctx.send(msg)
@@ -477,10 +478,10 @@ class Settings(Cog):
         message = self.cache.on_edit_message(guild.id)
         channel = self.cache.on_edit_channel(guild.id)
         embed = self.cache.on_edit_embed(guild.id)
-        if message is None and channel is None:
+        if channel is None:
             return await ctx.send("On message edit channel hasn't been set\n"
                                   f"Use `{ctx.prefix}{ctx.invoked_with} channel <channel>` to set one")
-        elif message is None:
+        if message is None:
             message = self.cache.on_edit_message(guild.id, default_message=True)
 
         msg = f'Current format in channel <#{channel}>{" using embed" if embed else ""}\n{message}'

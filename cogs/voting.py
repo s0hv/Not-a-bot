@@ -9,6 +9,7 @@ import discord
 import numpy
 from asyncpg.exceptions import PostgresError
 from discord.ext.commands import BucketType
+from emoji import emoji_count
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
 from bot.formatter import EmbedLimits
@@ -25,8 +26,8 @@ def parse_emote(emote, only_id=False):
 
     animated, name, emote_id = get_emote_name_id(emote)
     if name is None:
-        if len(emote) > 2:
-            # If length is more than 2 it's most likely not an unicode char
+        if len(emote) > 7 or emoji_count(emote) == 0:
+            # If length is more than 7 it's most likely not an unicode char
             return
 
         return emote
@@ -508,9 +509,12 @@ class VoteManager(Cog):
         expires_in = parse_time(' '.join(parsed.time))
         if expires_in.total_seconds() == 0:
             await ctx.send('No time specified or time given is 0 seconds')
+            ctx.command.reset_cooldown(ctx)
             return
         if expires_in.days > 14:
-            return await ctx.send('Maximum time is 14 days')
+            ctx.command.reset_cooldown(ctx)
+            await ctx.send('Maximum time is 14 days')
+            return
 
         now = datetime.utcnow()
         expired_date = now + expires_in

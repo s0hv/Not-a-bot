@@ -299,18 +299,23 @@ class Server(Cog):
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def delete_emote(self, ctx, *, emote: GuildEmoji):
-        await ctx.send('Do you want to delete the emoji {0} {0.name} `{0.id}`'.format(emote))
+    async def delete_emote(self, ctx, emotes: Greedy[GuildEmoji]):
+        """
+        Delete one or more emotes from this server
+        """
+
+        await ctx.send(f'Do you want to delete the emote(s) {" ".join([str(e) for e in emotes])}')
         if not await wait_for_yes(ctx, 30):
             return
 
         try:
-            await emote.delete()
+            for emote in emotes:
+                await emote.delete()
         except discord.HTTPException as e:
-            await ctx.send('Failed to delete emote because of an error\n%s' % e)
+            await ctx.send('Failed to delete emote %s because of an error\n%s' % (emote, e))
 
         else:
-            await ctx.send(f'Deleted emote {emote.name} `{emote.id}`')
+            await ctx.send(f'Deleted emotes {" ".join([e.name for e in emotes])}')
 
     @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji', 'add_emtoe'])
     @cooldown(2, 6, BucketType.guild)

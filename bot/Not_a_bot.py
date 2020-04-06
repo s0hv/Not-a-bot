@@ -61,7 +61,7 @@ class NotABot(BotBase):
         self._server = WebhookServer(self)
         self.redis = None
         self.antispam = True
-        self._ready = False
+        self._ready_called = False
 
     @property
     def server(self):
@@ -137,7 +137,7 @@ class NotABot(BotBase):
         terminal.info(f'Logged in as {self.user.name}')
 
         # If this has been already called once only do a subset of actions
-        if self._ready:
+        if self._ready_called:
             if self._random_color is None or self._random_color.done():
                 self._random_color = self.loop.create_task(self._random_color_task())
 
@@ -163,7 +163,7 @@ class NotABot(BotBase):
         if self._random_color is None or self._random_color.done():
             self._random_color = self.loop.create_task(self._random_color_task())
         terminal.debug('READY')
-        self._ready = True
+        self._ready_called = True
 
     async def _random_color_task(self):
         if self.test_mode:

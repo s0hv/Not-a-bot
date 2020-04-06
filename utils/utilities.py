@@ -917,8 +917,8 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         str: formatted time
 
     """
-    if isinstance(td, int):
-        sec = td
+    if isinstance(td, (int, float)):
+        sec = int(td)
     else:
         sec = int(td.total_seconds())
 

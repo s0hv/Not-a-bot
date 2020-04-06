@@ -855,7 +855,7 @@ class Server(Cog):
         self.afks[ctx.guild.id][ctx.author.id] = AFK(ctx.author, message.strip())
         await ctx.send(f'`{ctx.author}` is now afk')
 
-    @command()
+    @command(aliases=['delete_afk', 'clear_afk'])
     @has_permissions(manage_roles=True)
     @cooldown(2, 4, BucketType.guild)
     async def remove_afk(self, ctx, *, user: discord.User):

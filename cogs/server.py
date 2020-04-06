@@ -502,12 +502,12 @@ class Server(Cog):
 
     @command(no_pm=True)
     @cooldown(1, 10, BucketType.user)
-    async def join_date(self, ctx):
+    async def join_date(self, ctx, user: discord.User=None):
         """
         Returns the first recorded join date to this server.
         Dates before December 17th 2019 might not be the earliest join date
         """
-        user = ctx.author
+        user = user or ctx.author
         date = await self.bot.dbutil.get_join_date(user.id, ctx.guild.id)
         if not date:
             await ctx.send('No join date logged for user or an error happened')
@@ -858,7 +858,7 @@ class Server(Cog):
     @command()
     @has_permissions(manage_roles=True)
     @cooldown(2, 4, BucketType.guild)
-    async def remove_afk(self, ctx, *, user: discord.Member):
+    async def remove_afk(self, ctx, *, user: discord.User):
         """
         Removes the afk of the mentioned user on this server
         """

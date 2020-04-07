@@ -18,8 +18,11 @@ class DBApi(Cog):
         self.update_task = None
         self.dbl = None
         if not self.bot.test_mode:
-            self.dbl = dbl.Client(self.bot, self._token, loop=bot.loop)
-            self.update_task = self.bot.loop.create_task(self.update_stats())
+            asyncio.run_coroutine_threadsafe(self._thread_safe_init(), loop=self.bot.loop)
+
+    async def _thread_safe_init(self):
+        self.dbl = dbl.Client(self.bot, self._token, loop=self.bot.loop)
+        self.update_task = self.bot.loop.create_task(self.update_stats())
 
     async def on_vote(self, json):
         s = f'<@{json["user"]}> voted for <@{json["bot"]}>'

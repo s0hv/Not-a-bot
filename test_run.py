@@ -62,6 +62,8 @@ handler = logging.FileHandler(filename='audio.log', encoding='utf-8', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
+logging.getLogger('asyncio').setLevel(logging.DEBUG)
+
 terminal.info('testing colors')
 terminal.debug('test')
 terminal.warning('test')

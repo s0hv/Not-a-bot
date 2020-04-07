@@ -1,5 +1,5 @@
 import time
-from asyncio import Lock
+from asyncio import Lock, TimeoutError
 from collections import OrderedDict
 
 import discord
@@ -190,7 +190,12 @@ class Settings(Cog):
                 await ctx.send(f'Current role for muted people is {role} `{role_id}`\n'
                                f'Specify a role with the command to change it or say `clear` to clear the current role')
 
-                msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=20)
+                try:
+                    msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=20)
+                except TimeoutError:
+                    await ctx.send('Cancelling')
+                    return
+
                 if msg.content and msg.content.strip().lower() == 'clear':
                     await self.bot.guild_cache.set_mute_role(guild.id, None)
                     await ctx.send('Removed current mute_role')

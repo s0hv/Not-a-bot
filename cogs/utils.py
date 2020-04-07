@@ -289,7 +289,7 @@ class Utilities(Cog):
         embed.add_field(name='Users', value=str(users))
         embed.add_field(name='Memory usage', value=memory_usage)
         embed.add_field(name='Last updated', value=last_updated)
-        embed.add_field(name='Most used commands', value=top_cmd, inline=False)
+        embed.add_field(name='Most used commands', value=top_cmd)
         embed.set_thumbnail(url=get_avatar(self.bot.user))
         embed.set_author(name=self.bot.user.name, icon_url=get_avatar(self.bot.user))
 

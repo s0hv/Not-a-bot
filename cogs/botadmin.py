@@ -179,6 +179,7 @@ class BotAdmin(Cog):
         context['await'] = disgusting
         context['awaitt'] = disgusting
         context['source'] = get_source
+        context['src'] = get_source
         context['code_block'] = code_block
         context['no_format'] = no_pformat
 
@@ -213,12 +214,12 @@ class BotAdmin(Cog):
             self._last_result = e
             retval = f'```py\n{e}\n{traceback.format_exc()}\n```'
         else:
-            if retval:
+            if retval is not None:
                 if not isinstance(retval, str) and not isinstance(retval, NonFormatted):
                     retval = NoStringWrappingPrettyPrinter(width=1).pformat(retval)
                 retval = f'{retval}\n{stdout.getvalue()}'
             else:
-                retval = f'{stdout.getvalue() or None}'
+                retval = f'{stdout.getvalue()}'
 
         if len(retval) > 2000:
             await ctx.send(file=discord.File(StringIO(retval), filename='result.py'))

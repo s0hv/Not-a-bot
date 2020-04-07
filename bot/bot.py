@@ -66,7 +66,7 @@ __all__ = [
 
 
 class Context(commands.context.Context):
-    __slots__ = ('override_perms', 'skip_check', 'original_user', 'domain',
+    __slots__ = ('override_perms', 'skip_check', 'original_user',
                  'received_at')
 
     undo_messages = {}
@@ -77,7 +77,6 @@ class Context(commands.context.Context):
         self.original_user = self.author  # Used to determine original user with runas
         # Used when wanting to skip database check like in help command
         self.skip_check = attrs.pop('skip_check', False)
-        self.domain = attrs.get('domain', None)
         self.received_at = attrs.get('received_at', None)
 
     async def undo(self):
@@ -112,17 +111,12 @@ class Context(commands.context.Context):
         return msg
 
 
-class Client(discord.Client):
-    def __init__(self, loop=None, **options):
-        super().__init__(loop=loop, **options)
-        self._exit_code = 0
-
-
-class Bot(commands.Bot, Client):
+class Bot(commands.AutoShardedBot):
     def __init__(self, prefix, config, aiohttp=None, **options):
         options.setdefault('help_command', HelpCommand())
         super().__init__(prefix, owner_id=config.owner, **options)
         self._runas = None
+        self._exit_code = 0
 
         log.debug('Using loop {}'.format(self.loop))
         if aiohttp is None:

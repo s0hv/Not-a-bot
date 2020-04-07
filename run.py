@@ -92,7 +92,7 @@ except:
     model = None
 
 
-bot = NotABot(prefix='!', conf=config, max_messages=10000, cogs=initial_cogs, model=model)
+bot = NotABot(prefix='!', conf=config, max_messages=10000, cogs=initial_cogs, model=model, shard_count=2)
 bot.run(config.token)
 
 # We have systemctl set up in a way that different exit codes

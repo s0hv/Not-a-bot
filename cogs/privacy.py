@@ -33,9 +33,10 @@ class Privacy(Cog):
         The creator of this bot is not responsible for any damage this bot causes
         including but not limited to failure of a service this bot provides
         
-        Currently no support server is made but you can contact s0hvaperuna#4758 `(uid: 123050803752730624)`
-        or use the command feedback if you want support or your data removed. This will not however
-        stop the collection of data so you need to leave or remove the bot from any servers you're in.
+        Currently no support server is made but you can contact s0hvaperuna#4758 
+        `(uid: 123050803752730624)` or use the command feedback if you want 
+        support or your data removed. This will not however stop the collection
+        of data so you need to leave or remove the bot from any servers you're in.
         This does not however mean that data used exclusively for moderation will be removed.
         '''
 

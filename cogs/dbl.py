@@ -30,17 +30,19 @@ class DBApi(Cog):
         headers = {'Content-type': 'application/json'}
         await self.bot.aiohttp_client.post(self.bot.config.dbl_webhook, json=json, headers=headers)
 
-    def cog_unload(self):
-        self.bot.server.remove_listener(self.on_vote)
+    async def _thread_safe_stop(self):
         if self.update_task:
             self.update_task.cancel()
-
         if self.dbl:
             task = self.bot.loop.create_task(self.dbl.close())
             try:
-                task.result(timeout=20)
-            except (asyncio.CancelledError, asyncio.InvalidStateError, asyncio.TimeoutError):
+                await asyncio.wait_for(task, 20, loop=self.bot.loop)
+            except (asyncio.CancelledError, asyncio.InvalidStateError,
+                    asyncio.TimeoutError):
                 return
+
+    def cog_unload(self):
+        asyncio.run_coroutine_threadsafe(self._thread_safe_stop(), loop=self.bot.loop).result(21)
 
     async def update_stats(self):
         while True:

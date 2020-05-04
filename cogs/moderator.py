@@ -462,7 +462,7 @@ class Moderator(Cog):
             task = guild_timeouts.get(user.id)
             if task:
                 task.cancel()
-                await self.remove_timeout(user.id, guild.id)
+            await self.remove_timeout(user.id, guild.id)
 
         author = ctx.author
 

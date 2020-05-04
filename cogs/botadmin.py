@@ -224,7 +224,7 @@ class BotAdmin(Cog):
         if len(retval) > 2000:
             await ctx.send(file=discord.File(StringIO(retval), filename='result.py'))
         else:
-            await ctx.send(retval)
+            await ctx.send(retval or '[None]')
 
     @command(name='exec')
     async def exec_(self, ctx, *, message):

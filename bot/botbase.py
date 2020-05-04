@@ -49,8 +49,6 @@ class BotBase(Bot):
         if test_mode:
             self.loop.set_debug(True)
 
-        self.loop.set_debug(True)
-
         self._guild_cache = GuildCache(self)
         self._dbutil = DatabaseUtils(self)
         self.call_laters = {}

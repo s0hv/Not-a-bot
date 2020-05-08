@@ -714,7 +714,7 @@ class ServerSpecific(Cog):
                 await ctx.send('Invalid emoji')
                 return
 
-            if len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
+            if is_flag or len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
                 invalid = False
 
             if invalid:

@@ -690,6 +690,7 @@ class ServerSpecific(Cog):
             rotate_emoji = ''.join(rotate_emoji[:2])
             invalid = True
             emoji_check = rotate_emoji
+            is_flag = False
 
             if len(rotate_emoji) > 1:
                 try:
@@ -698,14 +699,17 @@ class ServerSpecific(Cog):
                     ctx.command.reset_cooldown(ctx)
                     return await ctx.send('Invalid emoji')
 
-                if len(emojis) != 1:
+                if len(emojis) == 2 and emojis[0] in emoji_blacklist and emojis[1] in emoji_blacklist:
+                    is_flag = True
+
+                elif len(emojis) != 1:
                     ctx.command.reset_cooldown(ctx)
                     await ctx.send('Invalid emoji given')
                     return
 
                 emoji_check = emojis[0]
 
-            if emoji_check in emoji_blacklist:
+            if not is_flag and emoji_check in emoji_blacklist:
                 ctx.command.reset_cooldown(ctx)
                 await ctx.send('Invalid emoji')
                 return

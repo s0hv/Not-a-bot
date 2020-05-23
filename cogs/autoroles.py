@@ -136,7 +136,7 @@ class AutoRoles(Cog):
             return
 
         # If user left in under 6 seconds dont save roles
-        if (time.time() - member.joined_at.timestamp()) < 6:
+        if member.joined_at is None or (time.time() - member.joined_at.timestamp()) < 6:
             return
 
         roles = [r.id for r in member.roles]

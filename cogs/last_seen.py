@@ -125,12 +125,6 @@ class LastSeen(Cog):
         self._updates.add(o)
 
     @Cog.listener()
-    async def on_typing(self, _, user, __):
-        guild = self.get_guild(user)
-        o = UserSeen(user, guild)
-        self._updates.add(o)
-
-    @Cog.listener()
     async def on_member_join(self, user):
         guild = user.guild.id
         o = UserSeen(user, guild)

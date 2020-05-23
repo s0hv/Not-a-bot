@@ -740,9 +740,6 @@ class DatabaseUtils:
 
     async def index_join_dates(self, guild):
         sql = "INSERT INTO join_dates (uid, guild, first_join) VALUES %s ON CONFLICT DO NOTHING"
-        if not guild.chunked:
-            logger.warning(f'Guild {guild.id} not chunked before join date update')
-
         chunk_size = 10000
         values = []
         sqls = []

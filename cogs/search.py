@@ -26,6 +26,7 @@ import logging
 from collections import deque
 from urllib.parse import quote_plus
 
+import discord
 from aiohttp import ClientSession
 from discord import DMChannel
 from discord.ext.commands import cooldown
@@ -112,10 +113,12 @@ class Search(Cog):
                     for item in json['items']:
                         items.append(SearchItem(**item))
 
-                    return await send_paged_message(ctx, items,
-                                                    page_method=lambda p,
-                                                                       i: str(
-                                                        p))
+                    try:
+                        await send_paged_message(ctx, items, page_method=lambda p, i: str(p))
+                    except discord.HTTPException:
+                        pass
+                    return
+
             elif r.status == 403:
                 return await ctx.send('Search quota filled for today. Resets every day at midnight Pacific Time (PT)')
             else:

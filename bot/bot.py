@@ -111,7 +111,7 @@ class Context(commands.context.Context):
         return msg
 
 
-class Bot(commands.Bot):
+class Bot(commands.AutoShardedBot):
     def __init__(self, prefix, config, aiohttp=None, **options):
         options.setdefault('help_command', HelpCommand())
         super().__init__(prefix, owner_id=config.owner, **options)

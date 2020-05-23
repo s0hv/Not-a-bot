@@ -96,39 +96,42 @@ class NotABot(BotBase):
             if len(guild.roles) < 2:
                 continue
 
-            await self.dbutil.index_guild_roles(guild)
-            await self.dbutil.index_join_dates(guild)
+            if self._ready_called:
+                await self.dbutil.index_guild_roles(guild)
+                await self.dbutil.index_join_dates(guild)
 
         logger.debug('Caching prefixes')
-        await self.dbutils.add_guilds(*new_guilds)
-        sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild'
-        rows = {}
-        for row in await self.dbutil.fetch(sql):
-            guild_id = row['guild']
-            if guild_id in rows:
-                prefix = row['prefix']
-                if prefix is not None:
-                    rows[guild_id]['prefixes'].add(prefix)
+        if new_guilds:
+            await self.dbutils.add_guilds(*new_guilds)
+            sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild'
+            rows = {}
+            for row in await self.dbutil.fetch(sql):
+                guild_id = row['guild']
+                if guild_id in rows:
+                    prefix = row['prefix']
+                    if prefix is not None:
+                        rows[guild_id]['prefixes'].add(prefix)
 
-            else:
-                d = {**row}
-                d.pop('guild', None)
-                d['prefixes'] = {d.get('prefix') or self.default_prefix}
-                d.pop('prefix', None)
-                rows[guild_id] = d
+                else:
+                    d = {**row}
+                    d.pop('guild', None)
+                    d['prefixes'] = {d.get('prefix') or self.default_prefix}
+                    d.pop('prefix', None)
+                    rows[guild_id] = d
 
-        for guild_id, row in rows.items():
-            self.guild_cache.update_cached_guild(guild_id, **row)
+            for guild_id, row in rows.items():
+                self.guild_cache.update_cached_guild(guild_id, **row)
 
-        terminal.info('Indexing user roles')
-        for guild in guilds:
-            if self.guild_cache.keeproles(guild.id):
-                if guild.unavailable:
-                    continue
+        if self._ready_called:
+            terminal.info('Indexing user roles')
+            for guild in guilds:
+                if self.guild_cache.keeproles(guild.id):
+                    if guild.unavailable:
+                        continue
 
-                success = await self.dbutil.index_guild_member_roles(guild)
-                if not success:
-                    raise EnvironmentError('Failed to cache keeprole servers')
+                    success = await self.dbutil.index_guild_member_roles(guild)
+                    if not success:
+                        raise EnvironmentError('Failed to cache keeprole servers')
 
         terminal.info('Guilds cached')
         logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
@@ -179,7 +182,7 @@ class NotABot(BotBase):
 
         while True:
             try:
-                await asyncio.sleep(3600)
+                await asyncio.sleep(3600*3)
             except asyncio.CancelledError:
                 return
 

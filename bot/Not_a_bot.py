@@ -103,24 +103,25 @@ class NotABot(BotBase):
         logger.debug('Caching prefixes')
         if new_guilds:
             await self.dbutils.add_guilds(*new_guilds)
-            sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild'
-            rows = {}
-            for row in await self.dbutil.fetch(sql):
-                guild_id = row['guild']
-                if guild_id in rows:
-                    prefix = row['prefix']
-                    if prefix is not None:
-                        rows[guild_id]['prefixes'].add(prefix)
 
-                else:
-                    d = {**row}
-                    d.pop('guild', None)
-                    d['prefixes'] = {d.get('prefix') or self.default_prefix}
-                    d.pop('prefix', None)
-                    rows[guild_id] = d
+        sql = 'SELECT guilds.*, prefixes.prefix FROM guilds LEFT OUTER JOIN prefixes ON guilds.guild=prefixes.guild'
+        rows = {}
+        for row in await self.dbutil.fetch(sql):
+            guild_id = row['guild']
+            if guild_id in rows:
+                prefix = row['prefix']
+                if prefix is not None:
+                    rows[guild_id]['prefixes'].add(prefix)
 
-            for guild_id, row in rows.items():
-                self.guild_cache.update_cached_guild(guild_id, **row)
+            else:
+                d = {**row}
+                d.pop('guild', None)
+                d['prefixes'] = {d.get('prefix') or self.default_prefix}
+                d.pop('prefix', None)
+                rows[guild_id] = d
+
+        for guild_id, row in rows.items():
+            self.guild_cache.update_cached_guild(guild_id, **row)
 
         if not self._ready_called:
             terminal.info('Indexing user roles')

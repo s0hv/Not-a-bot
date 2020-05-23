@@ -96,7 +96,7 @@ class NotABot(BotBase):
             if len(guild.roles) < 2:
                 continue
 
-            if self._ready_called:
+            if not self._ready_called:
                 await self.dbutil.index_guild_roles(guild)
                 await self.dbutil.index_join_dates(guild)
 
@@ -122,7 +122,7 @@ class NotABot(BotBase):
             for guild_id, row in rows.items():
                 self.guild_cache.update_cached_guild(guild_id, **row)
 
-        if self._ready_called:
+        if not self._ready_called:
             terminal.info('Indexing user roles')
             for guild in guilds:
                 if self.guild_cache.keeproles(guild.id):

@@ -74,11 +74,13 @@ class Logger(Cog):
     @Cog.listener()
     async def on_message(self, message):
         await self.check_mentions(message)
-        sql = "INSERT INTO messages (guild, channel, user_id, message_id) " \
-              "VALUES ($1, $2, $3, $4)"
-
         d, attachment = self.format_for_db(message)
-        await self.bot.dbutil.execute(sql, d)
+
+        if message.guild and message.guild.id in (217677285442977792,475623556164878347):
+            sql = "INSERT INTO messages (guild, channel, user_id, message_id) " \
+                  "VALUES ($1, $2, $3, $4)"
+
+            await self.bot.dbutil.execute(sql, d)
 
         # Channel index is 1
         if attachment and d[1]:

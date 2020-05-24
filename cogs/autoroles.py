@@ -80,10 +80,10 @@ class AutoRoles(Cog):
         roles = set()
         muted_role = self.bot.guild_cache.mute_role(guild.id)
         if self.bot.guild_cache.keeproles(guild.id):
-            sql = 'SELECT roles.id FROM users LEFT OUTER JOIN userroles ON users.id=userroles.uid LEFT OUTER JOIN roles ON roles.id=userroles.role ' \
-                  'WHERE roles.guild=%s AND users.id=%s' % (guild.id, member.id)
+            sql = 'SELECT roles.id FROM userroles LEFT OUTER JOIN roles ON roles.id=userroles.role ' \
+                  'WHERE roles.guild=%s AND userroles.uid=%s' % (guild.id, member.id)
 
-            roles = {r['id'] for r in await self.bot.dbutil.fetch(sql)}
+            roles = {r['id'] for r in await self.bot.dbutil.fetch(sql) if r['id']}
             if not roles:
                 return await self.add_random_color(member)
 

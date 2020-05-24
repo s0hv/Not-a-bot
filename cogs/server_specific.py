@@ -156,9 +156,9 @@ waifus = [('Billy Herrington', 3, 1000006, 'ビリー・ヘリントン', ['http
                                                      'https://remilia.cirno.pw/image/148394/5a1e0587-ad4e-477a-b84e-d2ae973f920f.jpg'])
           ]
 
-chances = [t[1] for t in waifus]
-_s = sum(chances)
-chances = [p/_s for p in chances]
+waifu_chances = [t[1] for t in waifus]
+_s = sum(waifu_chances)
+waifu_chances = [p / _s for p in waifu_chances]
 del _s
 
 FILTERED_ROLES = {321374867557580801, 331811458012807169, 361889118210359297,
@@ -1344,7 +1344,7 @@ class ServerSpecific(Cog):
             return
 
         # Get random waifu
-        waifu = choice(len(waifus), p=chances)
+        waifu = choice(len(waifus), p=waifu_chances)
         waifu = waifus[waifu]
 
         # Get initials for a character

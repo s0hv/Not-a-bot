@@ -78,6 +78,7 @@ class AutoRoles(Cog):
             return
 
         roles = set()
+        muted_role = self.bot.guild_cache.mute_role(guild.id)
         if self.bot.guild_cache.keeproles(guild.id):
             sql = 'SELECT roles.id FROM users LEFT OUTER JOIN userroles ON users.id=userroles.uid LEFT OUTER JOIN roles ON roles.id=userroles.role ' \
                   'WHERE roles.guild=%s AND users.id=%s' % (guild.id, member.id)
@@ -88,10 +89,9 @@ class AutoRoles(Cog):
 
             roles.discard(guild.default_role.id)
 
-            muted_role = self.bot.guild_cache.mute_role(guild.id)
-            if muted_role in roles:
+            if muted_role in roles and len(roles) < 5:
                 try:
-                    await member.add_roles(Snowflake(muted_role), reason='[Keeproles] add muted role first')
+                    await member.add_roles(Snowflake(muted_role), atomic=True, reason='[Keeproles] add muted role first')
                     roles.discard(muted_role)
                 except (discord.NotFound, discord.Forbidden):
                     pass
@@ -109,9 +109,11 @@ class AutoRoles(Cog):
 
         if roles:
             roles = [Snowflake(r) for r in roles]
+            if muted_role and len(roles) >= 5:
+                roles.insert(0, Snowflake(muted_role))
 
             try:
-                await member.add_roles(*roles, atomic=len(roles) > 3, reason='Keeproles')
+                await member.add_roles(*roles, atomic=len(roles) < 5, reason='Keeproles')
             except discord.NotFound:
                 # If member left before adding roles dont do anything
                 return

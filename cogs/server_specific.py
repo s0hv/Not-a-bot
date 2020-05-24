@@ -164,7 +164,8 @@ del _s
 FILTERED_ROLES = {321374867557580801, 331811458012807169, 361889118210359297,
                   380814558769578003, 337290275749756928, 422432520643018773,
                   322837972317896704, 323492471755636736, 329293030957776896,
-                  317560511929647118, 363239074716188672, 365175139043901442}
+                  317560511929647118, 363239074716188672, 365175139043901442,
+                  585534893593722880}
 FILTERED_ROLES = {discord.Role(guild=None, state=None,  data={"id": id_, "name": ""})
                   for id_ in FILTERED_ROLES}
 
@@ -1151,9 +1152,11 @@ class ServerSpecific(Cog):
         if score > 100000:
             score += 110 * delta_days
 
+        is_booster = ctx.guild.get_role(585534893593722880) in member.roles
+
         # Return chances of role
         def role_get(s, r):
-            if s < 8000:
+            if not is_booster and s < 8000:
                 return 0
 
             return (s / 3000 + 70 / r) * (r**-3 + (r * 0.5)**-2 + (r * 100)**-1)
@@ -1298,6 +1301,10 @@ class ServerSpecific(Cog):
 
         chances = await self.get_role_chance(ctx, ctx.author, user_roles, delta_days)
         if chances is None:
+            return
+
+        if chances < 0.000001:
+            await ctx.send('0% chances of getting a role. Try again after being more active')
             return
 
         try:

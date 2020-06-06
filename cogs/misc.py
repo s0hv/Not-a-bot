@@ -1,9 +1,15 @@
+import json
+import urllib
+from datetime import timedelta, datetime
+
+import aiohttp
 import discord
 from discord.ext.commands import BucketType
 
 from bot.bot import command, cooldown
 from cogs.cog import Cog
 from utils import wolfram, memes
+from utils.utilities import format_timedelta, DateAccuracy
 
 
 class Misc(Cog):
@@ -36,6 +42,83 @@ class Misc(Cog):
             await ctx.send(f'{ctx.author} ~~repped~~ raped ... himself <:peepoWeird:423445885180051467>')
         else:
             await ctx.send(f'{ctx.author} ~~repped~~ raped {user.mention}')
+
+    @command()
+    @cooldown(1, 5, BucketType.user)
+    async def manga(self, ctx, *, manga_name):
+        """
+        Search for manga and return estimated the next release date and the estimated release interval for it
+        """
+        if len(manga_name) > 300:
+            await ctx.send('Name too long.')
+            return
+
+        manga_name = urllib.parse.quote_plus(manga_name)
+        async with self.bot.aiohttp_client.get(f'https://manga-tracker-rss.herokuapp.com/api/search?query={manga_name}') as r:
+            if r.status != 200:
+                await ctx.send('Http error. Try again later')
+                return
+
+            try:
+                data = await r.json()
+            except (json.decoder.JSONDecodeError, aiohttp.ContentTypeError):
+                await ctx.send('Invalid data received. Try again later')
+                return
+
+            err = data.get('error')
+            if err:
+                await ctx.send(f'Error while getting data: {err.get("message", "")}')
+                return
+
+            manga = data.get('manga')
+            if not manga:
+                await ctx.send('Nothing found. Try a different search word')
+                return
+
+            title = manga['title']
+            cover = manga['cover']
+            release_interval = manga['release_interval']
+            estimated_release = manga['estimated_release']
+
+            description = ''
+
+            if release_interval:
+                release_interval = timedelta(**release_interval)
+                release_interval_ = format_timedelta(release_interval, DateAccuracy.Day-DateAccuracy.Hour)
+                description += f'Estimated release interval: {release_interval_}\n'
+
+            if estimated_release:
+                estimated_release = datetime.strptime(estimated_release, '%Y-%m-%dT%H:%M:%S.%fZ')
+                now = datetime.utcnow()
+                to_estimate = None
+                if estimated_release < now:
+                    diff = estimated_release - now
+                    if not release_interval:
+                        pass
+                    elif diff.days > 0:
+                        estimated_release += release_interval * int(diff/release_interval)
+                        to_estimate = format_timedelta(estimated_release - now, DateAccuracy.Day - DateAccuracy.Hour)
+                else:
+                    to_estimate = format_timedelta(estimated_release - now, DateAccuracy.Day-DateAccuracy.Hour)
+
+                description += f"Estimated release is on {estimated_release.strftime('%A %H:00, %b %d %Y')} UTC"
+                if to_estimate:
+                    description += f' which is in {to_estimate}\n'
+                else:
+                    description += '\n'
+
+            if not description:
+                description = 'No information available at this time'
+
+            embed = discord.Embed(title=title[:256], description=description)
+            if cover:
+                embed.set_thumbnail(url=cover)
+
+            if estimated_release:
+                embed.timestamp = estimated_release
+                embed.set_footer(text='Estimate in your timezone')
+
+            await ctx.send(embed=embed)
 
 
 def setup(bot):

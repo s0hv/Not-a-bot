@@ -1,4 +1,5 @@
 import json
+import math
 import urllib
 from datetime import timedelta, datetime
 
@@ -82,30 +83,34 @@ class Misc(Cog):
 
             description = ''
 
-            if release_interval:
-                release_interval = timedelta(**release_interval)
-                release_interval_ = format_timedelta(release_interval, DateAccuracy.Day-DateAccuracy.Hour)
-                description += f'Estimated release interval: {release_interval_}\n'
+            if manga.get('status') == 1:
+                description = 'This manga has finished publishing'
+                estimated_release = None
+            else:
+                if release_interval:
+                    release_interval = timedelta(**release_interval)
+                    release_interval_ = format_timedelta(release_interval, DateAccuracy.Day-DateAccuracy.Hour)
+                    description += f'Estimated release interval: {release_interval_}\n'
 
-            if estimated_release:
-                estimated_release = datetime.strptime(estimated_release, '%Y-%m-%dT%H:%M:%S.%fZ')
-                now = datetime.utcnow()
-                to_estimate = None
-                if estimated_release < now:
-                    diff = estimated_release - now
-                    if not release_interval:
-                        pass
-                    elif diff.days > 0:
-                        estimated_release += release_interval * int(diff/release_interval)
-                        to_estimate = format_timedelta(estimated_release - now, DateAccuracy.Day - DateAccuracy.Hour)
-                else:
-                    to_estimate = format_timedelta(estimated_release - now, DateAccuracy.Day-DateAccuracy.Hour)
+                if estimated_release:
+                    estimated_release = datetime.strptime(estimated_release, '%Y-%m-%dT%H:%M:%S.%fZ')
+                    now = datetime.utcnow()
+                    to_estimate = None
+                    if estimated_release < now:
+                        diff = now - estimated_release
+                        if not release_interval:
+                            pass
+                        elif diff.days > 0:
+                            estimated_release += release_interval * math.ceil(diff/release_interval)
+                            to_estimate = format_timedelta(estimated_release - now, DateAccuracy.Day - DateAccuracy.Hour)
+                    else:
+                        to_estimate = format_timedelta(estimated_release - now, DateAccuracy.Day-DateAccuracy.Hour)
 
-                description += f"Estimated release is on {estimated_release.strftime('%A %H:00, %b %d %Y')} UTC"
-                if to_estimate:
-                    description += f' which is in {to_estimate}\n'
-                else:
-                    description += '\n'
+                    description += f"Estimated release is on {estimated_release.strftime('%A %H:00, %b %d %Y')} UTC"
+                    if to_estimate:
+                        description += f' which is in {to_estimate}\n'
+                    else:
+                        description += '\n'
 
             if not description:
                 description = 'No information available at this time'

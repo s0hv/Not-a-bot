@@ -603,7 +603,8 @@ class Pokemon(Cog):
     @Cog.listener()
     async def on_message(self, message):
         # Ignore others than pokecord
-        if not self.bot.test_mode and message.author.id != 365975655608745985:
+        # old pokecord id: 365975655608745985
+        if not self.bot.test_mode and message.author.id != 665301904791699476:
             return
 
         if message.content:

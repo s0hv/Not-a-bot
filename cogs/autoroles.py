@@ -104,7 +104,7 @@ class AutoRoles(Cog):
             else:
                 colors = self.bot.colors.get(guild.id, {}).values()
                 color_ids = {i.role_id for i in colors}
-                if not color_ids.intersection(roles):
+                if not color_ids.intersection(roles) and colors:
                     roles.add(choice(list(color_ids)))
 
         if roles:

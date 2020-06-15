@@ -694,20 +694,17 @@ class Moderator(Cog):
             await self.remove_timeout(user_id, guild_id)
             return
 
-        user = guild.get_member(user_id)
-        if not user:
-            terminal.warning(f'User {user_id} not found. Only removing timeout from database')
-            await self.remove_timeout(user_id, guild_id)
-            return
-
         if guild.get_role(mute_role):
             try:
-                await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
-            except discord.Forbidden:
+                guild_id = guild.id
+                # use a raw request as cache isn't always up to date
+                await self.bot.http.remove_role(guild_id, user_id, mute_role, reason='Unmuted')
+                # await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
+            except (discord.Forbidden, discord.NotFound):
                 pass
             except discord.HTTPException:
-                terminal.exception(f'Could not autounmute user {user.id}')
-        await self.remove_timeout(user.id, guild.id)
+                terminal.exception(f'Could not autounmute user {user_id}')
+        await self.remove_timeout(user_id, guild.id)
 
     @command(no_pm=True)
     @bot_has_permissions(manage_channels=True)

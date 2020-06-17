@@ -151,12 +151,12 @@ class gachiGASM(Cog):
     async def randomgachi(self, ctx):
         await ctx.send(choice(self.gachilist))
 
-    @group(invoke_without_command=True, aliases=['dg'])
+    @group(invoke_without_command=True, aliases=['dg'], no_pm=True)
     @cooldown(1, 5, BucketType.channel)
     async def dailygachi(self, ctx):
         await ctx.send(Random(self.get_day()+ctx.guild.id).choice(self.gachilist))
 
-    @dailygachi.command()
+    @dailygachi.command(np_pm=True)
     @cooldown(1, 5)
     @has_permissions(manage_guild=True)
     async def subscribe(self, ctx, *, channel: discord.TextChannel=None):
@@ -172,7 +172,7 @@ class gachiGASM(Cog):
         else:
             await ctx.send('No dailygachi channel set')
 
-    @dailygachi.command()
+    @dailygachi.command(no_pm=True)
     @cooldown(1, 5)
     @has_permissions(manage_guild=True)
     async def unsubscribe(self, ctx):

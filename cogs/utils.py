@@ -283,7 +283,7 @@ class Utilities(Cog):
         embed = discord.Embed(title='Stats', colour=random_color())
         embed.add_field(name='discord.py version', value=f"{discord.__version__}")
         embed.add_field(name='Uptime', value=uptime)
-        if ctx.guild.shard_id is not None:
+        if ctx.guild and ctx.guild.shard_id is not None:
             embed.add_field(name='Shard', value=ctx.guild.shard_id)
         embed.add_field(name='Servers', value=str(guilds))
         embed.add_field(name='Users', value=str(users))

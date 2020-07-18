@@ -3,6 +3,7 @@ import logging
 import shlex
 import time
 import weakref
+from collections import deque
 from math import ceil
 from math import floor
 
@@ -16,6 +17,7 @@ from discord.player import PCMVolumeTransformer
 
 from bot.cooldowns import Cooldown
 from bot.playlist import Playlist
+from bot.song import Song
 from bot.youtube import url2id, get_related_vids, id2url
 from utils.timedset import TimedSet
 from utils.utilities import seek_to_sec, seek_from_timestamp, mean_volume
@@ -74,6 +76,7 @@ class MusicPlayer:
         self._skip_votes = set()
         self._stop_votes = TimedSet(loop=self.bot.loop)
         self.persistent_filters = {}
+        self.gapless = False
 
     def __del__(self):
         self.close_tasks()
@@ -105,6 +108,7 @@ class MusicPlayer:
     def selfdestruct(self):
         self.repeat = False
         self.autoplay = False
+        self.gapless = False
         self.stop()
         if self.voice:
             asyncio.ensure_future(self.voice.disconnect(force=True), loop=self.bot.loop)
@@ -341,13 +345,20 @@ class MusicPlayer:
                 s += f' enqueued by {self.current.requested_by}'
             await self.send(s, delete_after=self.current.duration)
 
-            await self.skip(None)
-            play(self.voice, source, after=self.on_stop, speed=speed,
-                 bitrate=self.current.bitrate)
+            if not self.gapless or not self.player:
+                await self.skip(None)
+                play(self.voice, source, after=self.on_stop, speed=speed,
+                     bitrate=self.current.bitrate)
+
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')
-            await self.playlist.download_next()
+            nxt = await self.playlist.download_next()
+            if self.gapless and nxt and self.player:
+                self.player.is_gapless = True
+                nxt.volume = self.current_volume
+                self.player.sources.append(self.create_source(nxt))
+
             await self.play_next.wait()
 
             self.history.append(self.current)
@@ -357,6 +368,15 @@ class MusicPlayer:
                     volume_task.cancel()
 
             self._skip_votes = set()
+
+    def create_source(self, song: Song):
+        file = song.url
+        options = song.options
+        logger.debug(f'Creating source with options {options}')
+        source = FFmpegPCMAudio(file,
+                                before_options=song.before_options,
+                                options=options)
+        return PCMVolumeTransformer(source, volume=self.volume)
 
     def on_stop(self, e):
         if e:
@@ -517,8 +537,14 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
 
 class AudioPlayer(player.AudioPlayer):
     DELAY = OpusEncoder.FRAME_LENGTH / 1000.0
+    BUFFER_SIZE = 5
 
     def __init__(self, source, client, *, after=None, run_loops=0, frameskip=3, speed_mod=1):
+        self.sources = []
+        if isinstance(source, list):
+            self.sources = source
+            source = self.sources.pop(0)
+
         super().__init__(source, client, after=after)
         self._run_loops = run_loops
         self.frameskip = frameskip
@@ -526,6 +552,40 @@ class AudioPlayer(player.AudioPlayer):
         self.sfx_source = None
 
         self.bitrate = OpusEncoder.FRAME_SIZE / self.DELAY
+
+        self.is_gapless = bool(self.sources)
+        self._data_buffer = deque()
+        self._loop_offset = 0
+
+    def _read(self):
+        # If gapless mode is not activated just read from stream normally
+        if not self.is_gapless:
+            return self.source.read()
+
+        # If gapless mode is on we want to have a buffer to have a smooth switch
+        # to the other track. Thus we need to manage the buffer here.
+        while len(self._data_buffer) < self.BUFFER_SIZE:
+            data = self.source.read()
+            if not data:
+                if not self.sources:
+                    if self._data_buffer:
+                        return self._data_buffer.popleft()
+                    return
+
+                self._loop_offset = self.BUFFER_SIZE
+                self.source = self.sources.pop(0)
+                continue
+            self._data_buffer.append(data)
+
+        if self._loop_offset > 0:
+            self._loop_offset -= 1
+            if self._loop_offset == 0:
+                self._run_loops = 0
+                self.after(None)
+
+        if self._data_buffer:
+            return self._data_buffer.popleft()
+        return
 
     def _do_run(self):
         self.loops = 0
@@ -551,7 +611,7 @@ class AudioPlayer(player.AudioPlayer):
                 self._start = time.perf_counter()
 
             self.loops += 1
-            data = self.source.read()
+            data = self._read()
 
             """
             # sfx in one audio loop

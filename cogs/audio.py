@@ -357,6 +357,12 @@ class Audio(commands.Cog):
         if you put keywords it will search youtube for them"""
         return await self.play_song(ctx, song_name)
 
+    @command(no_pm=True, aliases=['pg'])
+    @commands.cooldown(1, 3, type=BucketType.user)
+    async def play_gapless(self, ctx, *, song_name: str):
+        """Works the same as `{prefix}play` but this also sets gapless playback mode on"""
+        return await self.play_song(ctx, song_name, gapless=True)
+
     async def summon_checks(self, ctx):
         if not ctx.author.voice:
             await ctx.send('Not connected to a voice channel')
@@ -379,11 +385,12 @@ class Audio(commands.Cog):
 
         return musicplayer, success
 
-    async def play_song(self, ctx, song_name, priority=False, **metadata):
+    async def play_song(self, ctx, song_name, priority=False, gapless=False, **metadata):
         musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
 
+        musicplayer.gapless = gapless
         song_name, metadata = await self._parse_play(song_name, ctx, metadata)
 
         maxlen = -1 if ctx.author.id == self.bot.owner_id else 20
@@ -1634,6 +1641,8 @@ class Audio(commands.Cog):
         if musicplayer is None:
             return
 
+        musicplayer.gapless = False
+
         if musicplayer.player:
             musicplayer.player.after = None
 
@@ -2172,7 +2181,11 @@ class Audio(commands.Cog):
     @cooldown(1, 5, type=BucketType.guild)
     async def autoplaylist(self, ctx, option: bool):
         """Set the autoplaylist on or off"""
+        if not await self.check_voice(ctx, user_connected=False):
+            return
         musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
 
         if option:
             musicplayer.autoplaylist = True
@@ -2180,6 +2193,25 @@ class Audio(commands.Cog):
             musicplayer.autoplaylist = False
 
         await ctx.send(f'Autoplaylist set {"on" if option else "off"}')
+
+    @command(no_pm=True)
+    @cooldown(1, 5, type=BucketType.guild)
+    async def gapless(self, ctx, option: bool=None):
+        """EXPERIMENTAL: Set the gapless playback on or off. Might break other features"""
+        if not await self.check_voice(ctx, user_connected=False):
+            return
+        musicplayer = self.get_musicplayer(ctx.guild.id)
+        if not musicplayer:
+            return
+
+        if option is None:
+            musicplayer.gapless = not musicplayer.gapless
+        elif option:
+            musicplayer.gapless = True
+        else:
+            musicplayer.gapless = False
+
+        await ctx.send(f'Gapless playback set {"on" if musicplayer.gapless else "off"}')
 
     def clear_cache(self):
         songs = []

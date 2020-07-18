@@ -291,7 +291,8 @@ class HelpCommand(help.HelpCommand):
         ctx = ctx or self.context
         command_name = ctx.command.root_parent or ctx.invoked_with
         s = "Type `{0}{1} command` for more info on a command.\n"\
-            "You can also type `{0}{1} Category` for more info on a category.\n".format(ctx.prefix, command_name)
+            "You can also type `{0}{1} Category` for more info on a category.\n" \
+            "You can use the `{0}feedback` command to send a message if something is not clear or some feature is missing.\n".format(ctx.prefix, command_name)
 
         if ctx.invoked_with != 'helpall':
             s += "This list is filtered based on your and the bots permissions. Use `{}helpall` to skip checks".format(ctx.prefix)

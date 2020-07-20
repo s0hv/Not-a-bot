@@ -12,6 +12,7 @@ import sys
 import textwrap
 import time
 import traceback
+import typing
 from datetime import datetime
 from enum import IntEnum
 from importlib import reload, import_module
@@ -734,7 +735,7 @@ class BotAdmin(Cog):
         await ctx.send(f'Cooldown of {cmd.name} reset')
 
     @command()
-    async def send_message(self, ctx, channel: discord.TextChannel, *, message):
+    async def send_message(self, ctx, channel: typing.Union[discord.TextChannel, discord.User], *, message):
         try:
             await channel.send(message)
         except discord.HTTPException as e:

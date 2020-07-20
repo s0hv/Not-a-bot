@@ -742,6 +742,8 @@ class BotAdmin(Cog):
             await ctx.send(f'Failed to send message\n```py\n{e}\n```')
         except:
             await ctx.send('Failed to send message')
+        else:
+            await ctx.send(f'Message sent to {channel}')
 
     @command(aliases=['add_changelog'])
     async def add_changes(self, ctx, *, changes):

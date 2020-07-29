@@ -1542,6 +1542,12 @@ class ServerSpecific(Cog):
         """
         Become a valid candidate in the upcoming mod election
         """
+        rs = [373810020518985728, 339841138393612288, 343356073186689035]
+        guild = ctx.guild
+        if [r for r in rs if guild.get_role(r) in ctx.author.roles]:
+            await ctx.send("You're already a mod")
+            return
+
         await ctx.send(f"Are you sure you want to participate in the election as a candidate? Once you're in you cannot back out.")
         if not await wait_for_yes(ctx, timeout=15):
             return

@@ -485,3 +485,15 @@ CREATE TABLE infections (
     status BOOL DEFAULT NULL,
     infected_at timestamp DEFAULT current_timestamp NOT NULL
 );
+
+CREATE TABLE candidates (
+    uid BIGINT PRIMARY KEY,
+    is_participating BOOLEAN DEFAULT FALSE,
+    description TEXT DEFAULT NULL
+);
+
+CREATE TABLE elections (
+    voter_id BIGINT NOT NULL,
+    candidate_id BIGINT NOT NULL REFERENCES candidates,
+    PRIMARY KEY (voter_id, candidate_id)
+);

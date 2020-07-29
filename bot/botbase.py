@@ -93,11 +93,11 @@ class BotBase(Bot):
         return self._guild_cache
 
     @property
-    def dbutil(self):
+    def dbutil(self) -> DatabaseUtils:
         return self._dbutil
 
     @property
-    def dbutils(self):
+    def dbutils(self) -> DatabaseUtils:
         return self._dbutil
 
     def _load_cogs(self, print_err=True):

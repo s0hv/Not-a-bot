@@ -2,9 +2,11 @@ import asyncio
 
 from discord.ext import commands
 
+from bot.botbase import BotBase
+
 
 class Cog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: BotBase):
         super().__init__()
         self._bot = bot
 

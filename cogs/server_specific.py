@@ -13,10 +13,10 @@ import emoji
 from aiohttp.client_exceptions import ClientError
 from aiohttp.http_exceptions import HttpProcessingError
 from aioredis.errors import ConnectionClosedError
-from asyncpg.exceptions import PostgresError
+from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from discord.errors import HTTPException
-from discord.ext.commands import (BucketType, check)
+from discord.ext.commands import (BucketType, check, dm_only)
 from numpy import sqrt
 from numpy.random import choice
 
@@ -25,7 +25,8 @@ from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, parse_time, call_later,
                              get_avatar, retry, send_paged_message,
-                             check_botperm, format_timedelta, DateAccuracy)
+                             check_botperm, format_timedelta, DateAccuracy,
+                             wait_for_yes)
 
 logger = logging.getLogger('debug')
 terminal = logging.getLogger('terminal')
@@ -302,6 +303,8 @@ role_response_fail = [
     RoleResponse("soap rigs the game! <:PeepoEvil:635509941309800478>"),
     RoleResponse("No role goddammit", 'https://cdn.discordapp.com/attachments/341610158755020820/591706871237312561/1547775958351.gif')
 ]
+
+start_date = datetime(year=2020, month=8, day=1, hour=12)
 
 
 class ServerSpecific(Cog):
@@ -1179,7 +1182,7 @@ class ServerSpecific(Cog):
             return
 
         every = guild.get_role(323098643030736919)
-        #every = guild.get_role(355372842088660992)
+        # every = guild.get_role(355372842088660992)
         if not every:
             return
 
@@ -1531,6 +1534,129 @@ class ServerSpecific(Cog):
         e.set_image(url=link)
 
         await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
+
+    @command()
+    @cooldown(1, 10, BucketType.user)
+    @check(main_check)
+    async def participate(self, ctx):
+        """
+        Become a valid candidate in the upcoming mod election
+        """
+        await ctx.send(f"Are you sure you want to participate in the election as a candidate? Once you're in you cannot back out.")
+        if not await wait_for_yes(ctx, timeout=15):
+            return
+
+        sql = 'UPDATE candidates SET is_participating=TRUE WHERE uid=$1 RETURNING 1'
+        try:
+            row = await self.dbutil.fetch(sql, (ctx.author.id,), fetchmany=False)
+        except:
+            await ctx.send('Failed to update participation status.')
+            return
+
+        if not row:
+            await ctx.send("You're not eligible to become a candidate in the election. Try again next time.")
+        else:
+            await ctx.send("You have successfully registered as a valid candidate in the elections.")
+
+    @command()
+    @cooldown(1, 10, BucketType.user)
+    @check(main_check)
+    async def set_description(self, ctx, *, description):
+        """
+        Set your description that can be viewed by others.
+        """
+        sql = 'UPDATE candidates SET description=$1 WHERE uid=$2 AND is_participating=TRUE RETURNING 1'
+        try:
+            row = await self.dbutil.fetch(sql, (description, ctx.author.id), fetchmany=False)
+        except:
+            await ctx.send('Failed to update your description.')
+            return
+
+        if not row:
+            await ctx.send("You're not participating in the election. Use !participate to become a valid candidate.")
+        else:
+            await ctx.send("You have successfully updated your description.")
+
+    @command(aliases=['evote'])
+    @dm_only()
+    @cooldown(1, 10, BucketType.user)
+    async def electronic_vote(self, ctx, *, user: discord.User):
+        """
+        Vote in the elections. Voting opens on August 1st 12:00 UTC
+        """
+        if datetime.utcnow() < start_date:
+            return
+
+        guild = self.bot.get_guild(353927534439825429 if self.bot.test_mode else 217677285442977792)
+        if not guild:
+            return
+
+        member = guild.get_member(ctx.author.id)
+        if not member:
+            return
+
+        if member.id == user.id:
+            await ctx.send('Cannot vote for yourself')
+            return
+
+        # Around 4 months
+        days = 124
+        if (datetime.utcnow() - member.joined_at).days < days:
+            joined_at = await self.dbutil.get_join_date(member.id, guild.id)
+            if not joined_at or (datetime.utcnow() - joined_at).days < days:
+                return await ctx.send("You're not eligible to vote because you haven't been in the server for long enough")
+
+        await ctx.send(f"You're trying to vote for {user} `{user.id}`.\n"
+                       f"Type yes to confirm. "
+                       f"You cannot change your vote after it has been successfully registered.")
+
+        if not await wait_for_yes(ctx, timeout=15):
+            return
+
+        sql = 'INSERT INTO elections (voter_id, candidate_id) SELECT $1, uid FROM candidates WHERE uid=$2 AND is_participating=TRUE RETURNING 1'
+
+        try:
+            row = await self.dbutil.fetch(sql, (member.id, user.id), fetchmany=False)
+        except UniqueViolationError:
+            await ctx.send('Failed to vote because you have already voted')
+            return
+        except:
+            terminal.exception(f'Failed to register vote of {user}')
+            await ctx.send('Failed to register vote. Try again later')
+            return
+
+        if not row:
+            await ctx.send(f"Failed to vote for {user} because they aren't participating in the election as a candidate")
+        else:
+            await ctx.send(f'Successfully registered your vote for {user}')
+
+    @command()
+    @check(main_check)
+    @cooldown(1, 10, BucketType.user)
+    async def candidate(self, ctx, *, member: discord.Member):
+        """
+        View the profile of a candidate
+        """
+
+        sql = 'SELECT description FROM candidates WHERE uid=$1 AND is_participating=TRUE'
+
+        try:
+            row = await self.dbutil.fetch(sql, (member.id,), fetchmany=False)
+        except:
+            terminal.exception(f'Failed to fetch candidate profile for {member}')
+            await ctx.send('Failed to fetch the candidate profile.')
+            return
+
+        if not row:
+            await ctx.send(f'{member} is not participating in the election.')
+            return
+
+        description = row['description'] or 'No description'
+        title = f'Candidate profile for {member}'
+        embed = discord.Embed(title=title, description=description)
+        embed.set_thumbnail(url=get_avatar(member))
+
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

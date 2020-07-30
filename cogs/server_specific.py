@@ -6,6 +6,8 @@ import unicodedata
 from datetime import datetime
 from datetime import timedelta
 from difflib import ndiff
+from math import ceil
+from operator import attrgetter
 from typing import Union
 
 import discord
@@ -1089,6 +1091,7 @@ class ServerSpecific(Cog):
 
         await mod._set_channel_lock(ctx, True)
 
+    # noinspection PyUnreachableCode
     async def edit_user_points(self, uid, guild_id, score: int, action='remove'):
         raise NotImplementedError('Tatsu api broke')
         if not self.bot.config.tatsumaki_key:
@@ -1663,6 +1666,52 @@ class ServerSpecific(Cog):
         embed.set_thumbnail(url=get_avatar(member))
 
         await ctx.send(embed=embed)
+
+    @command()
+    @check(main_check)
+    @cooldown(2, 10, BucketType.channel)
+    async def candidates(self, ctx):
+        """
+        Get all candidates
+        """
+
+        sql = 'SELECT uid FROM candidates WHERE is_participating=TRUE'
+        try:
+            rows = await self.dbutil.fetch(sql)
+        except:
+            await ctx.send('Failed to get candidates. Try again later')
+            return
+
+        g = ctx.guild
+        members = sorted(
+            filter(bool, map(g.get_member, (r['uid'] for r in rows))),
+            key=attrgetter('name')
+        )
+        page_size = 10
+        page_count = ceil(len(members) / page_size)
+        pages = [False for _ in range(page_count)]
+
+        title = "List of all candidates"
+
+        def cache_page(idx):
+            i = idx * page_size
+            member_slice = members[i:i + page_size]
+
+            def fmt_user(member):
+                return f'{member} `{member.id}`'
+
+            description = '\n'.join(map(fmt_user, member_slice))
+
+            embed = discord.Embed(title=title, description=description)
+            embed.set_footer(text=f'Page {idx + 1}/{len(pages)}')
+
+            pages[idx] = embed
+            return embed
+
+        def get_page(_, idx):
+            return pages[idx] or cache_page(idx)
+
+        await send_paged_message(ctx, pages, True, page_method=get_page)
 
 
 def setup(bot):

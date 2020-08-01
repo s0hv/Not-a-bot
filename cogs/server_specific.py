@@ -1670,12 +1670,12 @@ class ServerSpecific(Cog):
     @command()
     @check(main_check)
     @cooldown(2, 10, BucketType.channel)
-    async def candidates(self, ctx):
+    async def candidates(self, ctx, show_description=False):
         """
-        Get all candidates
+        Get all candidates. Use `{prefix}candidates on` to view descriptions
         """
 
-        sql = 'SELECT uid FROM candidates WHERE is_participating=TRUE'
+        sql = 'SELECT uid, description FROM candidates WHERE is_participating=TRUE'
         try:
             rows = await self.dbutil.fetch(sql)
         except:
@@ -1687,24 +1687,35 @@ class ServerSpecific(Cog):
             filter(bool, map(g.get_member, (r['uid'] for r in rows))),
             key=attrgetter('name')
         )
-        page_size = 10
+        descriptions = {}
+        if show_description:
+            descriptions = {r['uid']: r['description'] for r in rows}
+
+        page_size = 10 if not show_description else 1
         page_count = ceil(len(members) / page_size)
         pages = [False for _ in range(page_count)]
 
         title = "List of all candidates"
 
         def cache_page(idx):
-            i = idx * page_size
-            member_slice = members[i:i + page_size]
+            if show_description:
+                member = members[idx]
+                description = descriptions[member.id] or 'No description'
+                embed = discord.Embed(title=f'Candidate profile for {member}', description=description)
+                embed.set_thumbnail(url=get_avatar(member))
 
-            def fmt_user(member):
-                return f'{member} `{member.id}`'
+            else:
+                i = idx * page_size
+                member_slice = members[i:i + page_size]
 
-            description = '\n'.join(map(fmt_user, member_slice))
+                def fmt_user(member):
+                    return f'{member} `{member.id}`'
 
-            embed = discord.Embed(title=title, description=description)
+                description = '\n'.join(map(fmt_user, member_slice))
+
+                embed = discord.Embed(title=title, description=description)
+
             embed.set_footer(text=f'Page {idx + 1}/{len(pages)}')
-
             pages[idx] = embed
             return embed
 

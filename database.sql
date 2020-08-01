@@ -493,8 +493,7 @@ CREATE TABLE candidates (
 );
 
 CREATE TABLE elections (
-    voter_id BIGINT NOT NULL,
+    voter_id BIGINT PRIMARY KEY,
     candidate_id BIGINT NOT NULL REFERENCES candidates,
-    vote_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    PRIMARY KEY (voter_id, candidate_id)
+    vote_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );

@@ -1594,6 +1594,7 @@ class ServerSpecific(Cog):
         Vote in the elections. Voting opens on August 1st 12:00 UTC
         """
         if datetime.utcnow() < start_date:
+            await ctx.send("Voting hasn't started yet")
             return
 
         guild = self.bot.get_guild(353927534439825429 if self.bot.test_mode else 217677285442977792)

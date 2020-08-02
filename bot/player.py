@@ -319,7 +319,7 @@ class MusicPlayer:
 
             logger.debug(f'Opening file with the name "{file}" and options "{self.current.before_options}" "{self.current.options}"')
             # Dynamically set bitrate based on channel bitrate
-            self.current.bitrate = max(self.voice.channel.bitrate//1000, 512)
+            self.current.bitrate = max(self.voice.channel.bitrate//1000, 128)
 
             for k, v in self.persistent_filters.items():
                 self.current.set_filter(k, v)

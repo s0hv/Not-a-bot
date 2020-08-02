@@ -29,7 +29,7 @@ handler = logging.StreamHandler(sys.stdout)
 handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
 terminal.addHandler(handler)
 error_handler = logging.FileHandler(filename='error.log', encoding='utf-8', mode='a')
-error_handler.setFormatter(logging.Formatter('[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
+error_handler.setFormatter(logging.Formatter('{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
 error_handler.setLevel(logging.ERROR)
 terminal.addHandler(error_handler)
 

@@ -531,7 +531,14 @@ class Utilities(Cog):
     async def timezone(self, ctx, *, timezone: str=None):
         """
         Set or view your timezone. If timezone isn't given shows your current timezone
-        If timezone is given sets your current timezone to that
+        If timezone is given sets your current timezone to that.
+        Summer time should be supported for any timezone that's not a plain utc offset.
+        Due to [technical reasons](https://en.wikipedia.org/wiki/Tz_database#Area)
+        the sign in gmt offsets is flipped. e.g. UTC+5 offset is GMT-5
+        Examples:
+        • `{prefix}{name} utc+4`
+        • `{prefix}{name} London`
+        • `{prefix}{name} EST`
         """
         user = ctx.author
         if not timezone:
@@ -540,7 +547,7 @@ class Utilities(Cog):
             await ctx.send(s)
             return
 
-        tz = fuzzy_tz.get(timezone)
+        tz = fuzzy_tz.get(timezone.lower())
 
         # Extra info to be sent
         extra = ''
@@ -549,13 +556,16 @@ class Utilities(Cog):
             tz = tz_dict.get(timezone.upper())
             if tz:
                 tz = fuzzy_tz.get(f'utc{int(tz)//3600:+d}')
-                extra = "UTC offset used. Consider using a locality based timezone instead. " \
-                        "You can set it usually by using your country's capital's name"
 
         if not tz:
             await ctx.send(f'Timezone {timezone} not found')
             ctx.command.undo_use(ctx)
             return
+
+        if tz.startswith('Etc/GMT'):
+            extra = "UTC offset used. Consider using a locality based timezone instead. " \
+                    "You can set it usually by using your country's capital's name or your country's name as long as it has a single timezone\n" \
+                    "The sign in the GMT timezone is flipped due to technical reasons."
 
         if await self.bot.dbutil.set_timezone(user.id, tz):
             await ctx.send(f'Timezone set to {tz}\n{extra}')

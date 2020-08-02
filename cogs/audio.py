@@ -397,6 +397,8 @@ class Audio(commands.Cog):
         await musicplayer.playlist.add_song(song_name, maxlen=maxlen,
                                             channel=ctx.message.channel,
                                             priority=priority, **metadata)
+        if priority:
+            await musicplayer.reset_gapless()
         if success:
             musicplayer.start_playlist()
 
@@ -1631,6 +1633,7 @@ class Audio(commands.Cog):
         if not musicplayer:
             return
         await musicplayer.playlist.shuffle()
+        await musicplayer.reset_gapless()
         await ctx.send('Playlist shuffled')
 
     async def shutdown(self):

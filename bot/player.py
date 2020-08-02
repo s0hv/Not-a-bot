@@ -319,7 +319,7 @@ class MusicPlayer:
 
             logger.debug(f'Opening file with the name "{file}" and options "{self.current.before_options}" "{self.current.options}"')
             # Dynamically set bitrate based on channel bitrate
-            self.current.bitrate = max(self.voice.channel.bitrate//1000, 128)
+            self.current.bitrate = max(self.voice.channel.bitrate//1000, 512)
 
             for k, v in self.persistent_filters.items():
                 self.current.set_filter(k, v)
@@ -345,7 +345,7 @@ class MusicPlayer:
                 s += f' enqueued by {self.current.requested_by}'
             await self.send(s, delete_after=self.current.duration)
 
-            if not self.gapless or not self.player:
+            if not self.gapless or not self.player or not self.player.is_gapless:
                 await self.skip(None)
                 play(self.voice, source, after=self.on_stop, speed=speed,
                      bitrate=self.current.bitrate)
@@ -353,8 +353,12 @@ class MusicPlayer:
             logger.debug('Started player')
             await self.change_status(self.current.title)
             logger.debug('Downloading next')
+
             nxt = await self.playlist.download_next()
             if self.gapless and nxt and self.player:
+                if not await self.assert_functionality():
+                    return
+
                 self.player.is_gapless = True
                 nxt.volume = self.current_volume
                 self.player.sources.append(self.create_source(nxt))
@@ -370,6 +374,9 @@ class MusicPlayer:
             self._skip_votes = set()
 
     def create_source(self, song: Song):
+        for k, v in self.persistent_filters.items():
+            song.set_filter(k, v)
+
         file = song.url
         options = song.options
         logger.debug(f'Creating source with options {options}')
@@ -459,6 +466,20 @@ class MusicPlayer:
     def stop(self):
         if self.voice:
             self.voice.stop()
+
+    async def reset_gapless(self):
+        if not self.gapless:
+            if self.player:
+                self.player.is_gapless = False
+            return
+
+        nxt = await self.playlist.download_next()
+        if nxt and self.player:
+            self.player.sources.clear()
+
+            self.player.is_gapless = True
+            nxt.volume = self.current_volume
+            self.player.sources.append(self.create_source(nxt))
 
 
 class FFmpegPCMAudio(player.FFmpegPCMAudio):

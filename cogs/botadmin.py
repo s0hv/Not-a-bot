@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import contextlib
 import functools
@@ -22,10 +23,14 @@ from py_compile import PyCompileError
 
 import aiohttp
 import discord
+import matplotlib.pyplot as plt
 from asyncpg.exceptions import PostgresError
+from discord import File
 from discord.errors import HTTPException, InvalidArgument
 from discord.ext.commands.errors import ExtensionError, ExtensionFailed
 from discord.user import BaseUser
+from matplotlib.dates import AutoDateLocator, DateFormatter
+from matplotlib.ticker import MultipleLocator
 
 from bot.bot import command
 from bot.config import Config
@@ -74,6 +79,16 @@ class BotAdmin(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._last_result = None
+
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument('-sql', '-s', required=True)
+        self.parser.add_argument('-xlabel', '-xl', default=None)
+        self.parser.add_argument('-ylabel', '-yl', default=None)
+        self.parser.add_argument('--date-fmt', '-df', default='%Y-%m-%d')
+        self.parser.add_argument('-type', '-t', default='plot', choices=['plot', 'hist'])
+        self.parser.add_argument('-fmt', default='bo--')
+        self.parser.add_argument('-x_int', '-xi', action='store_true')
+        self.parser.add_argument('-y_int', '-yi', action='store_true')
 
     def cog_check(self, ctx):
         return is_owner(ctx)
@@ -768,6 +783,94 @@ class BotAdmin(Cog):
     async def enable(self, ctx, cmd: CommandConverter):
         cmd.enabled = True
         await ctx.send(f'Enabled {cmd.name}')
+
+    @command()
+    async def graph_eval(self, ctx, *, args):
+        """
+        -sql, -s: sql statement to fetch data. Should return list of [x, y] rows.
+        -xlabel, -xl: Label for x axis. If not specified both labels will be read from the sql columns.
+        -ylabel, -yl: Label for y axis. Must be specified if -xlabel is specified.
+        --date-fmt, -df: Format for dates. Default '%Y-%m-%d'
+        -type, -t: Type of plot to be drawn. Default is 'plot'. Must be one of 'plot', 'hist'
+        -fmt: plot string format. Default is 'bo--'. [More info](https://matplotlib.org/api/_as_gen/matplotlib.pyplot.plot.html)
+        -x_int, -xi: If given will set x-axis ticks to integers
+        -y_int, -yi: If given will set y-axis ticks to integers
+        """
+        try:
+            parsed = self.parser.parse_args(shlex.split(args))
+        except SystemExit:
+            await ctx.send('Failed to parse arguments')
+            return
+
+        sql = parsed.sql
+
+        try:
+            rows = await self.bot.dbutil.fetch(sql)
+        except PostgresError:
+            terminal.exception('Failed to execute sql')
+            await ctx.send('Failed to execute sql')
+            return
+
+        if not rows:
+            await ctx.send('No plot data')
+            return
+
+        type_ = parsed.type
+        fmt = parsed.fmt
+        xlabel: str = parsed.xlabel
+        ylabel: str = parsed.ylabel
+
+        if xlabel is None:
+            xlabel, ylabel = rows[0].keys()
+
+        def do_plot():
+            buf = None
+            try:
+                fig = plt.figure()
+                ax = fig.gca()
+
+                if type_ == 'hist':
+                    plt.hist([float(row[0]) for row in rows], bins=20, range=(0, 1))
+                elif type_ == 'plot':
+                    plt.plot(
+                        [row[0] for row in rows],
+                        [row[1] for row in rows],
+                        fmt
+                    )
+
+                plt.xlabel(xlabel.title())
+                plt.ylabel(ylabel.title())
+                if parsed.x_int:
+                    ax.xaxis.set_major_locator(MultipleLocator(1))
+                if parsed.y_int:
+                    ax.yaxis.set_major_locator(MultipleLocator(1))
+
+                if isinstance(rows[0][0], datetime):
+                    ax.xaxis.set_major_locator(AutoDateLocator())
+                    ax.xaxis.set_major_formatter(DateFormatter(parsed.date_fmt))
+                    fig.autofmt_xdate()
+                if isinstance(rows[0][1], datetime):
+                    ax.yaxis.set_major_locator(AutoDateLocator())
+                    ax.yaxis.set_major_formatter(DateFormatter(parsed.date_fmt))
+
+                buf = BytesIO()
+                plt.savefig(buf, format='png', bbox_inches='tight')
+                buf.seek(0)
+            except:
+                terminal.exception('Failed to create plot')
+                buf = None
+            finally:
+                plt.close()
+                return buf
+
+        await ctx.trigger_typing()
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_plot)
+
+        if not data:
+            await ctx.send('Failed to create plot')
+            return
+
+        await ctx.send(file=File(data, 'plot.png'))
 
 
 def setup(bot):

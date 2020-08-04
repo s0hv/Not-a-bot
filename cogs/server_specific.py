@@ -1603,7 +1603,12 @@ class ServerSpecific(Cog):
 
         member = guild.get_member(ctx.author.id)
         if not member:
-            return
+            try:
+                member = await guild.fetch_member(ctx.author.id)
+            except discord.HTTPException:
+                return
+            if not member:
+                return
 
         if member.id == user.id:
             await ctx.send('Cannot vote for yourself')

@@ -1599,6 +1599,7 @@ class ServerSpecific(Cog):
 
         guild = self.bot.get_guild(353927534439825429 if self.bot.test_mode else 217677285442977792)
         if not guild:
+            logger.warning(f'Guild not found when {ctx.author} tried to evote')
             return
 
         member = guild.get_member(ctx.author.id)
@@ -1606,8 +1607,10 @@ class ServerSpecific(Cog):
             try:
                 member = await guild.fetch_member(ctx.author.id)
             except discord.HTTPException:
+                logger.exception('Failed to get author for evote')
                 return
             if not member:
+                logger.warning('Failed to get author for evote')
                 return
 
         if member.id == user.id:

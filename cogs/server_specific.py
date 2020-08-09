@@ -1734,9 +1734,11 @@ class ServerSpecific(Cog):
 
         await send_paged_message(ctx, pages, True, page_method=get_page)
 
-    @command()
+    # noinspection PyUnreachableCode
+    @command(enabled=False, hidden=True)
     @is_owner()
     async def count_votes(self, ctx):
+        return
         guild = ctx.guild
         c = guild.get_channel(339517543989379092) if not self.bot.test_mode else ctx
         if not c:

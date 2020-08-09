@@ -3,6 +3,7 @@ import logging
 import random
 import textwrap
 import unicodedata
+from collections import Counter
 from datetime import datetime
 from datetime import timedelta
 from difflib import ndiff
@@ -18,7 +19,7 @@ from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from discord.errors import HTTPException
-from discord.ext.commands import (BucketType, check, dm_only)
+from discord.ext.commands import (BucketType, check, dm_only, is_owner)
 from numpy import sqrt
 from numpy.random import choice
 
@@ -1732,6 +1733,71 @@ class ServerSpecific(Cog):
             return pages[idx] or cache_page(idx)
 
         await send_paged_message(ctx, pages, True, page_method=get_page)
+
+    @command()
+    @is_owner()
+    async def count_votes(self, ctx):
+        guild = ctx.guild
+        c = guild.get_channel(339517543989379092) if not self.bot.test_mode else ctx
+        if not c:
+            await ctx.send('channel not found')
+            return
+
+        sql = 'SELECT candidate_id FROM elections ORDER BY random()'
+        try:
+            votes = [r[0] for r in await self.dbutil.fetch(sql)]
+        except:
+            terminal.exception('Fail...')
+            await ctx.send('Failed to get votes')
+            return
+
+        users = {}
+        for uid in set(votes):
+            user = guild.get_member(uid)
+            if not user:
+                try:
+                    user = await guild.fetch_member(uid)
+                except discord.HTTPException:
+                    continue
+            users[uid] = user
+
+        ganypepe = guild.get_member(222399701390065674)
+        if ganypepe:
+            counter = Counter({ganypepe: 45})
+        else:
+            counter = Counter()
+
+        chunk_size = 4
+        fmt = '{1} new vote(s) for {0} ({2} total)\n'
+
+        for i in range(0, len(votes), chunk_size):
+            v = votes[i:i+chunk_size]
+            real_votes = [users.get(uid) for uid in v if uid in users]
+            new_c = Counter(real_votes)
+            counter.update(real_votes)
+
+            m = ''.join(fmt.format(*pair, counter[pair[0]]) for pair in new_c.most_common())
+            try:
+                await c.send(m)
+            except:
+                terminal.exception('Failed to send message')
+                continue
+
+            await asyncio.sleep(10)
+
+        final_fmt = '{0.mention} got a total of {1} votes\n'
+        top_5 = counter.most_common()
+
+        final_m = ''.join(final_fmt.format(*pair) for pair in top_5)
+
+        final_m = f'The final result of this election is\n\n{final_m}'
+        for m in split_string(final_m, splitter='\n'):
+            try:
+                await c.send(m)
+            except:
+                terminal.exception(f'Failed to send "{final_m}"')
+                await ctx.send('Failed to post final result')
+                continue
 
 
 def setup(bot):

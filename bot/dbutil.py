@@ -41,6 +41,10 @@ class DatabaseUtils:
     @staticmethod
     def create_bind_groups(group_amount, group_size):
         s = ''
+        # If group size is 1 range will produce one too few groups
+        if group_size == 1:
+            group_amount += 1
+
         for i in range(1, group_amount*group_size, group_size):
             s += '('
 

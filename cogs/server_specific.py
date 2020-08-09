@@ -1539,7 +1539,7 @@ class ServerSpecific(Cog):
 
         await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
 
-    @command()
+    @command(enabled=False, hidden=True)
     @cooldown(1, 10, BucketType.user)
     @check(main_check)
     async def participate(self, ctx):
@@ -1568,7 +1568,7 @@ class ServerSpecific(Cog):
         else:
             await ctx.send("You have successfully registered as a valid candidate in the elections.")
 
-    @command()
+    @command(enabled=False, hidden=True)
     @cooldown(1, 10, BucketType.user)
     @check(main_check)
     async def set_description(self, ctx, *, description):
@@ -1587,7 +1587,7 @@ class ServerSpecific(Cog):
         else:
             await ctx.send("You have successfully updated your description.")
 
-    @command(aliases=['evote'])
+    @command(aliases=['evote'], enabled=False, hidden=True)
     @dm_only()
     @cooldown(1, 10, BucketType.user)
     async def electronic_vote(self, ctx, *, user: discord.User):
@@ -1649,7 +1649,7 @@ class ServerSpecific(Cog):
         else:
             await ctx.send(f'Successfully registered your vote for {user}')
 
-    @command()
+    @command(enabled=False, hidden=True)
     @check(main_check)
     @cooldown(1, 10, BucketType.user)
     async def candidate(self, ctx, *, member: discord.Member):
@@ -1677,7 +1677,7 @@ class ServerSpecific(Cog):
 
         await ctx.send(embed=embed)
 
-    @command()
+    @command(enabled=False, hidden=True)
     @check(main_check)
     @cooldown(2, 10, BucketType.channel)
     async def candidates(self, ctx, show_description=False):

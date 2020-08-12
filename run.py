@@ -17,12 +17,6 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8-sig', mode
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 discord_logger.addHandler(handler)
 
-logger = logging.getLogger('debug')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='debug.log', encoding='utf-8-sig', mode='a')
-handler.setFormatter(logging.Formatter('[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
-logger.addHandler(handler)
-
 terminal = logging.getLogger('terminal')
 terminal.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)

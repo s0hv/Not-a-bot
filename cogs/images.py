@@ -33,8 +33,7 @@ from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
                              split_string, get_image, dl_image, call_later,
                              get_images, send_paged_message)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
 
 
@@ -296,7 +295,7 @@ class Images(Cog):
         try:
             self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
         except WebDriverException:
-            terminal.exception('failed to load pokefusion')
+            logger.exception('failed to load pokefusion')
             self._pokefusion = None
 
     def cog_unload(self):

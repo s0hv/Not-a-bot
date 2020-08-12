@@ -30,8 +30,7 @@ from utils.utilities import (send_paged_message,
                              wait_for_yes, get_image,
                              get_emote_name_id, split_string)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 # Size of banner thumbnail
 THUMB_SIZE = (288, 162)
@@ -574,7 +573,7 @@ class Server(Cog):
         try:
             file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
         except OSError:
-            terminal.exception('Failed to save banner')
+            logger.exception('Failed to save banner')
             await ctx.send('Failed to save banner image')
             return
 
@@ -723,7 +722,7 @@ class Server(Cog):
                 filenames = '\n'.join(filenames)
                 await ctx.send(f'```\n{filenames}\n```', file=discord.File(data, 'banners.png'))
         except OSError:
-            terminal.exception('Failed to load banners')
+            logger.exception('Failed to load banners')
             await ctx.send('Failed to show banners')
             return
 

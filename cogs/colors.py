@@ -28,8 +28,7 @@ from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
                              Snowflake, check_botperm, send_paged_message)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 rgb_splitter = re.compile(r'^(\d{1,3})([, ])(\d{1,3})\2(\d{1,3})$')
 
@@ -747,7 +746,7 @@ class Colors(Cog):
         try:
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, list(colors.values()))
         except OSError:
-            terminal.exception('Failed to generate colors')
+            logger.exception('Failed to generate colors')
             await ctx.send('Failed to generate colors. Try again later')
             return
 

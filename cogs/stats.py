@@ -11,8 +11,7 @@ from bot.converters import AnyUser, CommandConverter, TimeDelta
 from cogs.cog import Cog
 from utils.utilities import send_paged_message, format_timedelta, DateAccuracy
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 class Stats(Cog):
@@ -102,7 +101,7 @@ class Stats(Cog):
         try:
             rows = await self.bot.dbutil.fetch(sql, (user_id, guild))
         except PostgresError:
-            terminal.exception('Failed to get last seen from db')
+            logger.exception('Failed to get last seen from db')
             return await ctx.send('Failed to get user because of an error')
 
         if len(rows) == 0:

@@ -47,8 +47,7 @@ from bot import exceptions
 
 
 log = logging.getLogger('discord')
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 # Used to stop PyCharm from removing Command and Group from imports
 __all__ = [
@@ -119,10 +118,15 @@ class Bot(commands.AutoShardedBot):
         self._exit_code = 0
 
         log.debug('Using loop {}'.format(self.loop))
-        if aiohttp is None:
-            aiohttp = ClientSession(loop=self.loop)
 
         self.aiohttp_client = aiohttp
+
+        async def set_client():
+            self.aiohttp_client = ClientSession(loop=self.loop)
+
+        if aiohttp is None:
+            self.loop.create_task(set_client())
+
         self.config = config
         self.voice_clients_ = {}
         self._error_cdm = CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.guild))
@@ -227,8 +231,8 @@ class Bot(commands.AutoShardedBot):
         elif error_msg == '':
             return
 
-        terminal.warning('Ignoring exception in command {}'.format(context.command))
-        terminal.exception('', exc_info=exception)
+        logger.warning('Ignoring exception in command {}'.format(context.command))
+        logger.exception('', exc_info=exception)
 
     async def get_context(self, message, *, cls=Context):
         # Same as default implementation. This just adds runas variable

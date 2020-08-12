@@ -36,7 +36,7 @@ from bot.bot import command
 from cogs.cog import Cog
 from utils.utilities import send_paged_message
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 
 
 class SearchItem():

@@ -43,8 +43,7 @@ from utils.utilities import (y_n_check, basic_check, y_check, check_import,
                              call_later, seconds2str, test_url,
                              wants_to_be_noticed, DateAccuracy)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 class ExitStatus(IntEnum):
@@ -114,15 +113,15 @@ class BotAdmin(Cog):
         # data because they give the contents of the parent error message
         except ExtensionFailed as e:
             logger.exception(f'Failed to reload extension {name}')
-            terminal.exception(f'Failed to reload extension {name}')
+            logger.exception(f'Failed to reload extension {name}')
             return f'Could not reload {name} because of {type(e).__name__}\nCheck logs for more info'
 
         except ExtensionError as e:
-            terminal.exception(f'Failed to reload {name}')
+            logger.exception(f'Failed to reload {name}')
             return f'Could not reload {name} because of an error\n{e}'
 
         except Exception as e:
-            terminal.exception(f'Failed to reload {name}')
+            logger.exception(f'Failed to reload {name}')
             return f'Could not reload {name} because of an error {type(e).__name__}'
 
         return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter() - t) * 1000)
@@ -807,7 +806,7 @@ class BotAdmin(Cog):
         try:
             rows = await self.bot.dbutil.fetch(sql)
         except PostgresError:
-            terminal.exception('Failed to execute sql')
+            logger.exception('Failed to execute sql')
             await ctx.send('Failed to execute sql')
             return
 
@@ -857,7 +856,7 @@ class BotAdmin(Cog):
                 plt.savefig(buf, format='png', bbox_inches='tight')
                 buf.seek(0)
             except:
-                terminal.exception('Failed to create plot')
+                logger.exception('Failed to create plot')
                 buf = None
             finally:
                 plt.close()

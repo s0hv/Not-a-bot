@@ -7,7 +7,7 @@ import dbl
 
 from cogs.cog import Cog
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 
 
 class DBApi(Cog):

@@ -38,8 +38,7 @@ from bot.server import WebhookServer
 from utils.init_tf import LoadedModel
 from utils.utilities import (random_color)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 class NotABot(BotBase):
@@ -76,7 +75,7 @@ class NotABot(BotBase):
         return self._poke_model
 
     async def cache_guilds(self):
-        terminal.info('Caching guilds')
+        logger.info('Caching guilds')
         t = time.time()
         guilds = self.guilds
         sql = 'SELECT guild FROM guilds'
@@ -124,7 +123,7 @@ class NotABot(BotBase):
             self.guild_cache.update_cached_guild(guild_id, **row)
 
         if not self._ready_called:
-            terminal.info('Indexing user roles')
+            logger.info('Indexing user roles')
             for guild in guilds:
                 if self.guild_cache.keeproles(guild.id):
                     if guild.unavailable:
@@ -134,11 +133,11 @@ class NotABot(BotBase):
                     if not success:
                         raise EnvironmentError('Failed to cache keeprole servers')
 
-        terminal.info('Guilds cached')
+        logger.info('Guilds cached')
         logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
 
     async def on_ready(self):
-        terminal.info(f'Logged in as {self.user.name}')
+        logger.info(f'Logged in as {self.user.name}')
 
         # If this has been already called once only do a subset of actions
         if self._ready_called:
@@ -154,7 +153,7 @@ class NotABot(BotBase):
         try:
             await self.cache_guilds()
         except InterfaceError as e:
-            terminal.exception("Failed to cache guilds")
+            logger.exception("Failed to cache guilds")
             raise e
 
         self.redis = await aioredis.create_redis((self.config.db_host, self.config.redis_port),
@@ -166,7 +165,7 @@ class NotABot(BotBase):
             await self.change_presence(activity=discord.Activity(**self.config.default_activity))
         if self._random_color is None or self._random_color.done():
             self._random_color = self.loop.create_task(self._random_color_task())
-        terminal.debug('READY')
+        logger.debug('READY')
         self._ready_called = True
 
     async def _random_color_task(self):
@@ -215,7 +214,7 @@ class NotABot(BotBase):
             return
 
     async def on_guild_join(self, guild):
-        terminal.info(f'Joined guild {guild.name} {guild.id}')
+        logger.info(f'Joined guild {guild.name} {guild.id}')
         if await self.dbutil.is_guild_blacklisted(guild.id):
             await guild.leave()
             return

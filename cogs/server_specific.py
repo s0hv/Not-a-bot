@@ -31,8 +31,7 @@ from utils.utilities import (split_string, parse_time, call_later,
                              check_botperm, format_timedelta, DateAccuracy,
                              wait_for_yes)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 def create_check(guild_ids):
@@ -971,7 +970,7 @@ class ServerSpecific(Cog):
                     return
 
             import aioredis
-            terminal.exception('Connection closed. Reconnecting')
+            logger.exception('Connection closed. Reconnecting')
             redis = await aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
                                         password=self.bot.config.redis_auth,
                                         loop=self.bot.loop, encoding='utf-8')
@@ -1640,7 +1639,7 @@ class ServerSpecific(Cog):
             await ctx.send('Failed to vote because you have already voted')
             return
         except:
-            terminal.exception(f'Failed to register vote of {user}')
+            logger.exception(f'Failed to register vote of {user}')
             await ctx.send('Failed to register vote. Try again later')
             return
 
@@ -1662,7 +1661,7 @@ class ServerSpecific(Cog):
         try:
             row = await self.dbutil.fetch(sql, (member.id,), fetchmany=False)
         except:
-            terminal.exception(f'Failed to fetch candidate profile for {member}')
+            logger.exception(f'Failed to fetch candidate profile for {member}')
             await ctx.send('Failed to fetch the candidate profile.')
             return
 
@@ -1749,7 +1748,7 @@ class ServerSpecific(Cog):
         try:
             votes = [r[0] for r in await self.dbutil.fetch(sql)]
         except:
-            terminal.exception('Fail...')
+            logger.exception('Fail...')
             await ctx.send('Failed to get votes')
             return
 
@@ -1782,7 +1781,7 @@ class ServerSpecific(Cog):
             try:
                 await c.send(m)
             except:
-                terminal.exception('Failed to send message')
+                logger.exception('Failed to send message')
                 continue
 
             await asyncio.sleep(10)
@@ -1797,7 +1796,7 @@ class ServerSpecific(Cog):
             try:
                 await c.send(m)
             except:
-                terminal.exception(f'Failed to send "{final_m}"')
+                logger.exception(f'Failed to send "{final_m}"')
                 await ctx.send('Failed to post final result')
                 continue
 

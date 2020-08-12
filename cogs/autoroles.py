@@ -7,7 +7,7 @@ import discord
 from cogs.cog import Cog
 from utils.utilities import Snowflake, wants_to_be_noticed
 
-logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 
 class AutoRoles(Cog):
@@ -96,7 +96,7 @@ class AutoRoles(Cog):
                 except (discord.NotFound, discord.Forbidden):
                     pass
                 except discord.HTTPException:
-                    logger.exception('[KeepRoles] Failed to add muted role first')
+                    terminal.exception('[KeepRoles] Failed to add muted role first')
 
         if self.bot.guild_cache.random_color(guild.id) and hasattr(self.bot, 'colors'):
             if not roles:
@@ -127,7 +127,7 @@ class AutoRoles(Cog):
                     except discord.NotFound:
                         return
                     except discord.ClientException:
-                        logger.exception('Failed to give role on join')
+                        terminal.exception('Failed to give role on join')
 
         if guild.id == 217677285442977792:
             await wants_to_be_noticed(member, guild)
@@ -147,7 +147,7 @@ class AutoRoles(Cog):
 
         if roles:
             await self.dbutil.add_user_roles(roles, member.id, member.guild.id)
-            logger.debug('{}/{} saved roles {}'.format(member.guild.id, member.id, ', '.join(map(str, roles))))
+            terminal.debug('{}/{} saved roles {}'.format(member.guild.id, member.id, ', '.join(map(str, roles))))
 
     @staticmethod
     def compare_roles(before, after):

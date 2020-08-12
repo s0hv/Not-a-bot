@@ -4,7 +4,7 @@ import re
 from cogs.cog import Cog
 from utils import unzalgo
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 
 
 class NNLogger(Cog):

@@ -35,8 +35,7 @@ from bot.dbutil import DatabaseUtils
 from bot.globals import Auth
 from bot.guildcache import GuildCache
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 class BotBase(Bot):
@@ -113,7 +112,7 @@ class BotBase(Bot):
                 if not print_err:
                     errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
-                    terminal.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    logger.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
         if not print_err:
             return errors
@@ -123,11 +122,12 @@ class BotBase(Bot):
             self.unload_extension(c)
 
     async def on_ready(self):
+        await super().on_ready()
         self._mention_prefix = (self.user.mention, f'<@!{self.user.id}>')
-        terminal.info(f'Logged in as {self.user.name}')
+        logger.info(f'Logged in as {self.user.name}')
         await self.dbutil.add_command('help')
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
-        terminal.debug('READY')
+        logger.debug('READY')
 
         for guild in self.guilds:
             if await self.dbutil.is_guild_blacklisted(guild.id):
@@ -176,13 +176,13 @@ class BotBase(Bot):
                 s = '{0.name}/{0.id}/{1.name}/{1.id} {2.id} called {3}'.format(ctx.guild, ctx.channel, ctx.author, ctx.command.name)
             else:
                 s = 'DM/{0.id} called {1}'.format(ctx.author, ctx.command.name)
-            terminal.info(s)
+            logger.info(s)
             logger.debug(s)
 
             await super().invoke(ctx)
 
     async def on_guild_join(self, guild):
-        terminal.info(f'Joined guild {guild.name} {guild.id}')
+        logger.info(f'Joined guild {guild.name} {guild.id}')
         if await self.dbutil.is_guild_blacklisted(guild.id):
             await guild.leave()
             return

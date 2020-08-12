@@ -15,7 +15,7 @@ from bot.cooldowns import Cooldown
 from bot.exceptions import CommandBlacklisted
 from utils.utilities import check_perms
 
-logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 
 # Inject our custom Command class
 help._HelpCommandImpl.__bases__ = (Command, *Command.__bases__)
@@ -67,7 +67,7 @@ class HelpCommand(help.HelpCommand):
                         command_blacklist[name] = [row]
 
             except PostgresError:
-                logger.exception('Failed to get role blacklist for help command')
+                terminal.exception('Failed to get role blacklist for help command')
 
         return command_blacklist
 

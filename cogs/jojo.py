@@ -53,7 +53,7 @@ from utils.utilities import (get_picture_from_msg, y_n_check,
                              check_negative, normalize_text,
                              get_image, basic_check, test_url)
 
-logger = logging.getLogger('debug')
+terminal = logging.getLogger('terminal')
 HALFWIDTH_TO_FULLWIDTH = str.maketrans(
     '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!"#$%&()*+,-./:;<=>?@[]^_`{|}~ ',
     '０１２３４５６７８９ａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺ！゛＃＄％＆（）＊＋、ー。／：；〈＝〉？＠［］＾＿‘｛｜｝～　')
@@ -394,7 +394,7 @@ class JoJo(Cog):
 
                 color, bg = await self.bot.loop.run_in_executor(self.bot.threadpool, process_bg)
             except Exception:
-                logger.exception('Failed to get background')
+                terminal.exception('Failed to get background')
                 await ctx.send(f'{author} Failed to use custom background. Using generated one',
                                delete_after=60)
                 bg = None
@@ -469,7 +469,7 @@ class JoJo(Cog):
 
             bg_color = Color(color)
         except (AttributeError, ValueError):
-            logger.exception(f'Failed to set bg color from {color}')
+            terminal.exception(f'Failed to set bg color from {color}')
             return await ctx.send('Failed to set bg color')
 
         def do_stuff():
@@ -483,7 +483,7 @@ class JoJo(Cog):
                     fig.savefig(path, transparent=True)
                     stat_img = Image.open(path)
                 except:
-                    logger.exception('Could not create image')
+                    terminal.exception('Could not create image')
                     return '{} Could not create picture because of an error.'.format(author)
 
             plt.close(fig)
@@ -557,7 +557,7 @@ class JoJo(Cog):
                 try:
                     im = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(remove_background, im, **kwargs))
                 except Exception:
-                    logger.exception('Failed to remove bg from image')
+                    terminal.exception('Failed to remove bg from image')
                     await ctx.send(f'{author} Could not remove background because of an error',
                                    delete_after=30)
 

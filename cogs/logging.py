@@ -9,8 +9,7 @@ from utils.utilities import (split_string, format_on_delete, format_on_edit,
                              get_image_from_embeds,
                              is_image_url)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 class Logger(Cog):
@@ -168,7 +167,7 @@ class Logger(Cog):
         if len(message) > 2:
             m = '{0.id}: {0.name} On delete message had to post over 2 messages'.format(msg.guild)
             logger.info(m)
-            terminal.warning(m)
+            logger.warning(m)
 
         for m in message:
             if is_embed:
@@ -219,7 +218,7 @@ class Logger(Cog):
         if len(message) > 4:
             m = '{0.id}: {0.name} On edit message had to post over 4 messages'.format(before.guild)
             logger.info(m)
-            terminal.warning(m)
+            logger.warning(m)
 
         for m in message:
             if is_embed:

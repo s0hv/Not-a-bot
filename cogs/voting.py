@@ -16,8 +16,7 @@ from bot.formatter import EmbedLimits
 from cogs.cog import Cog
 from utils.utilities import (get_emote_name_id, parse_time, get_avatar)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 
 def parse_emote(emote, only_id=False):

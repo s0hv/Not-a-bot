@@ -13,7 +13,7 @@ from bot.globals import BlacklistTypes, PermValues
 from cogs.cog import Cog
 from utils.utilities import (split_string, send_paged_message)
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 perms = discord.Permissions(8)
 
 

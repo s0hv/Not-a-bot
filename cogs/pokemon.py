@@ -19,8 +19,7 @@ from cogs.cog import Cog
 from utils.utilities import random_color, wait_for_yes, \
     check_botperm
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 pokestats = re.compile(r'''Level (?P<level>\d+) "?(?P<name>.+?)"?
 .+?

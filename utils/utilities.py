@@ -51,9 +51,8 @@ from utils.imagetools import image_from_url
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 audio = logging.getLogger('audio')
-terminal = logging.getLogger('terminal')
 
 # https://stackoverflow.com/a/4628148/6046713
 # Added days and and aliases for names
@@ -310,7 +309,7 @@ def get_config_value(config, section, option, option_type=None, fallback=None):
             return config.get(section, option, fallback=fallback)
 
     except ValueError as e:
-        terminal.error('{0}\n{1} value is not {2}. {1} set to {3}'.format(e, option, str(option_type), str(fallback)))
+        logger.error('{0}\n{1} value is not {2}. {1} set to {3}'.format(e, option, str(option_type), str(fallback)))
         return fallback
 
 
@@ -605,7 +604,7 @@ async def dl_image(ctx, url):
     except TypeError:
         await ctx.send('Link is not a direct link to an image')
     except OSError:
-        terminal.exception('Failed to dl image because of an unknown error')
+        logger.exception('Failed to dl image because of an unknown error')
         await ctx.send('Failed to use image because of an unknown error. The image file is probably a bit broken')
     else:
         return img

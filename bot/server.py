@@ -8,7 +8,7 @@ except ModuleNotFoundError:
     Sanic = None
     text = None
 
-logger = logging.getLogger('debug')
+logger = logging.getLogger('terminal')
 
 
 class WebhookServer:
@@ -18,7 +18,7 @@ class WebhookServer:
             logger.info('Sanic not installed. Webhook not initialized')
             return
 
-        app = Sanic(configure_logging=bot.test_mode)
+        app = Sanic(name='webhook', configure_logging=bot.test_mode)
         self.bot = bot
         self._listeners = set() if not listeners else set(listeners)
 
@@ -34,7 +34,7 @@ class WebhookServer:
             return text('OK')
 
         self._server = asyncio.run_coroutine_threadsafe(app.create_server(bot.config.dbl_host,
-                                                                          bot.config.dbl_port),
+                                                                          bot.config.dbl_port, return_asyncio_server=True),
                                                         bot.loop)
 
     def add_listener(self, listener):

@@ -22,8 +22,7 @@ from utils.utilities import (call_later, parse_timeout,
                              sql2timedelta, check_botperm, format_timedelta,
                              DateAccuracy, send_paged_message)
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 manage_roles = discord.Permissions(268435456)
 lock_perms = discord.Permissions(268435472)
 
@@ -690,7 +689,7 @@ class Moderator(Cog):
 
         guild = self.bot.get_guild(guild_id)
         if guild is None:
-            terminal.warning(f'Guild {guild_id} not found. Only removing timeout from database')
+            logger.warning(f'Guild {guild_id} not found. Only removing timeout from database')
             await self.remove_timeout(user_id, guild_id)
             return
 
@@ -703,7 +702,7 @@ class Moderator(Cog):
             except (discord.Forbidden, discord.NotFound):
                 pass
             except discord.HTTPException:
-                terminal.exception(f'Could not autounmute user {user_id}')
+                logger.exception(f'Could not autounmute user {user_id}')
         await self.remove_timeout(user_id, guild.id)
 
     @command(no_pm=True)
@@ -1072,7 +1071,7 @@ class Moderator(Cog):
             td = seconds2str(delta.total_seconds(), False)
             # Most likely happens when unmute when called after unmute has happened
             if td.startswith('-'):
-                terminal.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {utcnow}\nTimedelta: {delta}')
+                logger.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {utcnow}\nTimedelta: {delta}')
                 td = 'soon'
             else:
                 td = 'in ' + td

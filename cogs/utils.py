@@ -40,8 +40,7 @@ except ImportError:
     except (ImportError, TypeError):
         SearchCommand = None
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 parserinfo = parser.parserinfo(dayfirst=True)
 
 
@@ -389,7 +388,7 @@ class Utilities(Cog):
         try:
             r = await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
         except aiohttp.ClientError:
-            terminal.exception('')
+            logger.exception('')
         else:
             status = str(r.status)
             # Accept 2xx status codes

@@ -48,8 +48,7 @@ from bot.globals import IMAGES_PATH
 # import cv2
 cv2 = None  # Remove cv2 import cuz it takes forever to import
 
-logger = logging.getLogger('debug')
-terminal = logging.getLogger('terminal')
+logger = logging.getLogger('terminal')
 
 MAGICK = os.environ.get('MAGICK_PREFIX', '')
 
@@ -354,7 +353,7 @@ async def raw_image_from_url(url, client, get_mime=False):
     mime_type = None
     try:
         async with client.get(url) as r:
-            terminal.debug('Downloading image url {}'.format(url))
+            logger.debug('Downloading image url {}'.format(url))
             if not r.headers.get('Content-Type', '').startswith('image'):
                 raise ImageDownloadError("url isn't an image (Invalid header)", url)
 
@@ -431,7 +430,7 @@ def create_glow(img, amount):
             out = p.stdout.read()
             buff = BytesIO(out)
         except Exception:
-            terminal.exception('Could not create glow')
+            logger.exception('Could not create glow')
             return img
 
     return Image.open(buff)

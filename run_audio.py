@@ -59,7 +59,8 @@ config = Config()
 initial_cogs = [
     'audio',
     'botadmin',
-    'command_blacklist']
+    'command_blacklist'
+]
 
 terminal.info('Main bot starting up')
 logger.info('Starting bot')

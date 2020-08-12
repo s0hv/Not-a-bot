@@ -122,7 +122,6 @@ class BotBase(Bot):
             self.unload_extension(c)
 
     async def on_ready(self):
-        await super().on_ready()
         self._mention_prefix = (self.user.mention, f'<@!{self.user.id}>')
         logger.info(f'Logged in as {self.user.name}')
         await self.dbutil.add_command('help')

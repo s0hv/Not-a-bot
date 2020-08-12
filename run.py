@@ -68,7 +68,6 @@ initial_cogs = [
     'voting']
 
 terminal.info('Main bot starting up')
-logger.info('Starting bot')
 
 # check whether convert is invoked with 'magick convert' or just convert
 if not os.environ.get('MAGICK_PREFIX'):

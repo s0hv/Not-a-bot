@@ -176,7 +176,6 @@ class BotBase(Bot):
             else:
                 s = 'DM/{0.id} called {1}'.format(ctx.author, ctx.command.name)
             logger.info(s)
-            logger.debug(s)
 
             await super().invoke(ctx)
 

@@ -16,7 +16,7 @@ google-api-python-client ~= 1.7.11
 lxml ~= 4.5.2
 matplotlib ~= 3.3.0
 numpy ~= 1.19.1
-git+git://github.com/uploadcare/pillow-simd.git@v7.0.0.post3#egg=pillow
+git+git://github.com/uploadcare/pillow-simd.git@v7.0.0.post3
 psutil ~= 5.7.2
 python-magic==0.4.18
 pytz ~= 2020.1

@@ -382,7 +382,9 @@ class Server(Cog):
         """Add emotes to this server from other servers.
         You can either use the emotes you want separated by spaces in the message
         or you can give a message id in the channel that the command is run in to fetch
-        the emotes from that message. Both cannot be used at the same time tho.
+        the emotes from that message. Also a user can be specified and the current status emote will be stolen.
+        Both cannot be used at the same time though.
+        Maximum amount of emotes that can be stolen at a time is 20.
         Usage:
             `{prefix}{name} :emote1: :emote2: :emote3:`
             `{prefix}{name} message_id`
@@ -421,6 +423,13 @@ class Server(Cog):
                 if e.is_custom_emoji():
                     emotes.append(e)
 
+        if len(emotes) > 20:
+            await ctx.send(f'Too many emotes ({len(emotes)}>20). Maximum amount of emotes that can be stolen at a time is 20')
+
+        update_msg = None
+        if len(emotes) > 2:
+            update_msg = await ctx.send(f'Trying to steal {len(emotes)} emotes')
+
         errors = 0
         guild = ctx.guild
         stolen = []
@@ -436,17 +445,25 @@ class Server(Cog):
                 continue
 
             try:
-                emote = await guild.create_custom_emoji(name=emote.name, image=data, reason=f'{ctx.author} stole emote')
-                stolen.append(emote)
+                em = await guild.create_custom_emoji(name=emote.name, image=data, reason=f'{ctx.author} stole emote')
+                stolen.append(em)
             except discord.HTTPException as e:
-                if e.code == 400:
-                    return await ctx.send('Emote capacity reached\n{}'.format(e))
-                await ctx.send('Error while uploading emote\n%s' % e)
+                if e.code == 30008:
+                    await ctx.send('Emote capacity reached\n{}'.format(e))
+                    break
+
+                await ctx.send(f'Error while uploading emote {emote.name}\n%s' % e)
                 errors += 1
             except discord.ClientException:
-                await ctx.send('Failed to create emote because of an error')
+                await ctx.send(f'Failed to create emote {emote.name} because of an error')
                 logger.exception('Failed to create emote')
                 errors += 1
+
+            try:
+                if len(stolen) % 5 == 0:
+                    await update_msg.edit(f'{stolen} emotes stolen')
+            except discord.HTTPException:
+                pass
 
         if stolen:
             await ctx.send('Successfully stole {}'.format(' '.join(map(str, stolen))))

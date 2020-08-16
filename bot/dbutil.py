@@ -862,12 +862,17 @@ class DatabaseUtils:
         sql = f'INSERT INTO role_cooldown (uid, last_use) VALUES ($1, $2) ON CONFLICT(uid) DO UPDATE SET last_use=$2'
         await self.execute(sql, (user, last_use))
 
-    async def get_timeout_logs(self, guild_id: int, user_id: int):
+    async def get_timeout_logs(self, guild_id: int, user_id: int, bot_id: int = None):
+        bot_sql = '' if not bot_id else 'author!=$3 AND '
         sql = 'SELECT author, uid, reason, time, duration, id FROM timeout_logs WHERE ' \
-              'guild=%s AND uid=%s AND show_in_logs=TRUE ORDER BY id DESC' % (guild_id, user_id)
+              'guild=$1 AND uid=$2 AND %s show_in_logs=TRUE ORDER BY id DESC' % bot_sql
+
+        args = [guild_id, user_id]
+        if bot_id:
+            args.append(bot_id)
 
         try:
-            rows = await self.fetch(sql)
+            rows = await self.fetch(sql, args)
         except PostgresError:
             logger.exception('Failed to get timeout logs')
             return False

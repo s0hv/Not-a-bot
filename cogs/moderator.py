@@ -780,7 +780,7 @@ class Moderator(Cog):
         Use `{prefix}{name} by` to see timeouts done by a specific user
         """
         user = user or ctx.author
-        rows = await self.bot.dbutil.get_timeout_logs(ctx.guild.id, user.id)
+        rows = await self.bot.dbutil.get_timeout_logs(ctx.guild.id, user.id, self.bot.user.id)
         if rows is False:
             return await ctx.send(f'Failed to get timeout logs for user {user}')
 

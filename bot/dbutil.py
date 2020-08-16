@@ -692,6 +692,8 @@ class DatabaseUtils:
         return True
 
     async def add_timeout(self, guild: int, user, expires_on):
+        logger.debug(f'Adding timeout to {user} on guild {guild}')
+
         sql = 'INSERT INTO timeouts (guild, uid, expires_on) VALUES ' \
               '%s ON CONFLICT (guild, uid) DO UPDATE SET expires_on=$3'
 

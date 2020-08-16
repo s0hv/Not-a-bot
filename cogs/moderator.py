@@ -641,6 +641,8 @@ class Moderator(Cog):
         Returns:
 
         """
+
+        logger.debug(f'Removing timeout of {user_id} in guild {guild_id}')
         try:
             if return_info:
                 sql = 'DELETE FROM timeouts t USING timeout_logs tl ' \

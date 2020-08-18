@@ -460,7 +460,7 @@ class Server(Cog):
                 errors += 1
 
             try:
-                if len(stolen) != 0 != 0 and len(stolen) % 5 == 0:
+                if len(stolen) != 0 and len(stolen) % 5 == 0:
                     await update_msg.edit(f'{stolen} emotes stolen')
             except discord.HTTPException:
                 pass

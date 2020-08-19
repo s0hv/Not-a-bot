@@ -307,7 +307,7 @@ def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=200,
 
     # Find contours in edges, sort by area
     contour_info = []
-    _, contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
     for c in contours:
         contour_info.append((
             c,

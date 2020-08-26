@@ -62,6 +62,9 @@ class Search(Cog):
     async def image(self, ctx, *, query):
         """Google search an image"""
         #logger.debug('Image search query: {}'.format(query))
+        if ctx.guild and ctx.guild.id == 217677285442977792 and query.strip().lower() == 'penile hemorrhage':
+            return
+
         safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'high'
         return await self._search(ctx, query, True, safe=safe)
 

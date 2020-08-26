@@ -25,6 +25,7 @@ from utils.utilities import (call_later, parse_timeout,
 logger = logging.getLogger('terminal')
 manage_roles = discord.Permissions(268435456)
 lock_perms = discord.Permissions(268435472)
+penile_regex = re.compile(r'(\.(image|im|photo|img)) +penile hemorrhage', re.I)
 
 
 class Moderator(Cog):
@@ -157,15 +158,13 @@ class Moderator(Cog):
                 if not user:
                     return
 
-            if mute_role in user.roles:
-                return
-
             if not check_botperm('manage_roles', guild=message.guild, channel=message.channel):
                 return
 
-            s = '.img penile hemorrhage'
+            is_muted = mute_role in user.roles
+
             # check for search of that
-            if guild.id == 217677285442977792 and message.content.strip().lower() == s:
+            if guild.id == 217677285442977792 and penile_regex.match(message.content):
                 def check(msg):
                     if msg.author.id != 439205512425504771 or msg.channel != message.channel:
                         return False
@@ -186,6 +185,9 @@ class Moderator(Cog):
 
                 await msg.delete()
 
+                if is_muted:
+                    return
+
                 time = timedelta(days=3)
                 await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
                 d = f'Automuted user {user} `{user.id}` for {time}'
@@ -203,6 +205,9 @@ class Moderator(Cog):
                                        reason=f'Automuted for {message.content}',
                                        author=guild.me,
                                        modlog_msg=msg.id if msg else None)
+                return
+
+            if is_muted:
                 return
 
             limit = self.bot.guild_cache.automute_limit(guild.id)

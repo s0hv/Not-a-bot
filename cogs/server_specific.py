@@ -1245,6 +1245,44 @@ class ServerSpecific(Cog):
         chances = min(1, chances)
         await ctx.send(f'Your chances of getting a role is {chances*100:.1f}%')
 
+    async def get_role_cooldown(self, ctx):
+        # Get last use timestamp
+        try:
+            row = await self.dbutil.get_last_role_time(ctx.author.id)
+        except PostgresError:
+            await ctx.send('Failed to get timestamp of last use of this command. Try again later')
+            return False
+
+        # Check that cooldown has passed
+        if row:
+            role_cooldown = (datetime.utcnow() - row[0])
+
+            return role_cooldown
+
+        return None
+
+    @staticmethod
+    def get_cooldown_days(member):
+        return 7 if member.premium_since else 6
+
+    @command(aliases=['rcd', 'tcd'])
+    @check(create_check((217677285442977792,)))
+    @cooldown(1, 10, BucketType.user)
+    async def rolecooldown(self, ctx):
+        cd = await self.get_role_cooldown(ctx)
+        if cd is False:
+            return
+
+        cooldown_days = self.get_cooldown_days(ctx.author)
+
+        if cd is not None and cd.days < cooldown_days:
+            t = format_timedelta(timedelta(days=cooldown_days) - cd,
+                                 DateAccuracy.Day - DateAccuracy.Hour)
+            await ctx.send(f'You can use toletole in {t}')
+            return
+
+        await ctx.send('You can use toletole now')
+
     @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
     @check(create_check((217677285442977792,)))
     @cooldown(1, 10, BucketType.user)
@@ -1267,11 +1305,7 @@ class ServerSpecific(Cog):
 
         # Check that cooldown has passed
         if row:
-            cooldown_days = 7
-
-            # Boosters have 1 day lower cooldown
-            if ctx.author.premium_since:
-                cooldown_days -= 1
+            cooldown_days = self.get_cooldown_days(ctx.author)
 
             role_cooldown = (datetime.utcnow() - row[0])
             if role_cooldown.days < cooldown_days:

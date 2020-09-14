@@ -848,7 +848,7 @@ class Server(Cog):
             for afk in afks:
                 messages.append(f'{afk.user} is afk {format_timedelta(int(time.time() - afk.timestamp), DateAccuracy.Hour - DateAccuracy.Minute)} ago: {afk.message}'[:2000])
 
-            messages = split_string(messages)[:2]
+            messages = split_string(messages, list_join='\n')[:2]
         else:
             afk = afks[0]
             messages = (f'{afk.user} is afk {format_timedelta(int(time.time()-afk.timestamp), DateAccuracy.Hour-DateAccuracy.Minute)} ago: {afk.message}'[:2000], )

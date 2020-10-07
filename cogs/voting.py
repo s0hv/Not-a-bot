@@ -426,7 +426,8 @@ class VoteManager(Cog):
                 break
 
         if not modifiers:
-            await ctx.send('Modifiers field not found')
+            await ctx.send('Modifiers field not found. Make sure you got the correct message id for the poll')
+            return
 
         modifiers = modifiers.split('\n')
         args = ProxyArgs()

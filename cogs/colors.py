@@ -856,7 +856,7 @@ class Colors(Cog):
             # Scale radius based on amount of colors. This is because picture
             # size increases when color amount increases
             wedges, texts = ax[0].pie(values, colors=colors_hex,
-                                      radius=len(colors) / 5)
+                                      radius=len(colors) / 5, normalize=False)
 
             ax[1].axis('off')
             x = len(colors)
@@ -1276,7 +1276,7 @@ class Colors(Cog):
         self._color_jobs.add(guild.id)
 
         try:
-            await self.bot.request_offline_members(guild)
+            await guild.chunk()
         except InvalidArgument:
             pass
         roles = guild.roles

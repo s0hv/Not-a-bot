@@ -144,7 +144,7 @@ class Logger(Cog):
 
     @Cog.listener()
     async def on_message_delete(self, msg):
-        if isinstance(msg.channel, discord.DMChannel):
+        if isinstance(msg.channel, discord.DMChannel) or msg.guild is None:
             return
 
         if msg.author.bot or msg.channel.id == 336917918040326166:
@@ -180,7 +180,7 @@ class Logger(Cog):
 
     @Cog.listener()
     async def on_message_edit(self, before, after):
-        if isinstance(before.channel, discord.DMChannel):
+        if isinstance(before.channel, discord.DMChannel) or before.guild is None:
             return
 
         if before.content == after.content:

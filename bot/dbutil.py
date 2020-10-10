@@ -174,7 +174,7 @@ class DatabaseUtils:
 
         return row
 
-    async def index_guild_member_roles(self, guild):
+    async def index_guild_member_roles(self, guild: discord.Guild):
         t = time.time()
         default_role = guild.default_role.id
 
@@ -194,7 +194,7 @@ class DatabaseUtils:
         t1 = time.time()
 
         try:
-            await self.bot.request_offline_members(guild)
+            await guild.chunk()
             logger.info(f'added offline users in {time.time() - t1}')
         except InvalidArgument:
             pass

@@ -397,7 +397,7 @@ class BotAdmin(Cog):
         guild = ctx.message.guild
         if guild.id == 217677285442977792:
             try:
-                await self.bot.request_offline_members(guild)
+                await guild.chunk()
             except InvalidArgument:
                 pass
 

@@ -28,6 +28,8 @@ SOFTWARE.
 import logging
 import sys
 
+import discord
+
 from bot.audio_bot import AudioBot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
@@ -65,7 +67,10 @@ initial_cogs = [
 terminal.info('Main bot starting up')
 logger.info('Starting bot')
 config.default_activity = {'type': 1, 'name': 'Music'}
-bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True), conf=config, max_messages=100, cogs=initial_cogs)
+
+intents = discord.Intents.default()
+bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
+               conf=config, max_messages=100, cogs=initial_cogs, intents=intents)
 bot.run(config.audio_token)
 
 # We have systemctl set up in a way that different exit codes

@@ -28,6 +28,8 @@ SOFTWARE.
 import logging
 import sys
 
+import discord
+
 from bot.Not_a_bot import NotABot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
@@ -109,8 +111,12 @@ except:
     terminal.exception('Failed to initialize tensorflow')
     model = None
 
+intents = discord.Intents.default()
+intents.members = True
+
 #bot=Ganypepe(prefix='-', conf=config, pm_help=False, max_messages=10000, test_mode=True)
-bot = NotABot(prefix='-', conf=config, max_messages=10000, test_mode=True, cogs=initial_cogs, model=model)
+bot = NotABot(prefix='-', conf=config, max_messages=10000,
+              test_mode=True, cogs=initial_cogs, model=model, intents=intents)
 bot.run(config.test_token)
 
 # We have systemctl set up in a way that different exit codes

@@ -1263,7 +1263,7 @@ class ServerSpecific(Cog):
 
     @staticmethod
     def get_cooldown_days(member):
-        return 7 if member.premium_since else 6
+        return 4 if member.premium_since else 7
 
     @command(aliases=['rcd', 'tcd'])
     @check(create_check((217677285442977792,)))

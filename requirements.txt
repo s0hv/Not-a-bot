@@ -32,4 +32,4 @@ sanic ~= 20.6.3
 selenium ~= 3.141.0
 validators ~= 0.14.0
 youtube_dl
-discord.py[voice] ~= 1.4.1
+discord.py[voice] ~= 1.5.0

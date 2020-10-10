@@ -129,6 +129,7 @@ class NotABot(BotBase):
                     if guild.unavailable:
                         continue
 
+                    await guild.chunk()
                     success = await self.dbutil.index_guild_member_roles(guild)
                     if not success:
                         raise EnvironmentError('Failed to cache keeprole servers')

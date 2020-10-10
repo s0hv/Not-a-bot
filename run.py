@@ -6,6 +6,8 @@ import os
 import subprocess
 import sys
 
+import discord
+
 from bot.Not_a_bot import NotABot
 from bot.config import Config
 from bot.formatter import LoggingFormatter
@@ -85,7 +87,14 @@ except:
     model = None
 
 
-bot = NotABot(prefix='!', conf=config, max_messages=5000, cogs=initial_cogs, model=model, shard_count=2)
+intents = discord.Intents.default()
+intents.members = True
+
+intents.invites = False
+intents.voice_states = False
+
+bot = NotABot(prefix='!', conf=config, max_messages=5000, cogs=initial_cogs,
+              model=model, shard_count=2, intents=intents, chunk_guilds_at_startup=False)
 bot.run(config.token)
 
 # We have systemctl set up in a way that different exit codes

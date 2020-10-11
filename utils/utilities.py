@@ -1228,9 +1228,9 @@ def format_activity(activity):
 def format_member(member):
     d = slots2dict(member)
     d['user'] = str(member)
-    d.pop('roles')
-    d.pop('voice')
-    d.pop('dm_channel')
+    d.pop('roles', None)
+    d.pop('voice', None)
+    d.pop('dm_channel', None)
 
     for k in d:
         v = d[k]
@@ -1460,7 +1460,7 @@ async def check_blacklist(ctx):
     overwrite_perms = await bot.dbutil.check_blacklist("(command='%s' OR command IS NULL)" % ctx.command, ctx.author, ctx, True)
     msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, (None, None))
     if isinstance(overwrite_perms, int):
-        if ctx.guild and ctx.guild.owner.id == ctx.author.id:
+        if ctx.guild and ctx.guild.owner_id == ctx.author.id:
             overwrite_perms = True
         else:
             overwrite_perms = PermValues.RETURNS.get(overwrite_perms, False)

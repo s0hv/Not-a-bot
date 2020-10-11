@@ -133,6 +133,11 @@ class NotABot(BotBase):
                     if not success:
                         raise EnvironmentError('Failed to cache keeprole servers')
 
+        # Always chunk my own server
+        g = self.get_guild(217677285442977792)
+        if g:
+            await g.chunk()
+
         logger.info('Guilds cached')
         logger.info('Cached guilds in {} seconds'.format(round(time.time()-t, 2)))
 

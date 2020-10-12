@@ -48,7 +48,7 @@ class HelpCommand(help.HelpCommand):
         else:
             roles = 'role IS NULL'
 
-        guild_owner = False if (not is_guild or not ctx.guild.owner) else user.id == ctx.guild.owner.id
+        guild_owner = False if (not is_guild or not ctx.guild.owner_id) else user.id == ctx.guild.owner_id
         command_blacklist = {}
 
         # Filter by custom blacklist

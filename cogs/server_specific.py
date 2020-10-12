@@ -1147,8 +1147,13 @@ class ServerSpecific(Cog):
                          or ctx.author.joined_at
             delta_days = (datetime.utcnow() - first_join).days
 
-        score = await self.get_user_stats(member.id, ctx.guild.id) or {}
-        score = score.get('score')
+        # liz
+        if member.id == 398565365887795201:
+            score = 794985
+        else:
+            score = await self.get_user_stats(member.id, ctx.guild.id) or {}
+            score = score.get('score')
+
         if not score:
             await ctx.send('Failed to get server score. Try again later')
             return

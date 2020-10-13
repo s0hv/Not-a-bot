@@ -1420,7 +1420,13 @@ class Moderator(Cog):
             await self.bot.dbutil.remove_temprole(user, role)
             return
 
-        member = guild.get_member(user)
+        member = None
+        try:
+            member = await guild.fetch_member(user)
+        except discord.NotFound:
+            pass
+        except discord.HTTPException:
+            logger.exception('Failed to fetch member in remove_role')
 
         if not member:
             await self.bot.dbutil.remove_temprole(user, role)

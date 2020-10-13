@@ -1,7 +1,6 @@
 import itertools
 import logging
 import operator
-import re
 
 import colors
 import discord
@@ -168,19 +167,6 @@ class HelpCommand(help.HelpCommand):
         paginator.finalize()
 
         await self.send_messages(dest, paginator)
-
-    @property
-    def clean_prefix(self):
-        """The cleaned up invoke prefix. i.e. mentions are ``@name`` instead of ``<@id>``."""
-        user = self.context.guild.me if self.context.guild else self.context.bot.user
-        # this breaks if the prefix mention is not the bot itself but I
-        # consider this to be an *incredibly* strange use case. I'd rather go
-        # for this common use case rather than waste performance for the
-        # odd one.
-
-        # Copied from base but fixes regex nicknames not being escaped
-        pattern = re.compile(r"<@!?%s>" % user.id)
-        return pattern.sub("@%s" % re.escape(user.display_name), self.context.prefix)
 
     async def send_cog_help(self, cog):
         ctx = self.context

@@ -18,6 +18,11 @@ class MentionedMember(converter.MemberConverter):
         if match:
             user_id = int(match.group(1))
             result = guild.get_member(user_id)
+            if not result:
+                try:
+                    result = await guild.fetch_member(user_id)
+                except discord.HTTPException:
+                    pass
 
         if result is None:
             raise BadArgument('Member "{}" not found'.format(argument))
@@ -38,7 +43,10 @@ class PossibleUser(converter.IDConverter):
             user_id = int(match.group(1))
             result = ctx.bot.get_user(user_id)
             if not result:
-                result = user_id
+                try:
+                    result = await ctx.bot.fetch_user(user_id)
+                except discord.HTTPException:
+                    result = user_id
         else:
             arg = argument
             # check for discriminator if it exists
@@ -83,6 +91,11 @@ class MentionedUser(converter.UserConverter):
         if match:
             user_id = int(match.group(1))
             result = ctx.bot.get_user(user_id)
+            if not result:
+                try:
+                    result = await ctx.bot.fetch_user(user_id)
+                except discord.HTTPException:
+                    pass
 
         if result is None:
             raise BadArgument('Member "{}" not found'.format(argument))

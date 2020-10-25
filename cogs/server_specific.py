@@ -1150,6 +1150,9 @@ class ServerSpecific(Cog):
         # liz
         if member.id == 398565365887795201:
             score = 794985
+        # micky
+        elif member.id == 224998092490014720:
+            score = 1103664
         else:
             score = await self.get_user_stats(member.id, ctx.guild.id) or {}
             score = score.get('score')

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import random
+import re
 import textwrap
 import unicodedata
 from collections import Counter
@@ -49,6 +50,10 @@ main_check = create_check(whitelist)
 grant_whitelist = {486834412651151361, 279016719916204032, 468227890413174806}  # chef server and artx server
 grant_whitelist.update(whitelist)
 grant_check = create_check(grant_whitelist)
+
+
+tatsu_user_regex = re.compile(r'.+?Viewing server rankings .+? \[.+? (?P<user>.+?#\d{4}) +[*]{0,2}].+?', re.UNICODE)
+tatsu_score_regex = re.compile(r'.+?with a total of `?(?P<score>\d+)`? .+ [*]{0,2}server score[*]{0,2}', re.I | re.U | re.M | re.DOTALL)
 
 # waifus to add
 """
@@ -321,6 +326,7 @@ class ServerSpecific(Cog):
         self._zetas = {}
         self._redis_fails = 0
         self._removing_every = False
+        self.replace_tatsu_api = True
 
     def cog_unload(self):
         self.bot.server.remove_listener(self.reduce_role_cooldown)
@@ -1147,15 +1153,54 @@ class ServerSpecific(Cog):
                          or ctx.author.joined_at
             delta_days = (datetime.utcnow() - first_join).days
 
-        # liz
-        if member.id == 398565365887795201:
-            score = 794985
-        # micky
-        elif member.id == 224998092490014720:
-            score = 1103664
+        score = None
+
+        # Replace tatsu api with a command parser
+        if self.replace_tatsu_api:
+            await ctx.send('Use the `gaytop` command so the bot can read your server score.\n'
+                           'This is required because Tatsu API is broke and has outdated scores.')
+
+            def check(msg):
+                nonlocal score
+                if msg.author.id != 172002275412279296 or not (msg.content or msg.embeds):
+                    return False
+
+                match = tatsu_user_regex.match(msg.content)
+                if not match or match.groups()[0].strip() != str(ctx.author):
+                    return False
+
+                embed = msg.embeds[0]
+                if not embed.description:
+                    return False
+
+                match = tatsu_score_regex.match(embed.description)
+                if not match:
+                    return False
+
+                score = int(match.groups()[0])
+                logger.debug(f'Tatsu score for {ctx.author.id} is {score}')
+                return True
+
+            msg = None
+            try:
+                msg = await self.bot.wait_for('message', check=check, timeout=20)
+            except asyncio.TimeoutError:
+                pass
+
+            if not msg:
+                await ctx.send('`gaytop` command result not found. Try again later')
+                return
+
         else:
-            score = await self.get_user_stats(member.id, ctx.guild.id) or {}
-            score = score.get('score')
+            # liz
+            if member.id == 398565365887795201:
+                score = 794985
+            # micky
+            elif member.id == 224998092490014720:
+                score = 1103664
+            else:
+                score = await self.get_user_stats(member.id, ctx.guild.id) or {}
+                score = score.get('score')
 
         if not score:
             await ctx.send('Failed to get server score. Try again later')
@@ -1292,7 +1337,7 @@ class ServerSpecific(Cog):
         await ctx.send('You can use toletole now')
 
     @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
-    @check(create_check((217677285442977792,)))
+    @check(create_check((217677285442977792,353927534439825429)))
     @cooldown(1, 10, BucketType.user)
     async def role_get(self, ctx, mentionable: bool=False):
         """

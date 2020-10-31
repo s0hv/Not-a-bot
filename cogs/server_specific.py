@@ -327,6 +327,7 @@ class ServerSpecific(Cog):
         self._redis_fails = 0
         self._removing_every = False
         self.replace_tatsu_api = True
+        self._using_toletole = {}
 
     def cog_unload(self):
         self.bot.server.remove_listener(self.reduce_role_cooldown)
@@ -1157,7 +1158,7 @@ class ServerSpecific(Cog):
 
         # Replace tatsu api with a command parser
         if self.replace_tatsu_api:
-            await ctx.send('Use the `gaytop` command so the bot can read your server score.\n'
+            await ctx.send(f'{ctx.author} use the `gaytop` command so the bot can read your server score.\n'
                            'This is required because Tatsu API is broke and has outdated scores.')
 
             def check(msg):
@@ -1337,7 +1338,7 @@ class ServerSpecific(Cog):
         await ctx.send('You can use toletole now')
 
     @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
-    @check(create_check((217677285442977792,353927534439825429)))
+    @check(create_check((217677285442977792,)))
     @cooldown(1, 10, BucketType.user)
     async def role_get(self, ctx, mentionable: bool=False):
         """
@@ -1349,6 +1350,11 @@ class ServerSpecific(Cog):
         Original idea by xerd
         """
 
+        # Skip invocation if waiting for tatsu message
+        temp = self._using_toletole.get(ctx.author.id)
+        if temp and (datetime.utcnow() - temp).total_seconds() < 30:
+            return
+
         # Get last use timestamp
         try:
             row = await self.dbutil.get_last_role_time(ctx.author.id)
@@ -1357,7 +1363,7 @@ class ServerSpecific(Cog):
             return
 
         # Check that cooldown has passed
-        if row:
+        if row and row[0] is not None:
             cooldown_days = self.get_cooldown_days(ctx.author)
 
             role_cooldown = (datetime.utcnow() - row[0])
@@ -1392,6 +1398,7 @@ class ServerSpecific(Cog):
             await ctx.send('No roles available to you at the moment. Try again after being more active')
             return
 
+        self._using_toletole[ctx.author.id] = datetime.utcnow()
         chances = await self.get_role_chance(ctx, ctx.author, user_roles, delta_days)
         if chances is None:
             return
@@ -1405,6 +1412,8 @@ class ServerSpecific(Cog):
         except PostgresError:
             await ctx.send('Failed to update cooldown of the command. Try again in a bit')
             return
+
+        self._using_toletole.pop(ctx.author.id, None)
 
         got_new_role = random.random() < chances
         if got_new_role:

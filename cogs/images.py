@@ -319,6 +319,10 @@ class Images(Cog):
         data.seek(0)
         return data
 
+    @staticmethod
+    def stretch_image(im):
+        return im.mode != 'RGBA'
+
     @command()
     @cooldown(3, 5, type=BucketType.guild)
     async def anime_deaths(self, ctx, image=None):
@@ -1313,6 +1317,47 @@ class Images(Cog):
         async with ctx.typing():
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='02.png'))
+
+    @command()
+    @cooldown(2, 7, BucketType.guild)
+    async def thinking(self, ctx, stretch: Optional[bool]=None, image=None):
+        """
+        Stretch is either on or off. If stretch is on the image is stretched in order
+        to fit in the image.
+
+        By default the value of stretch is automatically decided based on
+        if the given image is transparent (stretch is off) or not (stretch is on)
+        """
+        img = await get_image(ctx, image)
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img, stretch
+            if stretch is None:
+                stretch = self.stretch_image(img)
+
+            template = Image.open(os.path.join(TEMPLATES, 'thinkingTemplate.png'))
+            img = img.convert('RGBA')
+            size = (565, 475)
+            if stretch:
+                img = img.resize(size, resample=Image.BICUBIC)
+            else:
+                img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                               resample=Image.BICUBIC,
+                                               crop_to_size=True,
+                                               center_cropped=True)
+
+            mask = Image.open(os.path.join(TEMPLATES, 'thinkingTemplateMask.png'))
+            bg = Image.new('RGBA', template.size, 'white')
+            bg.alpha_composite(img)
+            bg = ImageChops.multiply(bg, mask)
+            bg.alpha_composite(template)
+            return self.save_image(bg)
+
+        async with ctx.typing():
+            file = await self.image_func(do_it)
+        await ctx.send(file=File(file, filename='thinkingAbout.png'))
 
     @command()
     @cooldown(2, 5, BucketType.guild)

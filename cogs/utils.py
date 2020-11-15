@@ -434,7 +434,8 @@ class Utilities(Cog):
         """Turns your text without emotes to text with discord custom emotes
         To blacklist words from emoji search use a quoted string at the
         beginning of the command denoting those words
-        e.g. emojify "blacklisted words here" rest of the sentence"""
+        e.g. emojify "blacklisted words here" rest of the sentence
+        This will make sure that the words blacklisted, words and here are not turned into emojis"""
         emojis = ctx.bot.emojis
         new_text = ''
         word_blacklist = None
@@ -446,6 +447,10 @@ class Utilities(Cog):
             if word_blacklist:
                 text = text[idx+1:]
                 word_blacklist = [s.lower().strip(',.') for s in word_blacklist.split(' ')]
+
+        if not text:
+            await ctx.send('No text given to emojify. Text needs to be given in addition to blacklisted words.')
+            return
 
         emoji_cache = {}
         lines = text.split('\n')

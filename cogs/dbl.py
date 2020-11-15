@@ -21,7 +21,7 @@ class DBApi(Cog):
             asyncio.run_coroutine_threadsafe(self._thread_safe_init(), loop=self.bot.loop)
 
     async def _thread_safe_init(self):
-        self.dbl = dbl.Client(self.bot, self._token, loop=self.bot.loop)
+        self.dbl = dbl.DBLClient(self.bot, self._token, loop=self.bot.loop)
         self.update_task = self.bot.loop.create_task(self.update_stats())
 
     async def on_vote(self, json):

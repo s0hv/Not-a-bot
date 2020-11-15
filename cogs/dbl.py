@@ -49,7 +49,7 @@ class DBApi(Cog):
             await asyncio.sleep(3600)
             logger.info('Posting server count')
             try:
-                await self.dbl.post_server_count()
+                await self.dbl.post_guild_count()
                 logger.info(f'Posted server count {len(self.bot.guilds)}')
             except Exception as e:
                 logger.exception(f'Failed to post server count\n{e}')

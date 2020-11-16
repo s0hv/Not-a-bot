@@ -42,6 +42,7 @@ class DBApi(Cog):
                 return
 
     def cog_unload(self):
+        self.bot.server.remove_listener(self.on_vote)
         asyncio.run_coroutine_threadsafe(self._thread_safe_stop(), loop=self.bot.loop).result(21)
 
     async def update_stats(self):

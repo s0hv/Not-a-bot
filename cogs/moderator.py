@@ -1352,6 +1352,8 @@ class Moderator(Cog):
             await ctx.send(f'Failed to delete messages because of an error\n{e}')
         else:
             await ctx.send(f'Deleted {len(deleted)} messages', delete_after=10)
+            embed = self.purge_embed(ctx, deleted)
+            await self.send_to_modlog(channel.guild, embed=embed)
 
     @command(no_pm=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)

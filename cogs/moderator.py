@@ -1347,11 +1347,11 @@ class Moderator(Cog):
             return True
 
         try:
-            deleted = await channel.purge(limit=limit, check=check, before=ctx.message)
+            deleted = await channel.purge(limit=limit, check=check)
         except discord.HTTPException as e:
             await ctx.send(f'Failed to delete messages because of an error\n{e}')
         else:
-            await ctx.send(f'Deleted {len(deleted)} messages')
+            await ctx.send(f'Deleted {len(deleted)} messages', delete_after=10)
 
     @command(no_pm=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)

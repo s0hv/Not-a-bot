@@ -573,7 +573,7 @@ class Audio(commands.Cog):
         return new_songs, failed
 
     # TODO Add subcommands to add from queue but with a filter
-    @command(no_pm=True, aliases=['atp'])
+    @command(no_pm=True, aliases=['atp'], cooldown_after_parsing=True)
     @cooldown(1, 20, BucketType.user)
     async def add_to_playlist(self, ctx, playlist_name, *, song_links):
         """
@@ -650,7 +650,7 @@ class Audio(commands.Cog):
 
         await ctx.send(f'{s}\nAdded {added} songs')
 
-    @command(no_pm=True, aliases=['dp', 'drp'])
+    @command(no_pm=True, aliases=['dp', 'drp'], cooldown_after_parsing=True)
     @cooldown(1, 5, BucketType.user)
     async def delete_from_playlist(self, ctx, playlist_name, *song_links):
         """Delete the given links from the playlist.
@@ -764,7 +764,7 @@ class Audio(commands.Cog):
 
         await ctx.send(f'Successfully copied {user}\'s playlist {name} to {name}')
 
-    @group(no_pm=True, aliases=['cop'], invoke_without_command=True)
+    @group(no_pm=True, aliases=['cop'], invoke_without_command=True, cooldown_after_parsing=True)
     @cooldown(1, 20, BucketType.user)
     async def copy_playlist(self, ctx, user: Optional[discord.User], *, name):
         """
@@ -811,7 +811,7 @@ class Audio(commands.Cog):
         task = asyncio.run_coroutine_threadsafe(pop_list(), loop=self.bot.loop)
         self.viewed_playlists[user.id] = (playlist, task, name)
 
-    @command(no_pm=True, aliases=['lp'])
+    @command(no_pm=True, aliases=['lp'], cooldown_after_parsing=True)
     @cooldown(1, 5, BucketType.user)
     async def list_playlists(self, ctx, *, user: discord.User = None):
         """
@@ -836,7 +836,7 @@ class Audio(commands.Cog):
 
         await ctx.send(f'Playlists of {user}\n\n' + '\n'.join(playlists))
 
-    @command(no_pm=True, aliases=['cd'])
+    @command(no_pm=True, aliases=['cd'], cooldown_after_parsing=True)
     @cooldown(1, 5, BucketType.user)
     async def clear_playlist_duplicates(self, ctx, *, playlist_name):
         """
@@ -859,7 +859,7 @@ class Audio(commands.Cog):
 
         await ctx.send(f'Deleted {len(songs) - len(new_songs)} duplicate(s) from the playlist "{playlist_name}"')
 
-    @group(no_pm=True, aliases=['vp'], invoke_without_command=True)
+    @group(no_pm=True, aliases=['vp'], invoke_without_command=True, cooldown_after_parsing=True)
     @cooldown(1, 5, BucketType.user)
     async def view_playlist(self, ctx, user: Optional[discord.User], *, name):
         """
@@ -1007,7 +1007,7 @@ class Audio(commands.Cog):
         s += f'\n{length-len(selected)} songs deleted that matched `{song_name}`'
         await ctx.send(s)
 
-    @command(no_pm=True)
+    @command(no_pm=True, cooldown_after_parsing=True)
     @cooldown(1, 10, BucketType.user)
     async def delete_playlist(self, ctx, *, name):
         """

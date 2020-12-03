@@ -207,7 +207,7 @@ class Utilities(Cog):
     @cooldown(1, 10, BucketType.user)
     async def invite(self, ctx):
         """This bots invite link"""
-        await ctx.send(f'The bot cannot be invited to servers at the moment due to intent approval process being clogged up. No ETA can be provided as to when the bot can be invited again.\n<https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=1342557248&scope=bot>')
+        await ctx.send(f'<https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=1342557248&scope=bot>')
 
     @staticmethod
     def _unpad_zero(value):

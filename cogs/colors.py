@@ -535,6 +535,9 @@ class Colors(Cog):
 
         def do_the_thing():
             for colors in color_list:
+                if not colors:
+                    continue
+
                 ims = []
                 for color in colors:
                     color = self.color_from_str(color)

@@ -1,3 +1,4 @@
+import itertools
 import json
 
 import requests
@@ -18,19 +19,31 @@ for row in rows:
     color = row.find('p').get('title')
 
     d = {}
-    hsv, rgb, hex_ = color.split('; ')
-    hsv_ = []
-    for s in hsv[4:-1].split(','):
-        s = s[:-1]
-        if s:
-            hsv_.append(int(s))
-        else:
-            hsv_.append(None)
+    hsv, rgb, hex_ = color.split('\n')
 
-    d['hsv'] = hsv_
-    d['rgb'] = [int(s) for s in rgb[4:-1].split(',')]
-    d['hex'] = hex_
+    d['rgb'] = [int(s) for s in rgb[5:-1].split(' ')]
+    d['hex'] = hex_.split(' ')[-1]
     colors[name.lower()] = d
 
+url2 = 'https://encycolorpedia.com/named'
+r = requests.get(url2)
+soup = BeautifulSoup(r.content, 'lxml')
+
+rows = soup.select('section ol li')
+for row in rows:
+    name, hex_ = row.get_text('\n').split('\n')
+    name = name.lower()
+    rgb = [int(''.join(itertools.islice(s, 2)), 16) for s in [iter(hex_[1:])]*3]
+
+    if name in colors and colors[name]['hex'].lower() != hex_.lower():
+        print(name, hex_)
+    else:
+        d = {
+            'hex': hex_,
+            'rgb': rgb
+        }
+        colors[name] = d
+
+print(len(colors.keys()))
 with open('color_names.json', 'w') as f:
     json.dump(colors, f, indent=4)

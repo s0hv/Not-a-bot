@@ -498,6 +498,23 @@ class Colors(Cog):
             s = ' '.join(hex_colors)
         await ctx.send(s, file=discord.File(data, 'colors.png'))
 
+    @command(aliases=['cdiff', 'color_diff'])
+    @cooldown(1, 5, BucketType.user)
+    async def color_difference(self, ctx, color1: str, color2: str):
+        """
+        Tells how different two colors are
+        """
+        c1, c2 = color1, color2
+        color1 = Colour(self.color_from_str(color1))
+        color2 = Colour(self.color_from_str(color2))
+
+        color1 = self.rgb2lab(color1.rgb, to_role=False)
+        color2 = self.rgb2lab(color2.rgb, to_role=False)
+
+        diff = 100 - delta_e_cie2000(color1, color2)
+
+        await ctx.send(f'Colors {c1} and {c2} are {diff:.2f}% alike')
+
     @command(aliases=['c'], name='get_color')
     @cooldown(1, 5, BucketType.channel)
     async def get_color_image(self, ctx, *, color_list: clean_content):
@@ -516,7 +533,7 @@ class Colors(Cog):
         Color can be a
         \u200b \u200b \u200b• hex value (`#000000` or `0x000000`)
         \u200b \u200b \u200b• RGB tuple `(0,0,0)`
-        \u200b \u200b \u200b• Color name. All compatible names are listed [here](https://en.wikipedia.org/wiki/List_of_colors_(compact))
+        \u200b \u200b \u200b• Color name. All compatible names are listed [here](https://en.wikipedia.org/wiki/List_of_colors_(compact)) and [here](https://encycolorpedia.com/named)
         \u200b \u200b \u200b• Any of `invisible`, `none`, `transparent` for transparent spot
         """
         try:

@@ -108,7 +108,7 @@ class Poll:
     def __init__(self, bot, message, channel, title, expires_at=None,
                  strict=False, emotes=None, no_duplicate_votes=False,
                  multiple_votes=False, max_winners=1, after=None,
-                 giveaway: bool=False):
+                 giveaway: bool=False, allow_n_votes=None):
         """
         Args:
             message: either `class`: discord.Message or int
@@ -128,6 +128,7 @@ class Poll:
         self._task = None
         self._stopper = asyncio.Event(loop=self.bot.loop)
         self._after = after
+        self.allow_n_votes = allow_n_votes
 
     @property
     def bot(self):
@@ -205,7 +206,8 @@ class Poll:
                     votes[user.id] = [str(reaction.emoji)]
                 else:
                     if user.id in votes:
-                        votes[user.id] += (str(reaction.emoji), )
+                        if self.allow_n_votes is None or len(votes[user.id]) < self.allow_n_votes:
+                            votes[user.id] += (str(reaction.emoji), )
                     else:
                         votes[user.id] = [str(reaction.emoji)]
 
@@ -312,7 +314,7 @@ class VoteManager(Cog):
             poll.stop()
 
     async def load_polls(self):
-        sql = 'SELECT polls.title, polls.message, polls.channel, polls.expires_in, polls.ignore_on_dupe, polls.multiple_votes, polls.strict, polls.max_winners, polls.giveaway, emotes.emote ' \
+        sql = 'SELECT polls.*, emotes.emote ' \
               'FROM polls LEFT OUTER JOIN pollemotes pe ON polls.message = pe.poll_id LEFT OUTER JOIN emotes ON emotes.emote = pe.emote_id'
         poll_rows = await self.bot.dbutil.fetch(sql)
         polls = {}
@@ -324,7 +326,8 @@ class VoteManager(Cog):
                                                   multiple_votes=row['multiple_votes'],
                                                   max_winners=row['max_winners'] or 1,
                                                   after=lambda f: self.polls.pop(row['message'], None),
-                                                  giveaway=row['giveaway']))
+                                                  giveaway=row['giveaway'],
+                                                  allow_n_votes=row['allow_n_votes']))
 
             r = self.polls.get(row['message'])
             if r:

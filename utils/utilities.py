@@ -35,6 +35,7 @@ from collections import OrderedDict, Iterable
 from datetime import timedelta, datetime
 from enum import Enum
 from random import randint
+from urllib.parse import urlparse
 
 import discord
 import numpy
@@ -1632,3 +1633,7 @@ async def wants_to_be_noticed(member, guild, remove=True):
         await retry(member.remove_roles, role, break_on=discord.Forbidden,
                     reason="Doesn't want attention")
         return False
+
+
+def get_filename_from_url(url):
+    return os.path.basename(urlparse(url).path)

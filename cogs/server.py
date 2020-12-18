@@ -1,4 +1,4 @@
-import asyncio
+import logging
 import logging
 import ntpath
 import os
@@ -26,9 +26,10 @@ from utils.imagetools import raw_image_from_url
 from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
                               concatenate_images)
 from utils.utilities import (send_paged_message,
-                             basic_check, format_timedelta, DateAccuracy,
+                             format_timedelta, DateAccuracy,
                              wait_for_yes, get_image,
-                             get_emote_name_id, split_string)
+                             get_emote_name_id, split_string,
+                             get_filename_from_url)
 
 logger = logging.getLogger('terminal')
 
@@ -320,31 +321,27 @@ class Server(Cog):
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def add_emote(self, ctx, link, name=None):
-        """Add an emote to the server"""
+    async def add_emote(self, ctx, link=None, name=None):
+        """Add an emote to the server. If name not give it will be taken from the filename."""
         guild = ctx.guild
-        author = ctx.author
 
-        if is_url(link):
-            if not name:
-                await ctx.send('What do you want to name the emote as', delete_after=30)
-                try:
-                    msg = await self.bot.wait_for('message', check=basic_check(author=author, channel=ctx.channel), timeout=30)
-                except asyncio.TimeoutError:
-                     msg = None
-                if not msg:
-                    return await ctx.send('Took too long.')
-            data = await self._dl(ctx, link)
+        if link and is_url(link):
+            pass
 
         else:
             if not ctx.message.attachments:
                 return await ctx.send('No image provided')
 
-            data = await self._dl(ctx, ctx.message.attachments[0].url)
-            name = link
+            name = link or None
+            link = ctx.message.attachments[0].url
+
+        data = await self._dl(ctx, link)
 
         if not data:
             return
+
+        if not name:
+            name = get_filename_from_url(link).split('.')[0]
 
         data, _ = data
 

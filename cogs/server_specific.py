@@ -2,6 +2,7 @@ import asyncio
 import logging
 import random
 import re
+import shlex
 import textwrap
 import unicodedata
 from collections import Counter
@@ -20,13 +21,16 @@ from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from discord.errors import HTTPException
-from discord.ext.commands import (BucketType, check, dm_only, is_owner)
+from discord.ext.commands import (BucketType, check, dm_only, is_owner,
+                                  BadArgument)
 from numpy import sqrt
 from numpy.random import choice
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
 from bot.formatter import Paginator
 from cogs.cog import Cog
+from cogs.colors import Colors
+from cogs.voting import Poll
 from utils.utilities import (split_string, parse_time, call_later,
                              get_avatar, retry, send_paged_message,
                              check_botperm, format_timedelta, DateAccuracy,
@@ -1895,6 +1899,92 @@ class ServerSpecific(Cog):
                 logger.exception(f'Failed to send "{final_m}"')
                 await ctx.send('Failed to post final result')
                 continue
+
+    @command()
+    @is_owner()
+    @check(main_check)
+    async def color_vote(self, ctx, winners: int, max_votes: int, days: int, test: bool, *, colors: str):
+        c: Colors = self.bot.get_cog('Colors')
+        colors = shlex.split(colors)
+        emotes = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
+        emotes = emotes[:len(colors)]
+
+        new_colors = []
+
+        def do_image():
+            from cogs.colors import Color as ServerColor
+
+            for idx, color in enumerate(colors):
+                try:
+                    color_name = color.split(': ')
+                    if len(color_name) == 2:
+                        color_name, color = color_name
+                    else:
+                        color_name = color_name[0]
+                        color = color_name
+
+                    color = c.color_from_str(color)
+                    if isinstance(color, tuple):
+                        color = c.rgb2hex(*color)
+
+                    color = ServerColor.from_hex(f'{idx}. {color_name}', color[:7], set_lab=True)
+                    new_colors.append(color)
+                except (TypeError, ValueError):
+                    raise BadArgument(f'Failed to create image using color {color}')
+
+            return c._sorted_color_image(new_colors)
+
+        if test:
+            data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_image)
+            await ctx.send(file=discord.File(data, 'colors.png'))
+            return
+
+        description = f'''
+        Vote for the the color you want to to replace existing colors.
+        Vote for a color by reacting with the number the color is labeled with.
+        '''
+        title = 'Color vote'
+        expires_in = datetime.utcnow() + timedelta(minutes=days)
+        embed = discord.Embed(title=title, description=description,
+                              timestamp=expires_in)
+
+        options = 'Strict mode on. Only the number emotes are valid votes.\n'
+        options += f'Voting for more than {max_votes} valid option(s) will make some votes ignored\n'
+        if winners > 1:
+            options += f'Max amount of winners {winners} (might be more in case of a tie)'
+
+        if options:
+            embed.add_field(name='Modifiers', value=options)
+
+        embed.set_footer(text='Expires at', icon_url=get_avatar(ctx.author))
+
+        await ctx.trigger_typing()
+        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_image)
+
+        file = discord.File(data, 'colors.png')
+        embed.set_image(url='attachment://colors.png')
+
+        msg = await ctx.send(embed=embed, file=file)
+
+        for emote in emotes:
+            try:
+                await msg.add_reaction(emote)
+            except discord.DiscordException:
+                pass
+
+        await self.dbutil.create_poll(emotes, title, True, ctx.guild.id, msg.id,
+                                ctx.channel.id, expires_in, True,
+                                max_winners=winners,
+                                allow_n_votes=max_votes)
+        poll = Poll(self.bot, msg.id, ctx.channel.id, title,
+                    expires_at=expires_in,
+                    strict=True,
+                    emotes=emotes,
+                    max_winners=winners,
+                    allow_n_votes=max_votes,
+                    multiple_votes=max_votes > 1)
+        poll.start()
+        self.bot.get_cog('VoteManager').polls[msg.id] = poll
 
 
 def setup(bot):

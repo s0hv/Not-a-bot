@@ -939,6 +939,74 @@ class DatabaseUtils:
             logger.exception('Failed to set last banner')
             return None
 
+    async def create_poll(self, emotes, title, strict, guild_id: int,
+                          message_id: int, channel_id, expires_in,
+                          no_duplicate_votes=False,
+                          allow_multiple_entries=False,
+                          max_winners=1,
+                          giveaway=False,
+                          allow_n_votes=None):
+        async with self.bot.pool.acquire() as conn:
+            tr = conn.transaction()
+            await tr.start()
+            sql = 'INSERT INTO polls (guild, title, strict, message, channel, expires_in, ignore_on_dupe, multiple_votes, max_winners, giveaway, allow_n_votes) ' \
+                  'VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)'
+            d = (
+                guild_id,
+                title,
+                strict,
+                message_id,
+                channel_id,
+                expires_in,
+                no_duplicate_votes,
+                allow_multiple_entries,
+                max_winners,
+                giveaway,
+                allow_n_votes
+            )
+            try:
+                await conn.execute(sql, *d)
+
+                emotes_list = []
+                if emotes:
+                    sql = 'INSERT INTO emotes (name, emote, guild) VALUES ($1, $2, $3) '
+                    values = []
+                    # We add all successfully parsed emotes even if the bot failed to
+                    # add them so strict mode will count them in too
+                    for emote in emotes:
+                        if not isinstance(emote, tuple):
+                            name, id_ = emote, emote
+                            emotes_list.append(id_)
+                            guild = None
+                        else:
+                            # Prefix is the animated emoji prefix a: or empty str
+                            prefix, name, id_ = emote
+                            name = prefix + name
+                            emotes_list.append(id_)
+                            guild = guild_id
+                        values.append((name, str(id_), guild))
+
+                    # No need to run these if no user set emotes are used
+                    if values:
+                        # If emote is already in the table update its name
+                        sql += ' ON CONFLICT (emote) DO UPDATE SET name=EXCLUDED.name'
+                        await conn.executemany(sql, values)
+
+                        sql = 'INSERT INTO pollemotes (poll_id, emote_id) VALUES ($1, $2) ON CONFLICT DO NOTHING '
+                        values = []
+                        for id_ in emotes_list:
+                            values.append((message_id, str(id_)))
+
+                        await conn.executemany(sql, values)
+
+                await tr.commit()
+            except PostgresError:
+                await tr.rollback()
+                logger.exception('Failed sql query')
+                return False
+
+        return True
+
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """
 

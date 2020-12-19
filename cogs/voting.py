@@ -281,7 +281,7 @@ class Poll:
             s = 'Poll ``{}`` ended{}'.format(self.title, end)
 
         try:
-            await chn.send(s)
+            await msg.reply(s)
         except discord.HTTPException:
             pass
 

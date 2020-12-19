@@ -1944,7 +1944,7 @@ class ServerSpecific(Cog):
         Vote for a color by reacting with the number the color is labeled with.
         '''
         title = 'Color vote'
-        expires_in = datetime.utcnow() + timedelta(minutes=days)
+        expires_in = datetime.utcnow() + timedelta(days=days)
         embed = discord.Embed(title=title, description=description,
                               timestamp=expires_in)
 

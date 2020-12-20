@@ -1258,7 +1258,7 @@ class Moderator(Cog):
         if not isinstance(user, int):
             user = user.id
 
-        if channel is not None:
+        async def purge_channel():
             messages = await channel.purge(limit=max_messages, check=lambda m: m.author.id == user)
 
             if modlog and messages:
@@ -1267,6 +1267,9 @@ class Moderator(Cog):
 
                 await ctx.send(f'Checked the last {max_messages} of the channel {channel} and deleted {len(messages)} messages', delete_after=20)
                 return
+
+        if channel is not None:
+            return await purge_channel()
 
         t = datetime.utcnow() - timedelta(days=14)
 
@@ -1283,6 +1286,11 @@ class Moderator(Cog):
         sql += 'ORDER BY message_id DESC LIMIT %s' % max_messages
 
         rows = await self.bot.dbutil.fetch(sql)
+
+        if not rows:
+            channel = ctx.channel
+            await purge_channel()
+            return
 
         channel_messages = {}
         for r in rows:

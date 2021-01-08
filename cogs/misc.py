@@ -80,11 +80,12 @@ class Misc(Cog):
             cover = manga['cover']
             release_interval = manga['release_interval']
             estimated_release = manga['estimated_release']
+            latest_release = manga.get('latest_release')
 
             description = ''
 
             if manga.get('status') == 1:
-                description = 'This manga has finished publishing'
+                description = 'This manga has finished publishing\n'
                 estimated_release = None
             else:
                 if release_interval:
@@ -111,6 +112,11 @@ class Misc(Cog):
                         description += f' which is in {to_estimate}\n'
                     else:
                         description += '\n'
+
+            if latest_release:
+                latest_release = datetime.strptime(latest_release, '%Y-%m-%dT%H:%M:%S.%fZ')
+                since_latest_release = format_timedelta(datetime.utcnow() - latest_release, DateAccuracy.Day - DateAccuracy.Hour)
+                description += f'Latest release: {since_latest_release} ago ({latest_release.strftime("%A %H:00, %b %d %Y")})'
 
             if not description:
                 description = 'No information available at this time'

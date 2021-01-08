@@ -63,6 +63,9 @@ class Server(Cog):
 
         # remove some roles that have perms for my own guild
         if guild.id == 217677285442977792:
+            if not guild.chunked:
+                await guild.chunk()
+
             # These should only be used for set operations
             filtered_roles = {321374867557580801, 331811458012807169, 361889118210359297, 380814558769578003,
                               337290275749756928, 422432520643018773, 322837972317896704, 323492471755636736,

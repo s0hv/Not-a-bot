@@ -92,10 +92,8 @@ class Context(commands.context.Context):
 
         return True
 
-    async def send(self, content=None, *, tts=False, embed=None, file=None, files=None,
-                   delete_after=None, nonce=None, undoable=False):
-        msg = await super().send(content, tts=tts, embed=embed, file=file,
-                                 files=files, delete_after=delete_after, nonce=nonce)
+    async def send(self, content=None, *, undoable=False, **kwargs):
+        msg = await super().send(content, **kwargs)
 
         if undoable and msg:
             old = self.undo_messages.pop(self.author.id, None)
@@ -144,7 +142,7 @@ class Bot(commands.AutoShardedBot):
 
         return True
 
-    async def on_command_error(self, context, exception):
+    async def on_command_error(self, context: Context, exception):
         """|coro|
 
         The default command error handler provided by the bot.
@@ -209,7 +207,12 @@ class Bot(commands.AutoShardedBot):
             error_msg = str(exception)
 
         elif isinstance(exception, exceptions.CommandBlacklisted):
-            if exception.message is None:
+            if not exception.message:
+                try:
+                    await context.message.add_reaction('🚫')
+                except discord.HTTPException:
+                    pass
+
                 return
             error_msg = str(exception)
 

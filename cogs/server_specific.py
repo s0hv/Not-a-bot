@@ -11,12 +11,10 @@ from datetime import timedelta
 from difflib import ndiff
 from math import ceil
 from operator import attrgetter
-from typing import Union
+from typing import Union, Optional
 
 import discord
 import emoji
-from aiohttp.client_exceptions import ClientError
-from aiohttp.http_exceptions import HttpProcessingError
 from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
@@ -25,6 +23,8 @@ from discord.ext.commands import (BucketType, check, dm_only, is_owner,
                                   BadArgument)
 from numpy import sqrt
 from numpy.random import choice
+from tatsumaki.data_structures import RankingObject
+from tatsumaki.wrapper import ApiWrapper
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
 from bot.formatter import Paginator
@@ -330,8 +330,9 @@ class ServerSpecific(Cog):
         self._zetas = {}
         self._redis_fails = 0
         self._removing_every = False
-        self.replace_tatsu_api = True
+        self.replace_tatsu_api = False
         self._using_toletole = {}
+        self._tatsu_api = ApiWrapper(self.bot.config.tatsumaki_key)
 
     def cog_unload(self):
         self.bot.server.remove_listener(self.reduce_role_cooldown)
@@ -1130,23 +1131,15 @@ class ServerSpecific(Cog):
 
         return True
 
-    async def get_user_stats(self, uid, guild_id):
+    async def get_user_stats(self, uid, guild_id) -> Optional[RankingObject]:
         if not self.bot.config.tatsumaki_key:
             return
 
-        url = f'https://api.tatsumaki.xyz/guilds/{guild_id}/members/{uid}/stats'
-        headers = {'Authorization': self.bot.config.tatsumaki_key}
-
-        try:
-            async with self.bot.aiohttp_client.get(url, headers=headers) as r:
-                if r.status != 200:
-                    return
-
-                data = await r.json()
-                if data.get('user_id') == str(uid):
-                    return data
-        except (HttpProcessingError, ClientError):
+        user = await self._tatsu_api.get_member_ranking(guild_id, uid)
+        if isinstance(user, Exception):
             return
+
+        return user
 
     async def get_role_chance(self, ctx, member, user_roles=None,
                               delta_days=None):
@@ -1197,21 +1190,13 @@ class ServerSpecific(Cog):
                 return
 
         else:
-            # liz
-            if member.id == 398565365887795201:
-                score = 794985
-            # micky
-            elif member.id == 224998092490014720:
-                score = 1103664
-            else:
-                score = await self.get_user_stats(member.id, ctx.guild.id) or {}
-                score = score.get('score')
+            user = await self.get_user_stats(member.id, ctx.guild.id)
+            score = user and user.score
 
         if not score:
             await ctx.send('Failed to get server score. Try again later')
             return
 
-        score = int(score)
         # Give points to people who've been in server for long time
         if score > 100000:
             score += 110 * delta_days
@@ -1228,7 +1213,8 @@ class ServerSpecific(Cog):
         role_count = len(user_roles - FILTERED_ROLES)
         return role_get(int(score), role_count)
 
-    @command(aliases=['goodbye_every'])
+    # Disabled until tatsu api supports it
+    @command(aliases=['goodbye_every'], enabled=False, hidden=True)
     @check(create_check((217677285442977792,)))
     #@check(main_check)
     @cooldown(1, 20, BucketType.user)

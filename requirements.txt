@@ -1,4 +1,4 @@
-aiohttp ~= 3.6.2
+aiohttp ~= 3.7.3
 aioredis ~= 1.2.0
 ansicolors ~= 1.1.8
 asyncpg ~= 0.21.0
@@ -6,7 +6,7 @@ beautifulsoup4 ~= 4.8.0
 colormath ~= 3.0.0
 colorthief ~= 0.2.1
 colour ~= 0.1.5
-dblpy ~= 0.3.4
+dblpy ~= 0.4.0
 emoji ~= 0.6.0
 isodate ~= 0.6.0
 opencv-python ~= 4.1.2.30
@@ -33,3 +33,4 @@ selenium ~= 3.141.0
 validators ~= 0.14.0
 youtube_dl
 discord.py[voice] ~= 1.6.0
+tatsumaki.py==1.0

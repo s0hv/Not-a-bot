@@ -603,7 +603,8 @@ class Pokemon(Cog):
     async def on_message(self, message):
         # Ignore others than pokecord
         # old pokecord id: 365975655608745985
-        if not self.bot.test_mode and message.author.id != 665301904791699476:
+        # new pokecord and poketwo
+        if not self.bot.test_mode and message.author.id not in (665301904791699476, 716390085896962058):
             return
 
         if message.content:

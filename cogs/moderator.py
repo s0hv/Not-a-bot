@@ -906,6 +906,8 @@ class Moderator(Cog):
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         expires_on = now + time
 
+        e = (305763341069189120, 326524736521633792)
+
         for user in users:
             # Ignore checks if in test mode
             if not self.bot.test_mode:
@@ -915,6 +917,10 @@ class Moderator(Cog):
 
                 if guild.id == 217677285442977792 and user.id == 123050803752730624:
                     failed.append(f"Couldn't mute {user}. Not today kiddo. I'm too powerful for you")
+                    continue
+
+                if guild.id == 217677285442977792 and user.id in e and author.id in e:
+                    failed.append('e')
                     continue
 
                 r = guild.get_role(339841138393612288)

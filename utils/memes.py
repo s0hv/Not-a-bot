@@ -31,8 +31,5 @@ async def twitch_poems(client):
         if r.status == 200:
             soup = BeautifulSoup(await r.text(), 'html.parser')
             # The quote
-            quote = soup.find('span').get_text()
-            # When and where the quote was posted
-            stream = soup.find('span', {'id': 'quote_display_content_0'})
-            quote += '\n' + stream.get_text().strip(' \n\r')
+            quote = soup.select_one('span.-main-text').get_text()
             return quote

@@ -335,6 +335,8 @@ class Playlist:
         info = await self.downloader.extract_info(self.bot.loop, url=url, download=False, on_error=on_error)
         if info is None:
             return
+
+        info.pop('channel', None)
         await self._add_from_info(channel=channel, priority=priority,
                                   no_message=no_message, metadata=metadata, **info)
 
@@ -463,6 +465,8 @@ class Playlist:
                 if not no_message:
                     return await self.send('No songs found or a problem with YoutbeDL that I cannot fix :(', channel=channel)
                 return
+
+            info.pop('channel', None)
 
             if 'entries' in info:
                 if info['entries'][0]['ie_key'].lower() != 'youtube':

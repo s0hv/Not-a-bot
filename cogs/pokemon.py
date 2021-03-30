@@ -506,6 +506,10 @@ class Pokemon(Cog):
         Usage:
             {prefix}{name} https://discord.com/channels/353927534439825429/354712220761980939/826470021713625169
         """
+        if not self._is_pokebot(message.author.id):
+            await ctx.send('Message not from a supported bot')
+            return
+
         success = await self._post2pokelog(message)
         if not success:
             link = f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'

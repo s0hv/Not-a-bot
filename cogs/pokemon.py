@@ -506,13 +506,14 @@ class Pokemon(Cog):
         Usage:
             {prefix}{name} https://discord.com/channels/353927534439825429/354712220761980939/826470021713625169
         """
+        link = f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'
+
         if not self._is_pokebot(message.author.id):
-            await ctx.send('Message not from a supported bot')
+            await ctx.send(f'Message not from a supported bot. {link}')
             return
 
         success = await self._post2pokelog(message)
         if not success:
-            link = f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'
             await ctx.send(f'No pokelog found or failed to scan pokemon from message {link}')
         else:
             await ctx.send('Sent pokelog message')

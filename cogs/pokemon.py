@@ -9,7 +9,7 @@ from functools import partial
 
 import discord
 from discord import utils, Embed
-from discord.ext.commands import BucketType
+from discord.ext.commands import BucketType, guild_only
 from discord.ext.commands.errors import BotMissingPermissions
 
 from bot.bot import command, cooldown
@@ -36,7 +36,7 @@ stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
 
-legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!\s*(These colors seem unusual)?.*', re.MULTILINE)
+legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!\s*(These colors seem unusual)?.*', re.MULTILINE | re.I)
 legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
                'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',
@@ -494,6 +494,25 @@ class Pokemon(Cog):
         await ctx.send(f'Current pokelog channel is {channel.mention}\n'
                        'Make sure this bot has send messages and embed links perms set to ✅')
 
+    @command()
+    @guild_only()
+    @cooldown(1, 1, BucketType.guild)
+    async def log_pokemon(self, ctx, message: discord.Message):
+        """
+        This command can be used to force log any pokemon to the pokelog.
+        This is done by linking the message where the pokemon is caught
+        (usually in the format of "Congratulations @user! You caught a level 10 Magikarp!")
+
+        Usage:
+            {prefix}{name} https://discord.com/channels/353927534439825429/354712220761980939/826470021713625169
+        """
+        success = await self._post2pokelog(message)
+        if not success:
+            link = f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'
+            await ctx.send(f'No pokelog found or failed to scan pokemon from message {link}')
+        else:
+            await ctx.send('Sent pokelog message')
+
     async def _post2pokelog(self, message):
         if not message.guild:
             return
@@ -586,11 +605,14 @@ class Pokemon(Cog):
             icon_fmt = re.sub(' |: ', '-', icon_fmt).lower().replace('♂', '-m').replace('♀', '-f').replace('.', '')
             icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{icon_fmt}.png'
 
-        embed = Embed(description=f'{mention} caught a **{"Shiny " if shiny else ""}{poke}**', colour=random_color())
+        desc = f'{mention} caught a **{"Shiny " if shiny else ""}{poke}**\n' \
+               f'[Jump to message](https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id})'
+        embed = Embed(description=desc, colour=random_color())
         embed.set_image(url=url)
         embed.set_thumbnail(url=icon)
 
         await channel.send(embed=embed)
+        return True
 
     @staticmethod
     def _is_spawn(msg):
@@ -600,12 +622,15 @@ class Pokemon(Cog):
 
         return False
 
-    @Cog.listener()
-    async def on_message(self, message):
+    def _is_pokebot(self, uid) -> bool:
         # Ignore others than pokecord
         # old pokecord id: 365975655608745985
         # new pokecord and poketwo
-        if not self.bot.test_mode and message.author.id not in (665301904791699476, 716390085896962058):
+        return self.bot.test_mode or uid in (665301904791699476, 716390085896962058)
+
+    @Cog.listener()
+    async def on_message(self, message):
+        if not self._is_pokebot(message.author.id):
             return
 
         if message.content:

@@ -12,7 +12,7 @@ from discord import utils, Embed
 from discord.ext.commands import BucketType, guild_only
 from discord.ext.commands.errors import BotMissingPermissions
 
-from bot.bot import command, cooldown
+from bot.bot import command, cooldown, has_permissions
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
@@ -496,6 +496,7 @@ class Pokemon(Cog):
 
     @command()
     @guild_only()
+    @has_permissions(manage_channels=True)
     @cooldown(1, 1, BucketType.guild)
     async def log_pokemon(self, ctx, message: discord.Message):
         """
@@ -524,17 +525,14 @@ class Pokemon(Cog):
 
         channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, discord.TextChannel), message.guild.channels)
         if not channel:
-            logger.debug(f'No pokelog channel found for {message.guild}')
             return
 
         perms = channel.permissions_for(message.guild.get_member(self.bot.user.id))
         if not (perms.send_messages and perms.read_messages and perms.embed_links):
-            logger.debug(f'Incorrect pokelog perms for {message.guild}')
             return
 
         match = legendary_detector.match(message.content)
         if not match:
-            logger.debug(f'Pokemon not matched for {message.guild}')
             return
 
         mention, shiny, poke, shiny2 = match.groups()
@@ -561,11 +559,9 @@ class Pokemon(Cog):
                     container.append(line.lower())
 
         if poke.lower() not in legendaries and not shiny and poke.lower() not in include:
-            logger.debug(f'Matched pokemon not listed for {message.guild}')
             return
 
         if poke.lower() in exclude and not shiny:
-            logger.debug(f'Matched pokemon was excluded for {message.guild}')
             return
 
         if shiny:

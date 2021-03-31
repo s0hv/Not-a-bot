@@ -21,8 +21,9 @@ logger = logging.getLogger('terminal')
 
 
 class PointSpawn:
-    def __init__(self, amount: int):
+    def __init__(self, amount: int, msg: discord.Message):
         self.amount = amount
+        self.msg = msg
 
 
 class BattleArena(Cog):
@@ -194,11 +195,12 @@ class BattleArena(Cog):
         await ctx.send('Event role added')
 
     @command()
-    @cooldown(1, 1, BucketType.user)
+    @cooldown(1, 7, BucketType.user)
     async def collect(self, ctx):
         """
         Collect spawned points. Works in any channel
         """
+        active = None
         async with self._claim_lock:
             if not self._active_spawn:
                 msg = 'No active points to collect'
@@ -206,11 +208,15 @@ class BattleArena(Cog):
                 # Add points to user
                 points = self._active_spawn.amount
                 await self.bot.dbutil.update_event_points(ctx.author.id, points)
+                active = self._active_spawn
 
                 self._active_spawn: Optional[PointSpawn] = None
                 msg = f'{points} point(s) collected'
 
         await ctx.send(msg)
+
+        if active:
+            await active.msg.delete()
 
     @command()
     @cooldown(1, 1, BucketType.user)
@@ -391,14 +397,13 @@ class BattleArena(Cog):
 
     async def do_spawn(self):
         chn = self.get_guild().get_channel(self._battle_channel)
-        self._active_spawn = PointSpawn(self.get_random_point_amount())
 
         embed = discord.Embed(
             title='Event points',
             description=f'{self._active_spawn.amount} point(s) spawned. Use `!collect` to collect them.'
         )
 
-        await chn.send(embed=embed)
+        self._active_spawn = PointSpawn(self.get_random_point_amount(), await chn.send(embed=embed))
 
     @Cog.listener()
     async def on_message(self, msg):

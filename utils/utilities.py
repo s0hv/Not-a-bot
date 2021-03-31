@@ -724,19 +724,19 @@ def parse_timeout(time_str):
     return timedelta(**time_params), reason
 
 
-def datetime2sql(datetime):
-    return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(datetime)
+def datetime2sql(dt: datetime):
+    return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(dt)
 
 
-def timedelta2sql(timedelta):
-    return f'{timedelta.days} {timedelta.seconds//3600}:{(timedelta.seconds//60)%60}:{timedelta.seconds%60}'
+def timedelta2sql(td: timedelta):
+    return f'{td.days} {td.seconds//3600}:{(td.seconds//60)%60}:{td.seconds%60}'
 
 
 def sql2timedelta(value):
     return timedelta(**{k: int(v) if v else 0 for k, v in timedelta_regex.match(value).groupdict().items()})
 
 
-def call_later(func, loop, timeout, *args, after=None, **kwargs):
+def call_later(func, loop, timeout: float, *args, after=None, **kwargs):
     """
     Call later for async functions
     Args:

@@ -1,6 +1,7 @@
 import logging
 import time
 import types
+from datetime import datetime
 
 import discord
 from asyncpg.exceptions import PostgresError
@@ -739,6 +740,11 @@ class DatabaseUtils:
         except PostgresError:
             logger.exception('Failed to remove temprole')
 
+    async def get_temproles(self, guild: int, user: int):
+        sql = 'SELECT * FROM temproles WHERE guild=$1 AND uid=$2'
+
+        return await self.fetch(sql, (guild, user))
+
     async def add_changes(self, changes):
         sql = 'INSERT INTO changelog (changes) VALUES ($1) RETURNING id'
         rowid = await self.fetchval(sql, (changes, ))
@@ -1006,6 +1012,27 @@ class DatabaseUtils:
                 return False
 
         return True
+
+    async def get_event_points(self, user_id: int) -> int:
+        sql = 'SELECT points FROM event_users WHERE uid=$1'
+        retval = await self.fetchval(sql, (user_id,))
+        return retval or 0
+
+    async def update_event_points(self, user_id: int, points: int):
+        sql = 'UPDATE event_users SET points=points+$2 WHERE uid=$1'
+        await self.execute(sql, [user_id, points])
+
+    async def update_user_protect(self, uid: int, protected_until: datetime = None):
+        sql = 'UPDATE event_users SET protected_until=$2 WHERE uid=$1'
+        await self.execute(sql, (uid, protected_until))
+
+    async def get_event_users(self):
+        sql = 'SELECT uid, protected_until FROM event_users'
+        return await self.fetch(sql)
+
+    async def add_event_users(self, users):
+        sql = 'INSERT INTO event_users (uid) VALUES %s ON CONFLICT DO NOTHING' % self.create_bind_groups(len(users), 2)
+        await self.execute(sql, users)
 
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):
         """

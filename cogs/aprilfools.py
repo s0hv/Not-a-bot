@@ -1,111 +1,92 @@
 import asyncio
 import logging
 import random
+from asyncio.locks import Lock
 from datetime import timedelta, datetime
+from typing import Union, Optional
 
 import discord
-from asyncpg.exceptions import IntegrityConstraintViolationError
-from discord.ext.commands import is_owner
-from discord.ext.tasks import Loop
+from discord.ext.commands import is_owner, Greedy
+from discord.ext.commands.cooldowns import CooldownMapping, BucketType
+from numpy.random import choice
 
 from bot.bot import command
+from bot.commands import cooldown
+from bot.converters import TimeDelta
 from cogs.cog import Cog
+from cogs.moderator import Moderator
 from utils.utilities import call_later
 
 logger = logging.getLogger('terminal')
 
 
-class Status:
-    INFECTED = None
-    RECOVERED = True
-    DEAD = False
+class PointSpawn:
+    def __init__(self, amount: int):
+        self.amount = amount
 
 
-class User:
-    def __init__(self, user, last_activity):
-        self.user = user
-        self.last_activity = last_activity
-
-    def __eq__(self, other):
-        if isinstance(other, User):
-            return self.user == other.user
-
-        return other == self.user
-
-
-class AprilFools(Cog):
-    INFECTION_RATE = 0.08
-    SPAM_RATE = 0.03
-    DEATH_RATE = 0.25
-    RECOVERY_RATE = 0.01
-    USER_COUNT = 5
-    INFECTION_DURATION_MAX = 60*120
-    INFECTION_DURATION_MIN = 60*60
-    RANDOM_INFECTION_INTERVAL = 60*18
+class BattleArena(Cog):
+    SPAWN_RATE = 0.05
+    MINIMUM_SPAWN_TIME = timedelta(minutes=2)
 
     def __init__(self, bot):
         super().__init__(bot)
-        self.latest_channel_users = {}
-        self._dead_role = 355372853681455114 if bot.test_mode else 694607122779865250
-        self._recovered_role = 355372865693941770 if bot.test_mode else 694607139125330084
-
-        self._recovered_channel = 354712220761980939 if bot.test_mode else 694606329964134551
-        self._dead_channel = 354712220761980939 if bot.test_mode else 694606372813406369
+        self._penalty_role = 355372880898424832 if bot.test_mode else 826903568065495061
+        self._battle_channel = 354712220761980939 if bot.test_mode else 297061271205838848
 
         self._guild = 353927534439825429 if bot.test_mode else 217677285442977792
-        self._infected = {}
-        self._infected_durations = {}
-        self._process_infected = None
-        self._random_infect = Loop(self.random_infect, seconds=0, minutes=0,
-                                   hours=0, count=None, reconnect=True,
-                                   loop=self.bot.loop)
-        asyncio.run_coroutine_threadsafe(self.cache_infected(), bot.loop).result()
+
+        self._spawn_rate = self.SPAWN_RATE
+        self._min_spawn_time = self.MINIMUM_SPAWN_TIME
+        self._message_ratelimit = CooldownMapping.from_cooldown(1, self._min_spawn_time.total_seconds(), BucketType.guild)
+
+        self._members = set()
+        self._blue_members = set()
+
+        self._active_spawn: Optional[PointSpawn] = None
+        self._claim_lock = Lock(loop=self.bot.loop)
+        self._protects = {}
+
+        asyncio.run_coroutine_threadsafe(self.load_users(), loop=self.bot.loop)
 
     def cog_unload(self):
-        async def cancel():
-            if self._process_infected:
-                self._process_infected.cancel()
-            self._random_infect.cancel()
+        for v in self._protects.values():
+            v.cancel()
 
-        asyncio.run_coroutine_threadsafe(cancel(), self.bot.loop)
+    def get_guild(self) -> discord.Guild:
+        return self.bot.get_guild(self._guild)
 
-    async def random_infect(self):
-        await asyncio.sleep(self.RANDOM_INFECTION_INTERVAL)
+    async def load_users(self):
+        users = await self.bot.dbutil.get_event_users()
 
-        def f(u):
-            return u.id not in self._infected
+        for user in users:
+            protected = user['protected_until']
+            if protected and protected > datetime.utcnow():
+                self.add_protect(user['uid'], (protected - datetime.utcnow()).total_seconds())
 
-        m = random.choice(list(filter(f, list(self.bot.get_guild(self._guild).members))))
-        await self.add_infected(m.id)
+            self._members.add(user['uid'])
 
-    async def cache_infected(self):
-        try:
-            self._random_infect.start()
-        except RuntimeError:
-            pass
+    async def cog_check(self, ctx):
+        if not ctx.guild or ctx.guild.id != self._guild:
+            return False
 
-        rows = await self.bot.dbutil.fetch("SELECT uid, status, infected_at "
-                                           'FROM infections')
+        if ctx.command.name == 'join_event':
+            return True
 
-        for row in rows:
-            if row['status'] == Status.INFECTED and (datetime.utcnow() - row['infected_at']).total_seconds() > self.INFECTION_DURATION_MAX:
-                await self.recover(row['uid'])
-                continue
+        if not self.is_participating(ctx.author):
+            await ctx.send(f'You must join the event with `{ctx.prefix}join_event` to use event commands.')
+            return False
 
-            self._infected[row['uid']] = row['status']
-            if row['status'] == Status.INFECTED:
-                self._infected_durations[row['uid']] = row['infected_at']
-
-        await self.process_infected()
+        return True
 
     @Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        if payload.message_id != 694618933847916554:
+        if payload.message_id != 1:
             return
 
-        guild = self.bot.get_guild(217677285442977792)
-        r = guild.get_role(694607094439215195)
-        m = guild.get_member(payload.user_id)
+        guild: discord.Guild = self.bot.get_guild(217677285442977792)
+        r = guild.get_role(1)
+        m = await guild.fetch_member(payload.user_id)
         if not m:
             return
 
@@ -117,173 +98,329 @@ class AprilFools(Cog):
         except discord.HTTPException:
             pass
 
-    async def add_infected(self, uid):
+    def is_participating(self, user: Union[discord.User, int, discord.Member]):
+        uid = user if isinstance(user, int) else user.id
+
+        return uid in self._members
+
+    def get_mute_role(self) -> discord.Role:
+        return self.bot.get_guild(self._guild).get_role(self._penalty_role)
+
+    async def remove_temprole(self, user: discord.Member):
+        uid = user.id
+        temproles = self.bot.temproles.get(self._guild, {}).get(uid, {})
+
+        task = temproles.get(self._penalty_role)
+        if task:
+            task.cancel()
+
+        await self.bot.dbutil.remove_temprole(uid, self._penalty_role)
         try:
-            await self.bot.dbutil.execute('INSERT INTO infections (uid, status, infected_at) VALUES ($1, NULL, $2)',
-                                          (uid, datetime.utcnow()))
-        except IntegrityConstraintViolationError:
-            return
-
-        logger.debug(f'Set status of {uid} to infected')
-        self._infected[uid] = Status.INFECTED
-        self._infected_durations[uid] = datetime.utcnow()
-
-    async def process_infected(self):
-        try:
-            rows = await self.bot.dbutil.fetch("SELECT uid "
-                                               "FROM infections "
-                                               "WHERE status IS NULL AND $1 - infected_at > $2",
-                                            (datetime.utcnow(), timedelta(seconds=self.INFECTION_DURATION_MAX),))
-
-            for row in rows:
-                await self.recover(row['uid'])
-
-            row = await self.bot.dbutil.fetch("SELECT MIN($1 - infected_at) as min FROM infections WHERE status IS NULL", (datetime.utcnow(),), fetchmany=False)
+            await user.remove_roles(self.get_mute_role())
         except:
-            logger.exception('Failed to process infected')
-            row = None
+            logger.exception('Failed to remove silence')
+            raise
 
-        if not row or row['min'] is None:
-            self._process_infected = call_later(self.process_infected, self.bot.loop,
-                                                self.INFECTION_DURATION_MAX)
+    def temprole_duration_left(self, uid: int) -> timedelta:
+        temproles = self.bot.temproles.get(self._guild, {}).get(uid, {})
 
-        else:
-            self._process_infected = call_later(self.process_infected, self.bot.loop,
-                                                row['min'].total_seconds())
+        task = temproles.get(self._penalty_role)
+        td = task.runs_at - datetime.utcnow()
+        return td
 
-    async def recover(self, uid):
-        status = Status.RECOVERED
-        if random.random() < self.DEATH_RATE:
-            status = Status.DEAD
+    async def timeout(self, ctx, user: discord.Member, time: timedelta,
+                      reason: str, ignore_protect: bool = False) -> bool:
+        moderator: Moderator = self.bot.get_cog('Moderator')
 
-        logger.debug(f'Set status of {uid} to {status}')
-        await self.bot.dbutil.execute('UPDATE infections SET status=$1 WHERE uid=$2', (status, uid))
+        if not ignore_protect and user.id in self._protects:
+            await self.remove_protect(user.id)
+            await ctx.send(f'{user.mention} protected themselves')
+            return False
 
-        g = self.bot.get_guild(self._guild)
-        member = g.get_member(uid)
-        if not member:
+        try:
+            await user.add_roles(self.get_mute_role(), reason=reason)
+        except:
+            logger.exception('Failed to add event mute role')
+
+        moderator.register_temprole(user.id, self._penalty_role,
+                                    ctx.guild.id, time.total_seconds(), force_save=True)
+        await self.bot.dbutil.add_temprole(user.id, self._penalty_role, user.guild.id,
+                                           datetime.utcnow() + time)
+        return True
+
+    async def has_required_points(self, ctx, cmd: str, cost: int):
+        points = await self.bot.dbutil.get_event_points(ctx.author.id)
+        if points < cost:
+            await ctx.send(f'{cmd.capitalize()} costs {cost} point(s) but you have only {points} point(s)')
+            return False
+
+        return True
+
+    async def can_affect(self, ctx, author: discord.Member, user: discord.Member):
+        retval = self.is_participating(author) and self.is_participating(user)
+        if not retval:
+            await ctx.send('User must be participating in the event')
+
+        return retval
+
+    def is_unmuted(self, user: discord.Member):
+        return self.get_mute_role() not in user.roles
+
+    async def remove_protect(self, uid: int):
+        task = self._protects.pop(uid, None)
+        if task:
+            task.cancel()
+
+        await self.bot.dbutil.update_user_protect(uid)
+
+    @command()
+    @cooldown(1, 10, BucketType.user)
+    async def join_event(self, ctx):
+        """
+        Join the april fools event and get the special role if you haven't already.
+        """
+        user = ctx.author
+        if self.is_participating(user.id):
+            self._members.add(user.id)
+            await self.bot.dbutil.add_event_users([user.id])
+            await ctx.reply(f'Joined the event', mention_author=False)
+
+        role_id = 355372865693941770 if self.bot.test_mode else 826903511211311114
+        role = self.get_guild().get_role(role_id)
+        if role in user.roles:
+            await ctx.send('You already have the event role')
             return
 
-        roles = member.roles
-        if status == Status.DEAD:
-            roles.append(g.get_role(self._dead_role))
-            await member.edit(roles=roles)
-            c = g.get_channel(self._dead_channel)
-            await c.send(f'{member.mention} has died')
-        else:
-            roles.append(g.get_role(self._recovered_role))
-            await member.edit(roles=roles)
-            c = g.get_channel(self._recovered_channel)
-            await c.send(f'{member.mention} has recovered')
+        await user.add_roles(role)
+        await ctx.send('Event role added')
 
-        self._infected_durations.pop(uid, None)
+    @command()
+    @cooldown(1, 1, BucketType.user)
+    async def collect(self, ctx):
+        """
+        Collect spawned points. Works in any channel
+        """
+        async with self._claim_lock:
+            if not self._active_spawn:
+                msg = 'No active points to collect'
+            else:
+                # Add points to user
+                points = self._active_spawn.amount
+                await self.bot.dbutil.update_event_points(ctx.author.id, points)
+
+                self._active_spawn: Optional[PointSpawn] = None
+                msg = f'{points} point(s) collected'
+
+        await ctx.send(msg)
+
+    @command()
+    @cooldown(1, 1, BucketType.user)
+    async def points(self, ctx):
+        """
+        Shows the amount of points you have
+        """
+        points = await self.bot.dbutil.get_event_points(ctx.author.id)
+        await ctx.reply(f'You have {points or 0} points', mention_author=False)
+
+    @command()
+    @cooldown(1, 1, BucketType.user)
+    async def silence(self, ctx, *, user: discord.Member):
+        """
+        COST 1
+
+        Silence a user for 30 minutes
+        """
+        COST = 1
+
+        if not await self.can_affect(ctx, ctx.author, user):
+            return
+
+        if not await self.has_required_points(ctx, 'silence', COST):
+            return
+
+        await self.bot.dbutil.update_event_points(ctx.author.id, -COST)
+        if await self.timeout(ctx, user, timedelta(minutes=30), f'{ctx.author} silenced'):
+            await ctx.send(f'Silenced {user}')
+
+    def add_protect(self, uid: int, time_left: int):
+        self._protects[uid] = call_later(self.remove_protect, self.bot.loop,
+                                         time_left, uid)
+
+    @command()
+    @cooldown(1, 1, BucketType.user)
+    async def protect(self, ctx):
+        """
+        COST 1
+
+        Protect yourself from the next silence targeted on you.
+        Lasts until targeted or after 30 minutes
+        """
+        COST = 1
+        uid = ctx.author.id
+
+        if not await self.has_required_points(ctx, 'protect', COST):
+            return
+
+        if uid in self._protects:
+            await ctx.send('Already protected')
+            return
+
+        td = timedelta(minutes=30)
+        self.add_protect(uid, int(td.total_seconds()))
+        await self.bot.dbutil.update_user_protect(uid, datetime.utcnow() + td)
+        await self.bot.dbutil.update_event_points(uid, -COST)
+        await ctx.send('Protected yourself for 1 hour or until the next silence attempt')
+
+    @command()
+    @cooldown(1, 1, BucketType.user)
+    async def unsilence(self, ctx):
+        """
+        COST 2
+
+        Remove an active silence on you if it's under 1 hour long
+        """
+        COST = 2
+        author = ctx.author
+        uid = author.id
+
+        if not await self.has_required_points(ctx, 'unsilence', COST):
+            return
+
+        if self.is_unmuted(author):
+            await ctx.send('You are not silenced at the moment')
+            return
+
+        if self.temprole_duration_left(uid) > timedelta(hours=1):
+            await ctx.send('Over 1h left of silence. Cannot unsilence')
+            return
+
+        await self.bot.dbutil.update_event_points(uid, -COST)
+        await self.remove_temprole(author)
+        await ctx.reply('Unsilenced', mention_author=False)
+
+    @command()
+    @cooldown(1, 1, BucketType.user)
+    async def selfdestruct(self, ctx, users: Greedy[discord.Member], *, time: TimeDelta):
+        """
+        COST: 3
+
+        Times out a maximum of 4 users for the given time,
+        while timing you out for `time*amount of enemies timed out`
+
+        Usage:
+        {prefix}{name} @user @user2 10m
+        """
+        COST = 3
+
+        if time > timedelta(hours=1):
+            await ctx.send('1 hour max')
+            return
+
+        author = ctx.author
+
+        if not self.is_unmuted(author):
+            await ctx.send('You are already silenced')
+            return
+
+        # Filter out duplicates and users that are not participating
+        users = list(set(filter(self.is_unmuted, filter(self.is_participating, users))))
+        if len(users) > 4:
+            await ctx.send(f'Tried to silence {len(users)}>4 users. Try again with 4 or less users.')
+            return
+
+        if not users:
+            await ctx.send('None of the mentioned users were participating in the event or they were already silenced')
+            return
+
+        if not await self.has_required_points(ctx, 'selfdestruct', COST):
+            return
+
+        await self.bot.dbutil.update_event_points(author.id, -COST)
+
+        reason = f'{author} self destructed'
+        timeouted_users = []
+        timeouts = 0
+        for user in users:
+            try:
+                if await self.timeout(ctx, user, time, reason):
+                    timeouted_users.append(user)
+
+                timeouts += 1
+            except:
+                logger.exception('fail selfdestruct')
+                await ctx.send(f'Failed to silence {user}')
+
+        await self.timeout(ctx, author, time*timeouts, reason, ignore_protect=True)
+
+        if timeouts == 0:
+            await self.bot.dbutil.update_event_points(author.id, 3)
+            await ctx.send('Failed to silence anyone. Points refunded')
+            return
+
+        if len(timeouted_users) == 1:
+            users_str = timeouted_users[0].mention
+        elif len(timeouted_users) == 0:
+            users_str = 'no one'
+        else:
+            users_str = f'{", ".join(map(discord.Member.mention.fget, timeouted_users[:-1]))} and {timeouted_users[-1].mention}'
+
+        await ctx.send(f'{author.mention} self destructs and takes {users_str} with them.', allowed_mentions=discord.AllowedMentions.none())
 
     @is_owner()
-    @command()
-    async def infect(self, ctx, user: discord.Member):
-        await self.add_infected(user.id)
+    @command(aliases=['set_sd'])
+    async def set_spawn_delay(self, ctx, *, spawn_time: TimeDelta):
+        """
+        Set minimum time between 2 spawns
+        """
+        self._min_spawn_time = spawn_time
+        self._message_ratelimit = CooldownMapping.from_cooldown(1, self._min_spawn_time.total_seconds(), BucketType.guild)
         await ctx.send(':ok_hand:')
+
+    @is_owner()
+    @command(name='spawn_points', aliases=['spawnp'])
+    async def spawn_points(self, _):
+        await self.do_spawn()
 
     @command()
     @is_owner()
     async def create_perms(self, ctx):
-        g = ctx.guild
-        df = g.default_role
+        pass
 
-        rows = await self.bot.dbutil.fetch("SELECT uid "
-                                           "FROM infections "
-                                           "WHERE status IS NULL")
+    @staticmethod
+    def get_random_point_amount() -> int:
+        return choice([1, 2, 3], 1, p=[0.7, 0.2, 0.1])[0]
 
-        for row in rows:
-            await self.recover(row['uid'])
+    async def do_spawn(self):
+        chn = self.get_guild().get_channel(self._battle_channel)
+        self._active_spawn = PointSpawn(self.get_random_point_amount())
 
-        self.bot.unload_extension('cogs.r9k')
+        embed = discord.Embed(
+            title='Event points',
+            description=f'{self._active_spawn.amount} point(s) spawned. Use `!collect` to collect them.'
+        )
 
-        # april fools channels
-        for c in [694606329964134551, 694606250830331935, 694606372813406369]:
-            c = g.get_channel(c)
-            await c.set_permissions(df, send_messages=False, read_messages=None)
-
-        # talk here
-        cat = g.get_channel(360694488290689024)
-        await cat.set_permissions(df, read_messages=None)
-        for c in cat.channels:
-            if c.id in (341610158755020820, 509462073432997890, 515620023457546243, 384422173462364163):
-                continue
-            await c.set_permissions(df, read_messages=None)
-
-        r = g.get_role(492737863931265034)
-        await g.get_channel(509462073432997890).set_permissions(r, read_messages=True)
-        await g.get_channel(515620023457546243).set_permissions(r, read_messages=True)
-
-        r = g.get_role(455444415960317952)
-        await g.get_channel(384422173462364163).set_permissions(r, read_messages=True)
-
-        await g.get_channel(360699176394293248).set_permissions(df, read_messages=None)
-
-        for c in g.get_channel(360695301457313792).channels:
-            if c.id in (499656404399947796, 338523738997915649):
-                continue
-            await c.set_permissions(df, read_messages=None)
-
-        await g.get_channel(694606250830331935).send('Hopefully this automated system ended the event successfully. Some channels will be reactivated later')
-        self.bot.unload_extension('cogs.aprilfools')
+        await chn.send(embed=embed)
 
     @Cog.listener()
     async def on_message(self, msg):
-        if not msg.guild or msg.guild.id not in (353927534439825429, 217677285442977792) or msg.webhook_id or msg.type != discord.MessageType.default:
+        if not msg.guild or msg.guild.id != self._guild or msg.webhook_id or msg.type != discord.MessageType.default:
             return
 
-        latest_users = self.latest_channel_users.get(msg.channel.id)
-        if not latest_users:
-            latest_users = []
-            self.latest_channel_users[msg.channel.id] = latest_users
-
-        # Get the rate of infection
-        rate = self.INFECTION_RATE
-        user = [x for x in latest_users if x.user == msg.author]
-        if user:
-            # If same author sent last message decrease rates
-            if latest_users[-1] == msg.author:
-                rate = self.SPAM_RATE
-
-            latest_users.remove(user[0])
-
-        # don't insert bot at the end or it'll be immediately removed
-        if msg.author.bot:
-            latest_users.insert(1, User(msg.author, msg.created_at))
-        else:
-            latest_users.append(User(msg.author, msg.created_at))
-
-        # If over user count remove last user
-        if len(latest_users) > self.USER_COUNT:
-            latest_users.pop(0)
-
-        for u in filter(lambda u: (datetime.utcnow() - u.last_activity).total_seconds() > 300, latest_users.copy()):
-            latest_users.remove(u)
-
-        has_infection = [u for u in latest_users if self._infected.get(u.user.id, 0) == Status.INFECTED]
-        if not has_infection:
+        if not self._message_ratelimit.valid:
             return
 
-        for u in latest_users:
-            u = u.user
-            infected = self._infected.get(u.id, 'a')
-            if infected == 'a':
-                if random.random() < rate:
-                    await self.add_infected(u.id)
+        bucket = self._message_ratelimit.get_bucket(msg)
+        retry_after = bucket.update_rate_limit()
+        if retry_after:
+            return
 
-            elif infected == Status.INFECTED:
-                dur = datetime.utcnow() - self._infected_durations.get(u.id, datetime.utcnow())
-                if dur.total_seconds() < self.INFECTION_DURATION_MIN:
-                    continue
+        # If no spawn reset cooldown
+        if random.random() > self.SPAWN_RATE:
+            bucket.reset()
+            return
 
-                # Reduce recovery rate when sending multiple messages in a row
-                rate = self.RECOVERY_RATE if rate == self.INFECTION_RATE else self.RECOVERY_RATE / 4
-
-                if random.random() < rate:
-                    await self.recover(u.id)
+        await self.do_spawn()
 
 
 def setup(bot):
-    bot.add_cog(AprilFools(bot))
+    bot.add_cog(BattleArena(bot))

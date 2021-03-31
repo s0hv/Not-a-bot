@@ -49,9 +49,10 @@ class Moderator(Cog):
             for timeout in list(timeouts.values()):
                 timeout.cancel()
 
-        for temproles in list(self.temproles.values()):
-            for temprole in list(temproles.values()):
-                temprole.cancel()
+        for guild_temproles in list(self.temproles.values()):
+            for user_temproles in list(guild_temproles.values()):
+                for temprole in list(user_temproles.values()):
+                    temprole.cancel()
 
     async def _load_automute(self):
         sql = 'SELECT * FROM automute_blacklist'
@@ -1415,13 +1416,21 @@ class Moderator(Cog):
         """Set send_messages permission override on current channel to default position"""
         await self._set_channel_lock(ctx, False, zawarudo=ctx.invoked_with == 'tokiwougokidasu')
 
-    def get_temproles(self, guild: int):
+    def get_temproles(self, guild: int, uid: int = None):
         temproles = self.temproles.get(guild, None)
         if temproles is None:
             temproles = {}
             self.temproles[guild] = temproles
 
-        return temproles
+        if uid is None:
+            return temproles
+
+        user_temp = temproles.get(uid)
+        if not user_temp:
+            user_temp = {}
+            temproles[uid] = user_temp
+
+        return user_temp
 
     def get_timeouts(self, guild: int):
         timeouts = self.timeouts.get(guild, None)
@@ -1476,25 +1485,47 @@ class Moderator(Cog):
                           user, guild, after=lambda f: timeouts.pop(user, None))
         timeouts[user] = task
 
-    def register_temprole(self, user: int, role: int, guild: int, time, ignore_dupe=False):
-        temproles = self.get_temproles(guild)
-        if user in temproles and ignore_dupe:
+    def register_temprole(self, user: int, role: int, guild: int, time, ignore_dupe=False, force_save=False):
+        temproles = self.get_temproles(guild, user)
+        if role in temproles and ignore_dupe:
             return
 
-        old = temproles.pop(user, None)
+        old = temproles.pop(role, None)
         if old:
             old.cancel()
 
-        if not ignore_dupe and time > self._pause * 2:
+        if not force_save and not ignore_dupe and time > self._pause * 2:
             return
 
         if time <= 1:
             time = 1
 
         task = call_later(self.remove_role, self.bot.loop, time,
-                          user, role, guild, after=lambda _: temproles.pop(user, None))
+                          user, role, guild, after=lambda _: temproles.pop(role, None))
 
-        temproles[user] = task
+        temproles[role] = task
+
+    @command(no_pm=True, cooldown_after_parsing=True)
+    @cooldown(1, 5, BucketType.user)
+    async def temproles(self, ctx, *, user: discord.Member = None):
+        """
+        Get the temproles for yourself or a specified user
+        """
+        user = user or ctx.author
+
+        temproles = await self.bot.dbutil.get_temproles(ctx.guild.id, user.id)
+        if not temproles:
+            await ctx.send(f'No temproles found for user {user}')
+            return
+
+        msg = f'Temproles of {user.mention}\n\n'
+        now = datetime.utcnow()
+
+        for temprole in temproles:
+            expires_in = format_timedelta(temprole['expires_at'] - now, DateAccuracy.Day-DateAccuracy.Minute)
+            msg += f'<@&{temprole["role"]}> expires in {expires_in}\n'
+
+        await ctx.send(msg, allowed_mentions=discord.AllowedMentions.none())
 
     @command(no_pm=True)
     @has_permissions(manage_roles=True)

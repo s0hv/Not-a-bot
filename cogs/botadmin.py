@@ -328,7 +328,7 @@ class BotAdmin(Cog):
             await self.bot.loop.run_in_executor(self.bot.threadpool,
                                                 self.bot.unload_extension, cog_name)
         except Exception as e:
-            return await ctx.send('Could not unload %s because of %s' % (cog_name, e.__name__))
+            return await ctx.send('Could not unload %s because of %s' % (cog_name, e.__class__.__name__))
 
         await ctx.send('Unloaded {} in {:.0f}ms'.format(cog_name, (time.perf_counter() - t) * 1000))
 

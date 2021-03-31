@@ -497,3 +497,9 @@ CREATE TABLE elections (
     candidate_id BIGINT NOT NULL REFERENCES candidates,
     vote_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
+
+CREATE TABLE event_users (
+    uid     BIGINT PRIMARY KEY,
+    points  INT NOT NULL DEFAULT 0,
+    protected_until TIMESTAMP DEFAULT NULL
+);

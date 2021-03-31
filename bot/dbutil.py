@@ -1031,7 +1031,7 @@ class DatabaseUtils:
         return await self.fetch(sql)
 
     async def add_event_users(self, users):
-        sql = 'INSERT INTO event_users (uid) VALUES %s ON CONFLICT DO NOTHING' % self.create_bind_groups(len(users), 2)
+        sql = 'INSERT INTO event_users (uid) VALUES %s ON CONFLICT DO NOTHING' % self.create_bind_groups(len(users), 1)
         await self.execute(sql, users)
 
     async def check_blacklist(self, command, user, ctx, fetch_raw: bool=False):

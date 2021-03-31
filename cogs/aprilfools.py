@@ -41,7 +41,6 @@ class BattleArena(Cog):
         self._message_ratelimit = CooldownMapping.from_cooldown(1, self._min_spawn_time.total_seconds(), BucketType.guild)
 
         self._members = set()
-        self._blue_members = set()
 
         self._active_spawn: Optional[PointSpawn] = None
         self._claim_lock = Lock(loop=self.bot.loop)
@@ -180,7 +179,7 @@ class BattleArena(Cog):
         Join the april fools event and get the special role if you haven't already.
         """
         user = ctx.author
-        if self.is_participating(user.id):
+        if not self.is_participating(user.id):
             self._members.add(user.id)
             await self.bot.dbutil.add_event_users([user.id])
             await ctx.reply(f'Joined the event', mention_author=False)

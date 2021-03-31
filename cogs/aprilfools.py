@@ -397,13 +397,14 @@ class BattleArena(Cog):
 
     async def do_spawn(self):
         chn = self.get_guild().get_channel(self._battle_channel)
+        amount = self.get_random_point_amount()
 
         embed = discord.Embed(
             title='Event points',
-            description=f'{self._active_spawn.amount} point(s) spawned. Use `!collect` to collect them.'
+            description=f'{amount} point(s) spawned. Use `!collect` to collect them.'
         )
 
-        self._active_spawn = PointSpawn(self.get_random_point_amount(), await chn.send(embed=embed))
+        self._active_spawn = PointSpawn(amount, await chn.send(embed=embed))
 
     @Cog.listener()
     async def on_message(self, msg):

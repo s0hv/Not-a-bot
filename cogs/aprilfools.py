@@ -258,7 +258,7 @@ class BattleArena(Cog):
         COST 1
 
         Protect yourself from the next silence targeted on you.
-        Lasts until targeted or after 30 minutes
+        Lasts until targeted or after 1 hour
         """
         COST = 1
         uid = ctx.author.id
@@ -270,7 +270,7 @@ class BattleArena(Cog):
             await ctx.send('Already protected')
             return
 
-        td = timedelta(minutes=30)
+        td = timedelta(hours=1)
         self.add_protect(uid, int(td.total_seconds()))
         await self.bot.dbutil.update_user_protect(uid, datetime.utcnow() + td)
         await self.bot.dbutil.update_event_points(uid, -COST)

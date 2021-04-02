@@ -27,8 +27,8 @@ class PointSpawn:
 
 
 class BattleArena(Cog):
-    SPAWN_RATE = 0.05
-    MINIMUM_SPAWN_TIME = timedelta(minutes=2)
+    SPAWN_RATE = 0.03
+    MINIMUM_SPAWN_TIME = timedelta(minutes=3)
 
     def __init__(self, bot):
         super().__init__(bot)
@@ -78,25 +78,6 @@ class BattleArena(Cog):
             return False
 
         return True
-
-    @Cog.listener()
-    async def on_raw_reaction_add(self, payload):
-        if payload.message_id != 1:
-            return
-
-        guild: discord.Guild = self.bot.get_guild(217677285442977792)
-        r = guild.get_role(1)
-        m = await guild.fetch_member(payload.user_id)
-        if not m:
-            return
-
-        if r in m.roles:
-            return
-
-        try:
-            await m.add_roles(r)
-        except discord.HTTPException:
-            pass
 
     def is_participating(self, user: Union[discord.User, int, discord.Member]):
         uid = user if isinstance(user, int) else user.id
@@ -177,22 +158,13 @@ class BattleArena(Cog):
     @cooldown(1, 10, BucketType.user)
     async def join_event(self, ctx):
         """
-        Join the april fools event and get the special role if you haven't already.
+        Join the april fools event.
         """
         user = ctx.author
         if not self.is_participating(user.id):
             self._members.add(user.id)
             await self.bot.dbutil.add_event_users([user.id])
             await ctx.reply(f'Joined the event', mention_author=False)
-
-        role_id = 355372865693941770 if self.bot.test_mode else 826903511211311114
-        role = self.get_guild().get_role(role_id)
-        if role in user.roles:
-            await ctx.send('You already have the event role')
-            return
-
-        await user.add_roles(role)
-        await ctx.send('Event role added')
 
     @command()
     @cooldown(1, 7, BucketType.user)

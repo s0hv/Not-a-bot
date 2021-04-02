@@ -158,7 +158,7 @@ class BattleArena(Cog):
     @cooldown(1, 10, BucketType.user)
     async def join_event(self, ctx):
         """
-        Join the april fools event.
+        Join the april fools event.!update_bot
         """
         user = ctx.author
         if not self.is_participating(user.id):
@@ -282,7 +282,8 @@ class BattleArena(Cog):
         COST: 3
 
         Times out a maximum of 4 users for the given time,
-        while timing you out for `time*amount of enemies timed out`
+        while timing you out for `time*amount of enemies timed out`.
+        Max time is 1h
 
         Usage:
         {prefix}{name} @user @user2 10m

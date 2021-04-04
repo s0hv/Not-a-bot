@@ -109,8 +109,6 @@ class AutoRoles(Cog):
 
         if roles:
             roles = [Snowflake(r) for r in roles]
-            if muted_role and len(roles) >= 5:
-                roles.insert(0, Snowflake(muted_role))
 
             try:
                 await member.add_roles(*roles, atomic=len(roles) < 5, reason='Keeproles')

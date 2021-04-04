@@ -89,7 +89,7 @@ class AutoRoles(Cog):
 
             roles.discard(guild.default_role.id)
 
-            if muted_role in roles and len(roles) < 5:
+            if muted_role in roles and len(roles) > 5:
                 try:
                     await member.add_roles(Snowflake(muted_role), atomic=True, reason='[Keeproles] add muted role first')
                     roles.discard(muted_role)

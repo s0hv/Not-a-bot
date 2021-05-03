@@ -33,4 +33,4 @@ selenium ~= 3.141.0
 validators ~= 0.14.0
 youtube_dl
 discord.py[voice] ~= 1.6.0
-tatsumaki.py==1.0
+tatsu.py~=1.0.4

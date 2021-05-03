@@ -23,8 +23,8 @@ from discord.ext.commands import (BucketType, check, dm_only, is_owner,
                                   BadArgument)
 from numpy import sqrt
 from numpy.random import choice
-from tatsumaki.data_structures import RankingObject
-from tatsumaki.wrapper import ApiWrapper
+from tatsu.data_structures import RankingObject
+from tatsu.wrapper import ApiWrapper
 
 from bot.bot import command, has_permissions, cooldown, bot_has_permissions
 from bot.formatter import Paginator

@@ -71,10 +71,12 @@ class Misc(Cog):
                 await ctx.send(f'Error while getting data: {err.get("message", "")}')
                 return
 
-            manga = data.get('manga')
-            if not manga:
+            data = data.get('data')
+            if not data:
                 await ctx.send('Nothing found. Try a different search word')
                 return
+
+            manga = data['manga']
 
             title = manga['title']
             cover = manga['cover']

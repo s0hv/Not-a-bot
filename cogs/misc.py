@@ -80,9 +80,9 @@ class Misc(Cog):
 
             title = manga['title']
             cover = manga['cover']
-            release_interval = manga['release_interval']
-            estimated_release = manga['estimated_release']
-            latest_release = manga.get('latest_release')
+            release_interval = manga['releaseInterval']
+            estimated_release = manga['estimatedRelease']
+            latest_release = manga.get('latestRelease')
 
             description = ''
 

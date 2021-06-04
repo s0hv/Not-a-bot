@@ -36,7 +36,7 @@ class Misc(Cog):
         """Random twitch quote from twitchquotes.com"""
         await ctx.send(await memes.twitch_poems(self.bot.aiohttp_client), tts=tts)
 
-    @command()
+    @command(cooldown_after_parsing=True)
     @cooldown(1, 60, BucketType.user)
     async def rep(self, ctx, user: discord.Member):
         if ctx.author == user:

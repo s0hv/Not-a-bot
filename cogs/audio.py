@@ -350,7 +350,7 @@ class Audio(commands.Cog):
 
         musicplayer.player.source2 = player.FFmpegPCMAudio('file', reconnect=False)
 
-    @command(no_pm=True)
+    @command(no_pm=True, cooldown_after_parsing=True)
     @commands.cooldown(1, 3, type=BucketType.user)
     async def play(self, ctx, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
@@ -402,7 +402,7 @@ class Audio(commands.Cog):
         if success:
             musicplayer.start_playlist()
 
-    @command(no_pm=True, aliases=['play_p', 'pp'])
+    @command(no_pm=True, aliases=['play_p', 'pp'], cooldown_after_parsing=True)
     @cooldown(1, 10, BucketType.user)
     async def play_playlist(self, ctx, shuffle: Optional[bool], user: Optional[discord.User], *, name):
         """Queue a saved playlist in random order"""

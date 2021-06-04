@@ -123,7 +123,7 @@ class Settings(Cog):
         """Remove and active prefix from use"""
         await self._remove_prefix(ctx, ctx.guild.id, prefix)
 
-    @settings.command(no_pm=True)
+    @settings.command(no_pm=True, cooldown_after_parsing=True)
     @cooldown(1, 10, type=BucketType.guild)
     @has_permissions(manage_channels=True, manage_guild=True)
     async def modlog(self, ctx, channel: discord.TextChannel=None):
@@ -567,31 +567,31 @@ class Settings(Cog):
     @cooldown(1, 10, BucketType.guild)
     async def delete_format(self, ctx):
         s = test_message(ctx.message)
-        await ctx.send(s)
+        await ctx.send(s, allowed_mentions=[])
 
     @command(aliases=['test_delete'])
     @cooldown(1, 10, BucketType.guild)
     async def test_delete_format(self, ctx, *, delete_message):
         s = format_on_delete(ctx.message, delete_message)
-        await ctx.send(s)
+        await ctx.send(s, allowed_mentions=[])
 
     @command()
     @cooldown(1, 10, BucketType.guild)
     async def edit_format(self, ctx):
         s = test_message(ctx.message, True)
-        await ctx.send(s)
+        await ctx.send(s, allowed_mentions=[])
 
     @command(aliases=['test_edit'])
     @cooldown(1, 10, BucketType.guild)
     async def test_edit_format(self, ctx, *, edit_message):
         s = format_on_edit(ctx.message, ctx.message, edit_message, check_equal=False)
-        await ctx.send(s)
+        await ctx.send(s, allowed_mentions=[])
 
     @command()
     @cooldown(1, 10, BucketType.guild)
     async def join_format(self, ctx):
         s = test_member(ctx.author)
-        await ctx.send(s)
+        await ctx.send(s, allowed_mentions=[])
 
     @command(aliases=['test_join'])
     @cooldown(2, 5, BucketType.guild)
@@ -600,7 +600,7 @@ class Settings(Cog):
         if len(formatted) > 1000:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        await ctx.send(formatted)
+        await ctx.send(formatted, allowed_mentions=[])
 
     @group(invoke_without_command=True, aliases=['on_join', 'welcome_message'])
     @cooldown(2, 10, BucketType.guild)
@@ -617,7 +617,7 @@ class Settings(Cog):
             message = self.cache.join_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await ctx.send(msg)
+        await ctx.send(msg, allowed_mentions=[])
 
     @cooldown(1, 10, BucketType.guild)
     @join_message.command(name='remove', aliases=['del', 'delete'], no_pm=True)

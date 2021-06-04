@@ -597,10 +597,10 @@ class Server(Cog):
 
         await ctx.send(f'Saved banner image as {file}')
 
-    @command(no_pm=True, aliases=['bremove'])
+    @command(no_pm=True, aliases=['bremove', 'delete_banner'])
     @cooldown(1, 5, BucketType.guild)
     @has_permissions(manage_guild=True)
-    async def banner_remove(self, ctx, filename):
+    async def remove_banner(self, ctx, filename):
         """Remove a banner from the rotation"""
         guild = ctx.guild
         base_path = os.path.join('data', 'banners', str(guild.id))

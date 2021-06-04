@@ -82,7 +82,6 @@ initial_cogs = [
     'dbl',
     'emotes',
     'gachiGASM',
-    'hearthstone',
     'images',
     'jojo',
     'last_seen',

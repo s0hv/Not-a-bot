@@ -516,6 +516,7 @@ class ServerSpecific(Cog):
 
     @command(no_pm=True)
     @cooldown(2, 5)
+    @check(grant_check)
     async def all_grants(self, ctx, role_user: Union[discord.Role, discord.User]=None):
         """Shows all grants on the server.
         If user or role provided will get all grants specific to that."""

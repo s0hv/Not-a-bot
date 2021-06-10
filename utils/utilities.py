@@ -31,7 +31,8 @@ import re
 import shlex
 import subprocess
 import time
-from collections import OrderedDict, Iterable
+from collections import OrderedDict
+from collections.abc import Iterable
 from datetime import timedelta, datetime
 from enum import Enum
 from random import randint

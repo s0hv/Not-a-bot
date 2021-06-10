@@ -36,7 +36,7 @@ stat_names = ('hp', 'attack', 'defense', 'spattack', 'spdefense', 'speed')
 MAX_IV = (31, 31, 31, 31, 31, 31)
 MIN_IV = (0, 0, 0, 0, 0, 0)
 
-legendary_detector = re.compile(r'Congratulations (<@!?\d+>)! You caught a level \d+ (Shiny )?(.+?)!\s*(These colors seem unusual)?.*', re.MULTILINE | re.I)
+legendary_detector = re.compile(r'Congratulations (<@!?\d+>|.+?)! You caught a level \d+ (Shiny )?(.+?)!\s*(These colors seem unusual)?.*', re.MULTILINE | re.I)
 legendaries = ['arceus', 'articuno', 'azelf', 'blacephalon', 'buzzwole',
                'celebi', 'celesteela', 'cobalion', 'cosmoem', 'cosmog',
                'cresselia', 'darkrai', 'deoxys', 'dialga', 'diancie',

@@ -32,5 +32,5 @@ sanic ~= 20.6.3
 selenium ~= 3.141.0
 validators ~= 0.14.0
 youtube_dl
-discord.py[voice] ~= 1.6.0
+discord.py[voice] ~= 1.7.3
 tatsu.py~=1.0.4

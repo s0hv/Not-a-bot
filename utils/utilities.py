@@ -206,8 +206,8 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: in
                 splits.append(chunk)
                 if len(s) > maxlen:
                     s = s[:maxlen-3] + '...'
+                    splits.append(s)
 
-                splits.append(s)
                 chunk = ''
             elif not chunk:
                 splits.append(s[:maxlen-3] + '...')
@@ -218,7 +218,7 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: in
         return splits
 
     logger.debug('Could not split string {}'.format(to_split))
-    raise NotImplementedError('This only works with dicts and strings for now')
+    raise NotImplementedError('This only works with dicts, iterables and strings for now')
 
 
 async def mean_volume(file, loop, threadpool, avconv=False, duration=0):

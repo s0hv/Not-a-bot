@@ -4,23 +4,23 @@ import os
 import re
 from datetime import datetime, timedelta
 from random import randint, random
-from typing import Union
+from typing import Union, List, Optional
 
 import discord
 from asyncpg.exceptions import PostgresError
 from discord.ext.commands import BucketType, Greedy
 
 from bot.bot import (command, group, has_permissions, cooldown,
-                     bot_has_permissions)
+                     bot_has_permissions, Context)
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
-from bot.formatter import Paginator
+from bot.formatter import Paginator, EmbedLimits
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              get_avatar, is_image_url,
                              seconds2str, get_channel, Snowflake, basic_check,
                              sql2timedelta, check_botperm, format_timedelta,
-                             DateAccuracy, send_paged_message)
+                             DateAccuracy, send_paged_message, split_string)
 
 logger = logging.getLogger('terminal')
 manage_roles = discord.Permissions(268435456)
@@ -196,7 +196,7 @@ class Moderator(Cog):
                 embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d,
                                       timestamp=datetime.utcnow())
                 embed.add_field(name='Reason', value=message.content)
-                embed.add_field(name='link', value=url)
+                embed.add_field(name='Link', value=url)
                 embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                 embed.set_footer(text=str(self.bot.user),
                                  icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
@@ -235,7 +235,7 @@ class Moderator(Cog):
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
                         embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
                         embed.add_field(name='Reason', value=reason)
-                        embed.add_field(name='link', value=url)
+                        embed.add_field(name='Link', value=url)
                         embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
                         embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
                         msg = await self.send_to_modlog(guild, embed=embed)
@@ -479,7 +479,7 @@ class Moderator(Cog):
                                   timestamp=datetime.utcnow(),
                                   description=description)
             embed.add_field(name='Reason', value=reason)
-            embed.add_field(name='link', value=url)
+            embed.add_field(name='Link', value=url)
 
             if len(muted_users) == 1:
                 usr = muted_users[0]
@@ -956,7 +956,7 @@ class Moderator(Cog):
                                   timestamp=datetime.utcnow() + time,
                                   description=description)
             embed.add_field(name='Reason', value=reason)
-            embed.add_field(name='link', value=url)
+            embed.add_field(name='Link', value=url)
 
             if len(muted_users) == 1:
                 u = muted_users[0]
@@ -1028,7 +1028,7 @@ class Moderator(Cog):
                                       timestamp=datetime.utcnow(),
                                       description=description)
                 embed.add_field(name='Reason for unmute', value=reason)
-                embed.add_field(name='link', value=url)
+                embed.add_field(name='Link', value=url)
                 embed.add_field(name='Mute reason', value=row.get('reason', 'Mute reason not logged'))
                 expires_on = row.get('expires_on')
                 if expires_on:
@@ -1158,6 +1158,23 @@ class Moderator(Cog):
                     await ctx.send('Soshite toki wo ugokidasu')
         except discord.HTTPException:
             pass
+
+    @staticmethod
+    def hackban_embed(ctx: Context, users: List[int], reason: str):
+        author: discord.Member = ctx.author
+        description = f'{author.mention} banned **{len(users)}** users'
+        embed = discord.Embed(title=f'🔨 Moderation action [BAN]',
+                              description=description,
+                              timestamp=datetime.utcnow())
+
+        embed.add_field(name='Reason', value=reason)
+
+        for field in split_string(map(str, users), '\n', maxlen=EmbedLimits.Field):
+            user_count = field.strip().count('\n') + 1
+            embed.add_field(name=f'Banned users [{user_count}]', value=field)
+        embed.set_footer(text=str(author), icon_url=get_avatar(author))
+
+        return embed
 
     @staticmethod
     def purge_embed(ctx, messages, users: set=None, multiple_channels=False, channel=None):
@@ -1369,6 +1386,79 @@ class Moderator(Cog):
             await ctx.send(f'Deleted {len(deleted)} messages', delete_after=10)
             embed = self.purge_embed(ctx, deleted)
             await self.send_to_modlog(channel.guild, embed=embed)
+
+    @command(no_pm=True, aliases=['hb', 'massban'], cooldown_after_parsing=True)
+    @bot_has_permissions(ban_members=True)
+    @has_permissions(ban_members=True)
+    @cooldown(2, 5)
+    async def hackban(self, ctx: Context, user_ids: Greedy[int], *, reason: str = 'No reason'):
+        """
+        Ban multiple users by user id
+        """
+        failed = []
+        success = []
+        guild: discord.Guild = ctx.guild
+        user_ids = set(user_ids)
+        if not user_ids:
+            await ctx.send('No users given to ban')
+            ctx.command.undo_use(ctx)
+            return
+
+        async with ctx.typing():
+            for user_id in user_ids:
+                try:
+                    await guild.ban(Snowflake(id=user_id), reason=f'Hackban by {ctx.author}: {reason[:400]}')
+                    success.append(user_id)
+                except discord.HTTPException:
+                    failed.append(user_id)
+                except:
+                    failed.append(user_id)
+                    logger.exception('Failed to hackban.')
+
+        fail_msg = None
+        if failed:
+            s_failed = "\n".join(map(str, failed))
+            fail_msg = f'Failed to ban {len(failed)} users.\n{s_failed}'[:2000]
+
+        if fail_msg:
+            await ctx.send(fail_msg)
+            if not success:
+                return
+
+        embed = self.hackban_embed(ctx, success, reason)
+        await self.send_to_modlog(guild, embed=embed)
+
+    @command(no_pm=True, cooldown_after_parsing=True)
+    @bot_has_permissions(ban_members=True)
+    @has_permissions(ban_members=True)
+    @cooldown(2, 5)
+    async def ban(self, ctx: Context, user: discord.User, delete_days: Optional[int] = 0, *, reason: str = None):
+        """
+        Bans the specified user from the server
+        """
+        author = ctx.author
+        try:
+            await ctx.guild.ban(user, delete_message_days=delete_days, reason=f'Banned by {author}: {reason[:400]}')
+            pass
+        except discord.HTTPException as e:
+            await ctx.send(f'Failed to ban user {user}\n{e}')
+            return
+        except:
+            logger.exception('Failed to ban user')
+            await ctx.send(f'Failed to ban user {user}')
+            return
+
+        embed = discord.Embed(
+            title='🔨 Moderation action [BAN]',
+            description=f'{ctx.author.mention} banned {user} {user.mention}',
+            timestamp=datetime.utcnow()
+        )
+        embed.add_field(name='Reason', value=reason or 'No reason')
+        embed.add_field(name='Link', value=f'[Jump to]({ctx.message.jump_url})')
+        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+        embed.set_footer(text=str(author), icon_url=get_avatar(author))
+
+        await self.send_to_modlog(ctx.guild, embed=embed)
 
     @command(no_pm=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)

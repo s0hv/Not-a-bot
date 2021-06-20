@@ -1404,6 +1404,8 @@ class Moderator(Cog):
             ctx.command.undo_use(ctx)
             return
 
+        await ctx.send('Starting to massban. This might take a while.')
+
         async with ctx.typing():
             for user_id in user_ids:
                 try:
@@ -1427,6 +1429,7 @@ class Moderator(Cog):
 
         embed = self.hackban_embed(ctx, success, reason)
         await self.send_to_modlog(guild, embed=embed)
+        await ctx.send(f'✅ Banned **{len(success)}** users')
 
     @command(no_pm=True, cooldown_after_parsing=True)
     @bot_has_permissions(ban_members=True)
@@ -1459,6 +1462,17 @@ class Moderator(Cog):
         embed.set_footer(text=str(author), icon_url=get_avatar(author))
 
         await self.send_to_modlog(ctx.guild, embed=embed)
+        await ctx.send(f'✅ Successfully banned {user}')
+
+    @command(no_pm=True, cooldown_after_parsing=True)
+    @bot_has_permissions(ban_members=True)
+    @has_permissions(ban_members=True)
+    @cooldown(2, 5)
+    async def bab(self, ctx: Context, user: discord.User):
+        """
+        Babs the specified user from the server
+        """
+        await ctx.send(f'✅ Successfully babbed **{user}**')
 
     @command(no_pm=True, aliases=['softbab'])
     @bot_has_permissions(ban_members=True)

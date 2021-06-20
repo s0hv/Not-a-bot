@@ -1406,16 +1406,15 @@ class Moderator(Cog):
 
         await ctx.send('Starting to massban. This might take a while.')
 
-        async with ctx.typing():
-            for user_id in user_ids:
-                try:
-                    await guild.ban(Snowflake(id=user_id), reason=f'Hackban by {ctx.author}: {reason[:400]}')
-                    success.append(user_id)
-                except discord.HTTPException:
-                    failed.append(user_id)
-                except:
-                    failed.append(user_id)
-                    logger.exception('Failed to hackban.')
+        for user_id in user_ids:
+            try:
+                await guild.ban(Snowflake(id=user_id), reason=f'Hackban by {ctx.author}: {reason[:400]}')
+                success.append(user_id)
+            except discord.HTTPException:
+                failed.append(user_id)
+            except:
+                failed.append(user_id)
+                logger.exception('Failed to hackban.')
 
         fail_msg = None
         if failed:

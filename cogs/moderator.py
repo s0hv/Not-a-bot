@@ -1393,12 +1393,14 @@ class Moderator(Cog):
     @cooldown(2, 5)
     async def hackban(self, ctx: Context, user_ids: Greedy[int], *, reason: str = 'No reason'):
         """
-        Ban multiple users by user id
+        Ban multiple users by user id.
         """
         failed = []
         success = []
         guild: discord.Guild = ctx.guild
         user_ids = set(user_ids)
+        user_ids.discard(ctx.author.id)  # Can't ban yourself
+
         if not user_ids:
             await ctx.send('No users given to ban')
             ctx.command.undo_use(ctx)
@@ -1406,7 +1408,16 @@ class Moderator(Cog):
 
         await ctx.send('Starting to massban. This might take a while.')
 
+        if not guild.chunked:
+            await guild.chunk()
+
         for user_id in user_ids:
+            # Permission check
+            member = guild.get_member(user_id)
+            if member and member.top_role >= ctx.author.top_role:
+                failed.append(user_id)
+                continue
+
             try:
                 await guild.ban(Snowflake(id=user_id), reason=f'Hackban by {ctx.author}: {reason[:400]}')
                 success.append(user_id)
@@ -1419,7 +1430,7 @@ class Moderator(Cog):
         fail_msg = None
         if failed:
             s_failed = "\n".join(map(str, failed))
-            fail_msg = f'Failed to ban {len(failed)} users.\n{s_failed}'[:2000]
+            fail_msg = f'❌ Failed to ban {len(failed)} users.\n{s_failed}'[:2000]
 
         if fail_msg:
             await ctx.send(fail_msg)
@@ -1434,11 +1445,29 @@ class Moderator(Cog):
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
     @cooldown(2, 5)
-    async def ban(self, ctx: Context, user: discord.User, delete_days: Optional[int] = 0, *, reason: str = None):
+    async def ban(self, ctx: Context, user: discord.User, delete_days: Optional[int] = 0, *, reason: str = 'No reason'):
         """
-        Bans the specified user from the server
+        Bans the specified user from the server.
+        Cannot ban yourself or someone with a higher or equal top role
         """
         author = ctx.author
+        if user == author:
+            await ctx.send('Cannot ban yourself...')
+            return
+
+        guild: discord.Guild = ctx.guild
+        if guild.chunked:
+            member: Optional[discord.Member] = guild.get_member(user.id)
+        else:
+            try:
+                member = await guild.fetch_member(user.id)
+            except discord.HTTPException:
+                member = None
+
+        if member and member.top_role >= author.top_role:
+            await ctx.send('Cannot ban someone with a role higher or equal to your top role')
+            return
+
         try:
             await ctx.guild.ban(user, delete_message_days=delete_days, reason=f'Banned by {author}: {reason[:400]}')
             pass

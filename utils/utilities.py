@@ -419,7 +419,8 @@ def slots2dict(obj, d: dict=None, replace=True):
             d[k] = getattr(obj, k, None)
 
     for k in dir(obj):
-        if k.startswith('_'):  # We don't want any private variables
+        # get_relationship prints deprecation warnings. Not the best solution but whatever
+        if k == 'get_relationship' or k.startswith('_'):  # We don't want any private variables
             continue
 
         v = getattr(obj, k, None)

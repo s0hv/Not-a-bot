@@ -200,7 +200,7 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: in
         splits = []
         chunk = ''
         for s in to_split:
-            if len(chunk) + len(s) <= maxlen:
+            if len(chunk) + len(s) + len(list_join) <= maxlen:
                 chunk += list_join + s
             elif chunk:
                 splits.append(chunk)

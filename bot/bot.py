@@ -169,6 +169,10 @@ class Bot(commands.AutoShardedBot):
                                   commands.errors.DisabledCommand)):
             return
 
+        # Just ignore the moderator prefix on my server
+        if context.guild and context.guild.id == 217677285442977792 and context.prefix == 'm':
+            return
+
         channel = context.channel
 
         if isinstance(exception, (commands.errors.BotMissingPermissions,

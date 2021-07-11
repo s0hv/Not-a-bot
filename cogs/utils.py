@@ -102,7 +102,7 @@ class Utilities(Cog):
         """Get the link to an emote"""
         emote = get_emote_url(emote)
         if emote is None:
-            return await ctx.send('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
+            raise BadArgument('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
 
         await ctx.send(emote)
 

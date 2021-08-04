@@ -3,12 +3,14 @@ from asyncio import Lock, TimeoutError
 from collections import OrderedDict
 
 import discord
+from discord import AllowedMentions
 from discord.ext.commands import BucketType
 
 from bot import exceptions
 from bot.bot import group, has_permissions, cooldown, command, \
-    bot_has_permissions
-from bot.converters import TimeDelta
+    bot_has_permissions, Context
+from bot.converters import TimeDelta, PossibleUser
+from bot.formatter import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
                              format_join_leave, timedelta2sql, seconds2str,
@@ -216,7 +218,17 @@ class Settings(Cog):
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.guild)
-    @settings.command(no_pm=True)
+    @settings.command(no_pm=True, name='keeproles')
+    @has_permissions(administrator=True)
+    @bot_has_permissions(manage_roles=True)
+    async def keeproles_settings(self, ctx: Context, boolean: bool):
+        """Get the current keeproles value on this server or change it.
+        Keeproles makes the bot save every users roles so it can give them even if that user rejoins
+        but only the roles the bot can give"""
+        await self.keeproles.invoke(ctx)
+
+    @cooldown(2, 20, type=BucketType.guild)
+    @group(no_pm=True, invoke_without_command=True)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def keeproles(self, ctx, boolean: bool):
@@ -257,6 +269,96 @@ class Settings(Cog):
 
         await self.cache.set_keeproles(guild.id, boolean)
         await ctx.send('Keeproles set to %s' % str(boolean))
+
+    @cooldown(2, 3, type=BucketType.guild)
+    @keeproles.command(name='show', no_pm=True)
+    async def keeproles_show(self, ctx: Context, *, user: PossibleUser):
+        """
+        Shows the saved roles for the given user
+        """
+        user_id = user if isinstance(user, int) else user.id
+        roles = await self.bot.dbutil.get_user_keeproles(ctx.guild.id, user_id)
+        if not roles:
+            await ctx.send(f'No saved roles found for <@{user_id}>', allowed_mentions=AllowedMentions.none())
+            return
+
+        paginator = Paginator(title=f'Saved roles for {user}', page_count=False)
+        paginator.add_field('Roles', '')
+
+        for role in roles:
+            paginator.add_to_field(f'<@&{role}>\n')
+
+        paginator.finalize()
+        for embed in paginator.pages:
+            await ctx.send(embed=embed)
+
+    @staticmethod
+    def role_check(author: discord.Member, role: discord.Role):
+        return author.guild.owner_id == author.id or author.top_role > role
+
+    @cooldown(2, 3, type=BucketType.guild)
+    @keeproles.command(name='remove', no_pm=True, aliases=['delete'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
+    async def keeproles_delete(self, ctx: Context, user: PossibleUser, *, role: discord.Role):
+        """
+        Removes the role from the user even if they are not in the server
+        """
+        if not self.role_check(ctx.author, role):
+            await ctx.send(f'{role.mention} needs to be lower in the hierarchy than your top role',
+                           allowed_mentions=AllowedMentions.none())
+            return
+
+        user_id = user if isinstance(user, int) else user.id
+        retval = await self.bot.dbutil.delete_user_role(ctx.guild.id, user_id, role.id)
+        if retval == 0:
+            await ctx.send('No saved roles deleted because the user did not have that role saved')
+            return
+
+        try:
+            member: discord.Member = await ctx.guild.fetch_member(user_id)
+            if role in member.roles:
+                await member.remove_roles(role, reason=f'{ctx.author} removed saved role')
+        except discord.NotFound:
+            pass
+        except discord.Forbidden as e:
+            await ctx.send(f'Failed to remove role from user\n{e}')
+        except discord.HTTPException:
+            pass
+
+        await ctx.send(f'Deleted saved role {role.mention} from <@{user_id}>', allowed_mentions=AllowedMentions.none())
+
+    @cooldown(2, 3, type=BucketType.guild)
+    @keeproles.command(name='add', no_pm=True, aliases=['give'])
+    @has_permissions(manage_roles=True)
+    @bot_has_permissions(manage_roles=True)
+    async def keeproles_add(self, ctx: Context, user: PossibleUser, *, role: discord.Role):
+        """
+        Gives the role to the user even if they are not in the server
+        """
+        if not self.role_check(ctx.author, role):
+            await ctx.send(f'{role.mention} needs to be lower in the hierarchy than your top role',
+                           allowed_mentions=AllowedMentions.none())
+            return
+
+        user_id = user if isinstance(user, int) else user.id
+        retval = await self.bot.dbutil.add_user_role(ctx.guild.id, user_id, role.id)
+        if not retval:
+            await ctx.send('Failed to add the role to the user')
+            return
+
+        try:
+            member: discord.Member = await ctx.guild.fetch_member(user_id)
+            if role not in member.roles:
+                await member.add_roles(role, reason=f'{ctx.author} added saved role')
+        except discord.NotFound:
+            pass
+        except discord.Forbidden as e:
+            await ctx.send(f'Failed to add role to user\n{e}')
+        except discord.HTTPException:
+            pass
+
+        await ctx.send(f'Added saved role {role.mention} to <@{user_id}>', allowed_mentions=AllowedMentions.none())
 
     @settings.command(no_pm=True)
     @cooldown(2, 10, BucketType.guild)
@@ -567,31 +669,31 @@ class Settings(Cog):
     @cooldown(1, 10, BucketType.guild)
     async def delete_format(self, ctx):
         s = test_message(ctx.message)
-        await ctx.send(s, allowed_mentions=[])
+        await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @command(aliases=['test_delete'])
     @cooldown(1, 10, BucketType.guild)
     async def test_delete_format(self, ctx, *, delete_message):
         s = format_on_delete(ctx.message, delete_message)
-        await ctx.send(s, allowed_mentions=[])
+        await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @command()
     @cooldown(1, 10, BucketType.guild)
     async def edit_format(self, ctx):
         s = test_message(ctx.message, True)
-        await ctx.send(s, allowed_mentions=[])
+        await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @command(aliases=['test_edit'])
     @cooldown(1, 10, BucketType.guild)
     async def test_edit_format(self, ctx, *, edit_message):
         s = format_on_edit(ctx.message, ctx.message, edit_message, check_equal=False)
-        await ctx.send(s, allowed_mentions=[])
+        await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @command()
     @cooldown(1, 10, BucketType.guild)
     async def join_format(self, ctx):
         s = test_member(ctx.author)
-        await ctx.send(s, allowed_mentions=[])
+        await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @command(aliases=['test_join'])
     @cooldown(2, 5, BucketType.guild)
@@ -600,7 +702,7 @@ class Settings(Cog):
         if len(formatted) > 1000:
             return await ctx.send('The message generated using this format is too long. Please reduce the amount of text/variables')
 
-        await ctx.send(formatted, allowed_mentions=[])
+        await ctx.send(formatted, allowed_mentions=AllowedMentions.none())
 
     @group(invoke_without_command=True, aliases=['on_join', 'welcome_message'])
     @cooldown(2, 10, BucketType.guild)
@@ -617,7 +719,7 @@ class Settings(Cog):
             message = self.cache.join_message(guild.id, default_message=True)
 
         msg = 'Current format in channel <#{}>\n{}'.format(channel, message)
-        await ctx.send(msg, allowed_mentions=[])
+        await ctx.send(msg, allowed_mentions=AllowedMentions.none())
 
     @cooldown(1, 10, BucketType.guild)
     @join_message.command(name='remove', aliases=['del', 'delete'], no_pm=True)

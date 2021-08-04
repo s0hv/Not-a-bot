@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 import types
 from datetime import datetime
@@ -52,6 +53,14 @@ class DatabaseUtils:
             s += ','.join(map(lambda n: f'${n}', range(i, i+group_size))) + '),'
 
         return s.rstrip(',')
+
+    @staticmethod
+    def parse_affected_rows(s: str) -> int:
+        m = re.match(r'\w+ (?:\d+ )?(\d+)', s)
+        if not m:
+            return 0
+
+        return int(m.groups()[0])
 
     async def fetchval(self, sql, args=None):
         args = args or ()
@@ -235,6 +244,29 @@ class DatabaseUtils:
 
         logger.info(f'added user roles in {time.time() - t1}')
         logger.info(f'indexed users in {time.time() - t} seconds')
+        return True
+
+    async def get_user_keeproles(self, guild: int, user: int):
+        sql = 'SELECT role FROM userroles ur INNER JOIN roles r ON r.id = ur.role ' \
+              'WHERE r.guild=$1 AND ur.uid=$2'
+
+        rows = await self.fetch(sql, (guild, user))
+        return [r['role'] for r in rows]
+
+    async def delete_user_role(self, guild: int, user: int, role: int):
+        sql = 'DELETE FROM userroles ur USING roles r ' \
+              'WHERE r.guild=$1 AND ur.uid=$2 AND ur.role=$3'
+
+        res = await self.execute(sql, (guild, user, role))
+        return self.parse_affected_rows(res)
+
+    async def add_user_role(self, guild: int, user: int, role: int):
+        if not await self.add_roles(guild, role):
+            return False
+
+        sql = 'INSERT INTO userroles (uid, role) VALUES ($1, $2)'
+
+        await self.execute(sql, (user, role))
         return True
 
     async def index_guild_roles(self, guild):

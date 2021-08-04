@@ -6,6 +6,7 @@ import colors
 import discord
 from asyncpg.exceptions import PostgresError
 from discord import Embed
+from discord.embeds import EmptyEmbed
 from discord.ext.commands import help, BucketType
 from discord.ext.commands.errors import CommandError
 
@@ -324,7 +325,7 @@ class EmbedLimits:
 
 
 class Paginator:
-    def __init__(self, title=None, description=None, page_count=True, init_page=True):
+    def __init__(self, title=None, description=EmptyEmbed, page_count=True, init_page=True):
         """
         Args:
             title: title of the embed
@@ -356,7 +357,7 @@ class Paginator:
         for idx, embed in enumerate(self.pages):
             embed.set_footer(text=f'{idx+1}/{total}')
 
-    def add_page(self, title=None, description=None, paginate_description=False):
+    def add_page(self, title=None, description=EmptyEmbed, paginate_description=False):
         """
         Args:
             title:

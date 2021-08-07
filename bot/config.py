@@ -144,6 +144,7 @@ class Config:
         self.phantomjs = self.config.get('BotOptions', 'PhantomJS', fallback='phantomjs')
         self.chromedriver = self.config.get('BotOptions', 'Chromedriver', fallback='chromedriver')
         self.chrome = self.config.get('BotOptions', 'Chrome', fallback=None)
+        self.support_server = self.config.get('BotOptions', 'SupportServer', fallback=None)
 
         try:
             self.delete_messages = self.config.getboolean('BotOptions', 'DeleteMessages', fallback=False)

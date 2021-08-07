@@ -361,6 +361,16 @@ class Utilities(Cog):
         await ctx.send(unzalgo(text))
 
     @command()
+    @cooldown(1, 20, BucketType.guild)
+    async def support(self, ctx):
+        """
+        Support server
+        """
+        await ctx.send('The bot does not have a dedicated support server but you '
+                       'can join this server and ask me (s0hvaperuna#4758) stuff\n' +
+                       self.bot.config.support_server)
+
+    @command()
     @cooldown(1, 120, BucketType.user)
     async def feedback(self, ctx, *, feedback):
         """

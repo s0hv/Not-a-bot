@@ -1235,6 +1235,12 @@ def format_member(member):
     d.pop('voice', None)
     d.pop('dm_channel', None)
     d.pop('mutual_guilds', None)
+    d.pop('activity', None)
+    d.pop('pending', None)
+    d.pop('desktop_status', None)
+    d.pop('mobile_status', None)
+    d.pop('web_status', None)
+    d.pop('activities', None)
 
     for k in d:
         v = d[k]

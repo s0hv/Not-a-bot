@@ -1234,6 +1234,7 @@ def format_member(member):
     d.pop('roles', None)
     d.pop('voice', None)
     d.pop('dm_channel', None)
+    d.pop('mutual_guilds', None)
 
     for k in d:
         v = d[k]
@@ -1252,7 +1253,7 @@ def format_member(member):
 def format_join_leave(member, message):
     d = format_member(member)
     message = message.format(**d)
-    return remove_everyone(message)
+    return message
 
 
 def test_member(member):
@@ -1261,7 +1262,7 @@ def test_member(member):
     for k, v in d.items():
         s += '{%s}: %s\n' % (k, v)
 
-    return remove_everyone(s)
+    return s
 
 
 def format_on_delete(msg, message):

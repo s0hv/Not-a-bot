@@ -18,6 +18,7 @@ import emoji
 from aioredis.errors import ConnectionClosedError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
+from discord import AllowedMentions
 from discord.errors import HTTPException
 from discord.ext.commands import (BucketType, check, dm_only, is_owner,
                                   BadArgument)
@@ -684,7 +685,7 @@ class ServerSpecific(Cog):
     @cooldown(1, 600)
     @bot_has_permissions(manage_guild=True)
     @check(main_check)
-    async def rotate(self, ctx, rotate_emoji=None):
+    async def rotate(self, ctx, *, rotate_emojis: str=None):
         emoji_faces = {'😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉',
                        '😊', '😋', '😎', '😍', '😘', '😗', '😙', '😚', '☺',
                        '🙂', '🤗', '\U0001f929', '🤔', '\U0001f928', '😐', '😑',
@@ -705,42 +706,48 @@ class ServerSpecific(Cog):
                            '🇲', '🇳', '🇴', '🇵', '🇶', '🇷', '🇹', '🇺', '🇻', '🇼', '🇽', '🇾',
                            '🇿', '🇸'}
 
-        if rotate_emoji is not None:
-            rotate_emoji = ''.join(rotate_emoji[:2])
-            invalid = True
-            emoji_check = rotate_emoji
+        rotate = ''
+        if rotate_emojis is not None:
+            all_emojis = rotate_emojis.split(' ')
+            if len(all_emojis) > 2:
+                return await ctx.send('Too many emojis given')
 
-            if len(rotate_emoji) > 1:
-                try:
-                    emojis = self.extract_emojis(rotate_emoji)
-                except ValueError:
+            for rotate_emoji in all_emojis:
+                rotate_emoji = ''.join(rotate_emoji[:2])
+                invalid = True
+                emoji_check = rotate_emoji
+
+                if len(rotate_emoji) > 1:
+                    try:
+                        emojis = self.extract_emojis(rotate_emoji)
+                    except ValueError:
+                        ctx.command.reset_cooldown(ctx)
+                        return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
+
+                    if len(emojis) != 1:
+                        ctx.command.reset_cooldown(ctx)
+                        return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
+
+                    emoji_check = emojis[0]
+
+                if emoji_check in emoji_blacklist:
                     ctx.command.reset_cooldown(ctx)
-                    return await ctx.send('Invalid emoji')
+                    return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
 
-                if len(emojis) != 1:
+                if len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
+                    invalid = False
+
+                if invalid:
                     ctx.command.reset_cooldown(ctx)
-                    await ctx.send('Invalid emoji given')
-                    return
+                    return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
 
-                emoji_check = emojis[0]
+                rotate += rotate_emoji
 
-            if emoji_check in emoji_blacklist:
-                ctx.command.reset_cooldown(ctx)
-                await ctx.send('Invalid emoji')
-                return
-
-            if len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
-                invalid = False
-
-            if invalid:
-                ctx.command.reset_cooldown(ctx)
-                return await ctx.send('Invalid emoji')
-
-        elif rotate_emoji is None:
-            rotate_emoji = random.choice(list(emoji_faces))
+        elif rotate_emojis is None:
+            rotate = random.choice(list(emoji_faces))
 
         try:
-            await ctx.guild.edit(name=rotate_emoji * (100 // (len(rotate_emoji))))
+            await ctx.guild.edit(name=rotate * (100 // (len(rotate))))
         except discord.HTTPException as e:
             await ctx.send(f'Failed to change name because of an error\n{e}')
         else:

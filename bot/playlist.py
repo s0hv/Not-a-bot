@@ -406,10 +406,18 @@ class Playlist:
             return False
 
         for entry in entries:
+            entry_url = entry['url']
+            if not valid_url(entry_url):
+                if entry['ie_key'].lower() != 'youtube':
+                    await channel.send('Playlists currently not supported for this site')
+                    return
+
+                entry_url = url % entry['id']
+
             progress += 1
 
             info = await self.downloader.extract_info(self.bot.loop,
-                                                      url=url % entry['id'],
+                                                      url=entry_url,
                                                       download=False,
                                                       on_error=_on_error)
             if info is False or info is None:
@@ -469,11 +477,6 @@ class Playlist:
             info.pop('channel', None)
 
             if 'entries' in info:
-                if info['entries'][0]['ie_key'].lower() != 'youtube':
-                    await self.send('Only youtube playlists are currently supported',
-                                    channel=channel)
-                    return
-
                 await self.add_songs(info['entries'], info['title'], maxlen, priority, channel, no_message, **metadata)
 
             else:
@@ -543,15 +546,16 @@ class Playlist:
         if 'entries' in info:
             entries = info['entries']
 
-            if entries[0]['ie_key'].lower() != 'youtube':
+            if entries[0]['ie_key'].lower() != 'youtube' and not valid_url(entries[0]['url']):
                 if channel:
-                    await channel.send('Only youtube playlists are currently supported')
+                    await channel.send('Playlists not supported for this site')
                 return
 
             links = []
             url = 'https://www.youtube.com/watch?v=%s'
             for entry in entries:
-                links.append(url % entry['id'])
+                entry_url = entry['url'] if valid_url(entry['url']) else url % entry['id']
+                links.append(entry_url)
 
             return links
 

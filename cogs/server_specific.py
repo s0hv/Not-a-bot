@@ -708,11 +708,13 @@ class ServerSpecific(Cog):
 
         rotate = ''
         if rotate_emojis is not None:
-            all_emojis = rotate_emojis.split(' ')
+            all_emojis = rotate_emojis.replace('  ', ' ').split(' ')
             if len(all_emojis) > 2:
+                ctx.command.reset_cooldown(ctx)
                 return await ctx.send('Too many emojis given')
 
             for rotate_emoji in all_emojis:
+                emoji_full = rotate_emoji
                 rotate_emoji = ''.join(rotate_emoji[:2])
                 invalid = True
                 emoji_check = rotate_emoji
@@ -722,24 +724,24 @@ class ServerSpecific(Cog):
                         emojis = self.extract_emojis(rotate_emoji)
                     except ValueError:
                         ctx.command.reset_cooldown(ctx)
-                        return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
+                        return await ctx.send(f'Invalid emoji {emoji_full}', allowed_mentions=AllowedMentions.none())
 
                     if len(emojis) != 1:
                         ctx.command.reset_cooldown(ctx)
-                        return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
+                        return await ctx.send(f'Invalid emoji {emoji_full}', allowed_mentions=AllowedMentions.none())
 
                     emoji_check = emojis[0]
 
                 if emoji_check in emoji_blacklist:
                     ctx.command.reset_cooldown(ctx)
-                    return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
+                    return await ctx.send(f'Invalid emoji {emoji_full}', allowed_mentions=AllowedMentions.none())
 
                 if len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
                     invalid = False
 
                 if invalid:
                     ctx.command.reset_cooldown(ctx)
-                    return await ctx.send(f'Invalid emoji {rotate_emoji}', allowed_mentions=AllowedMentions.none())
+                    return await ctx.send(f'Invalid emoji {emoji_full}', allowed_mentions=AllowedMentions.none())
 
                 rotate += rotate_emoji
 

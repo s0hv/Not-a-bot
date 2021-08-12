@@ -819,7 +819,7 @@ class Utilities(Cog):
             max_roles = 20
             embed.add_field(
                 name='Roles',
-                value=' '.join([r.mention for r in user.roles[:max_roles]]) +
+                value=' '.join([r.mention for r in reversed(user.roles[-max_roles:])]) +
                       (f' and {len(user.roles)-max_roles} more' if len(user.roles) > max_roles else ''),
                 inline=False
             )

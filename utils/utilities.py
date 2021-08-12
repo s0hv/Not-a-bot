@@ -49,6 +49,7 @@ from validators import url as test_url
 from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
 from bot.paged_message import PagedMessage
+from enums.discord_enums import TimestampFormat
 from utils.imagetools import image_from_url
 
 # Support for recognizing webp images used in many discord avatars
@@ -850,6 +851,10 @@ def check_user_mention(msg, word):
 
 def get_avatar(user):
     return str(user.avatar_url or user.default_avatar_url)
+
+
+def formatted_datetime(dt: datetime, style: TimestampFormat=TimestampFormat.ShortDate):
+    return f'<t:{int(dt.timestamp())}:{style.value}>'
 
 
 def get_role_id(s):

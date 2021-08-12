@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
 from io import StringIO
+from typing import Union
 from urllib.parse import quote
 
 import aiohttp
@@ -22,15 +23,16 @@ from dateutil.tz import gettz
 from discord.ext.commands import (BucketType, Group, clean_content)
 from discord.ext.commands.errors import BadArgument
 
-from bot.bot import command, cooldown, bot_has_permissions
+from bot.bot import command, cooldown, bot_has_permissions, Context
 from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
+from enums.discord_enums import TimestampFormat
 from utils.tzinfo import fuzzy_tz, tz_dict
 from utils.unzalgo import unzalgo, is_zalgo
 from utils.utilities import (random_color, get_avatar, split_string,
                              get_emote_url, send_paged_message,
                              format_timedelta, parse_timeout,
-                             DateAccuracy)
+                             DateAccuracy, formatted_datetime)
 
 try:
     from pip.commands import SearchCommand
@@ -790,6 +792,39 @@ class Utilities(Cog):
 
         s += f'{last+1}-'
         await ctx.send(f'Missing tag numbers for {tagname} are {s}')
+
+    @command(aliases=['who', 'user', 'whois'])
+    @cooldown(7, 10, BucketType.guild)
+    async def userinfo(self, ctx: Context, *, user: Union[discord.Member, discord.User]):
+        """
+        Shows info of a user.
+        Using the username might not always work.  In those cases use the user id
+        """
+        embed = discord.Embed(title=str(user))
+        embed.set_thumbnail(url=get_avatar(user))
+        embed.add_field(name='Username', value=str(user))
+        embed.add_field(name='ID', value=str(user.id))
+
+        embed.add_field(
+            name='Created at',
+            value=formatted_datetime(user.created_at, TimestampFormat.Relative)
+        )
+
+        if isinstance(user, discord.Member):
+            embed.add_field(
+                name='Joined at',
+                value=formatted_datetime(user.joined_at, TimestampFormat.Relative)
+            )
+
+            max_roles = 20
+            embed.add_field(
+                name='Roles',
+                value=' '.join([r.mention for r in user.roles[:max_roles]]) +
+                      (f' and {len(user.roles)-max_roles} more' if len(user.roles) > max_roles else ''),
+                inline=False
+            )
+
+        await ctx.send(embed=embed)
 
 
 def setup(bot):

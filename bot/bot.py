@@ -204,11 +204,13 @@ class Bot(commands.AutoShardedBot):
 
         elif isinstance(exception, (commands.errors.BadArgument,
                                     commands.errors.MissingRequiredArgument,
-                                    commands.BadUnionArgument,
                                     commands.UnexpectedQuoteError,
                                     commands.ExpectedClosingQuoteError,
                                     commands.InvalidEndOfQuotedStringError)):
             error_msg = str(exception)
+
+        elif isinstance(exception, commands.BadUnionArgument):
+            error_msg = str(exception.errors[-1])
 
         elif isinstance(exception, exceptions.CommandBlacklisted):
             if not exception.message:

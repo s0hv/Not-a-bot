@@ -27,7 +27,8 @@ from numpy.random import choice
 from tatsu.data_structures import RankingObject
 from tatsu.wrapper import ApiWrapper
 
-from bot.bot import command, has_permissions, cooldown, bot_has_permissions
+from bot.bot import (command, has_permissions, cooldown, bot_has_permissions,
+                     Context)
 from bot.formatter import Paginator
 from cogs.cog import Cog
 from cogs.colors import Colors
@@ -280,40 +281,57 @@ class RoleResponse:
         self.msg = msg
         self.img = image_url
 
-    async def send_message(self, ctx, role=None):
+    async def send_message(self, ctx: Context, role: discord.Role = None):
         author = ctx.author
-        description = self.msg.format(author=author, role=role, bot=ctx.bot.user)
+        role_mention = role.mention if role else role
+
+        # Pad longer role names less and shorter strings more
+        role_padding = ' ' * random.randint(40, 70) if not role \
+            else ' ' * (60 - int(len(role.name) * 1.25))
+
+        description = self.msg.format(
+            author=author,
+            role=role_mention,
+            bot=ctx.bot.user,
+            role_padding=role_padding
+        )
 
         if self.img:
             embed = discord.Embed(description=description)
             embed.set_image(url=self.img)
-            await ctx.send(embed=embed)
+            await ctx.send(embed=embed, allowed_mentions=AllowedMentions.none())
 
         else:
-            await ctx.send(description)
+            await ctx.send(description, allowed_mentions=AllowedMentions.none())
 
 
 role_response_success = [
-    RoleResponse("You escape **{bot}**'s hold and get your friend to beat him up. You successfully steal the role \"{role}\"", 'https://i.imgur.com/Z6qmUEV.gif'),
-    RoleResponse("His smile radiates on your face and blesses you with \"{role}\"", 'https://i.imgur.com/egiCht9.jpg'),
+    RoleResponse("You escape {bot.mention}'s hold and get your friend to beat him up. You successfully steal the role {role}", 'https://i.imgur.com/Z6qmUEV.gif'),
+    RoleResponse("His smile radiates on your face and blesses you with {role}.", 'https://i.imgur.com/egiCht9.jpg'),
     RoleResponse("You scientifically prove that traps aren't gay and get a role as a reward. ({role})"),
     RoleResponse("You have a moment of silence for Billy as he looks upon you and grants you a role. ({role})", 'https://i.imgur.com/PRnTXpc.png'),
     RoleResponse("You recite some classical poetry and get a role as a reward for your performance. ({role})", 'https://manly.gachimuchi.men/HzmKEk7k.png'),
     RoleResponse("You stare in awe as Pucci removes a disc from his White Snake. He places it in your hand, bestowing upon you the role {role}", 'https://cdn.discordapp.com/attachments/252872751319089153/664747484190343179/image0.png'),
-    RoleResponse("You gain a role. That turns you on. ({role})", 'https://i.imgur.com/TZIKltp.gif')
+    RoleResponse("You gain a role. That turns you on. ({role})", 'https://i.imgur.com/TZIKltp.gif'),
+    RoleResponse("You bribe the mods of this server for a new role. ({role})"),
+    RoleResponse("You weren't supposed to get a role now but you gave yourself one anyways. ({role})", 'https://manly.gachimuchi.men/4r38X6qL.gif'),
+    RoleResponse("||You gain a new role {role}{role_padding}||")
 ]
 
 role_response_fail = [
     RoleResponse("Never lucky <a:tyler1Rage:592360154775945262>"),
     RoleResponse("Due to a technical error the role went to a gang of traps instead <:AstolfoPlushie:592595615188385802><a:AstolfoPlushie:474085216651051010><:AstolfoPlushie:592595615188385802>"),
-    RoleResponse("404 Role not found"),
-    RoleResponse("{bot} flexes on you as you lay on the ground with no tole", 'https://i.imgur.com/VFruiTR.gif'),
-    RoleResponse("When you realize that you didn't get any roles this time", 'https://i.imgur.com/YIP6W84.png'),
-    RoleResponse("You get offered black market roles but you don't know how to respond and the chance to acquire a role passes by", 'https://i.imgur.com/Xo7s9Vx.jpg'),
-    RoleResponse("You get abused by moderators and gain nothing"),
-    RoleResponse("You're just dead weight", 'https://i.redd.it/m1866wrhfnl21.jpg'),
+    RoleResponse("404 Role not found."),
+    RoleResponse("{bot.mention} flexes on you as you lay on the ground with no tole.", 'https://i.imgur.com/VFruiTR.gif'),
+    RoleResponse("When you realize that you didn't get any roles this time.", 'https://i.imgur.com/YIP6W84.png'),
+    RoleResponse("You get offered black market roles but you don't know how to respond. The chance to acquire a role passes by.", 'https://i.imgur.com/Xo7s9Vx.jpg'),
+    RoleResponse("You get abused by moderators and gain nothing."),
+    RoleResponse("You're just dead weight.", 'https://i.redd.it/m1866wrhfnl21.jpg'),
     RoleResponse("soap rigs the game! <:PeepoEvil:635509941309800478>"),
-    RoleResponse("No role goddammit", 'https://cdn.discordapp.com/attachments/341610158755020820/591706871237312561/1547775958351.gif')
+    RoleResponse("No role goddammit!", 'https://cdn.discordapp.com/attachments/341610158755020820/591706871237312561/1547775958351.gif'),
+    RoleResponse("You get canceled on twitter and thus are not eligible to get a role now."),
+    RoleResponse("You're finally awake. You hit your head pretty hard there. A new role? Discord? What are you talking about? Epic Games is just about to reveal Fortnite 2! Let's go watch the event."),
+    RoleResponse("||No role this time. Maybe next time.{role_padding}||")
 ]
 
 start_date = datetime(year=2020, month=8, day=1, hour=12)

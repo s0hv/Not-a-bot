@@ -194,25 +194,6 @@ AVAILABLE_ROLES = {10: {
     discord.Role(guild=None, state=None,  data={"id": 322760382542381056, "name": "Couldn't beat me 1 2 3"}),
     discord.Role(guild=None, state=None,  data={"id": 322761051303051264, "name": "ok"}),
     discord.Role(guild=None, state=None,  data={"id": 322416531520749568, "name": "degenerate"}),
-    discord.Role(guild=None, state=None,  data={"id": 322450803602358273, "name": "new role"}),
-    discord.Role(guild=None, state=None,  data={"id": 322837341926457367, "name": "Pineapple on pizza"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497232211116042, "name": "What the fuck did you just fucking say about my hair, you little「STAND USER」? I’ll have you know I"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497233670602753, "name": "graduated top of my class in Budogaoka Middle & High School, and I’ve been involved in numerous"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497236551958540, "name": "I’m the top 「STAND USER」in the entire Morioh armed forces. You are nothing to me but just another"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497235302187008, "name": "secret raids on DIO, and I have over 300 confirmed DORARARARARAs. I am trained in Stand warfare and"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497240058527745, "name": "Duwang, mark my fucking words. You think you can get away with saying that shit to me over Echoes"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497244793896961, "name": "Diamond, maggot. The Stand that wipes out the pathetic little thing you call your life. You’re"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497238175285250, "name": "Kira. I will wipe you the fuck out with precision the likes of which has never been seen before in"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497241459294211, "name": "Act 1? Think again, fucker. As we speak I am contacting my secret network of the Speedwagon"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497246446452740, "name": "fucking dead,「STAND USER 」. I can be anywhere, anytime, and I can heal and then kill you in over"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497243212513281, "name": "Foundation across Japan and your Stand is being traced right now so you better prepare for Crazy"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497248136626199, "name": "seven hundred ways, and that’s just with my Stand. Not only am I extensively trained in Stand"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497250003353600, "name": "combat, but I have access to the entire arsenal of the Speedwagon Foundation and I will use it to"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497253123915776, "name": "could have known what unholy retribution your little “clever” Killer Queen was about to bring down"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497251408314369, "name": "its full extent to wipe your miserable ass off the face of Morioh, you little shit. If only you"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497254348521475, "name": "upon you, maybe you would have held your fucking tongue. But you couldn’t, you didn’t, and now"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497255992819713, "name": "you’re paying the price, you goddamn idiot. I will shit DORARARARARARAs all over you and you will"}),
-    discord.Role(guild=None, state=None,  data={"id": 323497257749970955, "name": "drown in it. You’re fucking dead, Kira."}),
     discord.Role(guild=None, state=None,  data={"id": 325627566406893570, "name": "he"}),
     discord.Role(guild=None, state=None,  data={"id": 325415104894074881, "name": "ew no"}),
     discord.Role(guild=None, state=None,  data={"id": 325629356309479424, "name": "she"}),
@@ -233,6 +214,8 @@ AVAILABLE_ROLES = {10: {
     discord.Role(guild=None, state=None,  data={"id": 389133241216663563, "name": "Comfortably numb"}),
     discord.Role(guild=None, state=None,  data={"id": 398957784185438218, "name": "Bruce U"}),
     discord.Role(guild=None, state=None,  data={"id": 523192033544896512, "name": "Today I will +t random ham"}),
+    discord.Role(guild=None, state=None, data={"id": 884495493160402955, "name": "Fuck you leatherman"}),
+    discord.Role(guild=None, state=None, data={"id": 884495647854710794, "name": "ok i pull up"}),
     },
 
     365: {
@@ -241,7 +224,9 @@ AVAILABLE_ROLES = {10: {
         discord.Role(guild=None, state=None,  data={"id": 321285882860535808, "name": "JJBA stands for Johnny Joestar's Big Ass"}),
         discord.Role(guild=None, state=None,  data={"id": 330317213133438976, "name": "Dik brothas"}),
         discord.Role(guild=None, state=None,  data={"id": 322667100340748289, "name": "Wannabe staff"}),
-        discord.Role(guild=None, state=None,  data={"id": 324084336083075072, "name": "rng fucks me in the ASS!"})
+        discord.Role(guild=None, state=None,  data={"id": 324084336083075072, "name": "rng fucks me in the ASS!"}),
+        discord.Role(guild=None, state=None, data={"id": 884495079518138408, "name": "Jej"}),
+        discord.Role(guild=None, state=None, data={"id": 884496543590285373, "name": "Floppa enthusiast"}),
     },
 
     548: {
@@ -308,14 +293,15 @@ class RoleResponse:
 role_response_success = [
     RoleResponse("You escape {bot.mention}'s hold and get your friend to beat him up. You successfully steal the role {role}", 'https://i.imgur.com/Z6qmUEV.gif'),
     RoleResponse("His smile radiates on your face and blesses you with {role}.", 'https://i.imgur.com/egiCht9.jpg'),
-    RoleResponse("You scientifically prove that traps aren't gay and get a role as a reward. ({role})"),
-    RoleResponse("You have a moment of silence for Billy as he looks upon you and grants you a role. ({role})", 'https://i.imgur.com/PRnTXpc.png'),
-    RoleResponse("You recite some classical poetry and get a role as a reward for your performance. ({role})", 'https://manly.gachimuchi.men/HzmKEk7k.png'),
+    RoleResponse("You scientifically prove that traps aren't gay and get a role as a reward. {role}"),
+    RoleResponse("You have a moment of silence for Billy as he looks upon you and grants you a role. {role}", 'https://i.imgur.com/PRnTXpc.png'),
+    RoleResponse("You recite some classical poetry and get a role as a reward for your performance. {role}", 'https://manly.gachimuchi.men/HzmKEk7k.png'),
     RoleResponse("You stare in awe as Pucci removes a disc from his White Snake. He places it in your hand, bestowing upon you the role {role}", 'https://cdn.discordapp.com/attachments/252872751319089153/664747484190343179/image0.png'),
-    RoleResponse("You gain a role. That turns you on. ({role})", 'https://i.imgur.com/TZIKltp.gif'),
-    RoleResponse("You bribe the mods of this server for a new role. ({role})"),
-    RoleResponse("You weren't supposed to get a role now but you gave yourself one anyways. ({role})", 'https://manly.gachimuchi.men/4r38X6qL.gif'),
-    RoleResponse("||You gain a new role {role}{role_padding}||")
+    RoleResponse("You gain a role. That turns you on. {role}", 'https://i.imgur.com/TZIKltp.gif'),
+    RoleResponse("You bribe the mods of this server for a new role. {role}"),
+    RoleResponse("You weren't supposed to get a role now but you gave yourself one anyways. {role}", 'https://manly.gachimuchi.men/4r38X6qL.gif'),
+    RoleResponse("||You gain a new role {role}{role_padding}||"),
+    RoleResponse("Our daddy taught us not to be ashamed of our roles. Especially when they're {role}", 'https://manly.gachimuchi.men/POpNeZDE.gif')
 ]
 
 role_response_fail = [
@@ -331,7 +317,8 @@ role_response_fail = [
     RoleResponse("No role goddammit!", 'https://cdn.discordapp.com/attachments/341610158755020820/591706871237312561/1547775958351.gif'),
     RoleResponse("You get canceled on twitter and thus are not eligible to get a role now."),
     RoleResponse("You're finally awake. You hit your head pretty hard there. A new role? Discord? What are you talking about? Epic Games is just about to reveal Fortnite 2! Let's go watch the event."),
-    RoleResponse("||No role this time. Maybe next time.{role_padding}||")
+    RoleResponse("||No role this time. Maybe next time.{role_padding}||"),
+    RoleResponse("I think you got the wrong door. The leatherclub's two blocks down.")
 ]
 
 start_date = datetime(year=2020, month=8, day=1, hour=12)
@@ -1413,7 +1400,10 @@ class ServerSpecific(Cog):
         user_roles = set(ctx.author.roles)
         roles = roles - user_roles
         if not roles:
-            await ctx.send('No roles available to you at the moment. Try again after being more active')
+            if not mentionable:
+                await ctx.send('No unmentionable roles available. Use `!toletole on` to include mentionable roles.')
+            else:
+                await ctx.send('No roles available to you at the moment. Try again after being more active')
             return
 
         self._using_toletole[ctx.author.id] = datetime.utcnow()

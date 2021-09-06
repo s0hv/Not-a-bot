@@ -28,9 +28,9 @@ class AutoRoles(Cog):
             if message.webhook_id:
                 return
 
-            if discord.utils.find(lambda r: r.id == 323098643030736919, message.role_mentions):
-                if not discord.utils.get(message.author.roles, id=323098643030736919):
-                    await message.author.add_roles(Snowflake(323098643030736919), reason='Pinged every')
+            if discord.utils.find(lambda r: r.id == 884490396225388585, message.role_mentions):
+                if not discord.utils.get(message.author.roles, id=884490396225388585):
+                    await message.author.add_roles(Snowflake(884490396225388585), reason='Pinged every')
 
     @Cog.listener()
     async def on_member_update(self, before, after):

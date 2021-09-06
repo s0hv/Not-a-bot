@@ -790,7 +790,7 @@ class ServerSpecific(Cog):
         if not perms.manage_roles and not perms.administrator:
             return await channel.send('Invalid server perms')
 
-        role = guild.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082)
+        role = guild.get_role(884490396225388585 if not self.bot.test_mode else 440964128178307082)
         if role is None:
             return await channel.send('Every role not found')
 
@@ -866,7 +866,7 @@ class ServerSpecific(Cog):
             await self.delete_giveaway_from_db(message)
             return
 
-        role = guild.get_role(323098643030736919 if not self.bot.test_mode else 440964128178307082)
+        role = guild.get_role(884490396225388585 if not self.bot.test_mode else 440964128178307082)
         if role is None:
             await self.delete_giveaway_from_db(message)
             return
@@ -1256,7 +1256,7 @@ class ServerSpecific(Cog):
             await ctx.send('Try again later')
             return
 
-        every = guild.get_role(323098643030736919)
+        every = guild.get_role(884490396225388585)
         # every = guild.get_role(355372842088660992)
         if not every:
             return

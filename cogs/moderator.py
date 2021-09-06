@@ -379,7 +379,7 @@ class Moderator(Cog):
     @cooldown(2, 5, BucketType.guild)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
-    async def add_role(self, ctx, name, random_color=True, mentionable=True, hoist=False):
+    async def add_role(self, ctx, name, random_color=True, mentionable=False, hoist=False):
         """Add a role to the server.
         random_color makes the bot choose a random color for the role and
         hoist will make the role show up in the member list"""

@@ -447,7 +447,7 @@ class Server(Cog):
 
             try:
                 em = await guild.create_custom_emoji(name=emote.name, image=data, reason=f'{ctx.author} stole emote')
-                stolen.append(em)
+                stolen.append(str(em))
             except discord.HTTPException as e:
                 if e.code == 30008:
                     await ctx.send('Emote capacity reached\n{}'.format(e))

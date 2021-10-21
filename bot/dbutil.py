@@ -269,6 +269,28 @@ class DatabaseUtils:
         await self.execute(sql, (user, role))
         return True
 
+    async def replace_user_keeproles(self, guild_id, user_id, roles):
+        if not roles:
+            return
+
+        sql = 'DELETE FROM userroles ur using roles r ' \
+              'WHERE r.guild=$1 AND ur.uid=$2'
+
+        async with self.bot.pool.acquire() as conn:
+            async with conn.transaction():
+                try:
+                    await conn.execute(sql, guild_id, user_id)
+
+                    groups = self.create_bind_groups(len(roles), 2)
+                    data = []
+                    for r in roles:
+                        data.extend((user_id, r))
+
+                    sql = f'INSERT INTO userroles (uid, role) VALUES {groups}'
+                    await conn.execute(sql, *data)
+                except PostgresError as e:
+                    raise e
+
     async def index_guild_roles(self, guild):
         guild_id = guild.id
 

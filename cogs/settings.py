@@ -1,3 +1,4 @@
+import logging
 import time
 from asyncio import Lock, TimeoutError
 from collections import OrderedDict
@@ -15,7 +16,9 @@ from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
                              format_join_leave, timedelta2sql, seconds2str,
                              sql2timedelta, test_member, test_message,
-                             basic_check)
+                             basic_check, wait_for_yes)
+
+logger = logging.getLogger('terminal')
 
 
 class Settings(Cog):
@@ -359,6 +362,53 @@ class Settings(Cog):
             pass
 
         await ctx.send(f'Added saved role {role.mention} to <@{user_id}>', allowed_mentions=AllowedMentions.none())
+
+    @cooldown(2, 3, type=BucketType.guild)
+    @keeproles.command(name='copy', no_pm=True)
+    @has_permissions(administrator=True)
+    @bot_has_permissions(manage_roles=True)
+    async def keeproles_copy(self, ctx: Context, base_user: PossibleUser, *, target_user: PossibleUser):
+        """
+        Copies the roles of one user to another use replacing their existing roles
+        """
+        guild_id = ctx.guild.id
+        target_id = target_user if isinstance(target_user, int) else target_user.id
+        base_id = base_user if isinstance(base_user, int) else base_user.id
+
+        roles = await self.bot.dbutil.get_user_keeproles(
+            guild_id,
+            base_id
+        )
+
+        if not roles:
+            await ctx.send('No roles found to be copied')
+            return
+
+        target_mention = f'<@{target_id}>'
+        base_mention = f'<@{base_id}>'
+        await ctx.send(f'Copying {len(roles)} roles from {base_mention} to {target_mention}. Do you want to continue?', allowed_mentions=AllowedMentions.none())
+        if not (await wait_for_yes(ctx, timeout=20)):
+            return
+
+        await self.bot.dbutil.replace_user_keeproles(guild_id, target_id, roles)
+
+        member = None
+        try:
+            member = await ctx.guild.fetch_member(target_id)
+        except discord.HTTPException:
+            pass
+
+        if member is not None:
+            try:
+                await member.edit(roles=[discord.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}')
+            except discord.Forbidden:
+                await ctx.send('Did not have permissions to add all of the roles')
+                return
+
+            await ctx.send(f'Replaced the roles of {target_mention}', allowed_mentions=AllowedMentions.none())
+
+        else:
+            await ctx.send(f'Replaced the keeproles of {target_mention}', allowed_mentions=AllowedMentions.none())
 
     @settings.command(no_pm=True)
     @cooldown(2, 10, BucketType.guild)

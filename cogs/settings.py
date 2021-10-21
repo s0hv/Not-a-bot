@@ -401,7 +401,9 @@ class Settings(Cog):
 
         if member is not None:
             try:
-                await member.add_roles([discord.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}', atomic=False)
+                new_roles = [discord.Object(id=r) for r in roles]
+                new_roles.append(ctx.guild.default_role)
+                await member.edit(roles=new_roles, reason=f'Roles copied by {base_user}')
             except discord.Forbidden as e:
                 await ctx.send(f'Did not have permissions to add all of the roles.\n{e}')
                 return

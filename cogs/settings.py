@@ -2,6 +2,7 @@ import logging
 import time
 from asyncio import Lock, TimeoutError
 from collections import OrderedDict
+from typing import Optional
 
 import discord
 from discord import AllowedMentions
@@ -392,7 +393,7 @@ class Settings(Cog):
 
         await self.bot.dbutil.replace_user_keeproles(guild_id, target_id, roles)
 
-        member = None
+        member: Optional[discord.Member] = None
         try:
             member = await ctx.guild.fetch_member(target_id)
         except discord.HTTPException:
@@ -400,7 +401,7 @@ class Settings(Cog):
 
         if member is not None:
             try:
-                await member.edit(roles=[discord.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}')
+                await member.add_roles([discord.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}', atomic=False)
             except discord.Forbidden as e:
                 await ctx.send(f'Did not have permissions to add all of the roles.\n{e}')
                 return

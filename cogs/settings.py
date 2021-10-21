@@ -401,8 +401,8 @@ class Settings(Cog):
         if member is not None:
             try:
                 await member.edit(roles=[discord.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}')
-            except discord.Forbidden:
-                await ctx.send('Did not have permissions to add all of the roles')
+            except discord.Forbidden as e:
+                await ctx.send(f'Did not have permissions to add all of the roles.\n{e}')
                 return
 
             await ctx.send(f'Replaced the roles of {target_mention}', allowed_mentions=AllowedMentions.none())

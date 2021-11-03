@@ -142,6 +142,9 @@ class Bot(commands.AutoShardedBot):
 
         return True
 
+    async def on_error(self, event_method, *args, **kwargs):
+        logger.exception('Ignoring exception in {}'.format(event_method))
+
     async def on_command_error(self, context: Context, exception):
         """|coro|
 

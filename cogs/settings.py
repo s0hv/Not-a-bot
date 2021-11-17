@@ -365,6 +365,20 @@ class Settings(Cog):
         await ctx.send(f'Added saved role {role.mention} to <@{user_id}>', allowed_mentions=AllowedMentions.none())
 
     @cooldown(2, 3, type=BucketType.guild)
+    @keeproles.command(name='sync', no_pm=True)
+    @has_permissions(administrator=True)
+    @bot_has_permissions(manage_roles=True)
+    async def keeproles_sync(self, ctx: Context, user: discord.Member):
+        """
+        Sync a users keeproles to the database. Does not modify the roles of any users.
+        """
+        default_role = ctx.guild.default_role.id
+        roles = list(map(lambda r: r.id, filter(lambda r: not r.managed and r.id != default_role, user.roles)))
+
+        await self.bot.dbutil.replace_user_keeproles(ctx.guild.id, user.id, roles)
+        await ctx.send(f'Roles synced for user {user.mention}', allowed_mentions=AllowedMentions.none())
+
+    @cooldown(2, 3, type=BucketType.guild)
     @keeproles.command(name='copy', no_pm=True)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
@@ -387,7 +401,7 @@ class Settings(Cog):
 
         target_mention = f'<@{target_id}>'
         base_mention = f'<@{base_id}>'
-        await ctx.send(f'Copying {len(roles)} roles from {base_mention} to {target_mention}. Do you want to continue?', allowed_mentions=AllowedMentions.none())
+        await ctx.send(f'Copying {len(roles)} roles from {base_mention} to {target_mention} (This will replace existing roles). Do you want to continue?', allowed_mentions=AllowedMentions.none())
         if not (await wait_for_yes(ctx, timeout=20)):
             return
 

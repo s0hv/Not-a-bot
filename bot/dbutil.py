@@ -270,9 +270,6 @@ class DatabaseUtils:
         return True
 
     async def replace_user_keeproles(self, guild_id, user_id, roles):
-        if not roles:
-            return
-
         sql = 'DELETE FROM userroles ur using roles r ' \
               'WHERE r.guild=$1 AND ur.uid=$2'
 

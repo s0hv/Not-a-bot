@@ -53,7 +53,7 @@ class Song:
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
                  '_options', 'dl_folder', '_downloading', 'on_ready', 'volume',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live',
-                 'rms', 'filters', 'bitrate']
+                 'rms', 'filters', 'bitrate', 'calculate_rms']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')
@@ -64,7 +64,7 @@ class Song:
         self.default_duration = self.duration  # Used when speed is changed
         self.uploader = kwargs.pop('uploader', 'None')
         self.requested_by = kwargs.pop('requested_by', None)
-        self.is_live = kwargs.pop('is_live', True)
+        self.is_live = kwargs.pop('is_live', False)
         self.playlist = playlist
         self.seek = False
         self.success = None  # False when download error
@@ -89,6 +89,7 @@ class Song:
         self.last_update = 0
         self.volume = None
         self.rms = kwargs.pop('rms', None)
+        self.calculate_rms = self.volume is None
 
     @classmethod
     def from_song(cls, song, **kwargs):
@@ -98,6 +99,7 @@ class Song:
         s.last_update = song.last_update
         s.volume = song.volume
         s.success = song.success
+        s.calculate_rms = song.calculate_rms
         for k in kwargs:
             if k in song.__slots__:
                 setattr(s, k, kwargs[k])

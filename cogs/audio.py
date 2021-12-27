@@ -2093,7 +2093,11 @@ class Audio(commands.Cog):
                 new = round(h.rms * h.volume, 1)
                 await ctx.send("Current song hadn't been processed yet so used song history to determine volm\n"
                                f"{old} -> {new}")
+                musicplayer.volume_multiplier = new
                 return
+
+            await ctx.send('Failed to set volm. No mean volume calculated for songs.')
+            return
 
         new = round(current.rms * musicplayer.current_volume, 1)
         musicplayer.volume_multiplier = new

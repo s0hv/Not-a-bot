@@ -53,7 +53,7 @@ class Song:
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
                  '_options', 'dl_folder', '_downloading', 'on_ready', 'volume',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live',
-                 'rms', 'filters', 'bitrate', 'calculate_rms']
+                 'rms', 'filters', 'bitrate']
 
     def __init__(self, playlist=None, filename=None, config=None, **kwargs):
         self.title = kwargs.pop('title', 'Untitled')

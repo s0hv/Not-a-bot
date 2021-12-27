@@ -89,7 +89,6 @@ class Song:
         self.last_update = 0
         self.volume = None
         self.rms = kwargs.pop('rms', None)
-        self.calculate_rms = self.volume is None
 
     @classmethod
     def from_song(cls, song, **kwargs):
@@ -99,7 +98,6 @@ class Song:
         s.last_update = song.last_update
         s.volume = song.volume
         s.success = song.success
-        s.calculate_rms = song.calculate_rms
         for k in kwargs:
             if k in song.__slots__:
                 setattr(s, k, kwargs[k])

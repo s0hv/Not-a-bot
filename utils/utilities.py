@@ -229,11 +229,13 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
     file = '"{}"'.format(file)
 
     if not duration:
-        start, stop = 0, 180
+        start = 0
     else:
         start = int(duration * 0.2)
-        stop = start + 180
-    cmd = '{0} -i {1} -ss {2} -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file, start, stop)
+
+    analyze_duration = 50
+    cmd = '{0} -ss {2} -i {1} -ss 0 -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file, start, analyze_duration)
+    audio.debug(cmd)
     args = shlex.split(cmd)
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 

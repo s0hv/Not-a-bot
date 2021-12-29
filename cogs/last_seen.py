@@ -55,6 +55,10 @@ class LastSeen(Cog):
         times = []
         usernames = []
         for update in updates:
+            # Ignore users who have set do not track
+            if not self.bot.can_track(update.user_id):
+                continue
+
             user_ids.append(update.user_id)
             usernames.append(update.username)
             guild_ids.append(update.guild_id)
@@ -110,13 +114,6 @@ class LastSeen(Cog):
         guild = self.get_guild(message.author)
         o = UserSeen(message.author, guild)
         self._updates.add(o)
-
-    @Cog.listener()
-    async def on_member_update(self, before, after):
-        if self.status_changed(before, after):
-            o = UserSeen(after, None)
-            self._updates.add(o)
-            return
 
     @Cog.listener()
     async def on_reaction_add(self, _, user):

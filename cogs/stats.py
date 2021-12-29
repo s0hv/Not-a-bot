@@ -105,7 +105,7 @@ class Stats(Cog):
             return await ctx.send('Failed to get user because of an error')
 
         if len(rows) == 0:
-            return await ctx.send("No users found with {}. Either the bot hasn't had the chance to log activity or the name was wrong."
+            return await ctx.send("No users found with {}. Either the bot hasn't had the chance to log activity, the name was wrong or the user has disallowed tracking."
                                   "Names are case sensitive and must include the discrim".format(username))
         local = None
         global_ = None

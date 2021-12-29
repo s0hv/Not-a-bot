@@ -40,6 +40,7 @@ from urllib.parse import urlparse
 
 import discord
 import numpy
+from aioredis.client import Redis
 from asyncpg.exceptions import PostgresError
 from discord import abc
 from discord.embeds import EmptyEmbed
@@ -49,6 +50,7 @@ from validators import url as test_url
 from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
 from bot.paged_message import PagedMessage
+from enums.data_enums import RedisKeyNamespaces
 from enums.discord_enums import TimestampFormat
 from utils.imagetools import image_from_url
 
@@ -670,7 +672,7 @@ def get_image_from_message(bot, message: discord.Message, content=None):
 
 async def get_image_from_ctx(ctx, message, current_message_only=False):
     image = get_image_from_message(ctx.bot, ctx.message, content=message)
-    dbutil = ctx.bot.dbutil
+    redis: Redis = ctx.bot.redis
     if image is None or not isinstance(image, str) and not current_message_only:
         if isinstance(image, int):
             try:
@@ -678,12 +680,12 @@ async def get_image_from_ctx(ctx, message, current_message_only=False):
                 return get_image_from_message(ctx.bot, msg)
             except discord.HTTPException:
                 pass
-        else:
-            sql = 'SELECT attachment FROM attachments WHERE channel=%s' % ctx.channel.id
+        elif redis:
+            redis_key = f'{RedisKeyNamespaces.Attachment.value}:{ctx.channel.id}'
             try:
-                row = await dbutil.fetch(sql, fetchmany=False)
+                row = await redis.get(redis_key)
                 if row:
-                    image = row['attachment']
+                    image = row.decode('utf-8')
             except PostgresError:
                 pass
 

@@ -73,9 +73,9 @@ class Config:
         self.db_port = get_config_value(self.config, 'Database', 'Port', str)
         self.sfx_db_user = get_config_value(self.config, 'Database', 'SFXUsername', str)
         self.sfx_db_pass = get_config_value(self.config, 'Database', 'SFXPassword', str)
+        self.redis_host = get_config_value(self.config, 'Database', 'RedisHost', str) or self.db_host
         self.redis_auth = get_config_value(self.config, 'Database', 'RedisAuth', str)
         self.redis_port = get_config_value(self.config, 'Database', 'RedisPort', int)
-
 
         try:
             self.owner = self.config.getint('Owner', 'OwnerID', fallback=None)

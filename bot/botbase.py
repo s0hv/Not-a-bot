@@ -25,8 +25,10 @@ SOFTWARE.
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
+from typing import Union
 
 import asyncpg
+import discord
 from discord.ext.commands.errors import ExtensionError
 
 from bot import exceptions
@@ -54,11 +56,20 @@ class BotBase(Bot):
         self.loop.run_until_complete(self._setup_db())
         self.threadpool = ThreadPoolExecutor(4)
         self.loop.set_default_executor(self.threadpool)
+        self.do_not_track = set()
 
         if cogs:
             self.default_cogs = {'cogs.' + c for c in cogs}
         else:
             self.default_cogs = set()
+
+    def can_track(self, user: Union[int, discord.User, discord.Member]) -> bool:
+        if isinstance(user, int):
+            uid = user
+        else:
+            uid = user.id
+
+        return uid not in self.do_not_track
 
     async def _setup_db(self):
         db = 'discord' if not self.test_mode else 'test'

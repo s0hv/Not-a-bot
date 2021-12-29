@@ -15,7 +15,8 @@ from typing import Union, Optional
 
 import discord
 import emoji
-from aioredis.errors import ConnectionClosedError
+from aioredis import Redis
+from aioredis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from discord import AllowedMentions
@@ -33,6 +34,7 @@ from bot.formatter import Paginator
 from cogs.cog import Cog
 from cogs.colors import Colors
 from cogs.voting import Poll
+from enums.data_enums import RedisKeyNamespaces
 from utils.utilities import (split_string, parse_time, call_later,
                              get_avatar, retry, send_paged_message,
                              check_botperm, format_timedelta, DateAccuracy,
@@ -332,7 +334,7 @@ class ServerSpecific(Cog):
         self.bot.server.add_listener(self.reduce_role_cooldown)
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
-        self.redis = self.bot.redis
+        self.redis: Redis = self.bot.redis
         self._zetas = {}
         self._redis_fails = 0
         self._removing_every = False
@@ -985,32 +987,36 @@ class ServerSpecific(Cog):
         if not check_botperm('manage_roles', guild=message.guild, channel=message.channel):
             return
 
-        key = f'{message.guild.id}:{user.id}'
+        key = f'{RedisKeyNamespaces.Automute.value}:{message.guild.id}:{user.id}'
         try:
             value = await self.redis.get(key)
-        except ConnectionClosedError:
+        except RedisConnectionError:
             self._redis_fails += 1
             if self._redis_fails > 1:
-                    self.bot.redis = None
-                    self.redis = None
-                    await self.bot.get_channel(252872751319089153).send('Manual redis restart required')
-                    return
+                self.bot.redis = None
+                self.redis = None
+                await self.bot.get_channel(252872751319089153).send('Manual redis restart required')
+                return
 
-            import aioredis
+            from aioredis.client import Redis
             logger.exception('Connection closed. Reconnecting')
-            redis = await aioredis.create_redis((self.bot.config.db_host, self.bot.config.redis_port),
-                                        password=self.bot.config.redis_auth,
-                                        loop=self.bot.loop, encoding='utf-8')
+            redis = self.bot.create_redis()
 
             old = self.bot.redis
+            # Connect
+            await redis.ping()
+
+            old: Redis = self.bot.redis
+            await old.close()
             self.bot.redis = redis
+            self.redis = redis
             del old
             return
 
         self._redis_fails = 0
 
         if value:
-            score, repeats, last_msg = value.split(':', 2)
+            score, repeats, last_msg = value.decode('utf-8').split(':', 2)
             score = float(score)
             repeats = int(repeats)
         else:
@@ -1104,7 +1110,7 @@ class ServerSpecific(Cog):
             score = 0
             msg = ''
 
-        await self.redis.set(key, f'{score}:{repeats}:{msg}', expire=old_ttl)
+        await self.redis.set(key, f'{score}:{repeats}:{msg}', ex=old_ttl)
 
     @command()
     @check(lambda ctx: ctx.author.id==302276390403702785)  # Check if chad

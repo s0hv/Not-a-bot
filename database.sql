@@ -503,3 +503,7 @@ CREATE TABLE event_users (
     points  INT NOT NULL DEFAULT 0,
     protected_until TIMESTAMP DEFAULT NULL
 );
+
+CREATE TABLE do_not_track (
+    uid BIGINT PRIMARY KEY
+);

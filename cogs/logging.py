@@ -1,20 +1,31 @@
 import logging
+import typing
+from datetime import timedelta
 
 import discord
 from discord.abc import PrivateChannel
 
 from cogs.cog import Cog
+from enums.data_enums import RedisKeyNamespaces
 from utils.utilities import (split_string, format_on_delete, format_on_edit,
                              format_join_leave, get_avatar,
                              get_image_from_embeds,
                              is_image_url)
 
+if typing.TYPE_CHECKING:
+    from bot.Not_a_bot import NotABot
+
 logger = logging.getLogger('terminal')
+day = timedelta(days=1)
 
 
 class Logger(Cog):
     def __init__(self, bot):
         super().__init__(bot)
+
+    @property
+    def bot(self) -> 'NotABot':
+        return super().bot
 
     @staticmethod
     def format_for_db(message):
@@ -75,28 +86,24 @@ class Logger(Cog):
         await self.check_mentions(message)
         d, attachment = self.format_for_db(message)
 
-        if message.guild and message.guild.id in (217677285442977792,475623556164878347):
+        if message.guild and message.guild.id in (217677285442977792,475623556164878347) and self.bot.can_track(message.author):
             sql = "INSERT INTO messages (guild, channel, user_id, message_id) " \
                   "VALUES ($1, $2, $3, $4)"
 
             await self.bot.dbutil.execute(sql, d)
 
         # Channel index is 1
-        if attachment and d[1]:
-            sql = 'INSERT INTO attachments (channel, attachment) ' \
-                  'VALUES ($1, $2) ON CONFLICT (channel) DO UPDATE SET attachment=$2'
-            await self.bot.dbutil.execute(sql, (d[1], attachment))
+        if self.bot.redis and attachment and d[1] and self.bot.can_track(message.author):
+            redis_key = f'{RedisKeyNamespaces.Attachment.value}:{d[1]}'
+            await self.bot.redis.set(redis_key, attachment, ex=day)
 
     @Cog.listener()
     async def on_member_join(self, member):
         guild = member.guild
-        sql = "INSERT INTO join_leave (uid, guild, value) VALUES " \
-              "($1, $2, $3) ON CONFLICT (guild, uid) DO UPDATE SET value=1, at=CURRENT_TIMESTAMP"
 
-        await self.bot.dbutil.execute(sql, (member.id, guild.id, 1))
-
-        sql = "INSERT INTO join_dates (uid, guild, first_join) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
-        await self.bot.dbutil.execute(sql, (member.id, guild.id, member.joined_at))
+        if self.bot.can_track(member):
+            sql = "INSERT INTO join_dates (uid, guild, first_join) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
+            await self.bot.dbutil.execute(sql, (member.id, guild.id, member.joined_at))
 
         channel = self.bot.guild_cache.join_channel(guild.id)
         channel = guild.get_channel(channel)
@@ -121,10 +128,6 @@ class Logger(Cog):
     @Cog.listener()
     async def on_member_remove(self, member):
         guild = member.guild
-        sql = "INSERT INTO join_leave (uid, guild, value) VALUES " \
-              "($1, $2, $3) ON CONFLICT (guild, uid) DO UPDATE SET value=-1, at=CURRENT_TIMESTAMP"
-
-        await self.bot.dbutil.execute(sql, (member.id, guild.id, -1))
 
         channel = self.bot.guild_cache.leave_channel(guild.id)
         channel = guild.get_channel(channel)
@@ -183,14 +186,13 @@ class Logger(Cog):
         if isinstance(before.channel, discord.DMChannel) or before.guild is None:
             return
 
-        if before.content == after.content:
+        if self.bot.redis and before.content == after.content and self.bot.can_track(before.author):
             image = get_image_from_embeds(after.embeds)
             if not image:
                 return
 
-            sql = 'INSERT INTO attachments (channel, attachment) ' \
-                  'VALUES ($1, $2) ON CONFLICT (channel) DO UPDATE SET attachment=$2'
-            await self.bot.dbutil.execute(sql, (after.channel.id, image))
+            redis_key = f'{RedisKeyNamespaces.Attachment.value}:{after.channel.id}'
+            await self.bot.redis.set(redis_key, image, ex=day)
 
         if before.author.bot or before.channel.id == 336917918040326166:
             return

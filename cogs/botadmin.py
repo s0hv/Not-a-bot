@@ -356,8 +356,8 @@ class BotAdmin(Cog):
                 except:
                     pass
 
-        logger.info('Unloaded extensions')
         await self.bot.loop.run_in_executor(self.bot.threadpool, unload_all)
+        logger.info('Unloaded extensions')
         await self.bot.aiohttp_client.close()
         logger.info('Closed aiohttp client')
 
@@ -662,19 +662,14 @@ class BotAdmin(Cog):
 
     @command()
     async def reload_redis(self, ctx):
-        import aioredis
-        redis = await aioredis.create_redis(
-            (self.bot.config.db_host, self.bot.config.redis_port),
-            password=self.bot.config.redis_auth,
-            loop=self.bot.loop, encoding='utf-8')
+        from aioredis.client import Redis
+        logger.exception('Connection closed. Reconnecting')
+        redis = self.bot.create_redis()
 
-        old = self.bot.redis
+        old: Redis = self.bot.redis
+        await old.close()
         self.bot.redis = redis
         del old
-
-        cog = self.bot.get_cog('ServerSpecific')
-        if cog:
-            cog.redis = self.bot.redis
 
         await ctx.send('Reloaded redis')
 

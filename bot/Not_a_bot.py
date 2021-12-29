@@ -21,14 +21,17 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+from typing import Optional
+
 import matplotlib
+
 matplotlib.use('Agg')
 
 import asyncio
 import logging
 import time
 
-import aioredis
+from aioredis.client import Redis
 import discord
 from asyncpg.exceptions import PostgresError, InterfaceError
 
@@ -58,7 +61,7 @@ class NotABot(BotBase):
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
         self._server = WebhookServer(self)
-        self.redis = None
+        self.redis: Optional[Redis] = None
         self.antispam = True
         self._ready_called = False
 
@@ -153,6 +156,8 @@ class NotABot(BotBase):
                 await self.change_presence(activity=discord.Activity(**self.config.default_activity))
             return
 
+        self._ready_called = True
+
         self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
         await self.dbutil.add_command('help')
         try:
@@ -161,9 +166,9 @@ class NotABot(BotBase):
             logger.exception("Failed to cache guilds")
             raise e
 
-        self.redis = await aioredis.create_redis((self.config.db_host, self.config.redis_port),
-                                                 password=self.config.redis_auth,
-                                                 loop=self.loop, encoding='utf-8')
+        self.redis: Redis = self.create_redis()
+
+        self.do_not_track = await self.dbutil.get_do_not_track()
 
         await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         if self.config.default_activity:
@@ -171,7 +176,15 @@ class NotABot(BotBase):
         if self._random_color is None or self._random_color.done():
             self._random_color = self.loop.create_task(self._random_color_task())
         logger.debug('READY')
-        self._ready_called = True
+
+    def create_redis(self) -> Redis:
+        logger.info('Creating redis connection')
+        redis = Redis.from_url(f'redis://{self.config.redis_host}',
+                               port=self.config.redis_port,
+                               password=self.config.redis_auth,
+                               encoding='utf-8')
+
+        return redis
 
     async def _random_color_task(self):
         if self.test_mode:

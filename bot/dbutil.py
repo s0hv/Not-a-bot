@@ -2,6 +2,7 @@ import logging
 import re
 import time
 import types
+import typing
 from datetime import datetime
 
 import discord
@@ -12,6 +13,9 @@ from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
 
 logger = logging.getLogger('terminal')
+
+if typing.TYPE_CHECKING:
+    from bot.botbase import BotBase
 
 
 def _args_to_string(args):
@@ -37,7 +41,7 @@ class DatabaseUtils:
         self._bot = bot
 
     @property
-    def bot(self):
+    def bot(self) -> 'BotBase':
         return self._bot
 
     @staticmethod
@@ -1133,3 +1137,45 @@ class DatabaseUtils:
             return None
 
         return check_perms(rows, return_raw=fetch_raw)
+
+    async def delete_user_data(self, uid: int):
+
+        sqls = [
+            'DELETE FROM command_usage WHERE uid=$1',
+            'DELETE FROM join_dates WHERE uid=$1',
+            'DELETE FROM last_seen_users WHERE uid=$1',
+            'DELETE FROM messages WHERE user_id=$1',
+            'DELETE FROM mute_roll_stats WHERE uid=$1'
+        ]
+
+        for sql in sqls:
+            await self.execute(sql, [uid])
+
+    async def do_not_track_is_on(self, uid: int) -> bool:
+        sql = 'SELECT 1 FROM do_not_track WHERE uid=$1'
+
+        row = await self.fetch(sql, [uid], fetchmany=False)
+
+        return row is not None
+
+    async def set_do_not_track(self, uid: int, set_on: bool) -> bool:
+        if set_on:
+            sql = 'INSERT INTO do_not_track (uid) VALUES ($1)'
+        else:
+            sql = 'DELETE FROM do_not_track WHERE uid=$1'
+
+        try:
+            await self.execute(sql, [uid])
+        except:
+            return False
+        else:
+            if set_on:
+                self.bot.do_not_track.add(uid)
+            else:
+                self.bot.do_not_track.discard(uid)
+
+            return True
+
+    async def get_do_not_track(self):
+        rows = await self.fetch('SELECT uid FROM do_not_track')
+        return {row['uid'] for row in rows}

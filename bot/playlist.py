@@ -33,6 +33,7 @@ import time
 from collections import deque
 
 import discord
+from numpy import delete as delete_by_indices
 from validators import url as valid_url
 
 from bot.downloader import Downloader
@@ -42,13 +43,6 @@ from bot.song import Song
 from utils.utilities import (read_lines, seconds2str)
 
 terminal = logging.getLogger('terminal')
-
-try:
-    from numpy import delete as delete_by_indices
-except ImportError:
-    delete_by_indices = None
-    terminal.warning('Numpy is not installed. Playlist can now only be cleared completely. No deletion by indexes')
-
 logger = logging.getLogger('audio')
 
 
@@ -202,16 +196,13 @@ class Playlist:
             await self.send('Playlist cleared completely', channel)
             return True
         else:
-            if delete_by_indices is not None:
-                songs_left = delete_by_indices(list(self.playlist), indexes)
-                self.playlist.clear()
-                for song in songs_left:
-                    self.playlist.append(song)
-            else:
-                terminal.warning('Numpy is not installed. Cannot delete songs by index')
-                await self.send('Clearing by indices is not supported', channel)
+            songs_left = delete_by_indices(list(self.playlist), indexes)
+            deleted = len(songs_left) - len(self.playlist)
+            self.playlist.clear()
+            for song in songs_left:
+                self.playlist.append(song)
 
-            await self.send('Playlist cleared', channel)
+            await self.send(f'Playlist cleared. {deleted} song(s) removed.', channel)
             await self.cache_songs()
             return True
 

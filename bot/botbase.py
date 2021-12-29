@@ -59,7 +59,7 @@ class BotBase(Bot):
         self.do_not_track = set()
 
         if cogs:
-            self.default_cogs = {'cogs.' + c for c in cogs}
+            self.default_cogs = set(cogs)
         else:
             self.default_cogs = set()
 

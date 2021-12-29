@@ -63,6 +63,7 @@ initial_cogs = [
     'botadmin',
     'command_blacklist'
 ]
+initial_cogs = list(map('cogs.'.__add__, initial_cogs))
 
 terminal.info('Main bot starting up')
 logger.info('Starting bot')

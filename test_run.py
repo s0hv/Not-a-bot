@@ -99,6 +99,9 @@ initial_cogs = [
     'utils',
     'voting']
 
+initial_cogs = list(map('cogs.'.__add__, initial_cogs))
+initial_cogs.append('jishaku')
+
 terminal.info('Main bot starting up')
 logger.info('Starting bots')
 

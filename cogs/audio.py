@@ -1348,7 +1348,7 @@ class Audio(commands.Cog):
             would delete songs at positions 1 to 4, 5 and 7 to 9
         """
         if not items:
-            await ctx.send('No arguments given. To clear playlist completely give all'
+            await ctx.send('No arguments given. To clear playlist completely give `all` '
                            'as an argument. Otherwise the indexes of the songs')
             return
 

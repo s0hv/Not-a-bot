@@ -67,6 +67,7 @@ initial_cogs = [
     'stats',
     'utils',
     'voting']
+initial_cogs = list(map('cogs.'.__add__, initial_cogs))
 
 terminal.info('Main bot starting up')
 

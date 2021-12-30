@@ -235,12 +235,6 @@ class JoJo(Cog):
         stand = self._standify_text(stand, 1)
         await ctx.send(stand)
 
-    @command(aliases=['stand3'])
-    async def standify3(self, ctx, *, stand):
-        """Standify text using no brackets"""
-        stand = self._standify_text(stand, 2)
-        await ctx.send(stand)
-
     async def subcommand(self, ctx, content, delete_after=60, author=None, channel=None, check=None, del_msg=True):
         m = await ctx.send(content, delete_after=delete_after)
         if callable(check):

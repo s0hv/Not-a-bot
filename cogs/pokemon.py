@@ -4,7 +4,6 @@ import logging
 import math
 import os
 import re
-import textwrap
 from functools import partial
 
 import discord
@@ -664,19 +663,6 @@ class Pokemon(Cog):
         return await self.bot.loop.run_in_executor(self.bot.threadpool, self.get_match, Image.open(data))
         
     """
-
-    @command(aliases=['pstats_format'])
-    async def pstat_format(self, ctx):
-        await ctx.send(textwrap.dedent("""
-        Level 100 Pikachu
-        2305/2610XP
-        Nature: Hasty
-        HP: 300
-        Attack: 300
-        Defense: 300
-        Sp. Atk: 300
-        Sp. Def: 300
-        Speed: 300"""))
 
 
 def setup(bot):

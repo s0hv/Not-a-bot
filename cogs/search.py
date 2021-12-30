@@ -24,7 +24,6 @@ SOFTWARE.
 
 import logging
 from collections import deque
-from urllib.parse import quote_plus
 
 import discord
 from aiohttp import ClientSession
@@ -74,20 +73,6 @@ class Search(Cog):
         #logger.debug('Web search query: {}'.format(query))
         safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'medium'
         return await self._search(ctx, query, safe=safe)
-
-    @command()
-    @cooldown(2, 4)
-    async def qt(self, ctx, *, query):
-
-        r = await self.session.get(f'https://doc.qt.io/qt-5/search-results.html?q={quote_plus(query)}')
-        await r.html.arender()
-        results = r.html.find('.gs-title')
-        if not results:
-            s = 'No results found'
-        else:
-            s = results[0].links.pop()
-
-        await ctx.send(s)
 
     async def _search(self, ctx, query, image=False, safe='off'):
         params = {'key': self.key,

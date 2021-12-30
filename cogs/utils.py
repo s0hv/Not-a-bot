@@ -28,7 +28,7 @@ from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
 from enums.discord_enums import TimestampFormat
 from utils.tzinfo import fuzzy_tz, tz_dict
-from utils.unzalgo import unzalgo, is_zalgo
+from utils.unzalgo import unzalgo
 from utils.utilities import (random_color, get_avatar, split_string,
                              get_emote_url, send_paged_message,
                              format_timedelta, parse_timeout,
@@ -329,38 +329,19 @@ class Utilities(Cog):
 
         await ctx.send(str(discord.utils.snowflake_time(id)))
 
-    @command()
+    @command(hidden=True)
     @cooldown(1, 5, BucketType.user)
     async def birthday(self, ctx, *, user: clean_content):
         url = 'http://itsyourbirthday.today/#' + quote(user)
         await ctx.send(url)
 
-    @command(name='unzalgo')
+    @command(name='unzalgo', hidden=True)
     @cooldown(2, 5, BucketType.guild)
-    async def unzalgo_(self, ctx, *, text=None):
+    async def unzalgo_(self, ctx, *, zalgo_text: str):
         """Unzalgo text
         if text is not specified a cache lookup on zalgo text is done for the last 100 msgs
         and the first found zalgo text is unzalgo'd"""
-        if text is None:
-            messages = self.bot._connection._messages
-            for i in range(-1, -100, -1):
-                try:
-                    msg = messages[i]
-                except IndexError:
-                    break
-
-                if msg.channel.id != ctx.channel.id:
-                    continue
-
-                if is_zalgo(msg.content):
-                    text = msg.content
-                    break
-
-        if text is None:
-            await ctx.send("Didn't find a zalgo message")
-            return
-
-        await ctx.send(unzalgo(text))
+        await ctx.send(unzalgo(zalgo_text))
 
     @command()
     @cooldown(1, 20, BucketType.guild)
@@ -412,27 +393,11 @@ class Utilities(Cog):
         else:
             await ctx.send('Failed to send feedback')
 
-    @command(aliases=['bug'])
-    @cooldown(1, 10, BucketType.user)
-    async def bugreport(self, ctx):
-        """For reporting bugs"""
-        await ctx.send('If you have noticed a bug in my bot report it here https://github.com/s0hv/Not-a-bot/issues\n'
-                       f"If you don't have a github account or are just too lazy you can use {ctx.prefix}feedback for reporting as well")
-
     @command(ingore_extra=True)
     @cooldown(1, 10, BucketType.guild)
     async def vote(self, ctx):
         """Pls vote thx"""
         await ctx.send('https://top.gg/bot/214724376669585409/vote')
-
-    @command(aliases=['sellout'])
-    @cooldown(1, 10)
-    async def donate(self, ctx):
-        """
-        Bot is not free to host. Donations go straight to server costs
-        """
-        await ctx.send('If you want to support bot in server costs donate to https://www.paypal.me/s0hvaperuna\n'
-                       'Alternatively you can use my DigitalOcean referral link https://m.do.co/c/84da65db5e5b which will help out in server costs as well')
 
     @staticmethod
     def find_emoji(emojis, name):

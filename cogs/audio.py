@@ -52,7 +52,8 @@ from bot.youtube import (extract_playlist_id, extract_video_id, Part, id2url,
 from utils.utilities import (search, parse_seek,
                              seek_from_timestamp,
                              send_paged_message, basic_check,
-                             format_timedelta, test_url, wait_for_words)
+                             format_timedelta, test_url, wait_for_words,
+                             DateAccuracy)
 
 try:
     import aubio
@@ -1807,6 +1808,9 @@ class Audio(commands.Cog):
         if not pages:
             pages.append([])
 
+        time_left = self.list_length(musicplayer)
+        duration = format_timedelta(time_left, accuracy=DateAccuracy.Hour-DateAccuracy.Second, long_format=False)
+
         def add_song(song, idx, dur):
             title = song.title.replace('*', '\\*')
             if partial:
@@ -1828,7 +1832,7 @@ class Audio(commands.Cog):
                         response += f' enqueued by {musicplayer.current.requested_by}\n'
 
             if accurate_indices:
-                # This block is never reached if partial is true se we dont have
+                # This block is never reached if partial is true, so we don't have
                 # to worry about variables being undefined
                 songs = []
                 indices = []
@@ -1872,9 +1876,12 @@ class Audio(commands.Cog):
                     dur = int(dur)
                     response += add_song(song, _idx + 1 + 10 * idx, dur)
 
-            return response
+            return discord.Embed(
+                title=f'Total length {duration}. {len(musicplayer.playlist.playlist)} songs in queue',
+                description=response
+            )
 
-        await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page)
+        await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page, embed=True)
 
     @cooldown(1, 5, type=BucketType.guild)
     @group(name='queue', no_pm=True, aliases=['playlist'], invoke_without_command=True)

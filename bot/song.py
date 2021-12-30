@@ -131,7 +131,7 @@ class Song:
     def long_str(self):
         string = '**{0.title}**'
         if self.requested_by:
-            string += ' enqueued by {0.requested_by}'
+            string += ' enqueued by {0.requested_by.mention}'
         return string.format(self)
 
     @classmethod

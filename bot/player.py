@@ -7,7 +7,7 @@ from collections import deque
 from math import ceil
 from math import floor
 
-from discord import player, opus
+from discord import player, opus, AllowedMentions
 from discord.activity import Activity, ActivityType
 from discord.errors import ClientException
 from discord.errors import HTTPException
@@ -342,7 +342,7 @@ class MusicPlayer:
             dur = get_track_pos(self.current.duration, 0)
             s = 'Now playing **{0.title}** {1} with volume at {2:.0%}'.format(self.current, dur, source.volume)
             if self.current.requested_by:
-                s += f' enqueued by {self.current.requested_by}'
+                s += f' enqueued by {self.current.requested_by.mention}'
             await self.send(s, delete_after=self.current.duration)
 
             if not self.gapless or not self.player or not self.player.is_gapless:
@@ -400,7 +400,7 @@ class MusicPlayer:
         if channel is None:
             return
         try:
-            await channel.send(msg, **kwargs)
+            await channel.send(msg, allowed_mentions=AllowedMentions.none(), **kwargs)
         except HTTPException:
             pass
 

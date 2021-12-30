@@ -33,6 +33,7 @@ from random import choice
 from typing import Optional
 
 import discord
+from discord import AllowedMentions
 from discord.ext import commands
 from discord.ext.commands.cooldowns import BucketType
 
@@ -1507,7 +1508,7 @@ class Audio(commands.Cog):
                 slider = f'00:00 {"─"*19}●  {format_time(musicplayer.duration)}'
 
             s += slider
-            await ctx.send(s)
+            await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @cooldown(1, 3, type=BucketType.user)
     @command(name='playnow', no_pm=True)
@@ -1816,7 +1817,7 @@ class Audio(commands.Cog):
             if partial:
                 return f'\n{idx}. **{title}** (Duration: {format_timedelta(dur, 3, long_format=False)}) <{song.webpage_url}>'
             else:
-                return f'\n{idx}. **{title}** {song.requested_by} (ETA: {format_timedelta(dur, 3, long_format=False)})'
+                return f'\n{idx}. **{title}** {song.requested_by.mention} (ETA: {format_timedelta(dur, 3, long_format=False)})'
 
         def get_page(page, idx):
             response = ''
@@ -1829,7 +1830,7 @@ class Audio(commands.Cog):
                     dur = get_track_pos(musicplayer.current.duration, musicplayer.duration)
                     response = f'Currently playing **{musicplayer.current.title}** {dur}'
                     if musicplayer.current.requested_by:
-                        response += f' enqueued by {musicplayer.current.requested_by}\n'
+                        response += f' enqueued by {musicplayer.current.requested_by.mention}\n'
 
             if accurate_indices:
                 # This block is never reached if partial is true, so we don't have

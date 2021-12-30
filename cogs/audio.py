@@ -1877,9 +1877,9 @@ class Audio(commands.Cog):
                     response += add_song(song, _idx + 1 + 10 * idx, dur)
 
             return discord.Embed(
-                title=f'Total length {duration}. {len(musicplayer.playlist.playlist)} songs in queue',
+                title=f'Total length {duration}  |  {len(musicplayer.playlist.playlist)} songs in queue',
                 description=response
-            )
+            ).set_footer(text=f'Page {idx + 1}/{len(pages)}')
 
         await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page, embed=True)
 

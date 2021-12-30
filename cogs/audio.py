@@ -1874,7 +1874,7 @@ class Audio(commands.Cog):
 
             return response
 
-        await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page)
+        await send_paged_message(ctx, pages, starting_idx=page_index, page_method=get_page, embed=True)
 
     @cooldown(1, 5, type=BucketType.guild)
     @group(name='queue', no_pm=True, aliases=['playlist'], invoke_without_command=True)

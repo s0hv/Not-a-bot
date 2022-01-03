@@ -25,18 +25,16 @@ SOFTWARE.
 import asyncio
 import functools
 import logging
-import os
 from concurrent.futures import ThreadPoolExecutor
 
-import youtube_dl
+import yt_dlp
+from yt_dlp import YoutubeDL
 
 terminal = logging.getLogger('terminal')
 
 
 opts = {
     'format': 'bestaudio[abr<500]/bestaudio/best',
-    'extractaudio': True,
-    'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
     'noplaylist': True,
     'nocheckcertificate': True,
@@ -46,25 +44,21 @@ opts = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',
-    'nooverwrites': True,
     'extract_flat': 'in_playlist'
 }
 
-youtube_dl.utils.bug_reports_message = lambda: ''
+yt_dlp.utils.bug_reports_message = lambda: ''
 
 
 class Downloader:
-    def __init__(self, dl_folder=''):
-        self.dl_folder = dl_folder
+    def __init__(self):
         self.thread_pool = ThreadPoolExecutor(max_workers=3)
-        self.safe_ytdl = youtube_dl.YoutubeDL(opts)
-        self.safe_ytdl.params['outtmpl'] = os.path.join(self.dl_folder, self.safe_ytdl.params['outtmpl'])
+        self.safe_ytdl = YoutubeDL(opts)
         self.safe_ytdl.params['ignore_errors'] = True
 
-        self.unsafe_ytdl = youtube_dl.YoutubeDL(opts)
-        self.unsafe_ytdl.params['outtmpl'] = os.path.join(self.dl_folder, self.unsafe_ytdl.params['outtmpl'])
+        self.unsafe_ytdl = YoutubeDL(opts)
 
-        self.non_flat_ytdl = youtube_dl.YoutubeDL(opts)
+        self.non_flat_ytdl = YoutubeDL(opts)
         self.non_flat_ytdl.params['extract_flat'] = False
 
     async def extract_info(self, loop, on_error=None, extract_flat=True, *args, **kwargs):
@@ -76,7 +70,7 @@ class Downloader:
         terminal.debug('dl called {} {}'.format(args, kwargs))
         if callable(on_error):
             try:
-                return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
+                return ytdl.sanitize_info(await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs)))
 
             except Exception as e:
 
@@ -97,8 +91,9 @@ class Downloader:
                     loop.call_soon_threadsafe(on_error, e)
 
         else:
-            return await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs))
+            return ytdl.sanitize_info(await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs)))
 
     async def safe_extract_info(self, loop, *args, **kwargs):
         terminal.debug('dl called {} {}'.format(args, kwargs))
-        return await loop.run_in_executor(self.thread_pool, functools.partial(self.safe_ytdl.extract_info, *args, **kwargs))
+        ytdl = self.safe_ytdl
+        return ytdl.sanitize_info(await loop.run_in_executor(self.thread_pool, functools.partial(ytdl.extract_info, *args, **kwargs)))

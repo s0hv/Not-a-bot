@@ -39,7 +39,7 @@ from numpy import delete as delete_by_indices
 from validators import url as valid_url
 
 from bot.downloader import Downloader
-from bot.globals import CACHE, PLAYLISTS
+from bot.globals import PLAYLISTS
 from bot.paged_message import PagedMessage
 from bot.song import Song
 from utils.utilities import (read_lines, seconds2str)
@@ -135,7 +135,7 @@ class Playlist:
         self.download = download
         self.playlist = deque()
         self.history = deque(maxlen=5)
-        self.downloader = Downloader(CACHE) if not downloader else downloader
+        self.downloader = Downloader() if not downloader else downloader
         self.not_empty = asyncio.Event()
         self.playlist_path = PLAYLISTS
         self.adding_songs = False

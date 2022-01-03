@@ -24,6 +24,6 @@ requests-html ~= 0.10.0
 sanic ~= 20.6.3
 selenium ~= 3.141.0
 validators ~= 0.14.0
-youtube_dl
+yt_dlp
 git+https://github.com/Pycord-Development/pycord.git#egg=py-cord[voice]
 tatsu.py~=1.0.4

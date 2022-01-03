@@ -52,7 +52,7 @@ class PartialSong:
 class Song:
     __slots__ = ['title', 'url', 'webpage_url', 'id', 'duration', 'default_duration',
                  'uploader', 'playlist', 'seek', 'success', 'filename', 'before_options',
-                 '_options', 'dl_folder', '_downloading', 'on_ready', 'volume',
+                 '_options', '_downloading', 'on_ready', 'volume',
                  'logger', 'bpm', 'config', 'requested_by', 'last_update', 'is_live',
                  'rms', 'filters', 'bitrate']
 
@@ -83,7 +83,6 @@ class Song:
 
         self.filters = kwargs.pop('filters', {})
 
-        self.dl_folder = self.playlist.downloader.dl_folder if self.playlist else None
         self._downloading = False
         self.on_ready = asyncio.Event()
         self.bpm = None
@@ -225,50 +224,10 @@ class Song:
         self.on_ready.clear()
         logger.debug(f'Started downloading {self.long_str}')
         try:
-            if self.config:
-                dl = self.config.download
-            else:
-                dl = False
-
-            if dl and self.last_update:
-                logger.debug('Skipping dl')
-                return
-
             loop = self.playlist.bot.loop
-            if dl:
-                if not os.path.exists(self.dl_folder):
-                    terminal.info(f'Making directory {self.dl_folder}')
-                    os.makedirs(self.dl_folder)
-                    logger.debug(f'Created dir {self.dl_folder}')
-
-                if self.filename is not None and os.path.exists(self.filename):
-                    self.success = True
-                    return
-
-                check_dl = False
-                if self.id is not None:
-                    fdir = os.listdir(self.dl_folder)
-                    for f in fdir:
-                        if self.id in f:
-                            check_dl = True
-                            break
-
-                if check_dl and self.filename is None:
-                    logger.debug('Getting and checking info for: {}'.format(self))
-                    info = await self.playlist.downloader.safe_extract_info(loop, url=self.webpage_url, download=False)
-                    logger.debug('Got info')
-                    self.filename = self.playlist.downloader.safe_ytdl.prepare_filename(info)
-                    logger.debug('Filename set to {}'.format(self.filename))
-
-                if self.filename is not None:
-                    if os.path.exists(self.filename):
-                        terminal.info(f'File exists for {self.title}')
-                        logger.debug(f'File exists for {self.title}')
-                        self.success = True
-                        return
 
             logger.debug(f'Getting info and downloading {self.webpage_url}')
-            info = await self.playlist.downloader.extract_info(loop, url=self.webpage_url, download=dl)
+            info = await self.playlist.downloader.extract_info(loop, url=self.webpage_url, download=False)
             logger.debug('Got info')
 
             self.info_from_dict(**info)

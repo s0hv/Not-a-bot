@@ -24,17 +24,19 @@ SOFTWARE.
 
 import asyncio
 import logging
+from typing import Optional, Union
 
 import discord
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientConnectionError
+from discord import ApplicationContext
 from discord.ext import commands
 from discord.ext.commands import CheckFailure
 
 from bot.commands import command, group, Command, Group, cooldown
 from bot.cooldowns import CooldownMapping
 from bot.formatter import HelpCommand
-from utils.utilities import seconds2str, call_later
+from utils.utilities import seconds2str, call_later, check_blacklist
 
 try:
     import uvloop
@@ -92,7 +94,10 @@ class Context(commands.context.Context):
 
         return True
 
-    async def send(self, content=None, *, undoable=False, **kwargs):
+    async def respond(self, content: Optional[str]=None, **kwargs):
+        return await self.send(content, **kwargs)
+
+    async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs):
         msg = await super().send(content, **kwargs)
 
         if undoable and msg:
@@ -109,11 +114,15 @@ class Context(commands.context.Context):
 
 
 class Bot(commands.AutoShardedBot):
+    async def sync_commands(self) -> None:
+        pass
+
     def __init__(self, prefix, config, aiohttp=None, **options):
         options.setdefault('help_command', HelpCommand())
         super().__init__(prefix, owner_id=config.owner, **options)
         self._runas = None
         self._exit_code = 0
+        self.add_check(check_blacklist)
 
         log.debug('Using loop {}'.format(self.loop))
 
@@ -127,7 +136,7 @@ class Bot(commands.AutoShardedBot):
 
         self.config = config
         self.voice_clients_ = {}
-        self._error_cdm = CooldownMapping(commands.Cooldown(2, 5, commands.BucketType.guild))
+        self._error_cdm = CooldownMapping(commands.Cooldown(2, 5), commands.BucketType.guild)
 
     @property
     def runas(self):
@@ -145,7 +154,10 @@ class Bot(commands.AutoShardedBot):
     async def on_error(self, event_method, *args, **kwargs):
         logger.exception('Ignoring exception in {}'.format(event_method))
 
-    async def on_command_error(self, context: Context, exception):
+    async def on_application_command_error(self, ctx: ApplicationContext, ex):
+        await self.on_command_error(ctx, ex)
+
+    async def on_command_error(self, context: Union[ApplicationContext, Context], exception):
         """|coro|
 
         The default command error handler provided by the bot.
@@ -176,15 +188,13 @@ class Bot(commands.AutoShardedBot):
         if context.guild and context.guild.id == 217677285442977792 and context.prefix == 'm':
             return
 
-        channel = context.channel
-
         if isinstance(exception, (commands.errors.BotMissingPermissions,
                                   commands.errors.MissingPermissions,
                                   exceptions.MissingFeatures)):
 
-            if self._check_error_cd(context.message):
+            if self._check_error_cd(context):
                 try:
-                    return await channel.send(str(exception))
+                    return await context.respond(str(exception), ephemeral=True)
                 except discord.Forbidden:
                     pass
             return
@@ -195,7 +205,7 @@ class Bot(commands.AutoShardedBot):
         error_msg = None
         if isinstance(exception, commands.errors.CommandOnCooldown):
             # Delete message if hidden command
-            if context.command.hidden:
+            if context.command.hidden and isinstance(context, Context):
                 try:
                     await context.message.delete()
                 except discord.HTTPException:
@@ -218,7 +228,10 @@ class Bot(commands.AutoShardedBot):
         elif isinstance(exception, exceptions.CommandBlacklisted):
             if not exception.message:
                 try:
-                    await context.message.add_reaction('🚫')
+                    if isinstance(context, Context):
+                        await context.message.add_reaction('🚫')
+                    else:
+                        await context.respond('🚫', ephemeral=True)
                 except discord.HTTPException:
                     pass
 
@@ -232,9 +245,9 @@ class Bot(commands.AutoShardedBot):
             error_msg = "Couldn't allocate memory. Try again a bit later"
 
         if error_msg:
-            if self._check_error_cd(context.message):
+            if self._check_error_cd(context):
                 try:
-                    await channel.send(error_msg, delete_after=300)
+                    await context.respond(error_msg, ephemeral=True)
                 except discord.Forbidden:
                     pass
             return

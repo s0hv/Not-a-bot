@@ -25,11 +25,12 @@ SOFTWARE.
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Union
+from typing import Union, Dict
 
 import asyncpg
 import discord
-from discord.ext.commands.errors import ExtensionError
+from discord import Interaction
+from discord.errors import ExtensionError
 
 from bot import exceptions
 from bot.bot import Bot
@@ -38,6 +39,34 @@ from bot.globals import Auth
 from bot.guildcache import GuildCache
 
 logger = logging.getLogger('terminal')
+
+
+def qualified_name(self: Interaction) -> str:
+    """
+    Temporary fix until command.qualified_name works properly with slash commands
+    """
+    names = []
+
+    def get_name(data: Dict):
+        if data.get('type') != 1:
+            return
+
+        name = data.get('name', None)
+        if not name:
+            return
+        names.append(name)
+
+        options = data.get('options', None)
+        if not options or len(options) != 1:
+            return
+
+        get_name(options[0])
+
+    get_name(self.data)
+    return ' '.join(names)
+
+
+Interaction.qualified_name = qualified_name
 
 
 class BotBase(Bot):
@@ -123,7 +152,7 @@ class BotBase(Bot):
                 if not print_err:
                     errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
                 else:
-                    logger.warning('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
+                    logger.exception('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
 
         if not print_err:
             return errors
@@ -174,21 +203,13 @@ class BotBase(Bot):
             return False
 
     async def check_auth(self, ctx):
+        if not hasattr(ctx.command, 'auth'):
+            return True
+
         if not await self._check_auth(ctx.author.id, ctx.command.auth):
             raise exceptions.PermException(Auth.to_string(ctx.command.auth))
 
         return True
-
-    async def invoke(self, ctx):
-        # Just adds command logging
-        if ctx.command is not None:
-            if ctx.guild:
-                s = '{0.name}/{0.id}/{1.name}/{1.id} {2.id} called {3}'.format(ctx.guild, ctx.channel, ctx.author, ctx.command.name)
-            else:
-                s = 'DM/{0.id} called {1}'.format(ctx.author, ctx.command.name)
-            logger.info(s)
-
-            await super().invoke(ctx)
 
     async def on_guild_join(self, guild):
         logger.info(f'Joined guild {guild.name} {guild.id}')

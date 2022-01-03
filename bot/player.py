@@ -6,16 +6,19 @@ import weakref
 from collections import deque
 from math import ceil
 from math import floor
+from typing import Optional
 
+import discord
 from discord import player, opus, AllowedMentions
-from discord.activity import Activity, ActivityType
+from discord.activity import Activity
+from discord.enums import ActivityType
 from discord.errors import ClientException
 from discord.errors import HTTPException
 from discord.ext.commands.cooldowns import BucketType
 from discord.opus import Encoder as OpusEncoder
 from discord.player import PCMVolumeTransformer
 
-from bot.cooldowns import Cooldown
+from bot.cooldowns import CooldownMapping
 from bot.playlist import Playlist
 from bot.song import Song
 from bot.youtube import url2id, get_related_vids, id2url
@@ -54,7 +57,7 @@ class MusicPlayer:
         self.__instances__.add(self)
         self.bot = bot
         self.play_next = asyncio.Event()
-        self.voice = None
+        self.voice: Optional[discord.VoiceClient] = None
         self.current = None
         self.channel = channel
         self.guild = channel.guild
@@ -63,7 +66,7 @@ class MusicPlayer:
 
         # With BucketType.default we can call get_bucket with msg param set to None
         # Determines an error rate at which we disconnect
-        self._spam_detector = Cooldown(3, 10, BucketType.default)
+        self._spam_detector = CooldownMapping.from_cooldown(3, 10, BucketType.default)
 
         self.playlist = Playlist(bot, channel=self.channel, downloader=downloader)
         self.autoplaylist = bot.config.autoplaylist
@@ -135,7 +138,7 @@ class MusicPlayer:
             return self.player.source
 
     @property
-    def player(self):
+    def player(self) -> Optional['AudioPlayer']:
         if self.voice:
             return self.voice._player
 

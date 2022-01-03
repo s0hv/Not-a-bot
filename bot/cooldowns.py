@@ -6,11 +6,10 @@ class Cooldown(commands.Cooldown):
         self._tokens = min(self._tokens + 1, self.rate)
 
     def copy(self):
-        return Cooldown(self.rate, self.per, self.type)
+        return Cooldown(self.rate, self.per)
 
 
 class CooldownMapping(commands.CooldownMapping):
     @classmethod
     def from_cooldown(cls, rate, per, type):
-        return cls(Cooldown(rate, per, type))
-
+        return cls(Cooldown(rate, per), type)

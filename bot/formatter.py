@@ -11,7 +11,7 @@ from discord.ext.commands import help, BucketType
 from discord.ext.commands.errors import CommandError
 
 from bot.commands import Command
-from bot.cooldowns import Cooldown
+from bot.cooldowns import CooldownMapping
 from bot.exceptions import CommandBlacklisted
 from utils.utilities import check_perms
 
@@ -31,7 +31,7 @@ class HelpCommand(help.HelpCommand):
     def __init__(self, **options):
         options.setdefault('command_attrs', {})
         options['command_attrs']['aliases'] = ['helpall']
-        options['command_attrs']['cooldown'] = Cooldown(2, 3, BucketType.guild)
+        options['command_attrs']['cooldown'] = CooldownMapping.from_cooldown(2, 3, BucketType.guild)
         super().__init__(**options)
 
     def show_all(self):

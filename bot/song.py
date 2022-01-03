@@ -26,6 +26,7 @@ import asyncio
 import logging
 import os
 import time
+from typing import Optional
 
 import discord
 from aiohttp.web_exceptions import HTTPException
@@ -63,7 +64,7 @@ class Song:
         self.duration = kwargs.pop('duration', 0)
         self.default_duration = self.duration  # Used when speed is changed
         self.uploader = kwargs.pop('uploader', 'None')
-        self.requested_by = kwargs.pop('requested_by', None)
+        self.requested_by: Optional[discord.Member, discord.User] = kwargs.pop('requested_by', None)
         self.is_live = kwargs.pop('is_live', False)
         self.playlist = playlist
         self.seek = False

@@ -31,8 +31,10 @@ import random
 import re
 import time
 from collections import deque
+from typing import Union
 
 import discord
+from discord import ApplicationContext
 from numpy import delete as delete_by_indices
 from validators import url as valid_url
 
@@ -100,12 +102,12 @@ def write_playlist(data, name, user_id, overwrite=False):
     return f'Playlist {name} created'
 
 
-async def create_playlist(songs, user, name, channel):
+async def create_playlist(songs, user, name, ctx: ApplicationContext):
     if not validate_playlist_name(name):
-        return await channel.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
+        return await ctx.respond(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
 
     if not songs:
-        return await channel.send('Empty playlist. Playlist not created', delete_after=60)
+        return await ctx.respond('Empty playlist. Playlist not created', delete_after=60)
 
     new_songs = []
     added = 0
@@ -121,9 +123,9 @@ async def create_playlist(songs, user, name, channel):
                           'duration': song.duration})
 
     try:
-        await channel.send(write_playlist(new_songs, name, user.id))
+        await ctx.respond(write_playlist(new_songs, name, user.id))
     except (FileExistsError, PermissionError) as e:
-        await channel.send(str(e))
+        await ctx.respond(str(e))
 
 
 class Playlist:
@@ -197,7 +199,7 @@ class Playlist:
             return True
         else:
             songs_left = delete_by_indices(list(self.playlist), indexes)
-            deleted = len(songs_left) - len(self.playlist)
+            deleted = len(self.playlist) - len(songs_left)
             self.playlist.clear()
             for song in songs_left:
                 self.playlist.append(song)
@@ -234,12 +236,11 @@ class Playlist:
         urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
         max_results = 20
         search_key = search_keys.get(site, 'ytsearch')
-        channel = ctx.message.channel
         query = '{0}{1}:{2}'.format(search_key, max_results, name)
 
         info = await self.downloader.extract_info(self.bot.loop, url=query, on_error=self.failed_info, download=False)
         if info is None or 'entries' not in info:
-            return await self.send('Search gave no results', delete_after=60, channel=channel)
+            return await self.send('Search gave no results', delete_after=60, channel=ctx)
 
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
         entries = info['entries']
@@ -261,7 +262,7 @@ class Playlist:
 
         entry = entries[0]
         try:
-            message = await ctx.channel.send(get_page(entry, 0))
+            message = await ctx.respond(get_page(entry, 0))
         except discord.HTTPException:
             return
 
@@ -278,7 +279,7 @@ class Playlist:
                 result = await self.bot.wait_for('reaction_changed', check=check,
                                                  timeout=60)
             except asyncio.TimeoutError:
-                return await ctx.send('Took too long.')
+                return await ctx.respond('Took too long.')
 
             entry = paged.reaction_changed(*result)
             if entry is PagedMessage.INVALID:
@@ -293,7 +294,7 @@ class Playlist:
                     entry = paged.current_page
                     await message.delete()
                     await self._add_url(get_url(entry), priority=priority,
-                                        channel=channel, requested_by=ctx.author)
+                                        channel=ctx, requested_by=ctx.author)
 
                 return
 
@@ -617,11 +618,13 @@ class Playlist:
 
         return False
 
-    async def send(self, message, channel=None, **kwargs):
+    async def send(self, message, channel: Union[ApplicationContext, discord.abc.Messageable]=None, **kwargs):
         if channel is None:
             channel = self.channel
 
+        meth = channel.respond if isinstance(channel, ApplicationContext) else channel.send
+
         try:
-            return await channel.send(message, **kwargs)
+            return await meth(message, **kwargs)
         except discord.HTTPException:
             pass

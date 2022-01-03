@@ -26,12 +26,13 @@ SOFTWARE.
 """
 
 import logging
+import os
 import sys
 
 import discord
 
 from bot.audio_bot import AudioBot
-from bot.config import Config
+from bot.config import Config, is_test_mode, get_test_guilds
 from bot.formatter import LoggingFormatter
 
 terminal = logging.getLogger('terminal')
@@ -59,7 +60,8 @@ except:
 config = Config()
 
 initial_cogs = [
-    'audio',
+    # 'audio',
+    'basic_logging',
     'botadmin',
     'command_blacklist'
 ]
@@ -70,9 +72,24 @@ logger.info('Starting bot')
 config.default_activity = {'type': 1, 'name': 'Music'}
 
 intents = discord.Intents.default()
+# Required for seeing voice channel members on startup
+intents.members = True
+
+intents.invites = False
+intents.integrations = False
+intents.webhooks = False
+intents.bans = False
+intents.emojis_and_stickers = False
+intents.typing = False
+intents.scheduled_events = False
+
+
 bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
-               conf=config, max_messages=100, cogs=initial_cogs, intents=intents)
-bot.run(config.audio_token)
+               conf=config, max_messages=100, cogs=initial_cogs, intents=intents,
+               debug_guilds=get_test_guilds(), test_mode=is_test_mode())
+
+bot.load_extension('cogs.audio')
+bot.run(os.getenv('TOKEN'))
 
 # We have systemctl set up in a way that different exit codes
 # have different effects on restarting behavior

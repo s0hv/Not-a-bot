@@ -2,7 +2,7 @@ import re
 
 import discord
 import pytz
-from discord.ext.commands import converter
+from discord.ext.commands import converter, Context
 from discord.ext.commands.errors import BadArgument
 
 from utils.tzinfo import fuzzy_tz
@@ -313,3 +313,15 @@ class CleanContent(converter.Converter):
             return re.sub(r'@(everyone|here|[!&]?[0-9]{17,21})', '@\u200b\\1', result)
         else:
             return result
+
+
+class BoolChoices(converter.Converter):
+    async def convert(self, ctx: Context, argument: str):
+        argument = argument.lower()
+        if argument == 'on':
+            return True
+
+        if argument == 'off':
+            return False
+
+        raise BadArgument('Argument must be On or Off')

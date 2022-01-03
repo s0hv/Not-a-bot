@@ -4,7 +4,7 @@ from discord.ext import commands
 
 from bot.cooldowns import CooldownMapping, Cooldown
 from bot.globals import Auth
-from utils.utilities import is_owner, check_blacklist, no_dm
+from utils.utilities import is_owner, no_dm
 
 terminal = logging.getLogger('terminal')
 
@@ -27,9 +27,9 @@ def cooldown(rate, per, type=commands.BucketType.default):
 
     def decorator(func):
         if isinstance(func, Command):
-            func._buckets = CooldownMapping(Cooldown(rate, per, type))
+            func._buckets = CooldownMapping(Cooldown(rate, per), type)
         else:
-            func.__commands_cooldown__ = Cooldown(rate, per, type)
+            func.__commands_cooldown__ = CooldownMapping(Cooldown(rate, per), type)
         return func
     return decorator
 
@@ -38,11 +38,9 @@ class Command(commands.Command):
     def __init__(self, func, **kwargs):
         # Init called twice because commands are copied
         super(Command, self).__init__(func, **kwargs)
-        self._buckets = CooldownMapping(self._buckets._cooldown)
+        self._buckets: CooldownMapping = CooldownMapping(self._buckets._cooldown, self._buckets.type)
         self.owner_only = kwargs.pop('owner_only', False)
         self.auth = kwargs.pop('auth', Auth.NONE)
-
-        self.checks.insert(0, check_blacklist)
 
         if self.owner_only:
             terminal.info(f'registered owner_only command {self.name}')

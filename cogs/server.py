@@ -49,7 +49,7 @@ class Server(Cog):
         super().__init__(bot)
         self.afks = getattr(bot, 'afks', {})
         self.bot.afks = self.afks
-        self._afk_cd = CooldownMapping(Cooldown(1, 4, BucketType.guild))
+        self._afk_cd = CooldownMapping(Cooldown(1, 4), BucketType.guild)
 
     @group(no_pm=True, invoke_without_command=True)
     @cooldown(1, 20, type=BucketType.user)

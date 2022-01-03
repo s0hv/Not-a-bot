@@ -26,11 +26,28 @@ import configparser
 import json
 import logging
 import os
+import re
+from typing import List, Optional
 
 from bot.exceptions import InvalidOwnerIDException
 from utils.utilities import get_config_value
 
 terminal = logging.getLogger('terminal')
+
+
+def is_test_mode() -> bool:
+    return re.match(r'^(1|true|on|yes|y)$', os.getenv('TEST_MODE', ''), re.I) is not None
+
+
+def get_test_guilds() -> Optional[List[int]]:
+    if not is_test_mode():
+        return
+
+    test_guild = os.getenv('TEST_GUILD', None)
+    if not test_guild:
+        return
+
+    return [int(test_guild)]
 
 
 class Config:
@@ -47,8 +64,6 @@ class Config:
         self.config.read(path, encoding='utf-8')
 
         self.token = self.config.get('Credentials', 'Token', fallback=None)
-        self.sfx_token = self.config.get('Credentials', 'SfxToken', fallback=None)
-        self.audio_token = self.config.get('Credentials', 'AudioToken', fallback=None)
         self.test_token = self.config.get('Credentials', 'TestToken', fallback=None)
 
         self.mashape_key = get_config_value(self.config, 'Credentials', 'MashapeKey', str, None)
@@ -175,9 +190,6 @@ class Config:
     def check_values(self):
         if self.token == 'bot_token':
             raise ValueError('You need to specify your bots token in the config')
-
-        if self.token == self.sfx_token:
-            raise ValueError("The bots can't have the same token")
 
         if self.owner == 'id':
             raise ValueError('Please put your discord user id to the config')

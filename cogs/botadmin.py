@@ -26,8 +26,8 @@ import discord
 import matplotlib.pyplot as plt
 from asyncpg.exceptions import PostgresError
 from discord import File
+from discord.errors import ExtensionError, ExtensionFailed
 from discord.errors import HTTPException, InvalidArgument
-from discord.ext.commands.errors import ExtensionError, ExtensionFailed
 from discord.user import BaseUser
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MultipleLocator

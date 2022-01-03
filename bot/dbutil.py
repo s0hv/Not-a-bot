@@ -815,7 +815,7 @@ class DatabaseUtils:
         for i in range(0, len(members), chunk_size):
             data = []
             for m in members[i:i+chunk_size]:
-                data.extend((m.id, guild.id, m.joined_at))
+                data.extend((m.id, guild.id, m.joined_at.replace(tzinfo=None)))
 
             values.append(data)
             sqls.append(sql % self.create_bind_groups(len(data)//3, 3))

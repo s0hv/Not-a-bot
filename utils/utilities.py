@@ -36,6 +36,7 @@ from collections.abc import Iterable
 from datetime import timedelta, datetime
 from enum import Enum
 from random import randint
+from typing import Union, TYPE_CHECKING
 from urllib.parse import urlparse
 
 import discord
@@ -43,6 +44,7 @@ import numpy
 from aioredis.client import Redis
 from asyncpg.exceptions import PostgresError
 from discord import abc
+from discord.commands import ApplicationContext
 from discord.embeds import EmptyEmbed
 from discord.ext.commands.errors import MissingPermissions
 from validators import url as test_url
@@ -53,6 +55,10 @@ from bot.paged_message import PagedMessage
 from enums.data_enums import RedisKeyNamespaces
 from enums.discord_enums import TimestampFormat
 from utils.imagetools import image_from_url
+
+if TYPE_CHECKING:
+    from bot.bot import Context
+
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -1464,7 +1470,7 @@ def is_owner(ctx):
     return True
 
 
-async def check_blacklist(ctx):
+async def check_blacklist(ctx: Union[ApplicationContext, 'Context']):
     if getattr(ctx, 'skip_check', False):
         return True
 
@@ -1476,7 +1482,7 @@ async def check_blacklist(ctx):
     if not await bot.check_auth(ctx):
         return False
 
-    overwrite_perms = await bot.dbutil.check_blacklist("(command='%s' OR command IS NULL)" % ctx.command, ctx.author, ctx, True)
+    overwrite_perms = await bot.dbutil.check_blacklist("(command='%s' OR command IS NULL)" % ctx.command.name, ctx.author, ctx, True)
     msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, (None, None))
     if isinstance(overwrite_perms, int):
         if ctx.guild and ctx.guild.owner_id == ctx.author.id:
@@ -1505,7 +1511,7 @@ async def search(s, ctx, site, downloader, on_error=None):
                                          on_error=on_error,
                                          download=False)
     if info is None or 'entries' not in info:
-        return await channel.send('Search gave no results', delete_after=60)
+        return await channel.respond('Search gave no results', ephemeral=True)
 
     url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
 
@@ -1622,7 +1628,7 @@ async def wait_for_words(ctx, words, timeout=60):
     return msg
 
 
-def seek_from_timestamp(timestamp):
+def seek_from_timestamp(timestamp) -> dict:
     m, s = divmod(timestamp, 60)
     h, m = divmod(m, 60)
     s, ms = divmod(s, 1)

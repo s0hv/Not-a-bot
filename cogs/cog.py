@@ -1,5 +1,6 @@
 import asyncio
 
+from discord import SlashCommand
 from discord.ext import commands
 
 from bot.botbase import BotBase
@@ -13,7 +14,8 @@ class Cog(commands.Cog):
         # Add all commands to cmdstats db table
         cmds = set()
         for cmd in self.walk_commands():
-            cmds.add(cmd)
+            if not isinstance(cmd, SlashCommand):
+                cmds.add(cmd)
 
         data = []
         for cmd in cmds:

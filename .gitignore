@@ -4,6 +4,7 @@ data/permissions/
 
 # Python
 venv/*
+venv_pycord/*
 
 # Autoplaylist setup
 data/playlists/autoplaylist.txt
@@ -40,6 +41,7 @@ __pycache__/
 data/pokefusion/sprPKMType_*
 data/votes.txt
 data/playlists/gachi.txt
+.run
 
 # Hidden files
 .*/

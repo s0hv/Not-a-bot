@@ -36,7 +36,7 @@ class DBApi(Cog):
         if self.dbl:
             task = self.bot.loop.create_task(self.dbl.close())
             try:
-                await asyncio.wait_for(task, 20, loop=self.bot.loop)
+                await asyncio.wait_for(task, 20)
             except (asyncio.CancelledError, asyncio.InvalidStateError,
                     asyncio.TimeoutError):
                 return

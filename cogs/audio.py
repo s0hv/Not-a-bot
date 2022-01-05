@@ -1448,7 +1448,7 @@ class Audio(commands.Cog):
 
         try:
             await asyncio.wait_for(self.bot.loop.run_in_executor(self.bot.threadpool, get_matches),
-                             timeout=1.5, loop=self.bot.loop)
+                             timeout=1.5)
         except asyncio.TimeoutError:
             logger.warning(f'{ctx.author} {ctx.author.id} timeouted regex. Used regex was {song_name}')
             await ctx.respond('Search timed out')

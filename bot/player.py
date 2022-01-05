@@ -201,7 +201,7 @@ class MusicPlayer:
                 return
 
             db = await asyncio.wait_for(mean_volume(file, self.bot.loop, self.bot.threadpool,
-                                        duration=self.current.duration), timeout=20, loop=self.bot.loop)
+                                        duration=self.current.duration), timeout=20)
             if db is not None and abs(db) >= 0.1:
                 rms, volume = self._get_volume_from_db(db)
                 logger.debug(f'parsed volume {volume}')
@@ -292,9 +292,10 @@ class MusicPlayer:
             logger.debug(f'Next song is {self.current}')
             logger.debug('Waiting for dl')
 
+            logger.info(f'{self.bot.loop} : {asyncio.get_running_loop()}')
+
             try:
-                await asyncio.wait_for(self.current.on_ready.wait(), timeout=5,
-                                       loop=self.bot.loop)
+                await asyncio.wait_for(self.current.on_ready.wait(), timeout=5)
             except asyncio.TimeoutError:
                 logger.debug(f'Song {self.current.webpage_url} download timed out')
                 await self.send(f'Download timed out for {self.current}')

@@ -74,7 +74,7 @@ class LastSeen(Cog):
     async def _status_loop(self):
         while not self._update_now.is_set():
             try:
-                await asyncio.wait_for(self._update_now.wait(), timeout=5, loop=self.bot.loop)
+                await asyncio.wait_for(self._update_now.wait(), timeout=5)
             except asyncio.TimeoutError:
                 pass
 

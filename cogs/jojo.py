@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 from collections import OrderedDict
-from functools import partial
 from io import BytesIO
 from itertools import zip_longest
 from threading import Lock
@@ -45,12 +44,11 @@ from bot.bot import command, cooldown, bot_has_permissions
 from cogs.cog import Cog
 from utils.imagetools import (create_shadow, create_text,
                               create_geopattern_background, shift_color,
-                              remove_background,
                               resize_keep_aspect_ratio, get_color,
                               IMAGES_PATH, image_from_url, GeoPattern,
                               color_distance, MAX_COLOR_DIFF)
-from utils.utilities import (get_picture_from_msg, y_n_check,
-                             check_negative, normalize_text,
+from utils.utilities import (get_picture_from_msg, check_negative,
+                             normalize_text,
                              get_image, basic_check, test_url)
 
 terminal = logging.getLogger('terminal')
@@ -513,47 +511,6 @@ class JoJo(Cog):
             # No clue what this does so leaving it out
             #im = trim_image(image)
             im = image
-
-            msg = get_next_param()
-
-            if not msg:
-                msg = await self.subcommand(ctx,
-                    f'{author} Try to automatically remove background (y/n)? '
-                    'This might fuck the picture up and will take a moment',
-                    author=author, channel=channel, delete_after=120, check=y_n_check)
-
-                msg = msg.content if msg else ''
-
-            if msg and msg.lower() in ['y', 'yes']:
-                kwargs = {}
-                if advanced:
-                    msg = get_next_param()
-
-                    if not msg:
-                        msg = await self.subcommand(ctx,
-                            f'{author} Change the arguments of background removing. Available'
-                            ' arguments are `blur`, `canny_thresh_1`, `canny_thresh_2`, '
-                            '`mask_dilate_iter`, `mask_erode_iter`. '
-                            'Accepted values are integers.\nArguments are added like this '
-                            '`-blur 30 -canny_thresh_2 50`. All arguments are optional',
-                            channel=channel, author=author, delete_after=140)
-
-                        msg = msg.content if msg else ''
-
-                    await channel.trigger_typing()
-                    if msg is not None:
-                        try:
-                            kwargs = self.parser.parse_known_args(msg.split(' '))[0].__dict__
-                        except (SystemExit, IndexError, AttributeError):
-                            await ctx.send(f'{author} Could not get arguments from {msg}',
-                                           delete_after=20)
-
-                try:
-                    im = await self.bot.loop.run_in_executor(self.bot.threadpool, partial(remove_background, im, **kwargs))
-                except Exception:
-                    terminal.exception('Failed to remove bg from image')
-                    await ctx.send(f'{author} Could not remove background because of an error',
-                                   delete_after=30)
 
             def resize_image():
                 nonlocal im

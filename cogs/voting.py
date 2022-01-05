@@ -157,7 +157,7 @@ class Poll:
                 time_ = self.expires_at - datetime.utcnow()
                 time_ = time_.total_seconds()
                 if time_ > 0:
-                    await asyncio.wait_for(self._stopper.wait(), timeout=time_, loop=self.bot.loop)
+                    await asyncio.wait_for(self._stopper.wait(), timeout=time_)
         except asyncio.TimeoutError:
             pass
         except asyncio.CancelledError:

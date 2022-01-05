@@ -27,7 +27,6 @@ import os
 import subprocess
 from io import BytesIO
 from shlex import split
-from sys import platform
 from threading import Lock
 
 import aiohttp
@@ -262,82 +261,6 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     img = Image.open(buff)
     img = bg_from_texture(img, size)
     return img, pattern.base_color
-
-
-# http://stackoverflow.com/a/29314286/6046713
-# http://stackoverflow.com/a/41048793/6046713
-def remove_background(image, blur=21, canny_thresh_1=10, canny_thresh_2=200,
-                      mask_dilate_iter=10, mask_erode_iter=10):
-    global cv2  # skipcq: PYL-W0603
-    if cv2 is None:
-        try:
-            import cv2
-        except ImportError:
-            cv2 = None
-
-    if cv2 is None:
-        return image
-
-    # Parameters
-    BLUR = blur
-    CANNY_THRESH_1 = canny_thresh_1
-    CANNY_THRESH_2 = canny_thresh_2
-    MASK_DILATE_ITER = mask_dilate_iter
-    MASK_ERODE_ITER = mask_erode_iter
-
-    p = os.path.join(IMAGES_PATH, 'trimmed.png')
-    with TRIMMING_LOCK:
-        try:
-            image.save(p)
-            # Processing
-            # Read image
-            if platform == 'win32':
-                p = p.replace('\\', '/')  # Windows paths don't work in cv2
-
-            img = cv2.imread(p)
-        except OSError:
-            return image
-
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    # Edge detection
-    edges = cv2.Canny(gray, CANNY_THRESH_1, CANNY_THRESH_2)
-    edges = cv2.dilate(edges, None)
-    edges = cv2.erode(edges, None)
-
-    # Find contours in edges, sort by area
-    contour_info = []
-    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    for c in contours:
-        contour_info.append((
-            c,
-            cv2.isContourConvex(c),
-            cv2.contourArea(c),
-        ))
-    contour_info = sorted(contour_info, key=lambda c: c[2], reverse=True)
-    max_contour = contour_info[0]
-
-    # Create empty mask, draw filled polygon on it corresponding to largest contour
-    # Mask is black, polygon is white
-    mask = np.zeros(edges.shape)
-    cv2.fillConvexPoly(mask, max_contour[0], 255)
-
-    # Smooth mask, then blur it
-    mask = cv2.dilate(mask, None, iterations=MASK_DILATE_ITER)
-    mask = cv2.erode(mask, None, iterations=MASK_ERODE_ITER)
-    mask = cv2.GaussianBlur(mask, (BLUR, BLUR), 0)
-
-    img = img.astype('float32') / 255.0  # for easy blending
-
-    # split image into channels
-    c_red, c_green, c_blue = cv2.split(img)
-
-    # merge with mask got on one of a previous steps
-    img_a = cv2.merge((c_red, c_green, c_blue, mask.astype('float32') / 255.0))
-
-    _, buf = cv2.imencode('.png', img_a * 255)
-    buffer = BytesIO(bytearray(buf))
-    return Image.open(buffer)
 
 
 async def image_from_url(url, client):

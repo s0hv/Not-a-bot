@@ -234,7 +234,7 @@ class Playlist:
     async def search(self, name, ctx, site='yt', priority=False, in_vc=True):
         search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
         urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
-        max_results = 20
+        max_results = 10
         search_key = search_keys.get(site, 'ytsearch')
         query = '{0}{1}:{2}'.format(search_key, max_results, name)
 
@@ -521,7 +521,7 @@ class Playlist:
 
     async def _search(self, name, **kwargs):
         info = await self.downloader.extract_info(self.bot.loop, extract_flat=False, url=name, download=False, **kwargs)
-        if info and 'entries' in info:
+        if info and info.get('entries', None):
             return info['entries'][0]
 
     def on_stop(self):

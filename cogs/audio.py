@@ -354,6 +354,9 @@ class Audio(commands.Cog):
         if 'requested_by' not in metadata:
             metadata['requested_by'] = ctx.author
 
+        if not test_url(song_name):
+            song_name = 'ytsearch:' + song_name
+
         logger.debug('Parse play returned {0}, {1}'.format(song_name, metadata))
         return song_name, metadata
 
@@ -368,7 +371,7 @@ class Audio(commands.Cog):
     @command(cooldown_after_parsing=True, name='play')
     @guild_only()
     @commands.cooldown(1, 3, type=BucketType.user)
-    async def play_cmd(self, ctx: Context, song_name: str):
+    async def play_cmd(self, ctx: Context, *, song_name: str):
         await self.play_song(ctx, song_name)
 
     @slash_command()
@@ -1032,7 +1035,7 @@ class Audio(commands.Cog):
 
         await ctx.respond(f'Successfully deleted playlist {playlist_name}')
 
-    async def _search(self, ctx: ApplicationContext, name):
+    async def _search(self, ctx: Union[ApplicationContext, Context], name):
         vc = True if ctx.author.voice else False
         if name.startswith('-yt '):
             site = 'yt'
@@ -1064,6 +1067,11 @@ class Audio(commands.Cog):
                 pass
 
             await search(name, ctx, site, self.downloader, on_error=on_error)
+
+    @command()
+    @commands.cooldown(1, 5, type=BucketType.user)
+    async def search(self, ctx: Context, *, name):
+        await self._search(ctx, name)
 
     @slash_command()
     @commands.cooldown(1, 5, type=BucketType.user)
@@ -1718,10 +1726,18 @@ class Audio(commands.Cog):
 
     @commands.cooldown(1, 6, BucketType.user)
     @slash_command()
-    async def stop(self, ctx: ApplicationContext):
+    async def stop_cmd(self, ctx: Context):
+        await self.stop.callback(self, ctx)
+
+    @commands.cooldown(1, 6, BucketType.user)
+    @slash_command()
+    async def stop(self, ctx: Union[ApplicationContext, Context]):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
         """
+        if isinstance(ctx, ApplicationContext):
+            await ctx.defer()
+
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
             if ctx.voice_client:

@@ -95,6 +95,7 @@ class Context(commands.context.Context):
         return True
 
     async def respond(self, content: Optional[str]=None, **kwargs):
+        kwargs.pop('ephemeral', None)
         return await self.send(content, **kwargs)
 
     async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs):

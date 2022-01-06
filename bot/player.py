@@ -175,7 +175,7 @@ class MusicPlayer:
         Returns:
             Boolean determining if we are getting songs correctly or if we are getting too many errors
         """
-        retry_after = self._spam_detector.update_rate_limit()
+        retry_after = self._spam_detector.update_rate_limit(None)
         if retry_after:
             await self.send('Looks like something is wrong with playback. Disconnecting.\n'
                             'If this continues contact owner lol')
@@ -266,7 +266,7 @@ class MusicPlayer:
                             self.current = None
                             # Failed to download autoplaylist song. Check that we are functioning
                             if not await self.assert_functionality():
-                                return
+                                continue
 
                     else:
                         # If autoplaylist not enabled wait until playlist is populated

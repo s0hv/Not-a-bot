@@ -186,7 +186,7 @@ class Bot(commands.AutoShardedBot):
             return
 
         # Just ignore the moderator prefix on my server
-        if context.guild and context.guild.id == 217677285442977792 and context.prefix == 'm':
+        if isinstance(context, Context) and context.guild and context.guild.id == 217677285442977792 and context.prefix == 'm':
             return
 
         if isinstance(exception, (commands.errors.BotMissingPermissions,

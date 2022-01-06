@@ -1382,12 +1382,16 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0,
         else:
             page = pages[starting_idx]
     except IndexError:
-        return await ctx.channel.send(f'Page index {starting_idx} is out of bounds')
+        return await ctx.respond(f'Page index {starting_idx} is out of bounds')
+
+    kwargs = {}
+    if not isinstance(ctx, ApplicationContext):
+        kwargs['undoable'] = undoable
 
     if embed:
-        message = await ctx.send(embed=page, undoable=undoable)
+        message = await ctx.respond(embed=page, **kwargs)
     else:
-        message = await ctx.send(page, undoable=undoable)
+        message = await ctx.respond(page, **kwargs)
     if len(pages) == 1:
         return
 
@@ -1502,7 +1506,7 @@ async def check_blacklist(ctx: Union[ApplicationContext, 'Context']):
 async def search(s, ctx, site, downloader, on_error=None):
     search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
     urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
-    max_results = 20
+    max_results = 10
     search_key = search_keys.get(site, 'ytsearch')
     channel = ctx.channel
     query = '{0}{1}:{2}'.format(search_key, max_results, s)

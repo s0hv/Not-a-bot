@@ -1068,9 +1068,9 @@ class Audio(commands.Cog):
 
             await search(name, ctx, site, self.downloader, on_error=on_error)
 
-    @command()
+    @command(name='search')
     @commands.cooldown(1, 5, type=BucketType.user)
-    async def search(self, ctx: Context, *, name):
+    async def search_cmd(self, ctx: Context, *, name):
         await self._search(ctx, name)
 
     @slash_command()
@@ -1725,7 +1725,7 @@ class Audio(commands.Cog):
             await ctx.respond('Disconnected')
 
     @commands.cooldown(1, 6, BucketType.user)
-    @slash_command()
+    @command()
     async def stop_cmd(self, ctx: Context):
         await self.stop.callback(self, ctx)
 

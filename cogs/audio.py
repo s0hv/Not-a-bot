@@ -1725,7 +1725,7 @@ class Audio(commands.Cog):
             await ctx.respond('Disconnected')
 
     @commands.cooldown(1, 6, BucketType.user)
-    @command()
+    @command(name='stop')
     async def stop_cmd(self, ctx: Context):
         await self.stop.callback(self, ctx)
 

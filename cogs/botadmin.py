@@ -363,8 +363,11 @@ class BotAdmin(Cog):
 
         redis = getattr(self.bot, 'redis', None)
         if redis:
-            redis.close()
-            await redis.wait_closed()
+            try:
+                redis.close()
+                await redis.wait_closed()
+            except:
+                logger.exception('Failed to gracefully close redis')
 
         try:
             audio = self.bot.get_cog('Audio')

@@ -1,4 +1,4 @@
-###Data
+### Data
 This bot needs to collect data that the discord api provides
 in order to function properly. This data consist mainly of your user id combined with other ids such as 
 server and role ids. Non moderation uses include the first date a user joined a server,
@@ -15,7 +15,7 @@ This is to make the image commands more convenient to use.
 Message content is saved in memory for a short amount of time. 
 This is used for message delete and edit tracking for servers that have it enabled.
 
-###Agreement
+### Agreement
 By having this bot in your guild you agree to inform users that
 this bot collects data that the discord api provides in order to function.
 The creator of this bot is not responsible for any damage this bot causes

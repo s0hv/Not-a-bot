@@ -47,11 +47,9 @@ class Privacy(Cog):
 
         d = textwrap.dedent(d).strip('\n')
         if can_embed:
-            d = d.format('[here](https://github.com/s0hv/Not-a-bot)')
             embed = discord.Embed(title='Privacy statement', description=d)
             await ctx.send(embed=embed)
         else:
-            d = d.format('here https://github.com/s0hv/Not-a-bot')
             await ctx.send(d)
 
     @command()

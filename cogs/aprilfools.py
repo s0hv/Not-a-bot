@@ -295,7 +295,7 @@ class BattleArena(Cog):
         """
         COST 2 + silence hours left * 2
 
-        Remove an active silence on you if it's under 1 hour long
+        Remove an active silence on you
         """
         author = ctx.author
         uid = author.id

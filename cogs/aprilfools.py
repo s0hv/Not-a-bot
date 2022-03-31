@@ -33,7 +33,7 @@ class BattleArena(Cog):
 
     def __init__(self, bot):
         super().__init__(bot)
-        self._penalty_role = 355372880898424832 if bot.test_mode else 826903568065495061
+        self._penalty_role = 355372880898424832 if bot.test_mode else 959150196435075072
         self._battle_channel = 354712220761980939 if bot.test_mode else 297061271205838848
 
         self._guild = 353927534439825429 if bot.test_mode else 217677285442977792

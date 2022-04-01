@@ -16,7 +16,7 @@ from bot.commands import cooldown
 from bot.converters import TimeDelta
 from cogs.cog import Cog
 from cogs.moderator import Moderator
-from utils.utilities import call_later
+from utils.utilities import call_later, native_format_timedelta
 
 logger = logging.getLogger('terminal')
 
@@ -410,6 +410,14 @@ class BattleArena(Cog):
             users_str = f'{", ".join(map(discord.Member.mention.fget, timeouted_users[:-1]))} and {timeouted_users[-1].mention}'
 
         await ctx.send(f'{author.mention} self destructs and takes {users_str} with them.', allowed_mentions=discord.AllowedMentions.none())
+
+    @command()
+    async def unsilence_when(self, ctx):
+        """
+        Check when you'll be unsilenced
+        """
+        time_left = self.temprole_duration_left(ctx.author.id)
+        await ctx.send(f'You have {native_format_timedelta(time_left)} until unsilence')
 
     @is_owner()
     @command(aliases=['set_sd'])

@@ -888,6 +888,10 @@ def check_plural(string, i):
     return '%s %s ' % (str(i), string)
 
 
+def native_format_timedelta(td: timedelta) -> str:
+    return f'<t:{(datetime.utcnow()+td).timestamp()}:R>'
+
+
 def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
     """
     Formats timedelta object or int to string with support for longer durations

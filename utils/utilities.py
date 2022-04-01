@@ -889,7 +889,7 @@ def check_plural(string, i):
 
 
 def native_format_timedelta(td: timedelta) -> str:
-    return f'<t:{int((datetime.utcnow()+td).timestamp())}:R>'
+    return f'<t:{int((datetime.now()+td).timestamp())}:R>'
 
 
 def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):

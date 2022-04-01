@@ -417,7 +417,7 @@ class BattleArena(Cog):
         Check when you'll be unsilenced
         """
         time_left = self.temprole_duration_left(ctx.author.id)
-        await ctx.send(f'You have {native_format_timedelta(time_left)} until unsilence')
+        await ctx.send(f'You will be unsilenced {native_format_timedelta(time_left)}')
 
     @is_owner()
     @command(aliases=['set_sd'])

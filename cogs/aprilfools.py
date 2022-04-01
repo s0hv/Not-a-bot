@@ -28,8 +28,8 @@ class PointSpawn:
 
 
 class BattleArena(Cog):
-    SPAWN_RATE = 0.1
-    MINIMUM_SPAWN_TIME = timedelta(minutes=2)
+    SPAWN_RATE = 0.08
+    MINIMUM_SPAWN_TIME = timedelta(minutes=3)
 
     def __init__(self, bot):
         super().__init__(bot)
@@ -325,6 +325,10 @@ class BattleArena(Cog):
         COST = 2
 
         if not await self.can_affect(ctx, ctx.author, user):
+            return
+
+        if not self.is_unmuted(ctx.author):
+            await ctx.send('You cannot use this command while silenced')
             return
 
         if random.random() < 0.08:

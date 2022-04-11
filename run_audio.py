@@ -82,6 +82,7 @@ intents.bans = False
 intents.emojis_and_stickers = False
 intents.typing = False
 intents.scheduled_events = False
+intents.message_content = True
 
 
 bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
@@ -95,4 +96,3 @@ bot.run(os.getenv('TOKEN'))
 # have different effects on restarting behavior
 import sys
 sys.exit(bot._exit_code)
-

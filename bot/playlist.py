@@ -38,6 +38,7 @@ from discord import ApplicationContext
 from numpy import delete as delete_by_indices
 from validators import url as valid_url
 
+from bot.bot import Context
 from bot.downloader import Downloader
 from bot.globals import PLAYLISTS
 from bot.paged_message import PagedMessage
@@ -316,7 +317,7 @@ class Playlist:
             await self._append_song(song, priority)
 
             if not no_message:
-                await self.send(f'Enqueued {song.title}', delete_after=20, channel=channel)
+                await self.send(f'Enqueued {song.title}', channel=channel)
 
         except Exception as e:
             logger.exception('Could not add song')
@@ -618,11 +619,11 @@ class Playlist:
 
         return False
 
-    async def send(self, message, channel: Union[ApplicationContext, discord.abc.Messageable]=None, **kwargs):
+    async def send(self, message, channel: Union[ApplicationContext, discord.abc.Messageable, Context]=None, **kwargs):
         if channel is None:
             channel = self.channel
 
-        meth = channel.respond if isinstance(channel, ApplicationContext) else channel.send
+        meth = channel.respond if hasattr(channel, 'respond') else channel.send
 
         try:
             return await meth(message, **kwargs)

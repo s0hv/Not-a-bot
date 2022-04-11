@@ -30,10 +30,12 @@ import discord
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientConnectionError
 from discord import ApplicationContext
+from discord.ext import bridge
 from discord.ext import commands
 from discord.ext.commands import CheckFailure
 
-from bot.commands import command, group, Command, Group, cooldown
+from bot.commands import command, group, Command, Group, cooldown, \
+    bridge_command
 from bot.cooldowns import CooldownMapping
 from bot.formatter import HelpCommand
 from utils.utilities import seconds2str, call_later, check_blacklist
@@ -56,6 +58,7 @@ __all__ = [
     'Group',
     'Command',
     'command',
+    'bridge_command',
     'group',
     'cooldown',
     'Context',
@@ -66,7 +69,7 @@ __all__ = [
 ]
 
 
-class Context(commands.context.Context):
+class Context(bridge.BridgeExtContext):
     __slots__ = ('override_perms', 'skip_check', 'original_user',
                  'received_at')
 
@@ -94,14 +97,8 @@ class Context(commands.context.Context):
 
         return True
 
-    async def respond(self, content: Optional[str]=None, **kwargs):
-        kwargs.pop('ephemeral', None)
-        return await self.send(content, **kwargs)
-
-    async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs):
-        msg = await super().send(content, **kwargs)
-
-        if undoable and msg:
+    def _add_undo(self, msg: discord.Message):
+        if msg:
             old = self.undo_messages.pop(self.author.id, None)
             if old:
                 old[1].cancel()
@@ -111,13 +108,23 @@ class Context(commands.context.Context):
 
             self.undo_messages[self.author.id] = (msg, call_later(a, self.bot.loop, 60))
 
+    async def respond(self, content: Optional[str]=None, *, undoable=False, **kwargs):
+        msg = super().respond(content, **kwargs)
+        if undoable:
+            self._add_undo(msg)
+
+        return msg
+
+    async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs):
+        msg = await super().send(content, **kwargs)
+
+        if undoable:
+            self._add_undo(msg)
+
         return msg
 
 
-class Bot(commands.AutoShardedBot):
-    async def sync_commands(self) -> None:
-        pass
-
+class Bot(bridge.AutoShardedBot):
     def __init__(self, prefix, config, aiohttp=None, **options):
         options.setdefault('help_command', HelpCommand())
         super().__init__(prefix, owner_id=config.owner, **options)
@@ -163,7 +170,7 @@ class Bot(commands.AutoShardedBot):
 
         The default command error handler provided by the bot.
 
-        By default this prints to ``sys.stderr`` however it could be
+        By default, this prints to ``sys.stderr`` however it could be
         overridden to have a different implementation.
 
         This only fires if you do not specify any listeners for command error.
@@ -260,7 +267,7 @@ class Bot(commands.AutoShardedBot):
         logger.warning('Ignoring exception in command {}'.format(context.command))
         logger.exception('', exc_info=exception)
 
-    async def get_context(self, message, *, cls=Context):
+    async def get_context(self, message, *, cls=Context) -> Context:
         # Same as default implementation. This just adds runas variable
         ctx = await super().get_context(message, cls=cls)
         if self.runas is not None and message.author.id == self.owner_id:
@@ -280,7 +287,7 @@ class Bot(commands.AutoShardedBot):
         if message.author.bot:
             return
 
-        ctx = await self.get_context(message, cls=Context)
+        ctx = await self.get_context(message)
         ctx.received_at = local_time
         await self.invoke(ctx)
 
@@ -344,7 +351,7 @@ def has_permissions(**perms):
     Same as the default discord.ext.commands.has_permissions
     except this one supports overriding perms
     """
-    def predicate(ctx):
+    def predicate(ctx: Context):
         if ctx.override_perms:
             return True
 

@@ -34,13 +34,13 @@ from typing import Optional, Union
 import discord
 from discord import AllowedMentions, ApplicationContext
 from discord.commands import (slash_command, permissions, SlashCommandGroup)
-from discord.commands.commands import Option
+from discord.commands.options import Option
 from discord.ext import commands
 from discord.ext.commands import guild_only
 from discord.ext.commands.cooldowns import BucketType
 
 from bot import player
-from bot.bot import command, cooldown, Context
+from bot.bot import command, cooldown, Context, bridge_command
 from bot.converters import TimeDelta, BoolChoices
 from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
@@ -136,7 +136,7 @@ class Audio(commands.Cog):
         """
         Gets the musicplayer for the guild if it exists
         Args:
-            guild_id (int): id the the guild
+            guild_id (int): id of the guild
             is_on (bool):
                 If set on will only accept a musicplayer which has been initialized
                 and is ready to play without work. If it finds unsuitable target
@@ -368,15 +368,10 @@ class Audio(commands.Cog):
 
         musicplayer.player.source2 = player.FFmpegPCMAudio('file', reconnect=False)
 
-    @command(cooldown_after_parsing=True, name='play')
+    @bridge_command(cooldown_after_parsing=True, name='play')
     @guild_only()
     @commands.cooldown(1, 3, type=BucketType.user)
-    async def play_cmd(self, ctx: Context, *, song_name: str):
-        await self.play_song(ctx, song_name)
-
-    @slash_command()
-    @commands.cooldown(1, 3, type=BucketType.user)
-    async def play(self, ctx: ApplicationContext, song_name: str):
+    async def play(self, ctx: ApplicationContext, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search YouTube for them"""
         await ctx.defer()
@@ -1068,14 +1063,9 @@ class Audio(commands.Cog):
 
             await search(name, ctx, site, self.downloader, on_error=on_error)
 
-    @command(name='search')
+    @bridge_command()
     @commands.cooldown(1, 5, type=BucketType.user)
-    async def search_cmd(self, ctx: Context, *, name):
-        await self._search(ctx, name)
-
-    @slash_command()
-    @commands.cooldown(1, 5, type=BucketType.user)
-    async def search(self, ctx: ApplicationContext, name):
+    async def search(self, ctx: ApplicationContext, *, name):
         """Search for songs. Default site is YouTube
         Supported sites: -yt YouTube, -sc Soundcloud
         To use a different site start the search with the site prefix
@@ -1484,22 +1474,15 @@ class Audio(commands.Cog):
         await ctx.respond(f'Cleared {cleared} songs matching {song_name}')
 
     @cooldown(2, 3, type=BucketType.guild)
-    @command(aliases=['vol'], name='volume')
+    @bridge_command(aliases=['vol'], name='volume')
     @guild_only()
-    async def volume_cmd(self, ctx, volume: int=None):
+    async def volume(self, ctx, volume: VolumeType = None):
         """
         Sets the volume of the currently playing song.
         If no parameters are given it shows the current volume instead
         Effective values are between 0 and 200
         """
-        await self.volume(ctx, volume)
-
-    @slash_command(name='volume')
-    async def volume_slash(self, ctx, volume: VolumeType):
-        """Sets the volume of the currently playing song."""
-        await self.volume(ctx, volume)
-
-    async def volume(self, ctx, value: int=None):
+        value = volume
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not await self.check_voice(ctx):
             return
@@ -1533,18 +1516,10 @@ class Audio(commands.Cog):
         await ctx.respond('Set the default volume to {:.0%}'.format(musicplayer.volume))
 
     @commands.cooldown(1, 4, type=BucketType.guild)
-    @command(name='playing', aliases=['np'])
+    @bridge_command(name='playing', aliases=['np'])
     @guild_only()
-    async def playing_cmd(self, ctx):
-        """Gets the currently playing song"""
-        await self.playing(ctx)
-
-    @slash_command(name='playing')
-    async def playing_slash(self, ctx):
-        """Gets the currently playing song"""
-        await self.playing(ctx)
-
     async def playing(self, ctx):
+        """Gets the currently playing song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer or musicplayer.player is None or musicplayer.current is None:
             await ctx.respond('No songs currently in queue')
@@ -1580,16 +1555,10 @@ class Audio(commands.Cog):
             musicplayer.start_playlist()
 
     @cooldown(1, 3, type=BucketType.guild)
-    @command(aliases=['p'], name='pause')
+    @bridge_command(aliases=['p'], name='pause')
     @guild_only()
-    async def pause_cmd(self, ctx):
-        await self.pause(ctx)
-
-    @slash_command(name='pause')
-    async def pause_slash(self, ctx):
-        await self.pause(ctx)
-
     async def pause(self, ctx):
+        """Pauses the currently playing song."""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer:
             musicplayer.pause()
@@ -1611,18 +1580,10 @@ class Audio(commands.Cog):
         await musicplayer.playlist.current_to_file(name, ctx.message.channel)
 
     @cooldown(1, 3, type=BucketType.guild)
-    @command(name='resume', aliases=['r'])
+    @bridge_command(name='resume', aliases=['r'])
     @guild_only()
-    async def resume_cmd(self, ctx):
-        """Resumes the currently played song."""
-        await self.resume(ctx)
-
-    @slash_command(name='resume')
-    async def resume_slash(self, ctx):
-        """Resumes the currently played song."""
-        await self.resume(ctx)
-
     async def resume(self, ctx):
+        """Resumes the currently played song."""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
             if isinstance(ctx, ApplicationContext):
@@ -1725,12 +1686,7 @@ class Audio(commands.Cog):
             await ctx.respond('Disconnected')
 
     @commands.cooldown(1, 6, BucketType.user)
-    @command(name='stop')
-    async def stop_cmd(self, ctx: Context):
-        await self.stop.callback(self, ctx)
-
-    @commands.cooldown(1, 6, BucketType.user)
-    @slash_command()
+    @bridge_command()
     async def stop(self, ctx: Union[ApplicationContext, Context]):
         """Stops playing audio and leaves the voice channel.
         This also clears the queue.
@@ -1758,7 +1714,7 @@ class Audio(commands.Cog):
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
             if ctx.voice_client:
-                await ctx.voice_client.disconnect()
+                await ctx.voice_client.disconnect(force=False)
                 return
 
         resp = await musicplayer.votestop(ctx.author)
@@ -1770,13 +1726,8 @@ class Audio(commands.Cog):
             await ctx.respond(f'{resp} votes until disconnect')
 
     @cooldown(1, 5, type=BucketType.user)
-    @command(aliases=['skipsen', 'skipperino', 's'], name='skip')
+    @bridge_command(aliases=['skipsen', 'skipperino', 's'], name='skip')
     @guild_only()
-    async def skip_cmd(self, ctx):
-        """Skips the current song"""
-        await self.skip.callback(self, ctx)
-
-    @slash_command()
     async def skip(self, ctx):
         """Skips the current song"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
@@ -1795,17 +1746,8 @@ class Audio(commands.Cog):
         await musicplayer.skip(ctx.author, ctx.channel)
 
     @cooldown(1, 5, type=BucketType.user)
-    @command(aliases=['force_skipsen', 'force_skipperino', 'fs'], name='force_skip')
+    @bridge_command(aliases=['force_skipsen', 'force_skipperino', 'fs'], name='force_skip')
     @guild_only()
-    async def force_skip_cmd(self, ctx):
-        """
-        Force skips this song no matter who queued it without requiring any votes
-        For public servers it's recommended you blacklist this from your server
-        and only give some people access to it
-        """
-        await self.force_skip.callback(self, ctx)
-
-    @slash_command(name='force_skip')
     async def force_skip(self, ctx):
         """
         Force skips this song no matter who queued it without requiring any votes

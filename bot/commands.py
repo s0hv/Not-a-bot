@@ -1,5 +1,6 @@
 import logging
 
+from discord.ext import bridge
 from discord.ext import commands
 
 from bot.cooldowns import CooldownMapping, Cooldown
@@ -13,6 +14,13 @@ def command(*args, **attrs):
     if 'cls' not in attrs:
         attrs['cls'] = Command
     return commands.command(*args, **attrs)
+
+
+def bridge_command(**kwargs):
+    def decorator(callback):
+        return BridgeCommand(callback, **kwargs)
+
+    return decorator
 
 
 def group(name=None, **attrs):
@@ -81,3 +89,8 @@ class Group(Command, commands.Group):
             return result
 
         return decorator
+
+
+class BridgeCommand(bridge.BridgeCommand):
+    def get_ext_command(self):
+        return Command(self.callback, **self.kwargs)

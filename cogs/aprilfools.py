@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import math
 import random
 from asyncio.locks import Lock
 from datetime import timedelta, datetime
@@ -15,7 +16,7 @@ from bot.commands import cooldown
 from bot.converters import TimeDelta
 from cogs.cog import Cog
 from cogs.moderator import Moderator
-from utils.utilities import call_later
+from utils.utilities import call_later, native_format_timedelta
 
 logger = logging.getLogger('terminal')
 
@@ -27,12 +28,12 @@ class PointSpawn:
 
 
 class BattleArena(Cog):
-    SPAWN_RATE = 0.03
+    SPAWN_RATE = 0.08
     MINIMUM_SPAWN_TIME = timedelta(minutes=3)
 
     def __init__(self, bot):
         super().__init__(bot)
-        self._penalty_role = 355372880898424832 if bot.test_mode else 826903568065495061
+        self._penalty_role = 355372880898424832 if bot.test_mode else 959150196435075072
         self._battle_channel = 354712220761980939 if bot.test_mode else 297061271205838848
 
         self._guild = 353927534439825429 if bot.test_mode else 217677285442977792
@@ -154,17 +155,30 @@ class BattleArena(Cog):
 
         await self.bot.dbutil.update_user_protect(uid)
 
+    @staticmethod
+    def random_timedelta(lower: timedelta, upper: timedelta) -> timedelta:
+        return timedelta(seconds=random.randint(int(lower.total_seconds()), int(upper.total_seconds())))
+
     @command()
     @cooldown(1, 10, BucketType.user)
     async def join_event(self, ctx):
         """
-        Join the april fools event.!update_bot
+        Join the april fools event.
         """
         user = ctx.author
         if not self.is_participating(user.id):
             self._members.add(user.id)
             await self.bot.dbutil.add_event_users([user.id])
             await ctx.reply(f'Joined the event', mention_author=False)
+
+        role_id = 355372865693941770 if self.bot.test_mode else 959146213645615154
+        role = self.get_guild().get_role(role_id)
+        if role in user.roles:
+            await ctx.send('You already have the event role')
+            return
+
+        await user.add_roles(role)
+        await ctx.send('Event role added')
 
     @command()
     @cooldown(1, 7, BucketType.user)
@@ -276,6 +290,59 @@ class BattleArena(Cog):
         await ctx.reply('Unsilenced', mention_author=False)
 
     @command()
+    @cooldown(1, 2, BucketType.user)
+    async def force_unsilence(self, ctx):
+        """
+        COST 2 + silence hours left * 2
+
+        Remove an active silence on you
+        """
+        author = ctx.author
+        uid = author.id
+
+        if self.is_unmuted(author):
+            await ctx.send('You are not silenced at the moment')
+            return
+
+        COST = 2 + math.ceil(2 * self.temprole_duration_left(uid).total_seconds() / 3600)
+
+        if not await self.has_required_points(ctx, 'force_unsilence', COST):
+            return
+
+        await self.bot.dbutil.update_event_points(uid, -COST)
+        await self.remove_temprole(author)
+        await ctx.reply('Unsilenced', mention_author=False)
+
+    @command()
+    @cooldown(1, 2, BucketType.user)
+    async def rng_pls(self, ctx, *, user: discord.Member):
+        """
+        COST 2
+
+        Silences the given user for 0.5-2h.
+        Rarely silences the caller instead of the target
+        """
+        COST = 2
+
+        if not await self.can_affect(ctx, ctx.author, user):
+            return
+
+        if not self.is_unmuted(ctx.author):
+            await ctx.send('You cannot use this command while silenced')
+            return
+
+        if random.random() < 0.08:
+            user = ctx.author
+
+        if not await self.has_required_points(ctx, 'rng_pls', COST):
+            return
+
+        td = self.random_timedelta(timedelta(minutes=30), timedelta(hours=2))
+        await self.bot.dbutil.update_event_points(ctx.author.id, -COST)
+        if await self.timeout(ctx, user, td, f'{ctx.author} silenced'):
+            await ctx.send(f'Silenced {user}')
+
+    @command()
     @cooldown(1, 1, BucketType.user)
     async def selfdestruct(self, ctx, users: Greedy[discord.Member], *, time: TimeDelta):
         """
@@ -343,6 +410,14 @@ class BattleArena(Cog):
             users_str = f'{", ".join(map(discord.Member.mention.fget, timeouted_users[:-1]))} and {timeouted_users[-1].mention}'
 
         await ctx.send(f'{author.mention} self destructs and takes {users_str} with them.', allowed_mentions=discord.AllowedMentions.none())
+
+    @command()
+    async def unsilence_when(self, ctx):
+        """
+        Check when you'll be unsilenced
+        """
+        time_left = self.temprole_duration_left(ctx.author.id)
+        await ctx.send(f'You will be unsilenced {native_format_timedelta(time_left)}')
 
     @is_owner()
     @command(aliases=['set_sd'])

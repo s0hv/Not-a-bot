@@ -181,7 +181,6 @@ class NotABot(BotBase):
         logger.info('Creating redis connection')
         redis = Redis.from_url(f'redis://{self.config.redis_host}',
                                port=self.config.redis_port,
-                               password=self.config.redis_auth,
                                encoding='utf-8')
 
         return redis

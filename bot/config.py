@@ -89,7 +89,7 @@ class Config:
         self.sfx_db_user = get_config_value(self.config, 'Database', 'SFXUsername', str)
         self.sfx_db_pass = get_config_value(self.config, 'Database', 'SFXPassword', str)
         self.redis_host = get_config_value(self.config, 'Database', 'RedisHost', str) or self.db_host
-        self.redis_auth = get_config_value(self.config, 'Database', 'RedisAuth', str)
+        self.redis_auth = get_config_value(self.config, 'Database', 'RedisAuth', str, None)
         self.redis_port = get_config_value(self.config, 'Database', 'RedisPort', int)
 
         try:

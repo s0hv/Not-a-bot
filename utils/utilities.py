@@ -893,7 +893,7 @@ def check_plural(string, i):
 
 
 def native_format_timedelta(td: timedelta) -> str:
-    return disnake.utils.format_dt(datetime.now()+td, style='R')
+    return disnake.utils.format_dt(utcnow()+td, style='R')
 
 
 def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):

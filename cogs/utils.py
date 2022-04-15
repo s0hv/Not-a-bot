@@ -283,7 +283,7 @@ class Utilities(Cog):
                 i += 1
 
         embed = disnake.Embed(title='Stats', colour=random_color())
-        embed.add_field(name='disnake.py version', value=f"{disnake.__version__}")
+        embed.add_field(name='disnake version', value=f"{disnake.__version__}")
         embed.add_field(name='Uptime', value=uptime)
         if ctx.guild and ctx.guild.shard_id is not None:
             embed.add_field(name='Shard', value=ctx.guild.shard_id)

@@ -4,7 +4,6 @@ import random
 import re
 import shlex
 import textwrap
-import unicodedata
 from collections import Counter
 from datetime import datetime
 from datetime import timedelta
@@ -15,6 +14,7 @@ from typing import Union, Optional
 
 import disnake
 import emoji
+import unicodedata
 from aioredis import Redis
 from aioredis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
@@ -258,7 +258,8 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None,  data={"id": 318432714984521728, "name": "Za Warudo"}),
         disnake.Role(guild=None, state=None,  data={"id": 376789104794533898, "name": "no u"}),
         disnake.Role(guild=None, state=None,  data={"id": 348900633979518977, "name": "Role to die"}),
-        disnake.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"})
+        disnake.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"}),
+        disnake.Role(guild=None, state=None,  data={"id": 318383761953652741, "name": "The Ashura"})
     }
 }
 

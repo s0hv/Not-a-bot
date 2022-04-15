@@ -2,8 +2,10 @@ import asyncio
 import logging
 import os
 from datetime import timedelta
+from typing import Optional
 
-import dbl
+import aiohttp
+import topgg
 
 from cogs.cog import Cog
 
@@ -16,19 +18,23 @@ class DBApi(Cog):
         self.bot.server.add_listener(self.on_vote)
         self._token = self.bot.config.dbl_token
         self.update_task = None
-        self.dbl = None
+        self.dbl: Optional[topgg.DBLClient] = None
+
+    async def cog_load(self):
+        await super().cog_load()
         if not self.bot.test_mode:
-            asyncio.run_coroutine_threadsafe(self._thread_safe_init(), loop=self.bot.loop)
+            await self._thread_safe_init()
 
     async def _thread_safe_init(self):
-        self.dbl = dbl.DBLClient(self.bot, self._token, loop=self.bot.loop)
+        self.dbl = topgg.DBLClient(self._token)
         self.update_task = self.bot.loop.create_task(self.update_stats())
 
     async def on_vote(self, json):
         s = f'<@{json["user"]}> voted for <@{json["bot"]}>'
         json = {'content': s}
         headers = {'Content-type': 'application/json'}
-        await self.bot.aiohttp_client.post(self.bot.config.dbl_webhook, json=json, headers=headers)
+        async with aiohttp.ClientSession() as client:
+            await client.post(self.bot.config.dbl_webhook, json=json, headers=headers)
 
     async def _thread_safe_stop(self):
         if self.update_task:
@@ -43,15 +49,17 @@ class DBApi(Cog):
 
     def cog_unload(self):
         self.bot.server.remove_listener(self.on_vote)
-        asyncio.run_coroutine_threadsafe(self._thread_safe_stop(), loop=self.bot.loop).result(21)
+        self.bot.loop.create_task(self._thread_safe_stop())
 
     async def update_stats(self):
         while True:
             await asyncio.sleep(3600)
             logger.info('Posting server count')
             try:
-                await self.dbl.post_guild_count()
+                await self.dbl.post_guild_count(guild_count=len(self.bot.guilds))
                 logger.info(f'Posted server count {len(self.bot.guilds)}')
+            except topgg.ServerError:
+                pass
             except Exception as e:
                 logger.exception(f'Failed to post server count\n{e}')
 
@@ -59,9 +67,9 @@ class DBApi(Cog):
 
     async def _check_votes(self):
         try:
-            botinfo = await self.dbl.get_bot_info(self.bot.user.id)
+            bot_info = await self.dbl.get_bot_info(self.bot.user.id)
         except Exception as e:
-            logger.exception(f'Failed to get botinfo\n{e}')
+            logger.exception(f'Failed to get bot info\n{e}')
             return
 
         server_specific = self.bot.get_cog('ServerSpecific')
@@ -75,7 +83,7 @@ class DBApi(Cog):
         with open(os.path.join(os.getcwd(), 'data', 'votes.txt'), 'r') as f:
             old_votes = int(f.read().strip(' \n\r\t'))
 
-        points = botinfo['points']
+        points = bot_info.points
         new_votes = points - old_votes
         new_giveaways = new_votes // 20
         if not new_giveaways:

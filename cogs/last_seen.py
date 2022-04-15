@@ -1,9 +1,10 @@
 import asyncio
-from datetime import datetime
 
-import discord
+import disnake
+from disnake.ext import tasks
 
 from cogs.cog import Cog
+from utils.utilities import utcnow
 
 
 class UserSeen:
@@ -11,7 +12,7 @@ class UserSeen:
         self.user_id = user.id
         self.username = str(user)
         self.guild_id = 0 if guild_id is None else guild_id
-        self.timestamp = datetime.utcnow()
+        self.timestamp = utcnow()
 
     def __hash__(self):
         return hash(self.user_id)
@@ -32,17 +33,12 @@ class LastSeen(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self._updates = set()
-        self._update_task = asyncio.run_coroutine_threadsafe(self._status_loop(), loop=bot.loop)
-        self._update_task_checker = asyncio.run_coroutine_threadsafe(self._check_loop(), loop=bot.loop)
-        self._update_now = asyncio.Event(loop=bot.loop)
+        self._update_task = bot.loop.create_task(self._status_loop(), name='update_last_seen')
+        self._update_now = asyncio.Event()
 
     def cog_unload(self):
-        self._update_task_checker.cancel()
-        self.bot.loop.call_soon_threadsafe(self._update_now.set)
-        try:
-            self._update_task.result(timeout=20)
-        except (asyncio.CancelledError, asyncio.TimeoutError, asyncio.InvalidStateError):
-            self._update_task.cancel()
+        self._check_loop.cancel()
+        self._update_task.cancel()
 
     async def save_updates(self):
         if not self._updates:
@@ -66,8 +62,8 @@ class LastSeen(Cog):
         await self.bot.dbutils.multiple_last_seen(user_ids, usernames, guild_ids, times)
         del updates
 
+    @tasks.loop(minutes=2)
     async def _check_loop(self):
-        await asyncio.sleep(120)
         if self._update_task.done():
             self._update_task = self.bot.loop.create_task(self._status_loop())
 
@@ -104,7 +100,7 @@ class LastSeen(Cog):
 
     @staticmethod
     def get_guild(user):
-        if isinstance(user, discord.user.BaseUser):
+        if isinstance(user, disnake.user.BaseUser):
             return None
         else:
             return user.guild.id

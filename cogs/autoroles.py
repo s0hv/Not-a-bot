@@ -2,7 +2,7 @@ import logging
 import time
 from random import choice
 
-import discord
+import disnake
 
 from cogs.cog import Cog
 from utils.utilities import Snowflake, wants_to_be_noticed
@@ -19,7 +19,7 @@ class AutoRoles(Cog):
         return self.bot.dbutil
 
     @Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: disnake.Message):
         if self.bot.test_mode:
             return
 
@@ -28,12 +28,12 @@ class AutoRoles(Cog):
             if message.webhook_id:
                 return
 
-            if discord.utils.find(lambda r: r.id == 884490396225388585, message.role_mentions):
-                if not discord.utils.get(message.author.roles, id=884490396225388585):
+            if disnake.utils.find(lambda r: r.id == 884490396225388585, message.role_mentions):
+                if not disnake.utils.get(message.author.roles, id=884490396225388585):
                     await message.author.add_roles(Snowflake(884490396225388585), reason='Pinged every')
 
     @Cog.listener()
-    async def on_member_update(self, before, after):
+    async def on_member_update(self, before: disnake.Member, after: disnake.Member):
         if self.bot.test_mode:
             return
 
@@ -52,7 +52,7 @@ class AutoRoles(Cog):
             if added:
                 await self.dbutil.add_user_roles(added, before.id, guild.id)
 
-    async def add_random_color(self, member):
+    async def add_random_color(self, member: disnake.Member):
         if self.bot.guild_cache.random_color(member.guild.id) and hasattr(self.bot, 'colors'):
             colors = self.bot.colors.get(member.guild.id, {}).values()
             color_ids = {r.role_id for r in colors}
@@ -63,11 +63,11 @@ class AutoRoles(Cog):
                 return
             try:
                 await member.add_roles(Snowflake(id=choice(list(color_ids))), reason='Automatic coloring')
-            except (discord.NotFound, discord.Forbidden):
+            except (disnake.NotFound, disnake.Forbidden):
                 pass
 
     @Cog.listener()
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: disnake.Member):
         guild = member.guild
 
         bot_member = guild.get_member(self.bot.user.id)
@@ -93,9 +93,9 @@ class AutoRoles(Cog):
                 try:
                     await member.add_roles(Snowflake(muted_role), atomic=True, reason='[Keeproles] add muted role first')
                     roles.discard(muted_role)
-                except (discord.NotFound, discord.Forbidden):
+                except (disnake.NotFound, disnake.Forbidden):
                     pass
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     terminal.exception('[KeepRoles] Failed to add muted role first')
 
         if self.bot.guild_cache.random_color(guild.id) and hasattr(self.bot, 'colors'):
@@ -112,26 +112,26 @@ class AutoRoles(Cog):
 
             try:
                 await member.add_roles(*roles, atomic=len(roles) < 5, reason='Keeproles')
-            except discord.NotFound:
-                # If member left before adding roles dont do anything
+            except disnake.NotFound:
+                # If member left before adding roles don't do anything
                 return
 
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 for role in roles:
                     try:
                         await member.add_roles(role, reason='Keeproles')
-                    except discord.Forbidden:
+                    except disnake.Forbidden:
                         pass
-                    except discord.NotFound:
+                    except disnake.NotFound:
                         return
-                    except discord.ClientException:
+                    except disnake.ClientException:
                         terminal.exception('Failed to give role on join')
 
         if guild.id == 217677285442977792:
             await wants_to_be_noticed(member, guild)
 
     @Cog.listener()
-    async def on_member_remove(self, member):
+    async def on_member_remove(self, member: disnake.Member):
         if not self.bot.guild_cache.keeproles(member.guild.id):
             return
 
@@ -148,7 +148,7 @@ class AutoRoles(Cog):
             terminal.debug('{}/{} saved roles {}'.format(member.guild.id, member.id, ', '.join(map(str, roles))))
 
     @staticmethod
-    def compare_roles(before, after):
+    def compare_roles(before: disnake.Member, after: disnake.Member):
         default_role = before.guild.default_role.id
         before = set(map(lambda r: r.id, before.roles))
         after = set(map(lambda r: r.id, after.roles))

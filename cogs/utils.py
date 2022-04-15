@@ -14,16 +14,17 @@ from typing import Union
 from urllib.parse import quote
 
 import aiohttp
-import discord
+import disnake
 import psutil
 import pytz
 from asyncpg.exceptions import PostgresError
 from dateutil import parser
 from dateutil.tz import gettz
-from discord.ext.commands import (BucketType, Group, clean_content)
-from discord.ext.commands.errors import BadArgument
+from disnake.ext.commands import (BucketType, Group, clean_content, cooldown,
+                                  guild_only)
+from disnake.ext.commands.errors import BadArgument
 
-from bot.bot import command, cooldown, bot_has_permissions, Context
+from bot.bot import command, bot_has_permissions, Context
 from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
 from enums.discord_enums import TimestampFormat
@@ -32,7 +33,7 @@ from utils.unzalgo import unzalgo
 from utils.utilities import (random_color, get_avatar, split_string,
                              get_emote_url, send_paged_message,
                              format_timedelta, parse_timeout,
-                             DateAccuracy, formatted_datetime)
+                             DateAccuracy, formatted_datetime, utcnow)
 
 try:
     from pip.commands import SearchCommand
@@ -57,12 +58,12 @@ class Utilities(Cog):
         rows = await self.bot.dbutil.fetch(sql)
 
         def create_embed(row):
-            embed = discord.Embed(title='Changelog', description=row['changes'],
+            embed = disnake.Embed(title='Changelog', description=row['changes'],
                                   timestamp=row['time'])
             return embed
 
         def get_page(page, idx):
-            if not isinstance(page, discord.Embed):
+            if not isinstance(page, disnake.Embed):
                 page = create_embed(page)
                 page.set_footer(text=f'Page {idx+1}/{len(rows)}')
                 rows[idx] = page
@@ -84,7 +85,7 @@ class Utilities(Cog):
         if ctx.received_at:
             local_delay = t - ctx.received_at
         else:
-            local_delay = datetime.utcnow().timestamp() - ctx.message.created_at.timestamp()
+            local_delay = utcnow().timestamp() - ctx.message.created_at.timestamp()
 
         await ctx.trigger_typing()
         t = time.perf_counter() - t
@@ -188,7 +189,7 @@ class Utilities(Cog):
         source = f'<{url}>\n```py\n{source}\n```'
 
         if len(source) > 2000:
-            file = discord.File(StringIO(original_source), filename=f'{full_name}.py')
+            file = disnake.File(StringIO(original_source), filename=f'{full_name}.py')
             await ctx.send(f'Content was longer than 2000 ({len(source)} > 2000)\n<{url}>', file=file)
             return
         await ctx.send(source)
@@ -281,8 +282,8 @@ class Utilities(Cog):
                 top_cmd += f'{i}. `{name}` with {row["uses"]} uses\n'
                 i += 1
 
-        embed = discord.Embed(title='Stats', colour=random_color())
-        embed.add_field(name='discord.py version', value=f"{discord.__version__}")
+        embed = disnake.Embed(title='Stats', colour=random_color())
+        embed.add_field(name='disnake.py version', value=f"{disnake.__version__}")
         embed.add_field(name='Uptime', value=uptime)
         if ctx.guild and ctx.guild.shard_id is not None:
             embed.add_field(name='Shard', value=ctx.guild.shard_id)
@@ -296,8 +297,9 @@ class Utilities(Cog):
 
         await ctx.send(embed=embed)
 
-    @command(name='roles', no_pm=True)
+    @command(name='roles')
     @cooldown(1, 10, type=BucketType.guild)
+    @guild_only()
     async def get_roles(self, ctx, page=''):
         """Get roles on this server"""
         guild_roles = sorted(ctx.guild.roles, key=lambda r: r.name)
@@ -327,7 +329,7 @@ class Utilities(Cog):
         except ValueError:
             return await ctx.send("{} isn't a valid integer".format(id))
 
-        await ctx.send(str(discord.utils.snowflake_time(id)))
+        await ctx.send(str(disnake.utils.snowflake_time(id)))
 
     @command(hidden=True)
     @cooldown(1, 5, BucketType.user)
@@ -365,7 +367,7 @@ class Utilities(Cog):
         if not webhook:
             return await ctx.send('This command is unavailable atm')
 
-        e = discord.Embed(title='Feedback', description=feedback)
+        e = disnake.Embed(title='Feedback', description=feedback)
         author = ctx.author
         avatar = get_avatar(author)
         e.set_thumbnail(url=avatar)
@@ -379,7 +381,8 @@ class Utilities(Cog):
         headers = {'Content-type': 'application/json'}
         success = False
         try:
-            r = await self.bot.aiohttp_client.post(webhook, json=json, headers=headers)
+            async with aiohttp.ClientSession() as client:
+                r = await client.post(webhook, json=json, headers=headers)
         except aiohttp.ClientError:
             logger.exception('')
         else:
@@ -477,18 +480,19 @@ class Utilities(Cog):
         if not hit:
             return await ctx.send('No matches')
 
-        async with self.bot.aiohttp_client.get(f'https://pypi.org/pypi/{quote(hit["name"])}/json') as r:
-            if r.status != 200:
-                return await ctx.send(f'HTTP error {r.status}')
+        async with aiohttp.ClientSession() as client:
+            async with client.get(f'https://pypi.org/pypi/{quote(hit["name"])}/json') as r:
+                if r.status != 200:
+                    return await ctx.send(f'HTTP error {r.status}')
 
-            json = await r.json()
+                json = await r.json()
 
         info = json['info']
         description = info['description']
         if len(description) > 1000:
             description = split_string(description, splitter='\n', maxlen=1000)[0] + '...'
 
-        embed = discord.Embed(title=hit['name'],
+        embed = disnake.Embed(title=hit['name'],
                               description=description,
                               url=info["package_url"])
         embed.add_field(name='Author', value=info['author'] or 'None')
@@ -524,7 +528,7 @@ class Utilities(Cog):
         user = ctx.author
         if not timezone:
             tz = await self.get_timezone(ctx, user.id)
-            s = tz.localize(datetime.utcnow()).strftime('Your current timezone is UTC %z')
+            s = tz.localize(utcnow()).strftime('Your current timezone is UTC %z')
             await ctx.send(s)
             return
 
@@ -626,7 +630,7 @@ class Utilities(Cog):
                     duration = user_tz.localize(date) - datetime.now(user_tz)
                 else:
                     # UTC timezones are inverted in dateutil UTC+3 gives UTC-3
-                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(datetime.utcnow()).total_seconds()//60)
+                    tz = pytz.FixedOffset(date.tzinfo.utcoffset(utcnow()).total_seconds()//60)
                     duration = date.replace(tzinfo=tz) - datetime.now(user_tz)
 
                 addition = duration.days >= 0
@@ -760,12 +764,12 @@ class Utilities(Cog):
 
     @command(aliases=['who', 'user', 'whois'])
     @cooldown(7, 10, BucketType.guild)
-    async def userinfo(self, ctx: Context, *, user: Union[discord.Member, discord.User]):
+    async def userinfo(self, ctx: Context, *, user: Union[disnake.Member, disnake.User]):
         """
         Shows info of a user.
         Using the username might not always work.  In those cases use the user id
         """
-        embed = discord.Embed(title=str(user))
+        embed = disnake.Embed(title=str(user))
         embed.set_thumbnail(url=get_avatar(user))
         embed.add_field(name='Username', value=str(user))
         embed.add_field(name='ID', value=str(user.id))
@@ -775,7 +779,7 @@ class Utilities(Cog):
             value=formatted_datetime(user.created_at, TimestampFormat.Relative)
         )
 
-        if isinstance(user, discord.Member):
+        if isinstance(user, disnake.Member):
             embed.add_field(
                 name='Joined at',
                 value=formatted_datetime(user.joined_at, TimestampFormat.Relative)

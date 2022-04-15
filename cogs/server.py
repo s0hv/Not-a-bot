@@ -1,26 +1,26 @@
 import logging
-import logging
 import ntpath
 import os
 import random
 import time
 import typing
-from datetime import datetime
 from io import BytesIO
 from math import ceil
 
-import discord
+import disnake
 from PIL import Image
-from discord.ext.commands import BucketType, PartialEmojiConverter, Greedy, \
-    clean_content
-from discord.user import BaseUser
+from disnake.ext.commands import (
+    BucketType, PartialEmojiConverter, Greedy, clean_content, cooldown,
+    Cooldown, CooldownMapping, NoPrivateMessage
+)
+from disnake.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import (command, has_permissions, cooldown, group,
-                     guild_has_features, bot_has_permissions)
+from bot.bot import (command, has_permissions, group,
+                     guild_has_features, bot_has_permissions, Context)
 from bot.converters import PossibleUser, GuildEmoji
-from bot.cooldowns import CooldownMapping, Cooldown
-from bot.formatter import Paginator
+from bot.formatter import EmbedPaginator
+from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
@@ -29,7 +29,7 @@ from utils.utilities import (send_paged_message,
                              format_timedelta, DateAccuracy,
                              wait_for_yes, get_image,
                              get_emote_name_id, split_string,
-                             get_filename_from_url)
+                             get_filename_from_url, utcnow)
 
 logger = logging.getLogger('terminal')
 
@@ -51,7 +51,12 @@ class Server(Cog):
         self.bot.afks = self.afks
         self._afk_cd = CooldownMapping(Cooldown(1, 4), BucketType.guild)
 
-    @group(no_pm=True, invoke_without_command=True)
+    async def cog_check(self, ctx: Context) -> bool:
+        if ctx.guild is None:
+            raise NoPrivateMessage()
+        return True
+
+    @group(invoke_without_command=True)
     @cooldown(1, 20, type=BucketType.user)
     async def top(self, ctx, page: int=1):
         """Get the top users on this server based on the most important values"""
@@ -70,7 +75,7 @@ class Server(Cog):
             filtered_roles = {321374867557580801, 331811458012807169, 361889118210359297, 380814558769578003,
                               337290275749756928, 422432520643018773, 322837972317896704, 323492471755636736,
                               329293030957776896, 317560511929647118, 363239074716188672, 365175139043901442}
-            filtered_roles = {discord.Role(guild=None, state=None, data={"id": id_, "name": ""}) for id_ in filtered_roles}
+            filtered_roles = {disnake.Role(guild=None, state=None, data={"id": id_, "name": ""}) for id_ in filtered_roles}
 
             def sort(member):
                 return len(set(member.roles) - filtered_roles)
@@ -131,7 +136,7 @@ class Server(Cog):
 
         try:
             idx = sorted_users.index(ctx.author) + 1
-            t = datetime.utcnow() - key(ctx.author)
+            t = utcnow() - key(ctx.author)
             t = format_timedelta(t, DateAccuracy.Day)
             own_rank = f'\nYour rank is {idx}. You {dtype} {t} ago at {key(ctx.author).strftime("%a, %d %b %Y %H:%M:%S GMT")}\n'
         except ValueError:
@@ -147,7 +152,7 @@ class Server(Cog):
                 return 'Page out of range'
 
             for idx, u in enumerate(page):
-                t = datetime.utcnow() - key(u)
+                t = utcnow() - key(u)
                 t = format_timedelta(t, DateAccuracy.Day)
 
                 join_date = key(u).strftime('%a, %d %b %Y %H:%M:%S GMT')
@@ -169,7 +174,7 @@ class Server(Cog):
     @cooldown(1, 10)
     async def join(self, ctx, page: int=1):
         """Sort users by join date"""
-        await self._date_sort(ctx, page, lambda u: u.joined_at or datetime.utcnow(), 'joined')
+        await self._date_sort(ctx, page, lambda u: u.joined_at or utcnow(), 'joined')
 
     @top.command(np_pm=True)
     @cooldown(1, 10)
@@ -184,19 +189,19 @@ class Server(Cog):
 
         page_entries = 5
         page_count = ceil(len(stats) / page_entries)
-        pages = [False for _ in range(page_count)]
+        pages: list[bool | disnake.Embed] = [False for _ in range(page_count)]
 
         title = f'Mute roll stats for guild {ctx.guild}'
 
-        def cache_page(idx, custom_description=None):
-            i = idx * page_entries
+        def cache_page(page_idx: int, custom_description=None):
+            i = page_idx * page_entries
             rows = stats[i:i + page_entries]
             if custom_description:
-                embed = discord.Embed(title=title, description=custom_description)
+                embed = disnake.Embed(title=title, description=custom_description)
             else:
-                embed = discord.Embed(title=title)
+                embed = disnake.Embed(title=title)
 
-            embed.set_footer(text=f'Page {idx + 1}/{len(pages)}')
+            embed.set_footer(text=f'Page {page_idx + 1}/{len(pages)}')
             for row in rows:
                 winrate = round(row['wins'] * 100 / row['games'], 1)
                 v = f'<@{row["uid"]}>\n' \
@@ -207,19 +212,20 @@ class Server(Cog):
                     f'Biggest loss streak: {row["biggest_lose_streak"]}'
                 embed.add_field(name=f'{row["games"]} games', value=v)
 
-            pages[idx] = embed
+            pages[page_idx] = embed
             return embed
 
         # Used for putting callers stats in the description of embed
         custom_desc = None
 
-        def get_page(page, idx):
+        def get_page(page_idx: int):
+            page = pages[page_idx]
             if not page:
-                return cache_page(idx, custom_desc)
+                return cache_page(page_idx, custom_desc)
 
             return page
 
-        if isinstance(user, BaseUser) or isinstance(user, discord.Member):
+        if isinstance(user, BaseUser) or isinstance(user, disnake.Member):
             user_id = user.id
         else:
             user_id = user
@@ -240,9 +246,11 @@ class Server(Cog):
                     custom_desc = d
                     break
 
-        await send_paged_message(ctx, pages, embed=True, page_method=get_page)
+        paginator = Paginator(pages, generate_page=get_page)
 
-    @group(no_dm=True, aliases=['mr_top', 'mr_stats', 'mrtop'], invoke_without_command=True)
+        await paginator.send(ctx)
+
+    @group(aliases=['mr_top', 'mr_stats', 'mrtop'], invoke_without_command=True)
     @cooldown(2, 5, BucketType.guild)
     async def mute_roll_top(self, ctx, *, user: PossibleUser=None):
         """
@@ -252,19 +260,19 @@ class Server(Cog):
         """
         await self._post_mr_top(ctx, user or ctx.author)
 
-    @mute_roll_top.command(no_dm=True)
+    @mute_roll_top.command()
     @cooldown(2, 5, BucketType.guild)
     async def games(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by amount of games played"""
         await self._post_mr_top(ctx, user or ctx.author, sort='games')
 
-    @mute_roll_top.command(no_dm=True)
+    @mute_roll_top.command()
     @cooldown(2, 5, BucketType.guild)
     async def wins(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by amount of games won"""
         await self._post_mr_top(ctx, user or ctx.author, sort='wins')
 
-    @mute_roll_top.command(no_dm=True, aliases=['wr'])
+    @mute_roll_top.command(aliases=['wr'])
     @cooldown(2, 5, BucketType.guild)
     async def winrate(self, ctx, *, user: PossibleUser=None):
         """
@@ -275,13 +283,13 @@ class Server(Cog):
         sort = '1/SQRT( POWER((1 - wins / games::decimal), 2) + POWER(1 / games::decimal, 2)* 0.9 )'
         await self._post_mr_top(ctx, user or ctx.author, sort=sort)
 
-    @mute_roll_top.command(no_dm=True, aliases=['ws'])
+    @mute_roll_top.command(aliases=['ws'])
     @cooldown(2, 5, BucketType.guild)
     async def winstreak(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by highest winstreak"""
         await self._post_mr_top(ctx, user or ctx.author, sort='biggest_streak')
 
-    @mute_roll_top.command(no_dm=True, aliases=['ls'])
+    @mute_roll_top.command(aliases=['ls'])
     @cooldown(2, 5, BucketType.guild)
     async def losestreak(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by highest losing streak"""
@@ -289,8 +297,7 @@ class Server(Cog):
 
     async def _dl(self, ctx, url):
         try:
-            data, mime_type = await raw_image_from_url(url, self.bot.aiohttp_client,
-                                                       get_mime=True)
+            data, mime_type = await raw_image_from_url(url, get_mime=True)
         except OverflowError:
             await ctx.send('Failed to download. File is too big')
         except TypeError:
@@ -298,7 +305,7 @@ class Server(Cog):
         else:
             return data, mime_type
 
-    @command(no_pm=True, aliases=['delete_emoji', 'delete_emtoe', 'del_emote'])
+    @command(aliases=['delete_emoji', 'delete_emtoe', 'del_emote'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
@@ -314,13 +321,13 @@ class Server(Cog):
         try:
             for emote in emotes:
                 await emote.delete()
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send('Failed to delete emote %s because of an error\n%s' % (emote, e))
 
         else:
             await ctx.send(f'Deleted emotes {" ".join([e.name for e in emotes])}')
 
-    @command(no_pm=True, aliases=['addemote', 'addemoji', 'add_emoji', 'add_emtoe'])
+    @command(aliases=['addemote', 'addemoji', 'add_emoji', 'add_emtoe'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
@@ -350,16 +357,16 @@ class Server(Cog):
 
         try:
             await guild.create_custom_emoji(name=name, image=data.getvalue(), reason=f'{ctx.author} created emote')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send('Failed to create emote because of an error\n%s\nDId you check if the image is under 256kb in size' % e)
         else:
             await ctx.send('created emote %s' % name)
 
-    @command(no_pm=True)
+    @command()
     @cooldown(2, 6)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def rename(self, ctx, emote: discord.Emoji, new_name):
+    async def rename(self, ctx, emote: disnake.Emoji, new_name):
         """Rename the given emote"""
         if ctx.guild != emote.guild:
             await ctx.send('The emote is not from this server')
@@ -367,18 +374,18 @@ class Server(Cog):
 
         try:
             await emote.edit(name=new_name)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to rename emote\n{e}')
 
         await ctx.send(f'Renamed the given emote to {new_name}')
 
-    @command(no_pm=True, aliases=['trihard'])
+    @command(aliases=['trihard'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def steal(self, ctx, emoji: Greedy[PartialEmojiConverter]=None,
-                    message: typing.Optional[discord.Message]=None,
-                    user: discord.Member=None):
+                    message: typing.Optional[disnake.Message]=None,
+                    user: disnake.Member=None):
         """Add emotes to this server from other servers.
         You can either use the emotes you want separated by spaces in the message
         or you can give a message id in the channel that the command is run in to fetch
@@ -401,7 +408,7 @@ class Server(Cog):
                     continue
 
                 emotes.append(
-                    discord.PartialEmoji.with_state(self.bot._connection,
+                    disnake.PartialEmoji.with_state(self.bot._connection,
                                                     animated=animated,
                                                     name=name,
                                                     id=eid)
@@ -409,10 +416,10 @@ class Server(Cog):
 
         elif user:
             for activity in user.activities:
-                if isinstance(activity, discord.CustomActivity) and activity.emoji:
+                if isinstance(activity, disnake.CustomActivity) and activity.emoji:
                     e = activity.emoji
                     emotes.append(
-                        discord.PartialEmoji.with_state(self.bot._connection,
+                        disnake.PartialEmoji.with_state(self.bot._connection,
                                                         animated=e.animated,
                                                         name=e.name,
                                                         id=e.id)
@@ -440,7 +447,7 @@ class Server(Cog):
 
             try:
                 data = await emote.url.read()
-            except (discord.DiscordException, discord.HTTPException) as e:
+            except (disnake.DiscordException, disnake.HTTPException) as e:
                 await ctx.send(f'Failed to download emote {emote.name}\n{e}')
                 errors += 1
                 continue
@@ -448,14 +455,14 @@ class Server(Cog):
             try:
                 em = await guild.create_custom_emoji(name=emote.name, image=data, reason=f'{ctx.author} stole emote')
                 stolen.append(str(em))
-            except discord.HTTPException as e:
+            except disnake.HTTPException as e:
                 if e.code == 30008:
                     await ctx.send('Emote capacity reached\n{}'.format(e))
                     break
 
                 await ctx.send(f'Error while uploading emote {emote.name}\n%s' % e)
                 errors += 1
-            except discord.ClientException:
+            except disnake.ClientException:
                 await ctx.send(f'Failed to create emote {emote.name} because of an error')
                 logger.exception('Failed to create emote')
                 errors += 1
@@ -463,7 +470,7 @@ class Server(Cog):
             try:
                 if len(stolen) != 0 and len(stolen) % 5 == 0:
                     await update_msg.edit(content=f'{stolen} emotes stolen')
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
         if stolen:
@@ -471,7 +478,7 @@ class Server(Cog):
         else:
             await ctx.send("Didn't steal anything")
 
-    @command(no_pm=True)
+    @command()
     @bot_has_permissions(embed_links=True)
     @cooldown(1, 20, BucketType.guild)
     async def channels(self, ctx):
@@ -482,7 +489,7 @@ class Server(Cog):
         channel_categories = {}
 
         for chn in sorted(ctx.guild.channels, key=lambda c: c.position):
-            if isinstance(chn, discord.CategoryChannel) and chn.id not in channel_categories:
+            if isinstance(chn, disnake.CategoryChannel) and chn.id not in channel_categories:
                 channel_categories[chn.id] = []
             else:
                 category = chn.category_id
@@ -495,8 +502,8 @@ class Server(Cog):
 
         def make_category(channels):
             val = ''
-            for chn in sorted(channels, key=lambda c: isinstance(c, discord.VoiceChannel)):
-                if isinstance(chn, discord.VoiceChannel):
+            for chn in sorted(channels, key=lambda c: isinstance(c, disnake.VoiceChannel)):
+                if isinstance(chn, disnake.VoiceChannel):
                     val += '\\🔊 '
                 else:
                     val += '# '
@@ -508,7 +515,7 @@ class Server(Cog):
         if None in channel_categories:
             description = make_category(channel_categories.pop(None))
 
-        paginator = Paginator(title='Channels', description=description)
+        paginator = EmbedPaginator(title='Channels', description=description)
 
         for category_id in sorted(channel_categories.keys(), key=lambda k: ctx.guild.get_channel(k).position):
             category = ctx.guild.get_channel(category_id)
@@ -522,9 +529,9 @@ class Server(Cog):
         for page in paginator.pages:
             await ctx.send(embed=page)
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 10, BucketType.user)
-    async def join_date(self, ctx, user: discord.User=None):
+    async def join_date(self, ctx, user: disnake.User=None):
         """
         Returns the first recorded join date to this server.
         Dates before December 17th 2019 might not be the earliest join date
@@ -537,7 +544,7 @@ class Server(Cog):
 
         await ctx.send(f'First recorded join for {user} is {date.strftime("%Y-%m-%d %H:%M")} (YYYY-MM-DD)')
 
-    @command(no_pm=True)
+    @command()
     @has_permissions(administrator=True)
     @cooldown(1, 10)
     async def delete_server(self, ctx):
@@ -545,9 +552,9 @@ class Server(Cog):
         Deletes server
         """
         p = os.path.join('data', 'templates', 'loading.gif')
-        await ctx.send('Please wait. Server deletion in progress', file=discord.File(p, filename='loading.gif'))
+        await ctx.send('Please wait. Server deletion in progress', file=disnake.File(p, filename='loading.gif'))
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 15, BucketType.guild)
     @has_permissions(manage_guild=True)
     async def pls(self, ctx, image=None):
@@ -597,7 +604,7 @@ class Server(Cog):
 
         await ctx.send(f'Saved banner image as {file}')
 
-    @command(no_pm=True, aliases=['bremove', 'delete_banner'])
+    @command(aliases=['bremove', 'delete_banner'])
     @cooldown(1, 5, BucketType.guild)
     @has_permissions(manage_guild=True)
     async def remove_banner(self, ctx, filename):
@@ -642,9 +649,9 @@ class Server(Cog):
 
         data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
 
-        await ctx.send(f'Deleted {filename}', file=discord.File(data, filename))
+        await ctx.send(f'Deleted {filename}', file=disnake.File(data, filename))
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 15, BucketType.guild)
     async def banners(self, ctx, filename=None):
         """
@@ -738,13 +745,13 @@ class Server(Cog):
         try:
             for data, filenames in await self.bot.loop.run_in_executor(self.bot.threadpool, do_it):
                 filenames = '\n'.join(filenames)
-                await ctx.send(f'```\n{filenames}\n```', file=discord.File(data, 'banners.png'))
+                await ctx.send(f'```\n{filenames}\n```', file=disnake.File(data, 'banners.png'))
         except OSError:
             logger.exception('Failed to load banners')
             await ctx.send('Failed to show banners')
             return
 
-    @command(no_pm=True, aliases=['brotate'])
+    @command(aliases=['brotate'])
     @guild_has_features('BANNER')
     @bot_has_permissions(manage_guild=True)
     @cooldown(1, 1800, BucketType.guild)
@@ -802,7 +809,7 @@ class Server(Cog):
 
         try:
             await guild.edit(banner=data)
-        except (discord.HTTPException, discord.InvalidArgument) as e:
+        except (disnake.HTTPException, disnake.InvalidArgument) as e:
             await ctx.send(f'Failed to set banner because of an error\n{e}')
             return
 
@@ -824,7 +831,7 @@ class Server(Cog):
             guild_afk.pop(user.id, None)
             try:
                 await message.channel.send(f'`{user}` is no longer afk', delete_after=10)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
             return
 
@@ -857,7 +864,7 @@ class Server(Cog):
         try:
             for msg in messages:
                 await message.channel.send(msg)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return
 
     @command(np_pm=True)
@@ -880,7 +887,7 @@ class Server(Cog):
     @command(aliases=['delete_afk', 'clear_afk'])
     @has_permissions(manage_roles=True)
     @cooldown(2, 4, BucketType.guild)
-    async def remove_afk(self, ctx, *, user: discord.User):
+    async def remove_afk(self, ctx, *, user: disnake.User):
         """
         Removes the afk of the mentioned user on this server
         """

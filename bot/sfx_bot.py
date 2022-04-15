@@ -28,7 +28,7 @@ SOFTWARE.
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
-import discord
+import disnake
 
 from bot.bot import Bot, command
 from bot.dbutil import DatabaseUtils
@@ -70,12 +70,12 @@ class Ganypepe(Bot):
 
     async def on_ready(self):
         terminal.info(f'Logged in as {self.user}')
-        await self.change_presence(activity=discord.Game(name=self.config.sfx_game))
+        await self.change_presence(activity=disnake.Game(name=self.config.sfx_game))
         await self._load_cogs()
         try:
             cmd = command('test')(self.test)
             self.add_command(cmd)
-        except (TypeError, discord.ClientException):
+        except (TypeError, disnake.ClientException):
             pass
 
     async def test(self, ctx):

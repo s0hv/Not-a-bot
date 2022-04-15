@@ -3,18 +3,17 @@ import asyncio
 import logging
 import operator
 import re
-from datetime import datetime
 
-import discord
+import disnake
 import numpy
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import BucketType
+from disnake.ext.commands import BucketType, cooldown, is_owner, guild_only
 from emoji import emoji_count
 
-from bot.bot import command, has_permissions, cooldown, bot_has_permissions
+from bot.bot import command, has_permissions, bot_has_permissions
 from bot.formatter import EmbedLimits
 from cogs.cog import Cog
-from utils.utilities import (get_emote_name_id, parse_time, get_avatar)
+from utils.utilities import (get_emote_name_id, parse_time, get_avatar, utcnow)
 
 logger = logging.getLogger('terminal')
 
@@ -111,7 +110,7 @@ class Poll:
                  giveaway: bool=False, allow_n_votes=None):
         """
         Args:
-            message: either `class`: discord.Message or int
+            message: either `class`: disnake.Message or int
             others explained in VoteManager
         """
         self._bot = bot
@@ -126,7 +125,7 @@ class Poll:
         self.max_winners = max_winners
         self.giveaway = giveaway
         self._task = None
-        self._stopper = asyncio.Event(loop=self.bot.loop)
+        self._stopper = asyncio.Event()
         self._after = after
         self.allow_n_votes = allow_n_votes
 
@@ -154,7 +153,7 @@ class Poll:
     async def _wait(self):
         try:
             if self.expires_at is not None:
-                time_ = self.expires_at - datetime.utcnow()
+                time_ = self.expires_at - utcnow()
                 time_ = time_.total_seconds()
                 if time_ > 0:
                     await asyncio.wait_for(self._stopper.wait(), timeout=time_)
@@ -170,7 +169,7 @@ class Poll:
             raise
 
     async def count_votes(self):
-        if isinstance(self.message, discord.Message):
+        if isinstance(self.message, disnake.Message):
             self.message = self.message.id
 
         try:
@@ -179,7 +178,7 @@ class Poll:
                 return
 
             msg = await chn.fetch_message(self.message)
-        except discord.DiscordException:
+        except disnake.DiscordException:
             logger.exception('Failed to end poll')
             channel = self.bot.get_channel(self.channel)
             sql = 'DELETE FROM polls WHERE message=%s' % self.message
@@ -236,7 +235,7 @@ class Poll:
                         embed.add_field(name='Winners', value=winners)
 
                     await msg.edit(embed=embed)
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     pass
 
         else:
@@ -282,7 +281,7 @@ class Poll:
 
         try:
             await msg.reply(s)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
         sql = 'DELETE FROM polls WHERE message= %s' % self.message
@@ -340,7 +339,8 @@ class VoteManager(Cog):
             self.polls[poll.message] = poll
             poll.start()
 
-    @command(owner_only=True)
+    @command()
+    @is_owner()
     async def recalculate(self, ctx, msg_id: int, channel_id: int, *, message):
         """Recalculate a poll result"""
         # Add -header if it's not present so argparser can recognise the argument
@@ -394,9 +394,10 @@ class VoteManager(Cog):
 
         await poll.count_votes()
 
-    @command(no_pm=True)
+    @command()
     @has_permissions(manage_messages=True, manage_guild=True)
     @cooldown(1, 5, BucketType.guild)
+    @guild_only()
     async def reroll(self, ctx, message_id: int):
         """
         Reroll a poll or giveaway based on the message_id. Message doesn't have
@@ -405,7 +406,7 @@ class VoteManager(Cog):
 
         try:
             msg = await ctx.channel.fetch_message(message_id)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return await ctx.send('Message not found')
 
         if not msg.embeds:
@@ -413,7 +414,7 @@ class VoteManager(Cog):
 
         embed = None
         for em in msg.embeds:
-            if isinstance(em, discord.Embed):
+            if isinstance(em, disnake.Embed):
                 embed = em
                 break
 
@@ -460,10 +461,11 @@ class VoteManager(Cog):
         poll = Poll(self.bot, msg.id, ctx.channel.id, title, **args.__dict__())
         poll.start()
 
-    @command(no_pm=True)
+    @command()
     @bot_has_permissions(embed_links=True)
     @has_permissions(manage_messages=True, manage_guild=True)
     @cooldown(1, 20, BucketType.guild)
+    @guild_only()
     async def poll(self, ctx, *, message):
         """
         Creates a poll that expires by default in 60 seconds
@@ -519,7 +521,7 @@ class VoteManager(Cog):
             await ctx.send('Maximum time is 14 days')
             return
 
-        now = datetime.utcnow()
+        now = utcnow()
         expired_date = now + expires_in
         sql_date = expired_date
         parsed.time = sql_date
@@ -545,9 +547,9 @@ class VoteManager(Cog):
         if parsed.description:
             description = ' '.join(parsed.description)
         else:
-            description = discord.Embed.Empty
+            description = disnake.Embed.Empty
 
-        embed = discord.Embed(title=title, description=description, timestamp=expired_date)
+        embed = disnake.Embed(title=title, description=description, timestamp=expired_date)
         if parsed.time:
             embed.add_field(name='Valid for',
                             value='%s' % str(expires_in))
@@ -582,7 +584,7 @@ class VoteManager(Cog):
             try:
                 emote = '{}{}:{}'.format(*emote) if isinstance(emote, tuple) else emote
                 await msg.add_reaction(emote)
-            except discord.DiscordException:
+            except disnake.DiscordException:
                 failed.append(emote)
         if failed:
             await ctx.send('Failed to get emotes `{}`'.format('` `'.join(failed)),

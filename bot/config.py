@@ -36,7 +36,7 @@ terminal = logging.getLogger('terminal')
 
 
 def is_test_mode() -> bool:
-    return re.match(r'^(1|true|on|yes|y)$', os.getenv('TEST_MODE', ''), re.I) is not None
+    return re.match(r'^(1|true|on|yes|y)$', os.getenv('TEST_MODE', 'y'), re.I) is not None
 
 
 def get_test_guilds() -> Optional[List[int]]:
@@ -63,10 +63,6 @@ class Config:
 
         self.config.read(path, encoding='utf-8')
 
-        self.token = self.config.get('Credentials', 'Token', fallback=None)
-        self.test_token = self.config.get('Credentials', 'TestToken', fallback=None)
-
-        self.mashape_key = get_config_value(self.config, 'Credentials', 'MashapeKey', str, None)
         self.google_api_key = get_config_value(self.config, 'Credentials', 'GoogleAPI', str, None)
         self.youtube_api_key = get_config_value(self.config, 'Credentials', 'YoutubeAPI', str, None)
         self.custom_search = get_config_value(self.config, 'Credentials', 'CustomSearch', str, None)
@@ -86,8 +82,6 @@ class Config:
         self.db_password = get_config_value(self.config, 'Database', 'Password', str)
         self.db_host = get_config_value(self.config, 'Database', 'Host', str)
         self.db_port = get_config_value(self.config, 'Database', 'Port', str)
-        self.sfx_db_user = get_config_value(self.config, 'Database', 'SFXUsername', str)
-        self.sfx_db_pass = get_config_value(self.config, 'Database', 'SFXPassword', str)
         self.redis_host = get_config_value(self.config, 'Database', 'RedisHost', str) or self.db_host
         self.redis_auth = get_config_value(self.config, 'Database', 'RedisAuth', str, None)
         self.redis_port = get_config_value(self.config, 'Database', 'RedisPort', int)
@@ -114,12 +108,6 @@ class Config:
         except ValueError:
             terminal.exception("NowPlaying value is not correct. NowPlaying set to off")
             self.now_playing = False
-
-        try:
-            self.delete_after = self.config.getboolean('MusicSettings', 'DeleteAfter', fallback=False)
-        except ValueError:
-            terminal.exception("DeleteAfter value is not boolean. DeleteAfter set to off")
-            self.delete_after = False
 
         try:
             self.download = self.config.getboolean('MusicSettings', 'DownloadSongs', fallback=True)
@@ -154,18 +142,10 @@ class Config:
                 # Activity config put in json because it's easier to handle in code
                 self.default_activity = json.load(f)
 
-        self.game = self.config.get('BotOptions', 'Game', fallback=None)
         self.sfx_game = self.config.get('BotOptions', 'SfxGame', fallback=None)
-        self.phantomjs = self.config.get('BotOptions', 'PhantomJS', fallback='phantomjs')
         self.chromedriver = self.config.get('BotOptions', 'Chromedriver', fallback='chromedriver')
         self.chrome = self.config.get('BotOptions', 'Chrome', fallback=None)
         self.support_server = self.config.get('BotOptions', 'SupportServer', fallback=None)
-
-        try:
-            self.delete_messages = self.config.getboolean('BotOptions', 'DeleteMessages', fallback=False)
-        except ValueError:
-            terminal.exception("DeleteMessages value is not boolean. DeleteMessages set to off")
-            self.delete_messages = False
 
         try:
             self.max_combo = self.config.getint('SFXSettings', 'MaxCombo', fallback=8)
@@ -173,9 +153,6 @@ class Config:
             terminal.exception('MaxCombo value is incorrect. Value set to default (8)')
             self.max_combo = 8
 
-        if self.game is None:
-            terminal.info('No game set for main bot')
-            self.game = ''
         if self.sfx_game is None:
             terminal.info('No game set for sfx bot')
             self.sfx_game = ''
@@ -188,8 +165,5 @@ class Config:
         self.check_values()
 
     def check_values(self):
-        if self.token == 'bot_token':
-            raise ValueError('You need to specify your bots token in the config')
-
         if self.owner == 'id':
             raise ValueError('Please put your discord user id to the config')

@@ -1,20 +1,23 @@
 #!/usr/bin/env python
 # -*-coding=utf-8 -*-
-
+import asyncio
 import logging
 import os
 import subprocess
 import sys
+from typing import Optional
 
-import discord
+import disnake
 
 from bot.Not_a_bot import NotABot
-from bot.config import Config
+from bot.config import Config, is_test_mode, get_test_guilds
 from bot.formatter import LoggingFormatter
 from utils import init_tf
 
-discord_logger = logging.getLogger('discord')
-discord_logger.setLevel(logging.INFO)
+test_mode = is_test_mode()
+
+discord_logger = logging.getLogger('disnake')
+discord_logger.setLevel(logging.DEBUG if test_mode else logging.INFO)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8-sig', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 discord_logger.addHandler(handler)
@@ -42,10 +45,10 @@ except:
 config = Config()
 
 initial_cogs = [
-    'admin',
     'autoresponds',
     'autoroles',
     'botadmin',
+    'basic_logging',
     'botmod',
     'colors',
     'command_blacklist',
@@ -82,22 +85,46 @@ if not os.environ.get('MAGICK_PREFIX'):
 # Initialize tensorflow for text cmd
 try:
     model = init_tf.init_tf()
+except ModuleNotFoundError:
+    model = None
 except:
     terminal.exception('Failed to initialize tensorflow')
     model = None
 
 
-intents = discord.Intents.default()
+intents = disnake.Intents.default()
 intents.members = True
+#intents.messages = True
 
 intents.invites = False
 intents.voice_states = False
 
-bot = NotABot(prefix='!', conf=config, max_messages=5000, cogs=initial_cogs,
-              model=model, shard_count=2, intents=intents, chunk_guilds_at_startup=False)
-bot.run(config.token)
+bot: Optional[NotABot] = None
+
+
+async def main():
+    global bot
+    if test_mode:
+        bot = NotABot(prefix='-', conf=config, max_messages=5000,
+                      test_mode=True, cogs=initial_cogs, model=model,
+                      intents=intents, test_guilds=get_test_guilds(),
+                      sync_commands_debug=True)
+    else:
+        bot = NotABot(prefix='!', conf=config, max_messages=5000,
+                      cogs=initial_cogs,
+                      model=model, shard_count=2, intents=intents,
+                      chunk_guilds_at_startup=False)
+
+    await bot.async_init()
+    bot.load_default_cogs()
+
+    await bot.start(os.getenv('TOKEN'))
+
+
+asyncio.run(main(), debug=test_mode)
 
 # We have systemctl set up in a way that different exit codes
 # have different effects on restarting behavior
 import sys
-sys.exit(bot._exit_code)
+if bot:
+    sys.exit(bot.exit_code)

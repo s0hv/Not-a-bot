@@ -1,6 +1,7 @@
 import re
 from enum import Enum
 
+import aiohttp
 import isodate
 from bs4 import BeautifulSoup
 from googleapiclient.discovery import build
@@ -36,33 +37,34 @@ def parse_youtube_duration(duration):
     return int(isodate.parse_duration(duration).total_seconds())
 
 
-async def get_related_vids(vid_id, client, filtered=None):
+async def get_related_vids(vid_id, filtered=None):
     url = id2url(vid_id)
     if not filtered:
         filtered = (vid_id, )
     else:
         filtered.append(vid_id)
 
-    async with client.get(url) as r:
-        if r.status != 200:
-            return
+    async with aiohttp.ClientSession() as client:
+        async with client.get(url) as r:
+            if r.status != 200:
+                return
 
-        content = await r.text()
-        soup = BeautifulSoup(content, 'lxml')
-        up_next = soup.find('div', {'class': 'watch-sidebar'})
-        if up_next:
-            matches = id_regex.findall(str(up_next))
-            for match in matches:
-                if match not in filtered:
-                    return match
+            content = await r.text()
+            soup = BeautifulSoup(content, 'lxml')
+            up_next = soup.find('div', {'class': 'watch-sidebar'})
+            if up_next:
+                matches = id_regex.findall(str(up_next))
+                for match in matches:
+                    if match not in filtered:
+                        return match
 
-        ids = id_regex.findall(content)
-        if not ids:
-            return
+            ids = id_regex.findall(content)
+            if not ids:
+                return
 
-        for _id in ids:
-            if _id != vid_id and _id not in filtered:
-                return _id
+            for _id in ids:
+                if _id != vid_id and _id not in filtered:
+                    return _id
 
 
 class Part(Enum):

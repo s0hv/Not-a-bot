@@ -263,11 +263,11 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     return img, pattern.base_color
 
 
-async def image_from_url(url, client):
-    return Image.open(await raw_image_from_url(url, client))
+async def image_from_url(url):
+    return Image.open(await raw_image_from_url(url))
 
 
-async def raw_image_from_url(url, client, get_mime=False):
+async def raw_image_from_url(url, get_mime=False):
     if not url:
         raise ImageDownloadError('No images found', '')
 
@@ -275,31 +275,32 @@ async def raw_image_from_url(url, client, get_mime=False):
     data = None
     mime_type = None
     try:
-        async with client.get(url) as r:
-            logger.debug('Downloading image url {}'.format(url))
-            if not r.headers.get('Content-Type', '').startswith('image'):
-                raise ImageDownloadError("url isn't an image (Invalid header)", url)
+        async with aiohttp.ClientSession() as client:
+            async with client.get(url) as r:
+                logger.debug('Downloading image url {}'.format(url))
+                if not r.headers.get('Content-Type', '').startswith('image'):
+                    raise ImageDownloadError("url isn't an image (Invalid header)", url)
 
-            max_size = 8000000
-            size = int(r.headers.get('Content-Length', 0))
-            if size > max_size:
-                raise ImageDownloadError('image too big', url)
+                max_size = 8000000
+                size = int(r.headers.get('Content-Length', 0))
+                if size > max_size:
+                    raise ImageDownloadError('image too big', url)
 
-            data = BytesIO()
-            chunk = 4096
-            total = 0
-            async for d in r.content.iter_chunked(chunk):
-                if total == 0:
-                    mime_type = magic.from_buffer(d, mime=True)
+                data = BytesIO()
+                chunk = 4096
+                total = 0
+                async for d in r.content.iter_chunked(chunk):
+                    if total == 0:
+                        mime_type = magic.from_buffer(d, mime=True)
+                        total += chunk
+                        if not mime_type.startswith('image') and mime_type != 'application/octet-stream':
+                            raise ImageDownloadError("url isn't an image", url)
+
                     total += chunk
-                    if not mime_type.startswith('image') and mime_type != 'application/octet-stream':
-                        raise ImageDownloadError("url isn't an image", url)
+                    if total > max_size:
+                        raise ImageDownloadError('image is too big', url)
 
-                total += chunk
-                if total > max_size:
-                    raise ImageDownloadError('image is too big', url)
-
-                data.write(d)
+                    data.write(d)
         data.seek(0)
     except aiohttp.ClientError:
         logger.exception(f'Could not download image {url}')

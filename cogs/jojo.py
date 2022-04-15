@@ -31,16 +31,16 @@ from io import BytesIO
 from itertools import zip_longest
 from threading import Lock
 
-import discord
+import disnake
 import numpy as np
 from PIL import Image, ImageFont
 from colour import Color
-from discord.ext.commands import BucketType
+from disnake.ext.commands import BucketType, cooldown
 from matplotlib import pyplot as plt
 from matplotlib.patches import Polygon, Circle
 from numpy import pi, random
 
-from bot.bot import command, cooldown, bot_has_permissions
+from bot.bot import command, bot_has_permissions
 from cogs.cog import Cog
 from utils.imagetools import (create_shadow, create_text,
                               create_geopattern_background, shift_color,
@@ -248,7 +248,7 @@ class JoJo(Cog):
         if del_msg:
             try:
                 await m.delete()
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
         return msg
@@ -374,7 +374,7 @@ class JoJo(Cog):
         if bg is not None:
             try:
                 bg = bg.strip()
-                bg = await image_from_url(bg, self.bot.aiohttp_client)
+                bg = await image_from_url(bg)
 
                 def process_bg():
                     nonlocal bg, color
@@ -534,7 +534,7 @@ class JoJo(Cog):
             return file
 
         file = await self.bot.loop.run_in_executor(self.bot.threadpool, finalize_image)
-        await ctx.send(file=discord.File(file, filename='stand_card.png'))
+        await ctx.send(file=disnake.File(file, filename='stand_card.png'))
 
 
 def setup(bot):

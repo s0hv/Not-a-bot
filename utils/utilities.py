@@ -33,20 +33,20 @@ import subprocess
 import time
 from collections import OrderedDict
 from collections.abc import Iterable
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 from enum import Enum
 from random import randint
-from typing import Union, TYPE_CHECKING
+from typing import Union, TYPE_CHECKING, cast
 from urllib.parse import urlparse
 
-import discord
+import disnake
 import numpy
 from aioredis.client import Redis
 from asyncpg.exceptions import PostgresError
-from discord import abc
-from discord.commands import ApplicationContext
-from discord.embeds import EmptyEmbed
-from discord.ext.commands.errors import MissingPermissions
+from disnake import ApplicationCommandInteraction
+from disnake import abc
+from disnake.embeds import EmptyEmbed
+from disnake.ext.commands.errors import MissingPermissions
 from validators import url as test_url
 
 from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
@@ -58,7 +58,6 @@ from utils.imagetools import image_from_url
 
 if TYPE_CHECKING:
     from bot.bot import Context
-
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -76,12 +75,6 @@ seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>
 FORMAT_BLACKLIST = ['mentions', 'channel_mentions', 'reactions', 'call',
                     'embeds', 'attachments', 'role_mentions', 'application',
                     'raw_channel_mentions', 'raw_role_mentions', 'raw_mentions']
-
-
-class Object:
-    # Empty class to store variables
-    def __init__(self):
-        pass
 
 
 class DateAccuracy(Enum):
@@ -126,7 +119,12 @@ class Snowflake(abc.Snowflake):
 
     @property
     def created_at(self):
-        return discord.utils.snowflake_time(self.id)
+        return disnake.utils.snowflake_time(self.id)
+
+
+def utcnow():
+    """Datetime aware utc time"""
+    return datetime.now(timezone.utc)
 
 
 def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: int=None):
@@ -489,7 +487,7 @@ def get_emote_name_id(s):
     return None, None, None
 
 
-async def get_images(ctx, content, current_message_only=False, leave_empty=False):
+async def get_images(ctx: 'Context', content, current_message_only=False, leave_empty=False):
     """
     Get all images from a message
     Args:
@@ -505,11 +503,11 @@ async def get_images(ctx, content, current_message_only=False, leave_empty=False
         images.append(url)
 
     def add_activities(member):
-        if not isinstance(member, discord.Member):
+        if not isinstance(member, disnake.Member):
             return
 
         for activity in member.activities:
-            if isinstance(activity, discord.CustomActivity) and activity.emoji:
+            if isinstance(activity, disnake.CustomActivity) and activity.emoji:
                 add_link(str(activity.emoji.url))
 
     # Check if message id given and fetch that message if that is the case
@@ -522,7 +520,7 @@ async def get_images(ctx, content, current_message_only=False, leave_empty=False
         if msg_id:
             try:
                 ctx.message = await ctx.channel.fetch_message(msg_id)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
     # Images from attachments
@@ -554,9 +552,9 @@ async def get_images(ctx, content, current_message_only=False, leave_empty=False
 
         # Check if guild id given
         if snowflake == ctx.guild.id:
-            add_link(str(ctx.guild.icon_url))
-            add_link(str(ctx.guild.banner_url))
-            add_link(str(ctx.guild.splash_url))
+            add_link(str(ctx.guild.icon.url))
+            add_link(str(ctx.guild.banner.url))
+            add_link(str(ctx.guild.splash.url))
             continue
 
         # Check for user id
@@ -612,7 +610,7 @@ async def get_image(ctx, image, current_message_only=False):
 
 async def dl_image(ctx, url):
     try:
-        img = await image_from_url(url, ctx.bot.aiohttp_client)
+        img = await image_from_url(url)
     except OverflowError:
         await ctx.send('Failed to download. File is too big')
     except TypeError:
@@ -646,9 +644,9 @@ def get_image_from_embeds(embeds):
         return attachment if attachment != EmptyEmbed else None
 
 
-def get_image_from_message(bot, message: discord.Message, content=None):
+def get_image_from_message(bot, message: disnake.Message, content=None):
     """
-    Get image from discord.Message
+    Get image from disnake.Message
     """
     image = None
     if len(message.attachments) > 0 and isinstance(message.attachments[0].width, int):
@@ -684,7 +682,7 @@ async def get_image_from_ctx(ctx, message, current_message_only=False):
             try:
                 msg = await ctx.channel.fetch_message(image)
                 return get_image_from_message(ctx.bot, msg)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
         elif redis:
             redis_key = f'{RedisKeyNamespaces.Attachment.value}:{ctx.channel.id}'
@@ -707,10 +705,10 @@ def random_color():
     """
     Create a random color to be used in discord
     Returns:
-        discord.Color
+        disnake.Color
     """
 
-    return discord.Color(randint(0, 16777215))
+    return disnake.Color(randint(0, 16777215))
 
 
 # https://stackoverflow.com/a/4628148/6046713
@@ -774,7 +772,7 @@ def call_later(func, loop, timeout: float, *args, after=None, **kwargs):
     if callable(after):
         fut.add_done_callback(after)
 
-    return CallLater(fut, datetime.utcnow() + timedelta(seconds=timeout))
+    return CallLater(fut, utcnow() + timedelta(seconds=timeout))
 
 
 def get_users_from_ids(guild, *ids):
@@ -798,7 +796,7 @@ def check_channel_mention(msg, word):
 def get_channel(channels, s, name_matching=False, only_text=True):
     channel = get_channel_id(s)
     if channel:
-        channel = discord.utils.find(lambda c: c.id == s, channels)
+        channel = disnake.utils.find(lambda c: c.id == s, channels)
         if channel:
             return channel
 
@@ -807,17 +805,17 @@ def get_channel(channels, s, name_matching=False, only_text=True):
     except ValueError:
         pass
     else:
-        channel = discord.utils.find(lambda c: c.id == s, channels)
+        channel = disnake.utils.find(lambda c: c.id == s, channels)
 
     if not channel and name_matching:
         s = str(s)
-        channel = discord.utils.find(lambda c: c.name == s, channels)
+        channel = disnake.utils.find(lambda c: c.name == s, channels)
         if not channel:
             return
     else:
         return
 
-    if only_text and not isinstance(channel, discord.TextChannel):
+    if only_text and not isinstance(channel, disnake.TextChannel):
         return
 
     return channel
@@ -848,7 +846,7 @@ def get_role(role, roles, name_matching=False):
         elif role_id is None:
             return
 
-    return discord.utils.find(lambda r: r.id == role_id, roles)
+    return disnake.utils.find(lambda r: r.id == role_id, roles)
 
 
 def check_user_mention(msg, word):
@@ -859,8 +857,8 @@ def check_user_mention(msg, word):
     return False
 
 
-def get_avatar(user):
-    return str(user.avatar_url or user.default_avatar_url)
+def get_avatar(user: disnake.User):
+    return user.display_avatar.url
 
 
 def formatted_datetime(dt: datetime, style: TimestampFormat=TimestampFormat.ShortDate):
@@ -895,7 +893,7 @@ def check_plural(string, i):
 
 
 def native_format_timedelta(td: timedelta) -> str:
-    return f'<t:{int((datetime.now()+td).timestamp())}:R>'
+    return disnake.utils.format_dt(datetime.now()+td, style='R')
 
 
 def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
@@ -1180,7 +1178,7 @@ def format_message(d):
         if isinstance(v, str):
             continue
 
-        if isinstance(v, discord.MessageType):
+        if isinstance(v, disnake.MessageType):
             d[k] = str(v.name)
 
         else:
@@ -1263,10 +1261,10 @@ def format_member(member):
 
     for k in d:
         v = d[k]
-        if isinstance(v, discord.Activity):
+        if isinstance(v, disnake.Activity):
             d[k] = format_activity(v)
 
-        elif isinstance(v, discord.Permissions):
+        elif isinstance(v, disnake.Permissions):
             d[k] = str(v.value)
 
         else:
@@ -1364,7 +1362,7 @@ def is_superset(ctx):
     return True
 
 
-async def send_paged_message(ctx, pages, embed=False, starting_idx=0,
+async def send_paged_message(ctx: Union['Context', ApplicationCommandInteraction], pages, embed=False, starting_idx=0,
                              page_method=None, timeout=60, undoable=False):
     """
     Send a paged message
@@ -1386,16 +1384,16 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0,
         else:
             page = pages[starting_idx]
     except IndexError:
-        return await ctx.respond(f'Page index {starting_idx} is out of bounds')
+        return await ctx.send(f'Page index {starting_idx} is out of bounds')
 
     kwargs = {}
-    if not isinstance(ctx, ApplicationContext):
+    if not isinstance(ctx, ApplicationCommandInteraction):
         kwargs['undoable'] = undoable
 
     if embed:
-        message = await ctx.respond(embed=page, **kwargs)
+        message = await ctx.send(embed=page, **kwargs)
     else:
-        message = await ctx.respond(page, **kwargs)
+        message = await ctx.send(page, **kwargs)
     if len(pages) == 1:
         return
 
@@ -1436,7 +1434,7 @@ async def send_paged_message(ctx, pages, embed=False, starting_idx=0,
             await send()
             # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
             await asyncio.sleep(1)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return
 
 
@@ -1461,7 +1459,7 @@ async def get_all_reaction_users(reaction, limit=100):
 async def create_custom_emoji(guild, name, image, already_b64=False, reason=None, **kwargs):
     """Same as the base method but supports giving your own b64 encoded data"""
     if not already_b64:
-        img = discord.utils._bytes_to_base64_data(image)
+        img = disnake.utils._bytes_to_base64_data(image)
     else:
         img = image
 
@@ -1478,11 +1476,11 @@ def is_owner(ctx):
     return True
 
 
-async def check_blacklist(ctx: Union[ApplicationContext, 'Context']):
+async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
     if getattr(ctx, 'skip_check', False):
         return True
 
-    bot = ctx.bot
+    bot = cast('BotBase', ctx.bot)
     if not hasattr(bot, 'check_auth'):
         # No database blacklisting detected
         return True
@@ -1596,12 +1594,6 @@ def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None, raise_err
     return False
 
 
-def no_dm(ctx):
-    if ctx.guild is None:
-        raise discord.ext.commands.NoPrivateMessage('This command cannot be used in private messages.')
-    return True
-
-
 async def wait_for_yes(ctx, timeout=60):
     _check = basic_check(ctx.author, ctx.channel)
 
@@ -1657,12 +1649,12 @@ async def wants_to_be_noticed(member, guild, remove=True):
         if role in member.roles:
             return
 
-        await retry(member.add_roles, role, break_on=discord.Forbidden,
+        await retry(member.add_roles, role, break_on=disnake.Forbidden,
                     reason="Wants attention")
         return True
 
     elif remove and role in member.roles:
-        await retry(member.remove_roles, role, break_on=discord.Forbidden,
+        await retry(member.remove_roles, role, break_on=disnake.Forbidden,
                     reason="Doesn't want attention")
         return False
 

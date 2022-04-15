@@ -13,24 +13,24 @@ from math import ceil
 from operator import attrgetter
 from typing import Union, Optional
 
-import discord
+import disnake
 import emoji
 from aioredis import Redis
 from aioredis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
-from discord import AllowedMentions
-from discord.errors import HTTPException
-from discord.ext.commands import (BucketType, check, dm_only, is_owner,
-                                  BadArgument)
+from disnake import AllowedMentions
+from disnake.errors import HTTPException
+from disnake.ext.commands import (BucketType, check, dm_only, is_owner,
+                                  BadArgument, cooldown)
 from numpy import sqrt
 from numpy.random import choice
 from tatsu.data_structures import RankingObject
 from tatsu.wrapper import ApiWrapper
 
-from bot.bot import (command, has_permissions, cooldown, bot_has_permissions,
+from bot.bot import (command, has_permissions, bot_has_permissions,
                      Context)
-from bot.formatter import Paginator
+from bot.formatter import EmbedPaginator
 from cogs.cog import Cog
 from cogs.colors import Colors
 from cogs.voting import Poll
@@ -38,7 +38,7 @@ from enums.data_enums import RedisKeyNamespaces
 from utils.utilities import (split_string, parse_time, call_later,
                              get_avatar, retry, send_paged_message,
                              check_botperm, format_timedelta, DateAccuracy,
-                             wait_for_yes)
+                             wait_for_yes, utcnow)
 
 logger = logging.getLogger('terminal')
 
@@ -182,83 +182,83 @@ FILTERED_ROLES = {321374867557580801, 331811458012807169, 361889118210359297,
                   322837972317896704, 323492471755636736, 329293030957776896,
                   317560511929647118, 363239074716188672, 365175139043901442,
                   585534893593722880}
-FILTERED_ROLES = {discord.Role(guild=None, state=None,  data={"id": id_, "name": ""})
+FILTERED_ROLES = {disnake.Role(guild=None, state=None,  data={"id": id_, "name": ""})
                   for id_ in FILTERED_ROLES}
 
 AVAILABLE_ROLES = {10: {
-    discord.Role(guild=None, state=None,  data={"id": 320674825423159296, "name": "No dignity"}),
-    discord.Role(guild=None, state=None,  data={"id": 322063025903239178, "name": "meem"}),
-    discord.Role(guild=None, state=None,  data={"id": 320667990116794369, "name": "HELL 2 U"}),
-    discord.Role(guild=None, state=None,  data={"id": 320673902047264768, "name": "I refuse"}),
-    discord.Role(guild=None, state=None,  data={"id": 322737580778979328, "name": "SHIIIIIIIIIIIIZZZZZAAAAAAA"}),
-    discord.Role(guild=None, state=None,  data={"id": 322438861537935360, "name": "CHEW"}),
-    discord.Role(guild=None, state=None,  data={"id": 322425271791910922, "name": "deleted-role"}),
-    discord.Role(guild=None, state=None,  data={"id": 322760382542381056, "name": "Couldn't beat me 1 2 3"}),
-    discord.Role(guild=None, state=None,  data={"id": 322761051303051264, "name": "ok"}),
-    discord.Role(guild=None, state=None,  data={"id": 322416531520749568, "name": "degenerate"}),
-    discord.Role(guild=None, state=None,  data={"id": 325627566406893570, "name": "he"}),
-    discord.Role(guild=None, state=None,  data={"id": 325415104894074881, "name": "ew no"}),
-    discord.Role(guild=None, state=None,  data={"id": 325629356309479424, "name": "she"}),
-    discord.Role(guild=None, state=None,  data={"id": 326096831777996800, "name": "new tole"}),
-    discord.Role(guild=None, state=None,  data={"id": 329331992778768397, "name": "to role or not to role"}),
-    discord.Role(guild=None, state=None,  data={"id": 329333048917229579, "name": "DORARARARARARARARARARARARARARARARA"}),
-    discord.Role(guild=None, state=None,  data={"id": 330058759986479105, "name": "The entire horse"}),
-    discord.Role(guild=None, state=None,  data={"id": 330079869599744000, "name": "baguette"}),
-    discord.Role(guild=None, state=None,  data={"id": 330080088597200896, "name": "4 U"}),
-    discord.Role(guild=None, state=None,  data={"id": 330080062441259019, "name": "big guy"}),
-    discord.Role(guild=None, state=None,  data={"id": 336219409251172352, "name": "The whole horse"}),
-    discord.Role(guild=None, state=None,  data={"id": 338238407845216266, "name": "ok masta let's kill da ho"}),
-    discord.Role(guild=None, state=None,  data={"id": 338238532101472256, "name": "BEEEEEEEEEEEEEETCH"}),
-    discord.Role(guild=None, state=None,  data={"id": 340950870483271681, "name": "FEEL THE HATRED OF TEN THOUSAND YEARS!"}),
-    discord.Role(guild=None, state=None,  data={"id": 349982610161926144, "name": "Fruit mafia"}),
-    discord.Role(guild=None, state=None,  data={"id": 380074801076633600, "name": "Attack helicopter"}),
-    discord.Role(guild=None, state=None,  data={"id": 381762837199978496, "name": "Gappy makes me happy"}),
-    discord.Role(guild=None, state=None,  data={"id": 389133241216663563, "name": "Comfortably numb"}),
-    discord.Role(guild=None, state=None,  data={"id": 398957784185438218, "name": "Bruce U"}),
-    discord.Role(guild=None, state=None,  data={"id": 523192033544896512, "name": "Today I will +t random ham"}),
-    discord.Role(guild=None, state=None, data={"id": 884495493160402955, "name": "Fuck you leatherman"}),
-    discord.Role(guild=None, state=None, data={"id": 884495647854710794, "name": "ok i pull up"}),
+    disnake.Role(guild=None, state=None,  data={"id": 320674825423159296, "name": "No dignity"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322063025903239178, "name": "meem"}),
+    disnake.Role(guild=None, state=None,  data={"id": 320667990116794369, "name": "HELL 2 U"}),
+    disnake.Role(guild=None, state=None,  data={"id": 320673902047264768, "name": "I refuse"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322737580778979328, "name": "SHIIIIIIIIIIIIZZZZZAAAAAAA"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322438861537935360, "name": "CHEW"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322425271791910922, "name": "deleted-role"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322760382542381056, "name": "Couldn't beat me 1 2 3"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322761051303051264, "name": "ok"}),
+    disnake.Role(guild=None, state=None,  data={"id": 322416531520749568, "name": "degenerate"}),
+    disnake.Role(guild=None, state=None,  data={"id": 325627566406893570, "name": "he"}),
+    disnake.Role(guild=None, state=None,  data={"id": 325415104894074881, "name": "ew no"}),
+    disnake.Role(guild=None, state=None,  data={"id": 325629356309479424, "name": "she"}),
+    disnake.Role(guild=None, state=None,  data={"id": 326096831777996800, "name": "new tole"}),
+    disnake.Role(guild=None, state=None,  data={"id": 329331992778768397, "name": "to role or not to role"}),
+    disnake.Role(guild=None, state=None,  data={"id": 329333048917229579, "name": "DORARARARARARARARARARARARARARARARA"}),
+    disnake.Role(guild=None, state=None,  data={"id": 330058759986479105, "name": "The entire horse"}),
+    disnake.Role(guild=None, state=None,  data={"id": 330079869599744000, "name": "baguette"}),
+    disnake.Role(guild=None, state=None,  data={"id": 330080088597200896, "name": "4 U"}),
+    disnake.Role(guild=None, state=None,  data={"id": 330080062441259019, "name": "big guy"}),
+    disnake.Role(guild=None, state=None,  data={"id": 336219409251172352, "name": "The whole horse"}),
+    disnake.Role(guild=None, state=None,  data={"id": 338238407845216266, "name": "ok masta let's kill da ho"}),
+    disnake.Role(guild=None, state=None,  data={"id": 338238532101472256, "name": "BEEEEEEEEEEEEEETCH"}),
+    disnake.Role(guild=None, state=None,  data={"id": 340950870483271681, "name": "FEEL THE HATRED OF TEN THOUSAND YEARS!"}),
+    disnake.Role(guild=None, state=None,  data={"id": 349982610161926144, "name": "Fruit mafia"}),
+    disnake.Role(guild=None, state=None,  data={"id": 380074801076633600, "name": "Attack helicopter"}),
+    disnake.Role(guild=None, state=None,  data={"id": 381762837199978496, "name": "Gappy makes me happy"}),
+    disnake.Role(guild=None, state=None,  data={"id": 389133241216663563, "name": "Comfortably numb"}),
+    disnake.Role(guild=None, state=None,  data={"id": 398957784185438218, "name": "Bruce U"}),
+    disnake.Role(guild=None, state=None,  data={"id": 523192033544896512, "name": "Today I will +t random ham"}),
+    disnake.Role(guild=None, state=None, data={"id": 884495493160402955, "name": "Fuck you leatherman"}),
+    disnake.Role(guild=None, state=None, data={"id": 884495647854710794, "name": "ok i pull up"}),
     },
 
     365: {
-        discord.Role(guild=None, state=None,  data={"id": 321863210884005906, "name": "What did you say about my hair"}),
-        discord.Role(guild=None, state=None,  data={"id": 320885539408707584, "name": "Your next line's gonna be"}),
-        discord.Role(guild=None, state=None,  data={"id": 321285882860535808, "name": "JJBA stands for Johnny Joestar's Big Ass"}),
-        discord.Role(guild=None, state=None,  data={"id": 330317213133438976, "name": "Dik brothas"}),
-        discord.Role(guild=None, state=None,  data={"id": 322667100340748289, "name": "Wannabe staff"}),
-        discord.Role(guild=None, state=None,  data={"id": 324084336083075072, "name": "rng fucks me in the ASS!"}),
-        discord.Role(guild=None, state=None, data={"id": 884495079518138408, "name": "Jej"}),
-        discord.Role(guild=None, state=None, data={"id": 884496543590285373, "name": "Floppa enthusiast"}),
+        disnake.Role(guild=None, state=None,  data={"id": 321863210884005906, "name": "What did you say about my hair"}),
+        disnake.Role(guild=None, state=None,  data={"id": 320885539408707584, "name": "Your next line's gonna be"}),
+        disnake.Role(guild=None, state=None,  data={"id": 321285882860535808, "name": "JJBA stands for Johnny Joestar's Big Ass"}),
+        disnake.Role(guild=None, state=None,  data={"id": 330317213133438976, "name": "Dik brothas"}),
+        disnake.Role(guild=None, state=None,  data={"id": 322667100340748289, "name": "Wannabe staff"}),
+        disnake.Role(guild=None, state=None,  data={"id": 324084336083075072, "name": "rng fucks me in the ASS!"}),
+        disnake.Role(guild=None, state=None, data={"id": 884495079518138408, "name": "Jej"}),
+        disnake.Role(guild=None, state=None, data={"id": 884496543590285373, "name": "Floppa enthusiast"}),
     },
 
     548: {
-        discord.Role(guild=None, state=None,  data={"id": 323486994179031042, "name": "I got 2 steel balls and I ain't afraid to use them"}),
-        discord.Role(guild=None, state=None,  data={"id": 321697480351940608, "name": "ORA ORA ORA ORA ORA ORA ORA ORA ORA ORA MUDA MUDA MUDA MUDA MUDA MUDA MUDA MUDA"}),
-        discord.Role(guild=None, state=None,  data={"id": 330440908187369472, "name": "CEO of Heterosexuality"}),
-        discord.Role(guild=None, state=None,  data={"id": 329350731918344193, "name": "4 balls"}),
-        discord.Role(guild=None, state=None,  data={"id": 358615843120218112, "name": "weirdo"}),
-        discord.Role(guild=None, state=None,  data={"id": 336437276156493825, "name": "Wannabe owner"}),
-        discord.Role(guild=None, state=None,  data={"id": 327519034545537024, "name": "food"})
+        disnake.Role(guild=None, state=None,  data={"id": 323486994179031042, "name": "I got 2 steel balls and I ain't afraid to use them"}),
+        disnake.Role(guild=None, state=None,  data={"id": 321697480351940608, "name": "ORA ORA ORA ORA ORA ORA ORA ORA ORA ORA MUDA MUDA MUDA MUDA MUDA MUDA MUDA MUDA"}),
+        disnake.Role(guild=None, state=None,  data={"id": 330440908187369472, "name": "CEO of Heterosexuality"}),
+        disnake.Role(guild=None, state=None,  data={"id": 329350731918344193, "name": "4 balls"}),
+        disnake.Role(guild=None, state=None,  data={"id": 358615843120218112, "name": "weirdo"}),
+        disnake.Role(guild=None, state=None,  data={"id": 336437276156493825, "name": "Wannabe owner"}),
+        disnake.Role(guild=None, state=None,  data={"id": 327519034545537024, "name": "food"})
 
     },
 
     730: {
-        discord.Role(guild=None, state=None,  data={"id": 326686698782195712, "name": "Made in heaven"}),
-        discord.Role(guild=None, state=None,  data={"id": 320916323821682689, "name": "Filthy acts at a reasonable price"}),
-        discord.Role(guild=None, state=None,  data={"id": 321361294555086858, "name": "Speedwagon best waifu"}),
-        discord.Role(guild=None, state=None,  data={"id": 320879943703855104, "name": "Passione boss"}),
-        discord.Role(guild=None, state=None,  data={"id": 320638312375386114, "name": "Dolphin l̶o̶v̶e̶r̶ fucker"}),
-        discord.Role(guild=None, state=None,  data={"id": 318683559462436864, "name": "Sex pistols ( ͡° ͜ʖ ͡°)"}),
-        discord.Role(guild=None, state=None,  data={"id": 318843712098533376, "name": "Taste of a liar"}),
-        discord.Role(guild=None, state=None,  data={"id": 323474940298788864, "name": "Wannabe bot"})
+        disnake.Role(guild=None, state=None,  data={"id": 326686698782195712, "name": "Made in heaven"}),
+        disnake.Role(guild=None, state=None,  data={"id": 320916323821682689, "name": "Filthy acts at a reasonable price"}),
+        disnake.Role(guild=None, state=None,  data={"id": 321361294555086858, "name": "Speedwagon best waifu"}),
+        disnake.Role(guild=None, state=None,  data={"id": 320879943703855104, "name": "Passione boss"}),
+        disnake.Role(guild=None, state=None,  data={"id": 320638312375386114, "name": "Dolphin l̶o̶v̶e̶r̶ fucker"}),
+        disnake.Role(guild=None, state=None,  data={"id": 318683559462436864, "name": "Sex pistols ( ͡° ͜ʖ ͡°)"}),
+        disnake.Role(guild=None, state=None,  data={"id": 318843712098533376, "name": "Taste of a liar"}),
+        disnake.Role(guild=None, state=None,  data={"id": 323474940298788864, "name": "Wannabe bot"})
     },
 
     900: {
-        discord.Role(guild=None, state=None,  data={"id": 321310583200677889, "name": "The fucking strong"}),
-        discord.Role(guild=None, state=None,  data={"id": 318432714984521728, "name": "Za Warudo"}),
-        discord.Role(guild=None, state=None,  data={"id": 376789104794533898, "name": "no u"}),
-        discord.Role(guild=None, state=None,  data={"id": 348900633979518977, "name": "Role to die"}),
-        discord.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"})
+        disnake.Role(guild=None, state=None,  data={"id": 321310583200677889, "name": "The fucking strong"}),
+        disnake.Role(guild=None, state=None,  data={"id": 318432714984521728, "name": "Za Warudo"}),
+        disnake.Role(guild=None, state=None,  data={"id": 376789104794533898, "name": "no u"}),
+        disnake.Role(guild=None, state=None,  data={"id": 348900633979518977, "name": "Role to die"}),
+        disnake.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"})
     }
 }
 
@@ -268,7 +268,7 @@ class RoleResponse:
         self.msg = msg
         self.img = image_url
 
-    async def send_message(self, ctx: Context, role: discord.Role = None):
+    async def send_message(self, ctx: Context, role: disnake.Role = None):
         author = ctx.author
         role_mention = role.mention if role else role
 
@@ -284,7 +284,7 @@ class RoleResponse:
         )
 
         if self.img:
-            embed = discord.Embed(description=description)
+            embed = disnake.Embed(description=description)
             embed.set_image(url=self.img)
             await ctx.send(embed=embed, allowed_mentions=AllowedMentions.none())
 
@@ -329,8 +329,6 @@ start_date = datetime(year=2020, month=8, day=1, hour=12)
 class ServerSpecific(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-
-        asyncio.run_coroutine_threadsafe(self.load_giveaways(), loop=self.bot.loop)
         self.bot.server.add_listener(self.reduce_role_cooldown)
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
@@ -341,6 +339,10 @@ class ServerSpecific(Cog):
         self.replace_tatsu_api = False
         self._using_toletole = {}
         self._tatsu_api = ApiWrapper(self.bot.config.tatsumaki_key)
+
+    async def cog_load(self):
+        await super().cog_load()
+        await self.load_giveaways()
 
     def cog_unload(self):
         self.bot.server.remove_listener(self.reduce_role_cooldown)
@@ -371,7 +373,7 @@ class ServerSpecific(Cog):
             message = row['message']
             title = row['title']
             winners = row['winners']
-            timeout = max((row['expires_in'] - datetime.utcnow()).total_seconds(), 0)
+            timeout = max((row['expires_in'] - utcnow()).total_seconds(), 0)
             if message in self.bot.every_giveaways:
                 self.bot.every_giveaways[message].cancel()
 
@@ -410,11 +412,11 @@ class ServerSpecific(Cog):
             if r in after.roles:
                 await after.remove_roles(r, reason='No')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 4, type=BucketType.user)
     @check(grant_check)
     @bot_has_permissions(manage_roles=True)
-    async def grant(self, ctx, user: discord.Member, *, role: discord.Role):
+    async def grant(self, ctx, user: disnake.Member, *, role: disnake.Role):
         """Give a role to the specified user if you have the perms to do it"""
         guild = ctx.guild
         author = ctx.author
@@ -441,11 +443,11 @@ class ServerSpecific(Cog):
 
         await ctx.send('👌')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(2, 4, type=BucketType.user)
     @check(grant_check)
     @bot_has_permissions(manage_roles=True)
-    async def ungrant(self, ctx, user: discord.Member, *, role: discord.Role):
+    async def ungrant(self, ctx, user: disnake.Member, *, role: disnake.Role):
         """Remove a role from a user if you have the perms"""
         guild = ctx.guild
         author = ctx.message.author
@@ -470,16 +472,16 @@ class ServerSpecific(Cog):
 
         await ctx.send('👌')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(2, 4, type=BucketType.guild)
     @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def add_grant(self, ctx, role_user: Union[discord.Role, discord.Member], *, target_role: discord.Role):
+    async def add_grant(self, ctx, role_user: Union[disnake.Role, disnake.Member], *, target_role: disnake.Role):
         """Make the given role able to grant the target role"""
         guild = ctx.guild
 
-        if isinstance(role_user, discord.Role):
+        if isinstance(role_user, disnake.Role):
             values = (role_user.id, target_role.id, guild.id, 0)
             roles = (role_user.id, target_role.id)
         else:
@@ -499,16 +501,16 @@ class ServerSpecific(Cog):
 
         await ctx.send(f'{role_user} 👌 {target_role}')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 4, type=BucketType.user)
     @check(grant_check)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def remove_grant(self, ctx, role_user: Union[discord.Role, discord.Member], *, target_role: discord.Role):
+    async def remove_grant(self, ctx, role_user: Union[disnake.Role, disnake.Member], *, target_role: disnake.Role):
         """Remove a grantable role from the target role"""
         guild = ctx.guild
 
-        if isinstance(role_user, discord.Role):
+        if isinstance(role_user, disnake.Role):
             where = 'user_role=%s' % role_user.id
         else:
             where = 'user=%s' % role_user.id
@@ -522,16 +524,16 @@ class ServerSpecific(Cog):
 
         await ctx.send(f'{role_user} 👌 {target_role}')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(2, 5)
     @check(grant_check)
-    async def all_grants(self, ctx, role_user: Union[discord.Role, discord.User]=None):
+    async def all_grants(self, ctx, role_user: Union[disnake.Role, disnake.User]=None):
         """Shows all grants on the server.
         If user or role provided will get all grants specific to that."""
         sql = f'SELECT role, user_role, uid FROM role_granting WHERE guild={ctx.guild.id}'
-        if isinstance(role_user, discord.Role):
+        if isinstance(role_user, disnake.Role):
             sql += f' AND user_role={role_user.id}'
-        elif isinstance(role_user, discord.User):
+        elif isinstance(role_user, disnake.User):
             sql += f' AND uid={role_user.id}'
 
         try:
@@ -566,7 +568,7 @@ class ServerSpecific(Cog):
             return await ctx.send('No role grants found')
 
         # Paginate role grants first then user grants
-        paginator = Paginator('Role grants')
+        paginator = EmbedPaginator('Role grants')
         for role_id, roles in role_grants.items():
             role = ctx.guild.get_role(role_id)
             role_name = role.name if role else '*Deleted role*'
@@ -586,10 +588,10 @@ class ServerSpecific(Cog):
         paginator.finalize()
         await send_paged_message(ctx, paginator.pages, embed=True)
 
-    @command(no_pm=True, aliases=['get_grants', 'grants'])
+    @command(aliases=['get_grants', 'grants'])
     @cooldown(1, 4)
     @check(grant_check)
-    async def show_grants(self, ctx, user: discord.Member=None):
+    async def show_grants(self, ctx, user: disnake.Member=None):
         """Shows the roles you or the specified user can grant"""
         guild = ctx.guild
         if not user:
@@ -643,7 +645,8 @@ class ServerSpecific(Cog):
 
         await ctx.send(s)
 
-    @command(owner_only=True, aliases=['flip'])
+    @command(aliases=['flip'])
+    @is_owner()
     @check(main_check)
     async def flip_the_switch(self, ctx, value: bool=None):
         if value is None:
@@ -653,7 +656,7 @@ class ServerSpecific(Cog):
 
         await ctx.send(f'Switch set to {self.bot.anti_abuse_switch}')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 3, type=BucketType.user)
     @check(create_check((217677285442977792, )))
     async def default_role(self, ctx):
@@ -688,7 +691,7 @@ class ServerSpecific(Cog):
     def extract_emojis(self, emojis):
         return [c for c in emojis if c in emoji.UNICODE_EMOJI and self.check_type(c)]
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 600)
     @bot_has_permissions(manage_guild=True)
     @check(main_check)
@@ -757,7 +760,7 @@ class ServerSpecific(Cog):
 
         try:
             await ctx.guild.edit(name=rotate * (100 // (len(rotate))))
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to change name because of an error\n{e}')
         else:
             await ctx.send('♻')
@@ -767,7 +770,7 @@ class ServerSpecific(Cog):
         Creates a toggle every giveaway in my server. This is triggered either
         by the toggle_every command or every n amount of votes in dbl
         Args:
-            channel (discord.TextChannel): channel where the giveaway will be held
+            channel (disnake.TextChannel): channel where the giveaway will be held
             winners (int): amount of winners
             expires_in (timedelta): Timedelta denoting how long the giveaway will last
 
@@ -785,12 +788,12 @@ class ServerSpecific(Cog):
 
         sql = 'INSERT INTO giveaways (guild, title, message, channel, winners, expires_in) VALUES ($1, $2, $3, $4, $5, $6)'
 
-        now = datetime.utcnow()
+        now = utcnow()
         expired_date = now + expires_in
         sql_date = expired_date
 
         title = 'Toggle the every role on the winner.'
-        embed = discord.Embed(title='Giveaway: {}'.format(title),
+        embed = disnake.Embed(title='Giveaway: {}'.format(title),
                               description='React with <:GWjojoGachiGASM:363025405562585088> to enter',
                               timestamp=expired_date)
         text = 'Expires at'
@@ -801,7 +804,7 @@ class ServerSpecific(Cog):
         message = await channel.send(embed=embed)
         try:
             await message.add_reaction('GWjojoGachiGASM:363025405562585088')
-        except (discord.HTTPException, discord.ClientException):
+        except (disnake.HTTPException, disnake.ClientException):
             pass
 
         try:
@@ -817,7 +820,7 @@ class ServerSpecific(Cog):
 
         self.bot.every_giveaways[message.id] = task
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 3, type=BucketType.guild)
     @check(main_check)
     @has_permissions(manage_roles=True, manage_guild=True)
@@ -867,7 +870,7 @@ class ServerSpecific(Cog):
 
         try:
             message = await channel.fetch_message(message)
-        except discord.NotFound:
+        except disnake.NotFound:
             logger.exception('Could not find message for every toggle')
             await self.delete_giveaway_from_db(message)
             return
@@ -913,7 +916,7 @@ class ServerSpecific(Cog):
             if isinstance(retval, Exception):
                 logger.debug('Failed to toggle every role on {0} {0.id}\n{1}'.format(winner, retval))
 
-        embed = discord.Embed(title=title, description=description[:2048], timestamp=datetime.utcnow())
+        embed = disnake.Embed(title=title, description=description[:2048], timestamp=utcnow())
         embed.set_footer(text='Expired at', icon_url=get_avatar(self.bot.user))
         await message.edit(embed=embed)
         description += '\nAdded every to {} user(s) and removed it from {} user(s)'.format(added, removed)
@@ -952,10 +955,10 @@ class ServerSpecific(Cog):
         if message.author.bot:
             return
 
-        if message.type != discord.MessageType.default:
+        if message.type != disnake.MessageType.default:
             return
 
-        if isinstance(message.author, discord.User):
+        if isinstance(message.author, disnake.User):
             return
 
         moderator = self.bot.get_cog('Moderator')
@@ -969,14 +972,14 @@ class ServerSpecific(Cog):
 
         user = message.author
         whitelist = moderator.automute_whitelist.get(guild.id, ())
-        invulnerable = discord.utils.find(lambda r: r.id in whitelist,
+        invulnerable = disnake.utils.find(lambda r: r.id in whitelist,
                                           user.roles)
 
         if invulnerable is not None:
             return
 
         mute_role = self.bot.guild_cache.mute_role(message.guild.id)
-        mute_role = discord.utils.find(lambda r: r.id == mute_role,
+        mute_role = disnake.utils.find(lambda r: r.id == mute_role,
                                        message.guild.roles)
         if not mute_role:
             return
@@ -1024,8 +1027,8 @@ class ServerSpecific(Cog):
 
         ttl = await self.redis.ttl(key)
         certainty = 0
-        created_td = (datetime.utcnow() - user.created_at)
-        joined_td = (datetime.utcnow() - user.joined_at)
+        created_td = (utcnow() - user.created_at)
+        joined_td = (utcnow() - user.joined_at)
         if joined_td.days > 14:
             joined = 0.2  # 2/sqrt(1)*2
         else:
@@ -1091,17 +1094,17 @@ class ServerSpecific(Cog):
 
             await message.author.add_roles(mute_role, reason='[Automute] Spam')
             url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
-            embed = discord.Embed(title='Moderation action [AUTOMUTE]',
-                                  description=d, timestamp=datetime.utcnow())
+            embed = disnake.Embed(title='Moderation action [AUTOMUTE]',
+                                  description=d, timestamp=utcnow())
             embed.add_field(name='Reason', value='Spam')
             embed.add_field(name='Certainty', value=certainty)
             embed.add_field(name='link', value=url)
-            embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-            embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
+            embed.set_thumbnail(url=user.display_avatar.url)
+            embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.display_avatar.url)
             msg = await moderator.send_to_modlog(guild, embed=embed)
 
             await moderator.add_timeout(await self.bot.get_context(message), guild.id, user.id,
-                                        datetime.utcnow() + time,
+                                        utcnow() + time,
                                         time.total_seconds(),
                                         reason='Automuted for spam. Certainty %s' % certainty,
                                         author=guild.me,
@@ -1146,9 +1149,10 @@ class ServerSpecific(Cog):
 
         for score in scores:
             body['amount'] = score
-            async with self.bot.aiohttp_client.put(url, headers=headers, json=body) as r:
-                if r.status != 200:
-                    return False
+            async with aiohttp.ClientSession() as client:
+                async with client.put(url, headers=headers, json=body) as r:
+                    if r.status != 200:
+                        return False
 
         return True
 
@@ -1170,7 +1174,7 @@ class ServerSpecific(Cog):
         if not delta_days:
             first_join = await self.dbutil.get_join_date(member.id, ctx.guild.id) \
                          or ctx.author.joined_at
-            delta_days = (datetime.utcnow() - first_join).days
+            delta_days = (utcnow() - first_join).days
 
         score = None
 
@@ -1273,7 +1277,7 @@ class ServerSpecific(Cog):
 
         try:
             await member.remove_roles(every, reason='Every removal for 100k tatsu points')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to remove every because of an error.\n{e}')
             await self.edit_user_points(member.id, guild.id, cost, 'add')
             return
@@ -1320,7 +1324,7 @@ class ServerSpecific(Cog):
 
         # Check that cooldown has passed
         if row:
-            role_cooldown = (datetime.utcnow() - row[0])
+            role_cooldown = (utcnow() - row[0])
 
             return role_cooldown
 
@@ -1363,7 +1367,7 @@ class ServerSpecific(Cog):
 
         # Skip invocation if waiting for tatsu message
         temp = self._using_toletole.get(ctx.author.id)
-        if temp and (datetime.utcnow() - temp).total_seconds() < 30:
+        if temp and (utcnow() - temp).total_seconds() < 30:
             return
 
         # Get last use timestamp
@@ -1377,7 +1381,7 @@ class ServerSpecific(Cog):
         if row and row[0] is not None:
             cooldown_days = self.get_cooldown_days(ctx.author)
 
-            role_cooldown = (datetime.utcnow() - row[0])
+            role_cooldown = (utcnow() - row[0])
             if role_cooldown.days < cooldown_days:
                 t = format_timedelta(timedelta(days=cooldown_days) - role_cooldown,
                                      DateAccuracy.Day-DateAccuracy.Hour)
@@ -1386,7 +1390,7 @@ class ServerSpecific(Cog):
 
         guild = ctx.guild
         first_join = await self.dbutil.get_join_date(ctx.author.id, guild.id) or ctx.author.joined_at
-        delta_days = (datetime.utcnow() - first_join).days
+        delta_days = (utcnow() - first_join).days
 
         # Set of all the roles a user can get
         roles = set()
@@ -1412,7 +1416,7 @@ class ServerSpecific(Cog):
                 await ctx.send('No roles available to you at the moment. Try again after being more active')
             return
 
-        self._using_toletole[ctx.author.id] = datetime.utcnow()
+        self._using_toletole[ctx.author.id] = utcnow()
         chances = await self.get_role_chance(ctx, ctx.author, user_roles, delta_days)
         if chances is None:
             return
@@ -1422,7 +1426,7 @@ class ServerSpecific(Cog):
             return
 
         try:
-            await self.dbutil.update_last_role_time(ctx.author.id, datetime.utcnow())
+            await self.dbutil.update_last_role_time(ctx.author.id, utcnow())
         except PostgresError:
             await ctx.send('Failed to update cooldown of the command. Try again in a bit')
             return
@@ -1440,10 +1444,10 @@ class ServerSpecific(Cog):
 
     @command(hidden=True)
     @cooldown(1, 60, BucketType.channel)
-    async def zeta(self, ctx, channel: discord.TextChannel=None):
+    async def zeta(self, ctx, channel: disnake.TextChannel=None):
         try:
             await ctx.message.delete()
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
         if not channel:
@@ -1456,7 +1460,7 @@ class ServerSpecific(Cog):
                 return
 
             wh = wh[0]
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return
 
         # Get random waifu
@@ -1492,12 +1496,12 @@ class ServerSpecific(Cog):
         # Create spawn message
         desc = textwrap.dedent(desc).format(initials, link).strip()
         c = random.choice(list(Color('#e767e4').range_to('#b442c3', 100)))
-        e = discord.Embed(title='Character', color=int(c.get_hex_l().replace('#', ''), 16),
+        e = disnake.Embed(title='Character', color=int(c.get_hex_l().replace('#', ''), 16),
                           description=desc)
         e.set_image(url=link)
         wb = self.bot.get_user(472141928578940958)
 
-        await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
+        await wh.send(embed=e, username=wb.name, avatar_url=wb.display_avatar.url)
 
         # Checking for character claims below
         guessed = False
@@ -1553,13 +1557,13 @@ class ServerSpecific(Cog):
 
                 if 0 < diff < 6:
                     await wh.send(f"You were close, but wrong. What you gave was {diff} letter(s) off.",
-                                  username=wb.name, avatar_url=wb.avatar_url)
+                                  username=wb.name, avatar_url=wb.display_avatar.url)
                 else:
-                    await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.avatar_url)
+                    await wh.send("That isn't the right name.", username=wb.name, avatar_url=wb.display_avatar.url)
 
                 continue
 
-            await wh.send(f'Nice {msg.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.avatar_url)
+            await wh.send(f'Nice {msg.author.mention}, you claimed [ζ] {name}!', username=wb.name, avatar_url=wb.display_avatar.url)
             claimer = msg.author
             guessed = True
 
@@ -1631,7 +1635,7 @@ class ServerSpecific(Cog):
 
             try:
                 await msg.delete()
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 return
 
         try:
@@ -1641,12 +1645,12 @@ class ServerSpecific(Cog):
 
         self.bot.loop.create_task(delete_wb_msg())
 
-        e = discord.Embed(title=f'{name} ({waifu[3]})', color=16745712, description=desc)
+        e = disnake.Embed(title=f'{name} ({waifu[3]})', color=16745712, description=desc)
         e.set_footer(text=img_number)
 
         e.set_image(url=link)
 
-        await wh.send(embed=e, username=wb.name, avatar_url=wb.avatar_url)
+        await wh.send(embed=e, username=wb.name, avatar_url=wb.display_avatar.url)
 
     @command(enabled=False, hidden=True)
     @cooldown(1, 10, BucketType.user)
@@ -1699,11 +1703,11 @@ class ServerSpecific(Cog):
     @command(aliases=['evote'], enabled=False, hidden=True)
     @dm_only()
     @cooldown(1, 10, BucketType.user)
-    async def electronic_vote(self, ctx, *, user: discord.User):
+    async def electronic_vote(self, ctx, *, user: disnake.User):
         """
         Vote in the elections. Voting opens on August 1st 12:00 UTC
         """
-        if datetime.utcnow() < start_date:
+        if utcnow() < start_date:
             await ctx.send("Voting hasn't started yet")
             return
 
@@ -1716,7 +1720,7 @@ class ServerSpecific(Cog):
         if not member:
             try:
                 member = await guild.fetch_member(ctx.author.id)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 logger.exception('Failed to get author for evote')
                 return
             if not member:
@@ -1729,9 +1733,9 @@ class ServerSpecific(Cog):
 
         # Around 4 months
         days = 124
-        if (datetime.utcnow() - member.joined_at).days < days:
+        if (utcnow() - member.joined_at).days < days:
             joined_at = await self.dbutil.get_join_date(member.id, guild.id)
-            if not joined_at or (datetime.utcnow() - joined_at).days < days:
+            if not joined_at or (utcnow() - joined_at).days < days:
                 return await ctx.send("You're not eligible to vote because you haven't been in the server for long enough")
 
         await ctx.send(f"You're trying to vote for {user} `{user.id}`.\n"
@@ -1761,7 +1765,7 @@ class ServerSpecific(Cog):
     @command(enabled=False, hidden=True)
     @check(main_check)
     @cooldown(1, 10, BucketType.user)
-    async def candidate(self, ctx, *, member: discord.Member):
+    async def candidate(self, ctx, *, member: disnake.Member):
         """
         View the profile of a candidate
         """
@@ -1781,7 +1785,7 @@ class ServerSpecific(Cog):
 
         description = row['description'] or 'No description'
         title = f'Candidate profile for {member}'
-        embed = discord.Embed(title=title, description=description)
+        embed = disnake.Embed(title=title, description=description)
         embed.set_thumbnail(url=get_avatar(member))
 
         await ctx.send(embed=embed)
@@ -1820,7 +1824,7 @@ class ServerSpecific(Cog):
             if show_description:
                 member = members[idx]
                 description = descriptions[member.id] or 'No description'
-                embed = discord.Embed(title=f'Candidate profile for {member}', description=description)
+                embed = disnake.Embed(title=f'Candidate profile for {member}', description=description)
                 embed.set_thumbnail(url=get_avatar(member))
 
             else:
@@ -1832,7 +1836,7 @@ class ServerSpecific(Cog):
 
                 description = '\n'.join(map(fmt_user, member_slice))
 
-                embed = discord.Embed(title=title, description=description)
+                embed = disnake.Embed(title=title, description=description)
 
             embed.set_footer(text=f'Page {idx + 1}/{len(pages)}')
             pages[idx] = embed
@@ -1868,7 +1872,7 @@ class ServerSpecific(Cog):
             if not user:
                 try:
                     user = await guild.fetch_member(uid)
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     continue
             users[uid] = user
 
@@ -1946,7 +1950,7 @@ class ServerSpecific(Cog):
 
         if test:
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_image)
-            await ctx.send(file=discord.File(data, 'colors.png'))
+            await ctx.send(file=disnake.File(data, 'colors.png'))
             return
 
         description = f'''
@@ -1954,8 +1958,8 @@ class ServerSpecific(Cog):
         Vote for a color by reacting with the number the color is labeled with.
         '''
         title = 'Color vote'
-        expires_in = datetime.utcnow() + timedelta(days=days)
-        embed = discord.Embed(title=title, description=description,
+        expires_in = utcnow() + timedelta(days=days)
+        embed = disnake.Embed(title=title, description=description,
                               timestamp=expires_in)
 
         options = 'Strict mode on. Only the number emotes are valid votes.\n'
@@ -1971,7 +1975,7 @@ class ServerSpecific(Cog):
         await ctx.trigger_typing()
         data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_image)
 
-        file = discord.File(data, 'colors.png')
+        file = disnake.File(data, 'colors.png')
         embed.set_image(url='attachment://colors.png')
 
         msg = await ctx.send(embed=embed, file=file)
@@ -1979,7 +1983,7 @@ class ServerSpecific(Cog):
         for emote in emotes:
             try:
                 await msg.add_reaction(emote)
-            except discord.DiscordException:
+            except disnake.DiscordException:
                 pass
 
         await self.dbutil.create_poll(emotes, title, True, ctx.guild.id, msg.id,

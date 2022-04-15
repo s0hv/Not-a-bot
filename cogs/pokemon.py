@@ -6,12 +6,12 @@ import os
 import re
 from functools import partial
 
-import discord
-from discord import utils, Embed
-from discord.ext.commands import BucketType, guild_only
-from discord.ext.commands.errors import BotMissingPermissions
+import disnake
+from disnake import utils, Embed
+from disnake.ext.commands import BucketType, guild_only, cooldown
+from disnake.ext.commands.errors import BotMissingPermissions
 
-from bot.bot import command, cooldown, has_permissions
+from bot.bot import command, has_permissions
 from bot.exceptions import BotException
 from bot.globals import POKESTATS
 from cogs.cog import Cog
@@ -437,21 +437,22 @@ class Pokemon(Cog):
     async def create_pokelog(ctx):
         guild = ctx.guild
         overwrites = {
-            guild.default_role: discord.PermissionOverwrite(send_messages=False),
-            guild.me: discord.PermissionOverwrite(send_messages=True,
+            guild.default_role: disnake.PermissionOverwrite(send_messages=False),
+            guild.me: disnake.PermissionOverwrite(send_messages=True,
                                                   embed_links=True)
         }
 
         try:
             channel = await guild.create_text_channel('pokelog', overwrites=overwrites,
                                                       reason=f'{ctx.author} created pokelog')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             return await ctx.send(f'Failed to create pokelog because of an error\n{e}')
 
         await ctx.send(f'Pokelog created in {channel.mention}')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 5, BucketType.guild)
+    @guild_only()
     async def pokelog(self, ctx):
         """
         To log caught pokecord legendaries and shinies you need a channel name pokelog
@@ -475,7 +476,7 @@ class Pokemon(Cog):
         of that pokemon. Excluding also overrides including so if you put a pokemon
         to be excluded and included it will be excluded. Shinies are logged no matter the settings
         """
-        channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, discord.TextChannel), ctx.guild.channels)
+        channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, disnake.TextChannel), ctx.guild.channels)
         if not channel:
             if not check_botperm('manage_channels', ctx=ctx, me=ctx.author):
                 return await ctx.send('Pokelog channel not present')
@@ -497,16 +498,16 @@ class Pokemon(Cog):
     @guild_only()
     @has_permissions(manage_channels=True)
     @cooldown(1, 1, BucketType.guild)
-    async def log_pokemon(self, ctx, message: discord.Message):
+    async def log_pokemon(self, ctx, message: disnake.Message):
         """
         This command can be used to force log any pokemon to the pokelog.
         This is done by linking the message where the pokemon is caught
         (usually in the format of "Congratulations @user! You caught a level 10 Magikarp!")
 
         Usage:
-            {prefix}{name} https://discord.com/channels/353927534439825429/354712220761980939/826470021713625169
+            {prefix}{name} https://disnake.com/channels/353927534439825429/354712220761980939/826470021713625169
         """
-        link = f'https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'
+        link = f'https://disnake.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'
 
         if not self._is_pokebot(message.author.id):
             await ctx.send(f'Message not from a supported bot. {link}')
@@ -522,7 +523,7 @@ class Pokemon(Cog):
         if not message.guild:
             return
 
-        channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, discord.TextChannel), message.guild.channels)
+        channel = utils.find(lambda c: c.name == 'pokelog' and isinstance(c, disnake.TextChannel), message.guild.channels)
         if not channel:
             return
 
@@ -611,7 +612,7 @@ class Pokemon(Cog):
             icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{icon_fmt}.png'
 
         desc = f'{mention} caught a **{"Shiny " if shiny else ""}{poke}**\n' \
-               f'[Jump to message](https://discord.com/channels/{message.guild.id}/{message.channel.id}/{message.id})'
+               f'[Jump to message](https://disnake.com/channels/{message.guild.id}/{message.channel.id}/{message.id})'
         embed = Embed(description=desc, colour=random_color())
         embed.set_image(url=url)
         embed.set_thumbnail(url=icon)

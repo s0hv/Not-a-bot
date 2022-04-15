@@ -3,15 +3,14 @@ import logging
 import operator
 
 import colors
-import discord
+import disnake
 from asyncpg.exceptions import PostgresError
-from discord import Embed
-from discord.embeds import EmptyEmbed
-from discord.ext.commands import help, BucketType
-from discord.ext.commands.errors import CommandError
+from disnake import Embed
+from disnake.embeds import EmptyEmbed
+from disnake.ext.commands import help, BucketType, CooldownMapping, is_owner
+from disnake.ext.commands.errors import CommandError
 
 from bot.commands import Command
-from bot.cooldowns import CooldownMapping
 from bot.exceptions import CommandBlacklisted
 from utils.utilities import check_perms
 
@@ -43,7 +42,7 @@ class HelpCommand(help.HelpCommand):
         channel = ctx.channel
         is_guild = ctx.guild is not None
 
-        if isinstance(user, discord.Member) and len(user.roles) > 1:
+        if isinstance(user, disnake.Member) and len(user.roles) > 1:
             roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'
@@ -98,7 +97,7 @@ class HelpCommand(help.HelpCommand):
         for page in paginator.pages:
             try:
                 await dest.send(embed=page, undoable=can_undo)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 return
 
     async def send_bot_help(self, mapping):
@@ -123,7 +122,7 @@ class HelpCommand(help.HelpCommand):
         ctx = self.context
         dest = self.get_destination()
 
-        paginator = Paginator(title='Help')
+        paginator = EmbedPaginator(title='Help')
         skip_checks = self.show_all() or not self.verify_checks
         commands = ctx.bot.commands
 
@@ -173,7 +172,7 @@ class HelpCommand(help.HelpCommand):
         ctx = self.context
         dest = self.get_destination()
 
-        paginator = Paginator(title='Help', description=cog.description)
+        paginator = EmbedPaginator(title='Help', description=cog.description)
         skip_checks = self.show_all() or not self.verify_checks
         commands = cog.get_commands()
 
@@ -237,7 +236,7 @@ class HelpCommand(help.HelpCommand):
 
         await self.send_messages(dest, paginator)
 
-    async def create_command_page(self, ctx, command):
+    async def create_command_page(self, ctx, command: Command):
         """
         Creates a paginator for a command and creates the correct
         description and usage fields
@@ -249,9 +248,9 @@ class HelpCommand(help.HelpCommand):
         else:
             description = Embed.Empty
 
-        paginator = Paginator(title=command.name, description=description)
+        paginator = EmbedPaginator(title=command.name, description=description)
         signature = self.get_command_signature(command)
-        if getattr(command, 'owner_only', False):
+        if is_owner in command.checks:
             signature = 'This command is owner only\n' + signature
 
         try:
@@ -290,7 +289,7 @@ class HelpCommand(help.HelpCommand):
         """
         Adds commands to a new field in the paginator
         Args:
-            paginator (Paginator):
+            paginator (EmbedPaginator):
                 Paginator to be used
             field (str):
                 Name of the field being added. Usually category name
@@ -324,7 +323,7 @@ class EmbedLimits:
     Total = 6000
 
 
-class Paginator:
+class EmbedPaginator:
     def __init__(self, title=None, description=EmptyEmbed, page_count=True, init_page=True):
         """
         Args:

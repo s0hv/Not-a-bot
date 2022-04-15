@@ -1,9 +1,9 @@
 import textwrap
 
-import discord
-from discord.ext.commands import BucketType
+import disnake
+from disnake.ext.commands import BucketType, cooldown
 
-from bot.bot import command, cooldown, Context
+from bot.bot import command, Context
 from cogs.cog import Cog
 from utils.utilities import wait_for_words
 
@@ -47,7 +47,7 @@ class Privacy(Cog):
 
         d = textwrap.dedent(d).strip('\n')
         if can_embed:
-            embed = discord.Embed(title='Privacy statement', description=d)
+            embed = disnake.Embed(title='Privacy statement', description=d)
             await ctx.send(embed=embed)
         else:
             await ctx.send(d)

@@ -2,29 +2,32 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from datetime import timedelta
 from random import randint, random
 from typing import Union, List, Optional
 
-import discord
+import disnake
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import BucketType, Greedy
+from disnake.ext import tasks
+from disnake.ext.commands import BucketType, Greedy, cooldown, guild_only, \
+    NoPrivateMessage
 
-from bot.bot import (command, group, has_permissions, cooldown,
+from bot.bot import (command, group, has_permissions,
                      bot_has_permissions, Context)
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
-from bot.formatter import Paginator, EmbedLimits
+from bot.formatter import EmbedPaginator, EmbedLimits
 from bot.globals import DATA
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              get_avatar, is_image_url,
                              seconds2str, get_channel, Snowflake, basic_check,
                              sql2timedelta, check_botperm, format_timedelta,
-                             DateAccuracy, send_paged_message, split_string)
+                             DateAccuracy, send_paged_message, split_string,
+                             utcnow)
 
 logger = logging.getLogger('terminal')
-manage_roles = discord.Permissions(268435456)
-lock_perms = discord.Permissions(268435472)
+manage_roles = disnake.Permissions(268435456)
+lock_perms = disnake.Permissions(268435472)
 penile_regex = re.compile(r'(\.(image|im|photo|img)) +penile hemorrhage', re.I)
 
 
@@ -39,11 +42,12 @@ class Moderator(Cog):
         # Delay used to update expiring events. 30min
         self._pause = 1800
 
-        asyncio.run_coroutine_threadsafe(self._load_automute(), loop=bot.loop).result()
-        self._event_loop = asyncio.run_coroutine_threadsafe(self.load_expiring_events(), loop=bot.loop)
+    async def cog_load(self):
+        await super().cog_load()
+        await self._load_automute()
 
     def cog_unload(self):
-        self._event_loop.cancel()
+        self.load_expiring_events.cancel()
 
         for timeouts in list(self.timeouts.values()):
             for timeout in list(timeouts.values()):
@@ -53,6 +57,11 @@ class Moderator(Cog):
             for user_temproles in list(guild_temproles.values()):
                 for temprole in list(user_temproles.values()):
                     temprole.cancel()
+
+    async def cog_check(self, ctx: Context) -> bool:
+        if ctx.guild is None:
+            raise NoPrivateMessage()
+        return True
 
     async def _load_automute(self):
         sql = 'SELECT * FROM automute_blacklist'
@@ -82,24 +91,21 @@ class Moderator(Cog):
 
             s.add(row['role'])
 
+    @tasks.loop(minutes=30)
     async def load_expiring_events(self):
         # Load events that expire in an hour
         expiry = timedelta(hours=1)
         self._pause = expiry.total_seconds()//2
-
-        while True:
-            await self._load_timeouts(expiry)
-            await self._load_temproles(expiry)
-
-            await asyncio.sleep(self._pause)
+        await self._load_timeouts(expiry)
+        await self._load_temproles(expiry)
 
     async def _load_temproles(self, expires_in: timedelta):
-        date = datetime.utcnow() + expires_in
+        date = utcnow() + expires_in
         sql = 'SELECT * FROM temproles WHERE expires_at < $1'
         rows = await self.bot.dbutil.fetch(sql, (date,))
 
         for row in rows:
-            time = row['expires_at'] - datetime.utcnow()
+            time = row['expires_at'] - utcnow()
             guild = row['guild']
             user = row['uid']
             role = row['role']
@@ -107,11 +113,11 @@ class Moderator(Cog):
             self.register_temprole(user, role, guild, time.total_seconds(), ignore_dupe=True)
 
     async def _load_timeouts(self, expires_in: timedelta):
-        date = datetime.utcnow() + expires_in
+        date = utcnow() + expires_in
         sql = 'SELECT * FROM timeouts WHERE expires_on < $1'
         rows = await self.bot.dbutil.fetch(sql, (date,))
         for row in rows:
-            time = row['expires_on'] - datetime.utcnow()
+            time = row['expires_on'] - utcnow()
             guild = row['guild']
             user = row['uid']
 
@@ -137,23 +143,23 @@ class Moderator(Cog):
 
         try:
             return await channel.send(*args, **kwargs)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
     @Cog.listener()
-    async def on_message(self, message):
+    async def on_message(self, message: disnake.Message):
         guild = message.guild
         if guild and self.bot.guild_cache.automute(guild.id):
             if message.webhook_id:
                 return
 
             mute_role = self.bot.guild_cache.mute_role(guild.id)
-            mute_role = discord.utils.find(lambda r: r.id == mute_role, message.guild.roles)
+            mute_role = disnake.utils.find(lambda r: r.id == mute_role, message.guild.roles)
             if not mute_role:
                 return
 
             user = message.author
-            if not isinstance(user, discord.Member):
+            if not isinstance(user, disnake.Member):
                 logger.debug(f'User found when expected member guild {guild.name} user {user} in channel {message.channel.name}')
                 user = guild.get_member(user.id)
                 if not user:
@@ -193,16 +199,16 @@ class Moderator(Cog):
                 await message.author.add_roles(mute_role, reason=f'[Automute] {message.content}')
                 d = f'Automuted user {user} `{user.id}` for {time}'
                 url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
-                embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d,
-                                      timestamp=datetime.utcnow())
+                embed = disnake.Embed(title='Moderation action [AUTOMUTE]', description=d,
+                                      timestamp=utcnow())
                 embed.add_field(name='Reason', value=message.content)
                 embed.add_field(name='Link', value=url)
-                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+                embed.set_thumbnail(url=user.default_avatar.url)
                 embed.set_footer(text=str(self.bot.user),
-                                 icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
+                                 icon_url=self.bot.user.display_avatar.url)
                 msg = await self.send_to_modlog(guild, embed=embed)
                 await self.add_timeout(await self.bot.get_context(message), guild.id, user.id,
-                                       datetime.utcnow() + time, time.total_seconds(),
+                                       utcnow() + time, time.total_seconds(),
                                        reason=f'Automuted for {message.content}',
                                        author=guild.me,
                                        modlog_msg=msg.id if msg else None)
@@ -217,7 +223,7 @@ class Moderator(Cog):
 
                 if message.channel.id not in blacklist:
                     whitelist = self.automute_whitelist.get(guild.id, ())
-                    invulnerable = discord.utils.find(lambda r: r.id in whitelist,
+                    invulnerable = disnake.utils.find(lambda r: r.id in whitelist,
                                                       user.roles)
 
                     if invulnerable is None:
@@ -233,16 +239,16 @@ class Moderator(Cog):
                         url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
                         reason = 'Too many mentions in a message'
                         await message.author.add_roles(mute_role, reason='[Automute] too many mentions in message')
-                        embed = discord.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=datetime.utcnow())
+                        embed = disnake.Embed(title='Moderation action [AUTOMUTE]', description=d, timestamp=utcnow())
                         embed.add_field(name='Reason', value=reason)
                         embed.add_field(name='Link', value=url)
-                        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                        embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.avatar_url or self.bot.user.default_avatar_url)
+                        embed.set_thumbnail(url=user.display_avatar.url)
+                        embed.set_footer(text=str(self.bot.user), icon_url=self.bot.user.display_avatar.url)
                         msg = await self.send_to_modlog(guild, embed=embed)
                         if time:
                             await self.add_timeout(await self.bot.get_context(message),
                                                    guild.id, user.id,
-                                                   datetime.utcnow() + time,
+                                                   utcnow() + time,
                                                    time.total_seconds(),
                                                    reason=reason,
                                                    author=guild.me,
@@ -255,7 +261,7 @@ class Moderator(Cog):
                                                        modlog_message_id=msg.id if msg else None)
                         return
 
-    @group(invoke_without_command=True, name='automute_whitelist', aliases=['mute_whitelist'], no_pm=True)
+    @group(invoke_without_command=True, name='automute_whitelist', aliases=['mute_whitelist'])
     @cooldown(2, 5, BucketType.guild)
     async def automute_whitelist_(self, ctx):
         """Show roles whitelisted from automutes"""
@@ -272,10 +278,10 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @automute_whitelist_.command(no_pm=True)
+    @automute_whitelist_.command()
     @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
-    async def add(self, ctx, *, role: discord.Role):
+    async def add(self, ctx, *, role: disnake.Role):
         """Add a role to the automute whitelist"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id)
@@ -296,10 +302,10 @@ class Moderator(Cog):
         roles.add(role.id)
         await ctx.send('Added role {0.name} `{0.id}`'.format(role))
 
-    @automute_whitelist_.command(aliases=['del', 'delete'], no_pm=True)
+    @automute_whitelist_.command(aliases=['del', 'delete'])
     @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
-    async def remove(self, ctx, *, role: discord.Role):
+    async def remove(self, ctx, *, role: disnake.Role):
         """Remove a role from the automute whitelist"""
         guild = ctx.guild
         roles = self.automute_whitelist.get(guild.id, ())
@@ -317,7 +323,7 @@ class Moderator(Cog):
         roles.discard(role.id)
         await ctx.send('Role {0.name} `{0.id}` removed from automute whitelist'.format(role))
 
-    @group(invoke_without_command=True, name='automute_blacklist', aliases=['mute_blacklist'], no_pm=True)
+    @group(invoke_without_command=True, name='automute_blacklist', aliases=['mute_blacklist'])
     @cooldown(2, 5, BucketType.guild)
     async def automute_blacklist_(self, ctx):
         """Show channels that are blacklisted from automutes.
@@ -335,10 +341,10 @@ class Moderator(Cog):
 
         await ctx.send(msg)
 
-    @automute_blacklist_.command(name='add', no_pm=True)
+    @automute_blacklist_.command(name='add')
     @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
-    async def add_(self, ctx, *, channel: discord.TextChannel):
+    async def add_(self, ctx, *, channel: disnake.TextChannel):
         """Add a channel to the automute blacklist"""
         guild = ctx.guild
         channels = self.automute_blacklist.get(guild.id)
@@ -353,7 +359,7 @@ class Moderator(Cog):
         channels.add(channel.id)
         await ctx.send('Added channel {0.name} `{0.id}`'.format(channel))
 
-    @automute_blacklist_.command(name='remove', aliases=['del', 'delete'], no_pm=True)
+    @automute_blacklist_.command(name='remove', aliases=['del', 'delete'])
     @has_permissions(manage_guild=True, manage_roles=True)
     @cooldown(2, 5, BucketType.guild)
     async def remove_(self, ctx, *, channel):
@@ -375,7 +381,7 @@ class Moderator(Cog):
         await ctx.send('Channel {0.name} `{0.id}` removed from automute blacklist'.format(channel_))
 
     # Required perms: manage roles
-    @command(no_pm=True)
+    @command()
     @cooldown(2, 5, BucketType.guild)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
@@ -389,15 +395,15 @@ class Moderator(Cog):
 
         default_perms = guild.default_role.permissions
         if random_color:
-            color = discord.Color(randint(1, 16777215))
+            color = disnake.Color(randint(1, 16777215))
         else:
-            color = discord.Color.default()
+            color = disnake.Color.default()
 
         try:
             r = await guild.create_role(name=name, permissions=default_perms, colour=color,
                                         mentionable=mentionable, hoist=hoist,
                                         reason=f'responsible user {ctx.author} {ctx.author.id}')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             return await ctx.send('Could not create role because of an error\n```%s```' % e)
 
         await ctx.send('Successfully created role %s `%s`' % (name, r.id))
@@ -416,7 +422,7 @@ class Moderator(Cog):
 
         return mute_role
 
-    @command(no_pm=True)
+    @command()
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
     async def mute(self, ctx, users: Greedy[MentionedMember], *, reason):
@@ -460,7 +466,7 @@ class Moderator(Cog):
             try:
                 await user.add_roles(mute_role, reason=f'[{ctx.author}] {reason}')
                 muted_users.append(user)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 failed.append(f'Could not mute user {user}')
                 continue
 
@@ -475,17 +481,17 @@ class Moderator(Cog):
             user_string = '\n'.join(map(lambda u: f'{u} `{u.id}`', muted_users))
             description = f'{author.mention} muted {user_string}'
             url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
-            embed = discord.Embed(title='🤐 Moderation action [MUTE]',
-                                  timestamp=datetime.utcnow(),
+            embed = disnake.Embed(title='🤐 Moderation action [MUTE]',
+                                  timestamp=utcnow(),
                                   description=description)
             embed.add_field(name='Reason', value=reason)
             embed.add_field(name='Link', value=url)
 
             if len(muted_users) == 1:
                 usr = muted_users[0]
-                embed.set_thumbnail(url=usr.avatar_url or usr.default_avatar_url)
+                embed.set_thumbnail(url=usr.display_avatar.url)
 
-            embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+            embed.set_footer(text=str(author), icon_url=author.display_avatar.url)
             msg = await self.send_to_modlog(guild, embed=embed)
 
             for user in muted_users:
@@ -502,10 +508,11 @@ class Moderator(Cog):
 
         await ctx.send(s)
 
-    @command(no_dm=True)
+    @command()
     @cooldown(2, 3, BucketType.guild)
     @bot_has_permissions(manage_roles=True)
-    async def mute_roll(self, ctx, user: discord.Member, minutes: int):
+    @guild_only()
+    async def mute_roll(self, ctx, user: disnake.Member, minutes: int):
         """Challenge another user to a game where the loser gets muted for the specified amount of time
         ranging from 10 to 60 minutes"""
         if not 9 < minutes < 61:
@@ -570,7 +577,7 @@ class Moderator(Cog):
 
             td = timedelta(minutes=minutes)
 
-            expires_on = datetime.utcnow() + td
+            expires_on = utcnow() + td
             msg = await ctx.send(f'{user} vs {ctx.author}\nLoser: <a:loading:449907001569312779>')
             await asyncio.sleep(2)
             counter = True
@@ -594,7 +601,7 @@ class Moderator(Cog):
                 await asyncio.sleep(2)
 
                 if perms.attach_files:
-                    await ctx.send(f'{choices[loser]} counters', file=discord.File(p))
+                    await ctx.send(f'{choices[loser]} counters', file=disnake.File(p))
                 else:
                     await ctx.send(f'{choices[loser]} counters. (No image perms so text only counter)')
 
@@ -606,7 +613,7 @@ class Moderator(Cog):
                 await asyncio.sleep(2)
 
                 if perms.attach_files:
-                    await ctx.send(f'{choices[loser]} counters the counter', file=discord.File(p))
+                    await ctx.send(f'{choices[loser]} counters the counter', file=disnake.File(p))
                 else:
                     await ctx.send(f'{choices[loser]} counters the counter. (No image perms so text only counter)')
 
@@ -625,7 +632,7 @@ class Moderator(Cog):
                                    show_in_logs=False)
             try:
                 await loser.add_roles(mute_role, reason=f'Lost mute roll to {ctx.author}')
-            except discord.DiscordException:
+            except disnake.DiscordException:
                 return await ctx.send('Failed to mute loser')
 
             await self.bot.dbutil.increment_mute_roll(ctx.guild.id, ctx.author.id, loser != ctx.author)
@@ -707,19 +714,19 @@ class Moderator(Cog):
                 # use a raw request as cache isn't always up to date
                 await self.bot.http.remove_role(guild_id, user_id, mute_role, reason='Unmuted')
                 # await user.remove_roles(Snowflake(mute_role), reason='Unmuted')
-            except (discord.Forbidden, discord.NotFound):
+            except (disnake.Forbidden, disnake.NotFound):
                 pass
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 logger.exception(f'Could not autounmute user {user_id}')
         await self.remove_timeout(user_id, guild.id)
 
-    @command(no_pm=True)
+    @command()
     @bot_has_permissions(manage_channels=True)
     @has_permissions(manage_channels=True)
     async def slowmode(self, ctx, time: int):
         try:
             await ctx.channel.edit(slowmode_delay=time)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to set slowmode because of an error\n{e}')
         else:
             await ctx.send(f'Slowmode set to {time}s')
@@ -758,11 +765,11 @@ class Moderator(Cog):
                                                       reason, embed)
 
     def format_tlog_message(self, rows, title, fmt):
-        paginator = Paginator(title=title, init_page=False)
+        paginator = EmbedPaginator(title=title, init_page=False)
 
         description = ''
         for row in rows:
-            time = format_timedelta(datetime.utcnow() - row['time'], DateAccuracy.Day)
+            time = format_timedelta(utcnow() - row['time'], DateAccuracy.Day)
             if row['duration']:
                 duration = 'for '
                 duration += format_timedelta(timedelta(seconds=row['duration']), DateAccuracy.Day-DateAccuracy.Hour)
@@ -848,7 +855,7 @@ class Moderator(Cog):
 
         await send_paged_message(ctx, pages, embed=True)
 
-    @command(aliases=['temp_mute'], no_pm=True)
+    @command(aliases=['temp_mute'])
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
     @cooldown(1, 5, BucketType.user)
@@ -903,7 +910,7 @@ class Moderator(Cog):
         muted_users = []
         failed = []
 
-        now = datetime.utcnow()
+        now = utcnow()
         reason = reason if reason else 'No reason <:HYPERKINGCRIMSONANGRY:356798314752245762>'
         expires_on = now + time
 
@@ -942,7 +949,7 @@ class Moderator(Cog):
             try:
                 await user.add_roles(mute_role, reason=f'[{author}] {reason}')
                 muted_users.append(user)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 failed.append('Could not mute user {}'.format(user))
                 continue
 
@@ -952,18 +959,18 @@ class Moderator(Cog):
             description = f'{author.mention} muted {user_string} for {time}'
 
             url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
-            embed = discord.Embed(title='🕓 Moderation action [TIMEOUT]',
-                                  timestamp=datetime.utcnow() + time,
+            embed = disnake.Embed(title='🕓 Moderation action [TIMEOUT]',
+                                  timestamp=utcnow() + time,
                                   description=description)
             embed.add_field(name='Reason', value=reason)
             embed.add_field(name='Link', value=url)
 
             if len(muted_users) == 1:
                 u = muted_users[0]
-                embed.set_thumbnail(url=u.avatar_url or u.default_avatar_url)
+                embed.set_thumbnail(url=u.display_avatar.url)
 
             embed.set_footer(text='Expires at',
-                             icon_url=author.avatar_url or author.default_avatar_url)
+                             icon_url=author.display_avatar.url)
 
             msg = await self.send_to_modlog(guild, embed=embed)
 
@@ -987,7 +994,7 @@ class Moderator(Cog):
 
         await ctx.send(s)
 
-    @group(invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
     async def unmute(self, ctx, user: MentionedMember, *, reason='idk kev'):
@@ -1013,7 +1020,7 @@ class Moderator(Cog):
 
         try:
             await user.remove_roles(mute_role, reason=f'Responsible user {ctx.author}')
-        except discord.HTTPException:
+        except disnake.HTTPException:
             await ctx.send('Could not unmute user {}'.format(user))
         else:
             row = await self.remove_timeout(user.id, guild.id, return_info=True)
@@ -1024,22 +1031,22 @@ class Moderator(Cog):
                 author = ctx.author
                 description = f'{author.mention} unmuted {user} {user.id}'
                 url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{ctx.channel.id}/{ctx.message.id})'
-                embed = discord.Embed(title='🔊 Moderation action [UNMUTE]',
-                                      timestamp=datetime.utcnow(),
+                embed = disnake.Embed(title='🔊 Moderation action [UNMUTE]',
+                                      timestamp=utcnow(),
                                       description=description)
                 embed.add_field(name='Reason for unmute', value=reason)
                 embed.add_field(name='Link', value=url)
                 embed.add_field(name='Mute reason', value=row.get('reason', 'Mute reason not logged'))
                 expires_on = row.get('expires_on')
                 if expires_on:
-                    sentence_left = format_timedelta(expires_on - datetime.utcnow(), DateAccuracy.Day-DateAccuracy.Hour)
+                    sentence_left = format_timedelta(expires_on - utcnow(), DateAccuracy.Day-DateAccuracy.Hour)
                 else:
                     sentence_left = 'indefinite'
 
                 embed.add_field(name='Sentence left', value=sentence_left)
 
                 if row.get('time'):
-                    at = format_timedelta(datetime.utcnow() - row['time'], DateAccuracy.Day-DateAccuracy.Hour)
+                    at = format_timedelta(utcnow() - row['time'], DateAccuracy.Day-DateAccuracy.Hour)
                     embed.add_field(name='Got muted', value=at + ' ago')
 
                 # Set field for the person who muted if they exist
@@ -1050,8 +1057,8 @@ class Moderator(Cog):
                 if old_author:
                     embed.add_field(name='Muted by', value=old_author)
 
-                embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
-                embed.set_footer(text=str(author), icon_url=author.avatar_url or author.default_avatar_url)
+                embed.set_thumbnail(url=user.display_avatar.url)
+                embed.set_footer(text=str(author), icon_url=author.display_avatar.url)
                 await self.send_to_modlog(guild, embed=embed)
 
             t = self.timeouts.get(guild.id, {}).get(user.id)
@@ -1072,7 +1079,7 @@ class Moderator(Cog):
             return await ctx.send('%s is not muted' % member)
 
         row = await self.bot.dbutil.get_latest_timeout_log(guild.id, member.id)
-        utcnow = datetime.utcnow()
+        timestamp = utcnow()
 
         if row is False:
             return await ctx.send('Failed to check mute status')
@@ -1082,11 +1089,11 @@ class Moderator(Cog):
 
         td = f'User {member} is permamuted\n'
         if row['expires_on']:
-            delta = row['expires_on'] - utcnow
+            delta = row['expires_on'] - timestamp
             td = seconds2str(delta.total_seconds(), False)
             # Most likely happens when unmute when called after unmute has happened
             if td.startswith('-'):
-                logger.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {utcnow}\nTimedelta: {delta}')
+                logger.warning(f'Negative time in unmute when.\nValue of row: {row["expires_on"]}\nValue of utcnow: {timestamp}\nTimedelta: {delta}')
                 td = 'soon'
             else:
                 td = 'in ' + td
@@ -1102,11 +1109,11 @@ class Moderator(Cog):
             author = f'User responsible for timeout: {author_user} `{author_user.id}`\n'
 
         muted_at = row['time']
-        td_at = utcnow - muted_at
+        td_at = timestamp - muted_at
         author += f'Muted on `{muted_at.strftime("%Y-%m-%d %H:%M")}` UTC which was {format_timedelta(td_at, DateAccuracy.Day)} ago\n'
 
         if embed:
-            embed = discord.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or discord.Embed.Empty)
+            embed = disnake.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or disnake.Embed.Empty)
             embed.add_field(name='Who muted', value=author, inline=False)
             embed.add_field(name='Reason', value=reason, inline=False)
             embed.set_footer(text='Expires at')
@@ -1120,15 +1127,15 @@ class Moderator(Cog):
             s = td + author + reason
             await ctx.send(s)
 
-    @unmute.command(no_pm=True)
+    @unmute.command()
     @cooldown(1, 3, BucketType.user)
-    async def when(self, ctx, *, user: discord.Member=None):
+    async def when(self, ctx, *, user: disnake.Member=None):
         """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 3, BucketType.user)
-    async def unmute_when(self, ctx, *, user: discord.Member=None):
+    async def unmute_when(self, ctx, *, user: disnake.Member=None):
         """Shows how long you are still muted for"""
         await self._unmute_when(ctx, user, embed=check_botperm('embed_links', ctx=ctx))
 
@@ -1141,7 +1148,7 @@ class Moderator(Cog):
         overwrite.send_messages = False if locked else None
         try:
             await channel.set_permissions(everyone, overwrite=overwrite, reason=f'Responsible user {ctx.author}')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             return await ctx.send('Failed to lock channel because of an error: %s. '
                                   'Bot might lack the permissions to do so' % e)
 
@@ -1156,16 +1163,16 @@ class Moderator(Cog):
                     await ctx.send('Unlocked channel %s' % channel.name)
                 else:
                     await ctx.send('Soshite toki wo ugokidasu')
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
     @staticmethod
     def hackban_embed(ctx: Context, users: List[int], reason: str):
-        author: discord.Member = ctx.author
+        author: disnake.Member = ctx.author
         description = f'{author.mention} banned **{len(users)}** users'
-        embed = discord.Embed(title=f'🔨 Moderation action [BAN]',
+        embed = disnake.Embed(title=f'🔨 Moderation action [BAN]',
                               description=description,
-                              timestamp=datetime.utcnow())
+                              timestamp=utcnow())
 
         embed.add_field(name='Reason', value=reason)
 
@@ -1188,7 +1195,7 @@ class Moderator(Cog):
         if users is None:
             users = set()
             for m in messages:
-                if isinstance(m, discord.Message):
+                if isinstance(m, disnake.Message):
                     users.add(m.author.mention)
                 elif isinstance(m, dict):
                     try:
@@ -1215,13 +1222,13 @@ class Moderator(Cog):
                 value += user
             users.remove(u)
 
-        embed = discord.Embed(title='🗑 Moderation action [PURGE]', timestamp=datetime.utcnow(), description=d)
+        embed = disnake.Embed(title='🗑 Moderation action [PURGE]', timestamp=utcnow(), description=d)
         embed.add_field(name='Deleted messages from', value=value)
         embed.set_thumbnail(url=get_avatar(author))
         embed.set_footer(text=str(author), icon_url=get_avatar(author))
         return embed
 
-    @group(invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True)
     @cooldown(1, 5, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
     @has_permissions(manage_messages=True)
@@ -1238,10 +1245,10 @@ class Moderator(Cog):
         # purge doesn't support reasons yet
         try:
             messages = await channel.purge(limit=max_messages, bulk=True)  # , reason=f'{ctx.author} purged messages')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             try:
                 await ctx.send(f'Failed to purge messages\n{e}')
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
             return
@@ -1253,11 +1260,11 @@ class Moderator(Cog):
         embed = self.purge_embed(ctx, messages)
         await self.send_to_modlog(channel.guild, embed=embed)
 
-    @purge.command(name='from', no_pm=True)
+    @purge.command(name='from')
     @cooldown(2, 4, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
     @has_permissions(manage_messages=True)
-    async def from_(self, ctx, user: PossibleUser, max_messages: int=10, channel: discord.TextChannel=None):
+    async def from_(self, ctx, user: PossibleUser, max_messages: int=10, channel: disnake.TextChannel=None):
         """
         Delete messages from a user
         `user` The user mention or id of the user we want to purge messages from
@@ -1295,7 +1302,7 @@ class Moderator(Cog):
         if channel is not None:
             return await purge_channel()
 
-        t = datetime.utcnow() - timedelta(days=14)
+        t = utcnow() - timedelta(days=14)
 
         # Create a snowflake from date because that way we dont need a date column
         # https://discordapp.com/developers/docs/reference#snowflakes-snowflake-id-format-structure-left-to-right
@@ -1335,7 +1342,7 @@ class Moderator(Cog):
 
             try:
                 await self.delete_messages(channel, channel_messages[k])
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 logger.exception('Could not delete messages')
             else:
                 ids.extend(channel_messages[k])
@@ -1351,7 +1358,7 @@ class Moderator(Cog):
                 embed = self.purge_embed(ctx, ids, users={'<@!%s>' % user}, multiple_channels=len(channel_messages.keys()) > 1)
                 await self.send_to_modlog(guild, embed=embed)
 
-    @purge.command(name='until', no_pm=True)
+    @purge.command(name='until')
     @cooldown(2, 4, BucketType.guild)
     @bot_has_permissions(manage_messages=True)
     @has_permissions(manage_messages=True)
@@ -1362,10 +1369,10 @@ class Moderator(Cog):
         channel = ctx.channel
         try:
             message = await channel.fetch_message(message_id)
-        except discord.NotFound:
+        except disnake.NotFound:
             return await ctx.send(f'Message {message_id} not found in this channel')
 
-        days = (datetime.utcnow() - message.created_at).days
+        days = (utcnow() - message.created_at).days
 
         max_limit = 100 if days >= 14 else 500
 
@@ -1380,14 +1387,14 @@ class Moderator(Cog):
 
         try:
             deleted = await channel.purge(limit=limit, check=check)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to delete messages because of an error\n{e}')
         else:
             await ctx.send(f'Deleted {len(deleted)} messages', delete_after=10)
             embed = self.purge_embed(ctx, deleted)
             await self.send_to_modlog(channel.guild, embed=embed)
 
-    @command(no_pm=True, aliases=['hb', 'massban'], cooldown_after_parsing=True)
+    @command(aliases=['hb', 'massban'], cooldown_after_parsing=True)
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
     @cooldown(2, 5)
@@ -1397,7 +1404,7 @@ class Moderator(Cog):
         """
         failed = []
         success = []
-        guild: discord.Guild = ctx.guild
+        guild: disnake.Guild = ctx.guild
         user_ids = set(user_ids)
         user_ids.discard(ctx.author.id)  # Can't ban yourself
 
@@ -1421,7 +1428,7 @@ class Moderator(Cog):
             try:
                 await guild.ban(Snowflake(id=user_id), reason=f'Hackban by {ctx.author}: {reason[:400]}')
                 success.append(user_id)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 failed.append(user_id)
             except:
                 failed.append(user_id)
@@ -1441,11 +1448,11 @@ class Moderator(Cog):
         await self.send_to_modlog(guild, embed=embed)
         await ctx.send(f'✅ Banned **{len(success)}** users')
 
-    @command(no_pm=True, cooldown_after_parsing=True)
+    @command(cooldown_after_parsing=True)
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
     @cooldown(2, 5)
-    async def ban(self, ctx: Context, user: discord.User, delete_days: Optional[int] = 0, *, reason: str = 'No reason'):
+    async def ban(self, ctx: Context, user: disnake.User, delete_days: Optional[int] = 0, *, reason: str = 'No reason'):
         """
         Bans the specified user from the server.
         Cannot ban yourself or someone with a higher or equal top role
@@ -1455,13 +1462,13 @@ class Moderator(Cog):
             await ctx.send('Cannot ban yourself...')
             return
 
-        guild: discord.Guild = ctx.guild
+        guild: disnake.Guild = ctx.guild
         if guild.chunked:
-            member: Optional[discord.Member] = guild.get_member(user.id)
+            member: Optional[disnake.Member] = guild.get_member(user.id)
         else:
             try:
                 member = await guild.fetch_member(user.id)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 member = None
 
         if member and member.top_role >= author.top_role:
@@ -1471,7 +1478,7 @@ class Moderator(Cog):
         try:
             await ctx.guild.ban(user, delete_message_days=delete_days, reason=f'Banned by {author}: {reason[:400]}')
             pass
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to ban user {user}\n{e}')
             return
         except:
@@ -1479,30 +1486,30 @@ class Moderator(Cog):
             await ctx.send(f'Failed to ban user {user}')
             return
 
-        embed = discord.Embed(
+        embed = disnake.Embed(
             title='🔨 Moderation action [BAN]',
             description=f'{ctx.author.mention} banned {user} {user.mention}',
-            timestamp=datetime.utcnow()
+            timestamp=utcnow()
         )
         embed.add_field(name='Reason', value=reason or 'No reason')
         embed.add_field(name='Link', value=f'[Jump to]({ctx.message.jump_url})')
-        embed.set_thumbnail(url=user.avatar_url or user.default_avatar_url)
+        embed.set_thumbnail(url=user.display_avatar.url)
         embed.set_footer(text=str(author), icon_url=get_avatar(author))
 
         await self.send_to_modlog(ctx.guild, embed=embed)
         await ctx.send(f'✅ Successfully banned {user}')
 
-    @command(no_pm=True, cooldown_after_parsing=True)
+    @command(cooldown_after_parsing=True)
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
     @cooldown(2, 5)
-    async def bab(self, ctx: Context, user: discord.User):
+    async def bab(self, ctx: Context, user: disnake.User):
         """
         Babs the specified user from the server
         """
         await ctx.send(f'✅ Successfully babbed **{user}**')
 
-    @command(no_pm=True, aliases=['softbab'])
+    @command(aliases=['softbab'])
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
     async def softban(self, ctx, user: PossibleUser, message_days: int=1):
@@ -1513,26 +1520,26 @@ class Moderator(Cog):
             return await ctx.send('Message days must be between 1 and 7')
 
         user_name = str(user)
-        if isinstance(user, discord.User):
+        if isinstance(user, disnake.User):
             user = user.id
             user_name += f' `{user}`'
         try:
             await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', delete_message_days=message_days)
-        except discord.Forbidden:
+        except disnake.Forbidden:
             return await ctx.send("The bot doesn't have ban perms")
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return await ctx.send('Something went wrong while trying to ban. Try again')
 
         try:
             await guild.unban(Snowflake(user), reason=f'{ctx.author} softbanned')
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return await ctx.send('Failed to unban after ban')
 
         s = f'Softbanned user {user_name}'
 
         await ctx.send(s)
 
-    @command(aliases=['zawarudo'], no_pm=True)
+    @command(aliases=['zawarudo'])
     @cooldown(1, 5, BucketType.guild)
     @bot_has_permissions(manage_channels=True, manage_roles=True)
     @has_permissions(manage_channels=True, manage_roles=True)
@@ -1540,7 +1547,7 @@ class Moderator(Cog):
         """Set send_messages permission override of everyone to false on current channel"""
         await self._set_channel_lock(ctx, True, zawarudo=ctx.invoked_with == 'zawarudo')
 
-    @command(aliases=['tokiwougokidasu'], no_pm=True)
+    @command(aliases=['tokiwougokidasu'])
     @cooldown(1, 5, BucketType.guild)
     @bot_has_permissions(manage_channels=True, manage_roles=True)
     @has_permissions(manage_channels=True, manage_roles=True)
@@ -1581,9 +1588,9 @@ class Moderator(Cog):
         member = None
         try:
             member = await guild.fetch_member(user)
-        except discord.NotFound:
+        except disnake.NotFound:
             pass
-        except discord.HTTPException:
+        except disnake.HTTPException:
             logger.exception('Failed to fetch member in remove_role')
 
         if not member:
@@ -1592,7 +1599,7 @@ class Moderator(Cog):
 
         try:
             await member.remove_roles(Snowflake(role), reason='Removed temprole')
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
         await self.bot.dbutil.remove_temprole(user, role)
@@ -1637,9 +1644,9 @@ class Moderator(Cog):
 
         temproles[role] = task
 
-    @command(no_pm=True, cooldown_after_parsing=True)
+    @command(cooldown_after_parsing=True)
     @cooldown(1, 5, BucketType.user)
-    async def temproles(self, ctx, *, user: discord.Member = None):
+    async def temproles(self, ctx, *, user: disnake.Member = None):
         """
         Get the temproles for yourself or a specified user
         """
@@ -1651,19 +1658,19 @@ class Moderator(Cog):
             return
 
         msg = f'Temproles of {user.mention}\n\n'
-        now = datetime.utcnow()
+        now = utcnow()
 
         for temprole in temproles:
             expires_in = format_timedelta(temprole['expires_at'] - now, DateAccuracy.Day-DateAccuracy.Minute)
             msg += f'<@&{temprole["role"]}> expires in {expires_in}\n'
 
-        await ctx.send(msg, allowed_mentions=discord.AllowedMentions.none())
+        await ctx.send(msg, allowed_mentions=disnake.AllowedMentions.none())
 
-    @command(no_pm=True)
+    @command()
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, BucketType.guild)
-    async def temprole(self, ctx, time: TimeDelta, user: discord.Member, *, role: discord.Role):
+    async def temprole(self, ctx, time: TimeDelta, user: disnake.Member, *, role: disnake.Role):
         """
         Temporarily give a user a role
         """
@@ -1682,7 +1689,7 @@ class Moderator(Cog):
         if role > ctx.author.top_role:
             return await ctx.send('Role is higher than your top role')
 
-        expires_at = datetime.utcnow() + time
+        expires_at = utcnow() + time
 
         self.register_temprole(user.id, role.id, user.guild.id, total_seconds)
         await self.bot.dbutil.add_temprole(user.id, role.id, user.guild.id,
@@ -1690,7 +1697,7 @@ class Moderator(Cog):
 
         try:
             await user.add_roles(role, reason=f'{ctx.author} temprole {seconds2str(total_seconds, long_def=False)}')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send('Failed to add role because of an error\n%s' % e)
             return
         except:
@@ -1700,9 +1707,9 @@ class Moderator(Cog):
 
         await ctx.send(f'Added {role} to {user} for {seconds2str(total_seconds, long_def=False)}')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 4, BucketType.user)
-    async def reason(self, ctx, user_or_message: Union[discord.User, int], *, reason):
+    async def reason(self, ctx, user_or_message: Union[disnake.User, int], *, reason):
         """
         Changes the reason on a mute or unmute
         If message id is given, it will try to edit a message with that id in the modlog.
@@ -1729,7 +1736,7 @@ class Moderator(Cog):
             message_id = user_or_message
             try:
                 msg = await modlog.fetch_message(message_id)
-            except discord.HTTPException as e:
+            except disnake.HTTPException as e:
                 return await ctx.send('Failed to get message\n%s' % e)
 
             if msg.author.id != self.bot.user.id:
@@ -1759,7 +1766,7 @@ class Moderator(Cog):
             if row['message']:
                 try:
                     msg = await modlog.fetch_message(row['message'])
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     s += f'Failed to get modlog entry\n'
                 else:
                     if msg.embeds:
@@ -1787,14 +1794,14 @@ class Moderator(Cog):
             if msg:
                 try:
                     await msg.edit(embed=embed)
-                except discord.HTTPException as e:
+                except disnake.HTTPException as e:
                     s += f'Failed to edit modlog reason because of an error.\n{e}\n'
 
         if unmute:
             s += 'Edited unmute reason'
 
         elif row:
-            td = datetime.utcnow() - row['time']
+            td = utcnow() - row['time']
             # td formatted from day to hour
             td = format_timedelta(td, DateAccuracy.Day-DateAccuracy.Hour)
             s += f'Reason for the mute of {user_or_message} from {td} ago was edited'
@@ -1828,7 +1835,7 @@ class Moderator(Cog):
         for i in range(0, len(message_ids), step):
             try:
                 await channel.delete_messages(message_ids[i:i+step])
-            except discord.NotFound:
+            except disnake.NotFound:
                 pass
 
     def get_modlog(self, guild):

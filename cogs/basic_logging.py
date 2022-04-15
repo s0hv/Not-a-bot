@@ -1,7 +1,7 @@
 import logging
 
-from discord import ApplicationContext
-from discord.ext.commands import Cog
+from disnake import ApplicationCommandInteraction
+from disnake.ext.commands import Cog
 
 from bot.bot import Context
 
@@ -13,8 +13,8 @@ class BasicLogging(Cog):
         self.bot = bot
 
     @Cog.listener()
-    async def on_application_command(self, ctx: ApplicationContext):
-        cmd_name = ctx.interaction.qualified_name()
+    async def on_application_command(self, ctx: ApplicationCommandInteraction):
+        cmd_name = ctx.application_command.qualified_name
         if ctx.guild:
             s = '{0.name}/{0.id}/{1.name}/{1.id} {2.id} called {3}'.format(
                 ctx.guild, ctx.channel, ctx.author, cmd_name)

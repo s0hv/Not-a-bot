@@ -1,7 +1,5 @@
-import asyncio
-
-from discord import SlashCommand
-from discord.ext import commands
+from disnake import SlashCommand
+from disnake.ext import commands
 
 from bot.botbase import BotBase
 
@@ -11,6 +9,7 @@ class Cog(commands.Cog):
         super().__init__()
         self._bot = bot
 
+    async def cog_load(self) -> None:
         # Add all commands to cmdstats db table
         cmds = set()
         for cmd in self.walk_commands():
@@ -28,7 +27,7 @@ class Cog(commands.Cog):
             entries.append(cmd.name)
             data.append((entries[0], ' '.join(entries[1:]) or ""))
 
-        asyncio.run_coroutine_threadsafe(self.bot.dbutil.add_commands(data), loop=self.bot.loop)
+        await self.bot.dbutil.add_commands(data)
 
     @property
     def bot(self):

@@ -25,11 +25,10 @@ SOFTWARE.
 import logging
 from collections import deque
 
-import discord
+import disnake
 from aiohttp import ClientSession
-from discord import DMChannel
-from discord.ext.commands import cooldown
-from requests_html import AsyncHTMLSession
+from disnake import DMChannel
+from disnake.ext.commands import cooldown
 
 from bot.bot import command
 from cogs.cog import Cog
@@ -48,13 +47,11 @@ class SearchItem():
 
 
 class Search(Cog):
-    def __init__(self, bot, client: ClientSession):
+    def __init__(self, bot):
         super().__init__(bot)
-        self.client = client
         self.last_search = deque()
         self.key = bot.config.google_api_key
         self.cx = self.bot.config.custom_search
-        self.session = AsyncHTMLSession(loop=bot.loop)
 
     @command(aliases=['im', 'img'])
     @cooldown(2, 5)
@@ -83,35 +80,36 @@ class Search(Cog):
         if image:
             params['searchType'] = 'image'
 
-        async with self.client.get('https://www.googleapis.com/customsearch/v1', params=params) as r:
-            if r.status == 200:
-                json = await r.json()
-                if 'error' in json:
-                    reason = json['error'].get('message', 'Unknown reason')
-                    return await ctx.send('Failed to search because of an error\n```{}```'.format(reason))
+        async with ClientSession() as client:
+            async with client.get('https://www.googleapis.com/customsearch/v1', params=params) as r:
+                if r.status == 200:
+                    json = await r.json()
+                    if 'error' in json:
+                        reason = json['error'].get('message', 'Unknown reason')
+                        return await ctx.send('Failed to search because of an error\n```{}```'.format(reason))
 
-                #logger.debug('Search result: {}'.format(json))
+                    #logger.debug('Search result: {}'.format(json))
 
-                total_results = json['searchInformation']['totalResults']
-                if int(total_results) == 0:
-                    return await ctx.send('No results with the keywords "{}"'.format(query))
+                    total_results = json['searchInformation']['totalResults']
+                    if int(total_results) == 0:
+                        return await ctx.send('No results with the keywords "{}"'.format(query))
 
-                if 'items' in json:
-                    items = []
-                    for item in json['items']:
-                        items.append(SearchItem(**item))
+                    if 'items' in json:
+                        items = []
+                        for item in json['items']:
+                            items.append(SearchItem(**item))
 
-                    try:
-                        await send_paged_message(ctx, items, page_method=lambda p, i: str(p))
-                    except discord.HTTPException:
-                        pass
-                    return
+                        try:
+                            await send_paged_message(ctx, items, page_method=lambda p, i: str(p))
+                        except disnake.HTTPException:
+                            pass
+                        return
 
-            elif r.status == 403:
-                return await ctx.send('Search quota filled for today. Resets every day at midnight Pacific Time (PT)')
-            else:
-                return await ctx.send('Http error {}'.format(r.status))
+                elif r.status == 403:
+                    return await ctx.send('Search quota filled for today. Resets every day at midnight Pacific Time (PT)')
+                else:
+                    return await ctx.send('Http error {}'.format(r.status))
 
 
 def setup(bot):
-    bot.add_cog(Search(bot, bot.aiohttp_client))
+    bot.add_cog(Search(bot))

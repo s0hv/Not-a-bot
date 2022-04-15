@@ -9,7 +9,6 @@ import pprint
 import re
 import shlex
 import subprocess
-import sys
 import textwrap
 import time
 import traceback
@@ -22,13 +21,13 @@ from pprint import PrettyPrinter
 from py_compile import PyCompileError
 
 import aiohttp
-import discord
+import disnake
 import matplotlib.pyplot as plt
 from asyncpg.exceptions import PostgresError
-from discord import File
-from discord.errors import ExtensionError, ExtensionFailed
-from discord.errors import HTTPException, InvalidArgument
-from discord.user import BaseUser
+from disnake import File
+from disnake.errors import HTTPException, InvalidArgument
+from disnake.ext.commands.errors import ExtensionError, ExtensionFailed
+from disnake.user import BaseUser
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MultipleLocator
 
@@ -37,7 +36,7 @@ from bot.config import Config
 from bot.converters import PossibleUser, CommandConverter
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
-from utils.utilities import split_string
+from utils.utilities import split_string, utcnow
 from utils.utilities import (y_n_check, basic_check, y_check, check_import,
                              parse_timeout, is_owner, format_timedelta,
                              call_later, seconds2str, test_url,
@@ -113,7 +112,6 @@ class BotAdmin(Cog):
         # data because they give the contents of the parent error message
         except ExtensionFailed as e:
             logger.exception(f'Failed to reload extension {name}')
-            logger.exception(f'Failed to reload extension {name}')
             return f'Could not reload {name} because of {type(e).__name__}\nCheck logs for more info'
 
         except ExtensionError as e:
@@ -126,13 +124,13 @@ class BotAdmin(Cog):
 
         return 'Reloaded {} in {:.0f}ms'.format(name, (time.perf_counter() - t) * 1000)
 
-    async def reload_extension(self, name):
+    def reload_extension(self, name):
         """
         Reload an cog with the given import path
         """
-        return await self.bot.loop.run_in_executor(self.bot.threadpool, self._reload_extension, name)
+        return self._reload_extension(name)
 
-    async def reload_extensions(self, names):
+    def reload_extensions(self, names):
         """
         Same as reload_extension but for multiple files
         We are using 2 functions to optimize the usage of run_in_executor
@@ -143,13 +141,10 @@ class BotAdmin(Cog):
 
         messages = []
 
-        def do_reload():
-            for name in names:
-                messages.append(self._reload_extension(name))
+        for name in names:
+            messages.append(self._reload_extension(name))
 
-            return split_string(messages, list_join='\n', splitter='\n')
-
-        return await self.bot.loop.run_in_executor(self.bot.threadpool, do_reload)
+        return split_string(messages, list_join='\n', splitter='\n')
 
     @command(name='eval')
     async def eval_(self, ctx, *, code: str):
@@ -237,7 +232,7 @@ class BotAdmin(Cog):
                 retval = f'{stdout.getvalue()}'
 
         if len(retval) > 2000:
-            await ctx.send(file=discord.File(StringIO(retval), filename='result.py'))
+            await ctx.send(file=disnake.File(StringIO(retval), filename='result.py'))
         else:
             await ctx.send(retval or '[None]')
 
@@ -280,7 +275,7 @@ class BotAdmin(Cog):
             logger.exception('Failed to execute eval query')
             return await ctx.send('Failed to execute query. Exception logged')
 
-        embed = discord.Embed(title='sql', description=f'Query ran succesfully in {t*1000:.0f} ms')
+        embed = disnake.Embed(title='sql', description=f'Query ran succesfully in {t*1000:.0f} ms')
         embed.add_field(name='input', value=f'```sql\n{query}\n```', inline=False)
 
         if not isinstance(rows, str):
@@ -298,13 +293,14 @@ class BotAdmin(Cog):
     @command()
     async def reload(self, ctx, *names):
         cog_names = ['cogs.' + name if not name.startswith('cogs.') else name for name in names]
-        for msg in await self.reload_extensions(cog_names):
+        msgs = self.reload_extensions(cog_names)
+        for msg in split_string(msgs, list_join='\n'):
             await ctx.send(msg)
 
     @command()
     async def reload_all(self, ctx):
-        messages = await self.reload_extensions(self.bot.default_cogs)
-        for msg in messages:
+        messages = self.reload_extensions(self.bot.default_cogs)
+        for msg in split_string(messages, list_join='\n'):
             await ctx.send(msg)
 
     @command()
@@ -346,20 +342,7 @@ class BotAdmin(Cog):
         except HTTPException:
             pass
 
-        logger.info('Unloading extensions')
         self.bot._exit_code = int(exit_code)
-
-        def unload_all():
-            for ext in list(self.bot.extensions.keys()):
-                try:
-                    self.bot.unload_extension(ext)
-                except:
-                    pass
-
-        await self.bot.loop.run_in_executor(self.bot.threadpool, unload_all)
-        logger.info('Unloaded extensions')
-        await self.bot.aiohttp_client.close()
-        logger.info('Closed aiohttp client')
 
         redis = getattr(self.bot, 'redis', None)
         if redis:
@@ -374,26 +357,24 @@ class BotAdmin(Cog):
             if audio:
                 await audio.shutdown()
 
-            try:
-                await self._bot.loop.close()
-            except:
-                logger.exception('Failed to shut db down gracefully')
-            logger.info('Closed db connection')
-
-            try:
-                logger.info('Logging out')
-                await self.bot.logout()
-                logger.info('Logged out')
-            except:
-                pass
-
         except Exception:
-            logger.exception('Bot shutdown error')
+            logger.exception('Failed to shutdown audio')
 
-        finally:
-            # We have systemctl set up in a way that different exit codes
-            # have different effects on restarting behavior
-            sys.exit(int(exit_code))
+        try:
+            logger.info('Logging out')
+            await self.bot.close()
+            logger.info('Logged out')
+        except asyncio.exceptions.CancelledError:
+            pass
+        except:
+            logger.exception('Failed to close bot')
+
+        try:
+            await self._bot.pool.close()
+        except:
+            logger.exception('Failed to shut db down gracefully')
+        else:
+            logger.info('Closed db connection')
 
     @command()
     async def notice_me(self, ctx):
@@ -472,7 +453,7 @@ class BotAdmin(Cog):
         await ctx.send('Reloaded module %s' % module_name)
 
     @command()
-    async def runas(self, ctx, *, user: discord.User=None):
+    async def runas(self, ctx, *, user: disnake.User=None):
         self.bot._runas = user
         await ctx.send(f'Now running as {user}')
 
@@ -512,13 +493,12 @@ class BotAdmin(Cog):
             if not y_check(msg.content):
                 return await ctx.send('Not auto updating')
 
-            messages = await self.reload_extensions(files)
+            messages = self.reload_extensions(files)
             for msg in messages:
                 await ctx.send(msg)
 
     @command()
     async def add_sfx(self, ctx, file=None, name=None):
-        client = self.bot.aiohttp_client
         if file and name:
             url = file
         elif not file:
@@ -544,11 +524,12 @@ class BotAdmin(Cog):
             return await ctx.send(f'File {name} already exists')
 
         try:
-            async with client.get(url) as r:
-                data = BytesIO()
-                chunk = 4096
-                async for d in r.content.iter_chunked(chunk):
-                    data.write(d)
+            async with aiohttp.ClientSession() as client:
+                async with client.get(url) as r:
+                    data = BytesIO()
+                    chunk = 4096
+                    async for d in r.content.iter_chunked(chunk):
+                        data.write(d)
             data.seek(0)
 
         except aiohttp.ClientError:
@@ -644,26 +625,6 @@ class BotAdmin(Cog):
         await ctx.send(f'Unblacklisted guild {s}')
 
     @command()
-    async def restart_db(self, ctx):  # skipcq: PYL-W0212
-        def reconnect():
-            t = time.perf_counter()
-            session = self.bot._Session
-            engine = self.bot._engine
-
-            session.close_all()
-            engine.dispose()
-
-            self.bot._setup_db()
-
-            del session
-            del engine
-            return (time.perf_counter()-t)*1000
-
-        t = await self.bot.loop.run_in_executor(self.bot.threadpool, reconnect)
-
-        await ctx.send(f'Reconnected to db in {t:.0f}ms')
-
-    @command()
     async def reload_redis(self, ctx):
         from aioredis.client import Redis
         logger.exception('Connection closed. Reconnecting')
@@ -727,7 +688,7 @@ class BotAdmin(Cog):
 
         s = ''
         for row in rows:
-            s += f'ID: {row["id"]} at {format_timedelta(datetime.utcnow() - row["time"], DateAccuracy.Day)} `{row["priority"]}` {row["todo"]}\n\n'
+            s += f'ID: {row["id"]} at {format_timedelta(utcnow() - row["time"], DateAccuracy.Day)} `{row["priority"]}` {row["todo"]}\n\n'
 
         if len(s) > 2000:
             return await ctx.send('Too long todo')
@@ -747,10 +708,10 @@ class BotAdmin(Cog):
         await ctx.send(f'Cooldown of {cmd.name} reset')
 
     @command()
-    async def send_message(self, ctx, channel: typing.Union[discord.TextChannel, discord.User], *, message):
+    async def send_message(self, ctx, channel: typing.Union[disnake.TextChannel, disnake.User], *, message):
         try:
             await channel.send(message)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to send message\n```py\n{e}\n```')
         except:
             await ctx.send('Failed to send message')

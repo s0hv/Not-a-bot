@@ -1,6 +1,7 @@
-from discord.ext import commands
+from disnake.ext import commands
+from disnake.ext.commands import cooldown, guild_only
 
-from bot.bot import group, cooldown
+from bot.bot import group
 from cogs.cog import Cog
 from utils.utilities import split_string
 
@@ -44,7 +45,8 @@ class Emotes(Cog):
         return e.strip('\n')
 
     @cooldown(1, 10, type=commands.BucketType.guild)
-    @group(no_pm=True)
+    @group()
+    @guild_only()
     async def emotes(self, ctx):
         """Show emotes on this server"""
         guild = ctx.guild
@@ -79,7 +81,8 @@ class Emotes(Cog):
         await ctx.send(f"Emote limits\nStatic: {len(local)}/{emote_limit}\nAnimated: {len(animated)}/{emote_limit}")
 
     @cooldown(1, 10, type=commands.BucketType.guild)
-    @emotes.command(name='global', no_pm=True)
+    @emotes.command(name='global')
+    @guild_only()
     async def global_(self, ctx, include_name: bool=True):
         """Show global emotes on this server"""
         guild = ctx.guild
@@ -92,7 +95,8 @@ class Emotes(Cog):
             await ctx.send(s)
 
     @cooldown(1, 10, type=commands.BucketType.guild)
-    @emotes.command(name='local', no_pm=True)
+    @emotes.command(name='local')
+    @guild_only()
     async def local_(self, ctx, include_name: bool=True):
         """Show all non global emotes on this server"""
         guild = ctx.guild
@@ -105,7 +109,8 @@ class Emotes(Cog):
             await ctx.send(s)
 
     @cooldown(1, 10, type=commands.BucketType.guild)
-    @emotes.command(aliases=['gif'], no_pm=True)
+    @emotes.command(aliases=['gif'])
+    @guild_only()
     async def animated(self, ctx, include_name: bool=True):
         """Show all non global emotes on this server"""
         guild = ctx.guild

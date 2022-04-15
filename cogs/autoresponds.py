@@ -1,6 +1,6 @@
 import re
 
-import discord
+import disnake
 
 from cogs.cog import Cog
 from utils.utilities import check_botperm
@@ -29,7 +29,7 @@ class Autoresponds(Cog):
             try:
                 await self.bot.http.add_reaction(payload.message_id,
                                                  payload.channel_id, '🇳🇿')
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
     @Cog.listener()
@@ -41,7 +41,7 @@ class Autoresponds(Cog):
 
             try:
                 await message.add_reaction('🇫')
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
 

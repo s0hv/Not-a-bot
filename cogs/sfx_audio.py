@@ -28,13 +28,12 @@ import os
 import shlex
 from collections import deque, OrderedDict
 
-import discord
-from discord.ext import commands
-from discord.ext.commands import Cog
+import disnake
+from disnake.ext import commands
+from disnake.ext.commands import Cog, cooldown
 from numpy import random
 
-from bot.bot import cooldown
-from bot.formatter import Paginator
+from bot.formatter import EmbedPaginator
 from bot.player import FFmpegPCMAudio, play
 
 try:
@@ -184,7 +183,7 @@ class Audio(Cog):
         if state.voice is None:
             try:
                 state.voice = await summoned_channel.connect()
-            except discord.ClientException:
+            except disnake.ClientException:
                 terminal.exception('Failed to join vc')
                 if ctx.guild.id in self.bot._connection._voice_clients:
                     state.voice = self.bot._connection._voice_clients.get(ctx.guild.id)
@@ -427,7 +426,7 @@ class Audio(Cog):
         curr_add = []
         start = sfx[0][0].lower()
         title = 'SFX list'
-        p = Paginator(title=title)
+        p = EmbedPaginator(title=title)
         p.add_field(start)
 
         for item in sfx:

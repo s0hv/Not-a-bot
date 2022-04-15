@@ -32,11 +32,10 @@ import logging
 import time
 
 from aioredis.client import Redis
-import discord
+import disnake
 from asyncpg.exceptions import PostgresError, InterfaceError
 
 from bot.botbase import BotBase
-from bot.cooldown import CooldownManager
 from bot.server import WebhookServer
 from utils.init_tf import LoadedModel
 from utils.utilities import (random_color)
@@ -45,11 +44,8 @@ logger = logging.getLogger('terminal')
 
 
 class NotABot(BotBase):
-    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, model: LoadedModel=None, poke_model=None, **options):
-        super().__init__(prefix, conf, aiohttp=aiohttp, test_mode=test_mode, cogs=cogs, **options)
-        cdm = CooldownManager()
-        cdm.add_cooldown('oshit', 3, 8)
-        self.cdm = cdm
+    def __init__(self, prefix, conf, test_mode=False, cogs=None, model: LoadedModel=None, poke_model=None, **options):
+        super().__init__(prefix, conf, test_mode=test_mode, cogs=cogs, **options)
 
         self._random_color = None
         self._tf_model = model
@@ -153,7 +149,7 @@ class NotABot(BotBase):
                 self._random_color = self.loop.create_task(self._random_color_task())
 
             if self.config.default_activity:
-                await self.change_presence(activity=discord.Activity(**self.config.default_activity))
+                await self.change_presence(activity=disnake.Activity(**self.config.default_activity))
             return
 
         self._ready_called = True
@@ -170,9 +166,8 @@ class NotABot(BotBase):
 
         self.do_not_track = await self.dbutil.get_do_not_track()
 
-        await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         if self.config.default_activity:
-            await self.change_presence(activity=discord.Activity(**self.config.default_activity))
+            await self.change_presence(activity=disnake.Activity(**self.config.default_activity))
         if self._random_color is None or self._random_color.done():
             self._random_color = self.loop.create_task(self._random_color_task())
         logger.debug('READY')
@@ -205,30 +200,10 @@ class NotABot(BotBase):
 
             try:
                 await role.edit(color=random_color())
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 role = guild.get_role(348208141541834773)
                 if role is None:
                     return
-
-    async def on_message(self, message):
-        await super().on_message(message)
-
-        oshit = self.cdm.get_cooldown('oshit')
-        channel = message.channel
-        if oshit and oshit.trigger(False) and message.content.lower().strip() == 'o shit':
-            msg = 'waddup'
-            try:
-                await channel.send(msg)
-            except discord.HTTPException:
-                return
-
-            try:
-                await self.wait_for('message', timeout=12, check=lambda m: m.author == message.author and m.content == 'here come')
-            except asyncio.TimeoutError:
-                await channel.send(':(')
-            else:
-                await channel.send('dat boi')
-            return
 
     async def on_guild_join(self, guild):
         logger.info(f'Joined guild {guild.name} {guild.id}')

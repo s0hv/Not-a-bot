@@ -2,14 +2,15 @@ import asyncio
 import logging
 import re
 from asyncio import Queue, QueueEmpty
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from discord.errors import HTTPException
-from discord.ext.commands.cooldowns import CooldownMapping, BucketType
-from discord.ext.tasks import Loop
+from disnake.errors import HTTPException
+from disnake.ext.commands.cooldowns import CooldownMapping, BucketType
+from disnake.ext.tasks import Loop
 
 from cogs.cog import Cog
 from utils import unzalgo
+from utils.utilities import utcnow
 
 logger = logging.getLogger('terminal')
 
@@ -129,7 +130,7 @@ class R9K(Cog):
             time = timedelta(minutes=5)
             await moderator.add_timeout(
                 await self.bot.get_context(msg), guild.id, msg.author.id,
-                datetime.utcnow() + time,
+                utcnow() + time,
                 time.total_seconds(),
                 reason='Violated r9k',
                 author=guild.me,

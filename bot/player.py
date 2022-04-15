@@ -8,17 +8,16 @@ from math import ceil
 from math import floor
 from typing import Optional
 
-import discord
-from discord import player, opus, AllowedMentions
-from discord.activity import Activity
-from discord.enums import ActivityType
-from discord.errors import ClientException
-from discord.errors import HTTPException
-from discord.ext.commands.cooldowns import BucketType
-from discord.opus import Encoder as OpusEncoder
-from discord.player import PCMVolumeTransformer
+import disnake
+from disnake import player, opus, AllowedMentions
+from disnake.activity import Activity
+from disnake.enums import ActivityType
+from disnake.errors import ClientException
+from disnake.errors import HTTPException
+from disnake.ext.commands.cooldowns import BucketType, CooldownMapping
+from disnake.opus import Encoder as OpusEncoder
+from disnake.player import PCMVolumeTransformer
 
-from bot.cooldowns import CooldownMapping
 from bot.playlist import Playlist
 from bot.song import Song
 from bot.youtube import url2id, get_related_vids, id2url
@@ -57,7 +56,7 @@ class MusicPlayer:
         self.__instances__.add(self)
         self.bot = bot
         self.play_next = asyncio.Event()
-        self.voice: Optional[discord.VoiceClient] = None
+        self.voice: Optional[disnake.VoiceClient] = None
         self.current = None
         self.channel = channel
         self.guild = channel.guild
@@ -68,7 +67,7 @@ class MusicPlayer:
         # Determines an error rate at which we disconnect
         self._spam_detector = CooldownMapping.from_cooldown(3, 10, BucketType.default)
 
-        self.playlist = Playlist(bot, channel=self.channel, downloader=downloader)
+        self.playlist: Playlist = Playlist(bot, channel=self.channel, downloader=downloader)
         self.autoplaylist = bot.config.autoplaylist
         self.autoplay = False  # Youtube autoplay
         self.volume = self.bot.config.default_volume
@@ -241,7 +240,7 @@ class MusicPlayer:
                     if self.autoplay and self.last:
                         vid_id = url2id(self.last.webpage_url)
                         history = [url2id(s.webpage_url) for s in self.history]
-                        vid_id = await get_related_vids(vid_id, self.bot.aiohttp_client, filtered=history)
+                        vid_id = await get_related_vids(vid_id, filtered=history)
                         if not vid_id:
                             self.autoplay = False
                             await self.send("Couldn't find autoplay video. Stopping autoplay")
@@ -421,7 +420,7 @@ class MusicPlayer:
     async def resume(self):
         if self.is_playing() and self.voice.is_paused():
             url = self.current.url
-            await self.current.validate_url(self.bot.aiohttp_client)
+            await self.current.validate_url()
             if url != self.current.url:
                 # If url changed during validation reconnect
                 seek = seek_from_timestamp(self.duration)
@@ -526,7 +525,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
     """
     def __init__(self, source, *, executable='ffmpeg', pipe=False, stderr=None,
                  before_options=None, after_input=None, options=None,
-                 reconnect=True):
+                 reconnect: bool = True):
 
         args = []
         subprocess_kwargs = {'stdin': source if pipe else None, 'stderr': stderr}

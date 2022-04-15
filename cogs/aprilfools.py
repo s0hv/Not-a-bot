@@ -3,26 +3,25 @@ import logging
 import math
 import random
 from asyncio.locks import Lock
-from datetime import timedelta, datetime
+from datetime import timedelta
 from typing import Union, Optional
 
-import discord
-from discord.ext.commands import is_owner, Greedy
-from discord.ext.commands.cooldowns import CooldownMapping, BucketType
+import disnake
+from disnake.ext.commands import is_owner, Greedy, cooldown
+from disnake.ext.commands.cooldowns import CooldownMapping, BucketType
 from numpy.random import choice
 
 from bot.bot import command
-from bot.commands import cooldown
 from bot.converters import TimeDelta
 from cogs.cog import Cog
 from cogs.moderator import Moderator
-from utils.utilities import call_later, native_format_timedelta
+from utils.utilities import call_later, native_format_timedelta, utcnow
 
 logger = logging.getLogger('terminal')
 
 
 class PointSpawn:
-    def __init__(self, amount: int, msg: discord.Message):
+    def __init__(self, amount: int, msg: disnake.Message):
         self.amount = amount
         self.msg = msg
 
@@ -48,13 +47,13 @@ class BattleArena(Cog):
         self._claim_lock = Lock(loop=self.bot.loop)
         self._protects = {}
 
-        asyncio.run_coroutine_threadsafe(self.load_users(), loop=self.bot.loop)
+        asyncio.ensure_future(self.load_users(), loop=self.bot.loop)
 
     def cog_unload(self):
         for v in self._protects.values():
             v.cancel()
 
-    def get_guild(self) -> discord.Guild:
+    def get_guild(self) -> disnake.Guild:
         return self.bot.get_guild(self._guild)
 
     async def load_users(self):
@@ -62,8 +61,8 @@ class BattleArena(Cog):
 
         for user in users:
             protected = user['protected_until']
-            if protected and protected > datetime.utcnow():
-                self.add_protect(user['uid'], (protected - datetime.utcnow()).total_seconds())
+            if protected and protected > utcnow():
+                self.add_protect(user['uid'], (protected - utcnow()).total_seconds())
 
             self._members.add(user['uid'])
 
@@ -80,15 +79,15 @@ class BattleArena(Cog):
 
         return True
 
-    def is_participating(self, user: Union[discord.User, int, discord.Member]):
+    def is_participating(self, user: Union[disnake.User, int, disnake.Member]):
         uid = user if isinstance(user, int) else user.id
 
         return uid in self._members
 
-    def get_mute_role(self) -> discord.Role:
+    def get_mute_role(self) -> disnake.Role:
         return self.bot.get_guild(self._guild).get_role(self._penalty_role)
 
-    async def remove_temprole(self, user: discord.Member):
+    async def remove_temprole(self, user: disnake.Member):
         uid = user.id
         temproles = self.bot.temproles.get(self._guild, {}).get(uid, {})
 
@@ -107,10 +106,10 @@ class BattleArena(Cog):
         temproles = self.bot.temproles.get(self._guild, {}).get(uid, {})
 
         task = temproles.get(self._penalty_role)
-        td = task.runs_at - datetime.utcnow()
+        td = task.runs_at - utcnow()
         return td
 
-    async def timeout(self, ctx, user: discord.Member, time: timedelta,
+    async def timeout(self, ctx, user: disnake.Member, time: timedelta,
                       reason: str, ignore_protect: bool = False) -> bool:
         moderator: Moderator = self.bot.get_cog('Moderator')
 
@@ -127,7 +126,7 @@ class BattleArena(Cog):
         moderator.register_temprole(user.id, self._penalty_role,
                                     ctx.guild.id, time.total_seconds(), force_save=True)
         await self.bot.dbutil.add_temprole(user.id, self._penalty_role, user.guild.id,
-                                           datetime.utcnow() + time)
+                                           utcnow() + time)
         return True
 
     async def has_required_points(self, ctx, cmd: str, cost: int):
@@ -138,14 +137,14 @@ class BattleArena(Cog):
 
         return True
 
-    async def can_affect(self, ctx, author: discord.Member, user: discord.Member):
+    async def can_affect(self, ctx, author: disnake.Member, user: disnake.Member):
         retval = self.is_participating(author) and self.is_participating(user)
         if not retval:
             await ctx.send('User must be participating in the event')
 
         return retval
 
-    def is_unmuted(self, user: discord.Member):
+    def is_unmuted(self, user: disnake.Member):
         return self.get_mute_role() not in user.roles
 
     async def remove_protect(self, uid: int):
@@ -215,7 +214,7 @@ class BattleArena(Cog):
 
     @command()
     @cooldown(1, 1, BucketType.user)
-    async def silence(self, ctx, *, user: discord.Member):
+    async def silence(self, ctx, *, user: disnake.Member):
         """
         COST 1
 
@@ -258,7 +257,7 @@ class BattleArena(Cog):
 
         td = timedelta(hours=1)
         self.add_protect(uid, int(td.total_seconds()))
-        await self.bot.dbutil.update_user_protect(uid, datetime.utcnow() + td)
+        await self.bot.dbutil.update_user_protect(uid, utcnow() + td)
         await self.bot.dbutil.update_event_points(uid, -COST)
         await ctx.send('Protected yourself for 1 hour or until the next silence attempt')
 
@@ -315,7 +314,7 @@ class BattleArena(Cog):
 
     @command()
     @cooldown(1, 2, BucketType.user)
-    async def rng_pls(self, ctx, *, user: discord.Member):
+    async def rng_pls(self, ctx, *, user: disnake.Member):
         """
         COST 2
 
@@ -344,7 +343,7 @@ class BattleArena(Cog):
 
     @command()
     @cooldown(1, 1, BucketType.user)
-    async def selfdestruct(self, ctx, users: Greedy[discord.Member], *, time: TimeDelta):
+    async def selfdestruct(self, ctx, users: Greedy[disnake.Member], *, time: TimeDelta):
         """
         COST: 3
 
@@ -407,9 +406,9 @@ class BattleArena(Cog):
         elif len(timeouted_users) == 0:
             users_str = 'no one'
         else:
-            users_str = f'{", ".join(map(discord.Member.mention.fget, timeouted_users[:-1]))} and {timeouted_users[-1].mention}'
+            users_str = f'{", ".join(map(disnake.Member.mention.fget, timeouted_users[:-1]))} and {timeouted_users[-1].mention}'
 
-        await ctx.send(f'{author.mention} self destructs and takes {users_str} with them.', allowed_mentions=discord.AllowedMentions.none())
+        await ctx.send(f'{author.mention} self destructs and takes {users_str} with them.', allowed_mentions=disnake.AllowedMentions.none())
 
     @command()
     async def unsilence_when(self, ctx):
@@ -447,7 +446,7 @@ class BattleArena(Cog):
         chn = self.get_guild().get_channel(self._battle_channel)
         amount = self.get_random_point_amount()
 
-        embed = discord.Embed(
+        embed = disnake.Embed(
             title='Event points',
             description=f'{amount} point(s) spawned. Use `!collect` to collect them.'
         )
@@ -456,7 +455,7 @@ class BattleArena(Cog):
 
     @Cog.listener()
     async def on_message(self, msg):
-        if not msg.guild or msg.guild.id != self._guild or msg.webhook_id or msg.type != discord.MessageType.default:
+        if not msg.guild or msg.guild.id != self._guild or msg.webhook_id or msg.type != disnake.MessageType.default:
             return
 
         if not self._message_ratelimit.valid:

@@ -4,15 +4,16 @@ from asyncio import Lock, TimeoutError
 from collections import OrderedDict
 from typing import Optional
 
-import discord
-from discord import AllowedMentions
-from discord.ext.commands import BucketType
+import disnake
+from disnake import AllowedMentions
+from disnake.ext.commands import BucketType, cooldown, guild_only, \
+    NoPrivateMessage
 
 from bot import exceptions
-from bot.bot import group, has_permissions, cooldown, command, \
-    bot_has_permissions, Context
+from bot.bot import (group, has_permissions, command, bot_has_permissions,
+                     Context)
 from bot.converters import TimeDelta, PossibleUser
-from bot.formatter import Paginator
+from bot.formatter import EmbedPaginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, format_on_edit, format_on_delete,
                              format_join_leave, timedelta2sql, seconds2str,
@@ -27,13 +28,18 @@ class Settings(Cog):
         super().__init__(bot)
         self._guild_locks = {'keeproles': {}}
 
+    async def cog_check(self, ctx: Context) -> bool:
+        if ctx.guild is None:
+            raise NoPrivateMessage()
+        return True
+
     @property
     def cache(self):
         return self.bot.guild_cache
 
     # Required perms for all settings commands: Manage server
     @cooldown(1, 5)
-    @group(invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True)
     @bot_has_permissions(embed_links=True)
     async def settings(self, ctx):
         """
@@ -42,7 +48,7 @@ class Settings(Cog):
         subcommand with the word in parentheses in the embed
         """
         guild = ctx.guild
-        embed = discord.Embed(title='Current settings for %s' % guild.name, description=
+        embed = disnake.Embed(title='Current settings for %s' % guild.name, description=
                               'To change these settings use {}settings <name> <value>\n'
                               'The name for each setting is specified in brackets\n'
                               'Value depends on the setting.'.format(ctx.prefix))
@@ -108,31 +114,31 @@ class Settings(Cog):
         await ctx.send('Removed prefix {}'.format(prefix))
 
     @cooldown(1, 5, BucketType.guild)
-    @group(no_pm=True, invoke_without_command=True, aliases=['prefixes'])
+    @group(invoke_without_command=True, aliases=['prefixes'])
     async def prefix(self, ctx):
         """Shows all the active prefixes on this server"""
         prefixes = self.cache.prefixes(ctx.guild.id)
         await ctx.send(f'Current prefixes on server`{"` `".join(prefixes)}`\n'
                        f'Use `{ctx.prefix}{ctx.invoked_with} add` to add more prefixes')
 
-    @prefix.command(no_pm=True)
+    @prefix.command()
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_channels=True, manage_guild=True)
     async def add(self, ctx, prefix: str):
         """Add a prefix to this server"""
         await self._add_prefix(ctx, ctx.guild.id, prefix)
 
-    @prefix.command(aliases=['delete', 'del'], no_pm=True)
+    @prefix.command(aliases=['delete', 'del'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_channels=True, manage_guild=True)
     async def remove(self, ctx, prefix: str):
         """Remove and active prefix from use"""
         await self._remove_prefix(ctx, ctx.guild.id, prefix)
 
-    @settings.command(no_pm=True, cooldown_after_parsing=True)
+    @settings.command(cooldown_after_parsing=True)
     @cooldown(1, 10, type=BucketType.guild)
     @has_permissions(manage_channels=True, manage_guild=True)
-    async def modlog(self, ctx, channel: discord.TextChannel=None):
+    async def modlog(self, ctx, channel: disnake.TextChannel=None):
         """If no parameters are passed gets the current modlog
         If channel is provided modlog will be set to that channel.
         channel can be a channel mention, channel id or channel name (case sensitive)
@@ -156,7 +162,7 @@ class Settings(Cog):
         await self.bot.guild_cache.set_modlog(channel.guild.id, channel.id)
         await channel.send('Modlog set to this channel')
 
-    @settings.command(no_pm=True)
+    @settings.command()
     @cooldown(2, 5, type=BucketType.guild)
     @has_permissions(manage_channels=True, manage_guild=True)
     async def log_unmutes(self, ctx, value: bool=None):
@@ -181,11 +187,11 @@ class Settings(Cog):
         v = 'enabled' if value else 'disabled'
         await ctx.send(f'Logging unmutes is now {v}')
 
-    @settings.command(no_pm=True)
+    @settings.command()
     @cooldown(1, 5, type=BucketType.guild)
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
-    async def mute_role(self, ctx, *, role: discord.Role=None):
+    async def mute_role(self, ctx, *, role: disnake.Role=None):
         """Get the current role for muted people on this server or set it by specifying a role
         Mute role is used for timeouts, mutes, automutes and mute_roll"""
         guild = ctx.guild
@@ -222,7 +228,7 @@ class Settings(Cog):
         await ctx.send('Muted role set to {0} `{0.id}`'.format(role))
 
     @cooldown(2, 20, type=BucketType.guild)
-    @settings.command(no_pm=True, name='keeproles')
+    @settings.command(name='keeproles')
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def keeproles_settings(self, ctx: Context, boolean: bool):
@@ -232,7 +238,7 @@ class Settings(Cog):
         await self.keeproles.invoke(ctx)
 
     @cooldown(2, 20, type=BucketType.guild)
-    @group(no_pm=True, invoke_without_command=True)
+    @group(invoke_without_command=True)
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def keeproles(self, ctx, boolean: bool):
@@ -266,7 +272,7 @@ class Settings(Cog):
                     return await ctx.send('Failed to index user roles')
 
                 await msg.edit(content='Indexed roles in {0:.2f}s'.format(time.time()-t))
-            except discord.DiscordException:
+            except disnake.DiscordException:
                 pass
             finally:
                 lock.release()
@@ -275,7 +281,7 @@ class Settings(Cog):
         await ctx.send('Keeproles set to %s' % str(boolean))
 
     @cooldown(2, 3, type=BucketType.guild)
-    @keeproles.command(name='show', no_pm=True)
+    @keeproles.command(name='show')
     async def keeproles_show(self, ctx: Context, *, user: PossibleUser):
         """
         Shows the saved roles for the given user
@@ -286,7 +292,7 @@ class Settings(Cog):
             await ctx.send(f'No saved roles found for <@{user_id}>', allowed_mentions=AllowedMentions.none())
             return
 
-        paginator = Paginator(title=f'Saved roles for {user}', page_count=False)
+        paginator = EmbedPaginator(title=f'Saved roles for {user}', page_count=False)
         paginator.add_field('Roles', '')
 
         for role in roles:
@@ -297,14 +303,14 @@ class Settings(Cog):
             await ctx.send(embed=embed)
 
     @staticmethod
-    def role_check(author: discord.Member, role: discord.Role):
+    def role_check(author: disnake.Member, role: disnake.Role):
         return author.guild.owner_id == author.id or author.top_role > role
 
     @cooldown(2, 3, type=BucketType.guild)
-    @keeproles.command(name='remove', no_pm=True, aliases=['delete'])
+    @keeproles.command(name='remove', aliases=['delete'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
-    async def keeproles_delete(self, ctx: Context, user: PossibleUser, *, role: discord.Role):
+    async def keeproles_delete(self, ctx: Context, user: PossibleUser, *, role: disnake.Role):
         """
         Removes the role from the user even if they are not in the server
         """
@@ -320,23 +326,23 @@ class Settings(Cog):
             return
 
         try:
-            member: discord.Member = await ctx.guild.fetch_member(user_id)
+            member: disnake.Member = await ctx.guild.fetch_member(user_id)
             if role in member.roles:
                 await member.remove_roles(role, reason=f'{ctx.author} removed saved role')
-        except discord.NotFound:
+        except disnake.NotFound:
             pass
-        except discord.Forbidden as e:
+        except disnake.Forbidden as e:
             await ctx.send(f'Failed to remove role from user\n{e}')
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
         await ctx.send(f'Deleted saved role {role.mention} from <@{user_id}>', allowed_mentions=AllowedMentions.none())
 
     @cooldown(2, 3, type=BucketType.guild)
-    @keeproles.command(name='add', no_pm=True, aliases=['give'])
+    @keeproles.command(name='add', aliases=['give'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
-    async def keeproles_add(self, ctx: Context, user: PossibleUser, *, role: discord.Role):
+    async def keeproles_add(self, ctx: Context, user: PossibleUser, *, role: disnake.Role):
         """
         Gives the role to the user even if they are not in the server
         """
@@ -352,23 +358,23 @@ class Settings(Cog):
             return
 
         try:
-            member: discord.Member = await ctx.guild.fetch_member(user_id)
+            member: disnake.Member = await ctx.guild.fetch_member(user_id)
             if role not in member.roles:
                 await member.add_roles(role, reason=f'{ctx.author} added saved role')
-        except discord.NotFound:
+        except disnake.NotFound:
             pass
-        except discord.Forbidden as e:
+        except disnake.Forbidden as e:
             await ctx.send(f'Failed to add role to user\n{e}')
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
         await ctx.send(f'Added saved role {role.mention} to <@{user_id}>', allowed_mentions=AllowedMentions.none())
 
     @cooldown(2, 3, type=BucketType.guild)
-    @keeproles.command(name='sync', no_pm=True)
+    @keeproles.command(name='sync')
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
-    async def keeproles_sync(self, ctx: Context, user: discord.Member):
+    async def keeproles_sync(self, ctx: Context, user: disnake.Member):
         """
         Sync a users keeproles to the database. Does not modify the roles of any users.
         """
@@ -379,7 +385,7 @@ class Settings(Cog):
         await ctx.send(f'Roles synced for user {user.mention}', allowed_mentions=AllowedMentions.none())
 
     @cooldown(2, 3, type=BucketType.guild)
-    @keeproles.command(name='copy', no_pm=True)
+    @keeproles.command(name='copy')
     @has_permissions(administrator=True)
     @bot_has_permissions(manage_roles=True)
     async def keeproles_copy(self, ctx: Context, base_user: PossibleUser, *, target_user: PossibleUser):
@@ -407,23 +413,23 @@ class Settings(Cog):
 
         await self.bot.dbutil.replace_user_keeproles(guild_id, target_id, roles)
 
-        member: Optional[discord.Member] = None
+        member: Optional[disnake.Member] = None
         try:
             member = await ctx.guild.fetch_member(target_id)
-        except discord.HTTPException:
+        except disnake.HTTPException:
             pass
 
         if member is not None:
             try:
-                await member.edit(roles=[discord.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}')
-            except discord.Forbidden as e:
+                await member.edit(roles=[disnake.Object(id=r) for r in roles], reason=f'Roles copied by {base_user}')
+            except disnake.Forbidden as e:
                 await ctx.send(f'Did not have permissions to add all of the roles.\n{e}')
                 await member.edit(roles=[ctx.guild.default_role])
 
                 for r in roles:
                     try:
-                        await member.add_roles(discord.Object(id=r))
-                    except discord.Forbidden as e2:
+                        await member.add_roles(disnake.Object(id=r))
+                    except disnake.Forbidden as e2:
                         await ctx.send(f'Did not have permissions to add role <@&{r}>.\n{e2}', allowed_mentions=AllowedMentions.none())
                 return
 
@@ -432,7 +438,7 @@ class Settings(Cog):
         else:
             await ctx.send(f'Replaced the keeproles of {target_mention}', allowed_mentions=AllowedMentions.none())
 
-    @settings.command(no_pm=True)
+    @settings.command()
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_roles=True, manage_guild=True)
     @bot_has_permissions(manage_roles=True)
@@ -457,7 +463,7 @@ class Settings(Cog):
         # No need for checks. The automute command does that for you
         await self.automute.invoke(ctx)
 
-    @group(invoke_without_command=True, no_pm=True)
+    @group(invoke_without_command=True)
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_roles=True, manage_guild=True)
     @bot_has_permissions(manage_roles=True)
@@ -475,7 +481,7 @@ class Settings(Cog):
         guild = ctx.guild
         if value is None:
             guild = ctx.guild
-            embed = discord.Embed(title='Current automute settings for %s' % guild.name,
+            embed = disnake.Embed(title='Current automute settings for %s' % guild.name,
                                   description=
                                   f'To change these values use {ctx.prefix}automute <name> <value>\n'
                                   'The name for each setting is specified in brackets\n'
@@ -549,8 +555,9 @@ class Settings(Cog):
 
         await ctx.send(f'Set mute time to {mute_time if mute_time else "perma mute"}')
 
-    @group(invoke_without_command=True, no_dm=True, aliases=['message_deleted'])
+    @group(invoke_without_command=True, aliases=['message_deleted'])
     @cooldown(2, 10, BucketType.guild)
+    @guild_only()
     async def on_delete(self, ctx):
         """
         Gives the current message format that is used when a message is deleted if logging is enabled for deleted messages
@@ -572,7 +579,7 @@ class Settings(Cog):
         msg = f'Current format in channel <#{channel}>{" using embed" if embed else ""}\n{message}'
         await ctx.send(msg)
 
-    @on_delete.command(name='embed', no_pm=True)
+    @on_delete.command(name='embed')
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def on_delete_embed(self, ctx, boolean: bool):
@@ -585,9 +592,10 @@ class Settings(Cog):
             return await ctx.send('Failed to set value')
         await ctx.send(f'Set embeds to {boolean}')
 
-    @on_delete.command(no_dm=True, name='remove', aliases=['del', 'delete'])
+    @on_delete.command(name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
+    @guild_only()
     async def remove_on_delete(self, ctx):
         """
         Remove message logging from this server.
@@ -599,7 +607,7 @@ class Settings(Cog):
 
         await ctx.send('Remove deleted message logging')
 
-    @on_delete.command(aliases=['message'], no_pm=True)
+    @on_delete.command(aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def set(self, ctx, *, message_format):
@@ -623,10 +631,10 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @on_delete.command(no_pm=True)
+    @on_delete.command()
     @has_permissions(manage_guild=True, manage_channels=True)
     @cooldown(2, 10, BucketType.guild)
-    async def channel(self, ctx, *, channel: discord.TextChannel=None):
+    async def channel(self, ctx, *, channel: disnake.TextChannel=None):
         """Check or set the channel deleted messages are logged in to"""
         guild = ctx.guild
         if channel is None:
@@ -643,8 +651,9 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(invoke_without_command=True, no_dm=True, aliases=['message_edited'], no_pm=True)
+    @group(invoke_without_command=True, aliases=['message_edited'])
     @cooldown(2, 10, BucketType.guild)
+    @guild_only()
     async def on_edit(self, ctx):
         """
         Gives the current message format that is used when a message is edited if logging is enabled for edited messages
@@ -666,7 +675,7 @@ class Settings(Cog):
         msg = f'Current format in channel <#{channel}>{" using embed" if embed else ""}\n{message}'
         await ctx.send(msg)
 
-    @on_edit.command(name='embed', no_pm=True)
+    @on_edit.command(name='embed')
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def on_edit_embed(self, ctx, boolean: bool):
@@ -679,9 +688,10 @@ class Settings(Cog):
             return await ctx.send('Failed to set value')
         await ctx.send(f'Set embeds to {boolean}')
 
-    @on_edit.command(no_dm=True, name='remove', aliases=['del', 'delete'])
+    @on_edit.command(name='remove', aliases=['del', 'delete'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
+    @guild_only()
     async def remove_on_edit(self, ctx):
         """
         Remove edited message logging from this server.
@@ -693,7 +703,7 @@ class Settings(Cog):
 
         await ctx.send('Remove edited message logging')
 
-    @on_edit.command(name='set', aliases=['message'], no_pm=True)
+    @on_edit.command(name='set', aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def set_(self, ctx, *, message_format):
@@ -717,10 +727,10 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @on_edit.command(name='channel', no_pm=True)
+    @on_edit.command(name='channel')
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
-    async def channel_(self, ctx, *, channel: discord.TextChannel=None):
+    async def channel_(self, ctx, *, channel: disnake.TextChannel=None):
         """Check or set the channel message edits are logged to"""
         guild = ctx.guild
         if channel is None:
@@ -794,7 +804,7 @@ class Settings(Cog):
         await ctx.send(msg, allowed_mentions=AllowedMentions.none())
 
     @cooldown(1, 10, BucketType.guild)
-    @join_message.command(name='remove', aliases=['del', 'delete'], no_pm=True)
+    @join_message.command(name='remove', aliases=['del', 'delete'])
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_join(self, ctx):
         """
@@ -807,7 +817,7 @@ class Settings(Cog):
 
         await ctx.send('Remove welcome message')
 
-    @join_message.command(name='set', aliases=['message'], no_pm=True)
+    @join_message.command(name='set', aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def join_set(self, ctx, *, message):
@@ -828,10 +838,10 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @join_message.command(name='channel', no_pm=True)
+    @join_message.command(name='channel')
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
-    async def join_channel(self, ctx, *, channel: discord.TextChannel=None):
+    async def join_channel(self, ctx, *, channel: disnake.TextChannel=None):
         """Check or set the join/welcome message channel"""
         guild = ctx.guild
         if channel is None:
@@ -848,7 +858,7 @@ class Settings(Cog):
         else:
             await ctx.send('channel set to {0.name} {0.mention}'.format(channel))
 
-    @group(invoke_without_command=True, aliases=['on_leave'], no_pm=True)
+    @group(invoke_without_command=True, aliases=['on_leave'])
     @cooldown(2, 10, BucketType.guild)
     async def leave_message(self, ctx):
         """Get the current message that is sent when a user leaves the server"""
@@ -863,7 +873,7 @@ class Settings(Cog):
 
         await ctx.send(f'Current format in channel <#{channel}>\n{message}')
 
-    @leave_message.command(name='remove', no_pm=True, aliases=['del', 'delete'])
+    @leave_message.command(name='remove', aliases=['del', 'delete'])
     @cooldown(1, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def remove_leave(self, ctx):
@@ -877,7 +887,7 @@ class Settings(Cog):
 
         await ctx.send('Remove leave message')
 
-    @leave_message.command(name='set', aliases=['message'], no_pm=True)
+    @leave_message.command(name='set', aliases=['message'])
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
     async def leave_set(self, ctx, *, message):
@@ -899,10 +909,10 @@ class Settings(Cog):
         else:
             await ctx.send('Successfully set the message format')
 
-    @leave_message.command(name='channel', no_pm=True)
+    @leave_message.command(name='channel')
     @cooldown(2, 10, BucketType.guild)
     @has_permissions(manage_guild=True, manage_channels=True)
-    async def leave_channel(self, ctx, *, channel: discord.TextChannel=None):
+    async def leave_channel(self, ctx, *, channel: disnake.TextChannel=None):
         """Set the channel that user leave messages are sent to"""
         guild = ctx.guild
         if channel is None:

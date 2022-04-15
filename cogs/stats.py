@@ -1,15 +1,16 @@
 import logging
 import typing
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import discord
+import disnake
 from asyncpg.exceptions import PostgresError
-from discord.ext.commands import BucketType
+from disnake.ext.commands import BucketType, cooldown, guild_only
 
-from bot.bot import command, cooldown, bot_has_permissions, group, Group
+from bot.bot import command, bot_has_permissions, group, Group
 from bot.converters import AnyUser, CommandConverter, TimeDelta
 from cogs.cog import Cog
-from utils.utilities import send_paged_message, format_timedelta, DateAccuracy
+from utils.utilities import send_paged_message, format_timedelta, DateAccuracy, \
+    utcnow
 
 logger = logging.getLogger('terminal')
 
@@ -18,9 +19,10 @@ class Stats(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @command(no_pm=True)
+    @command()
     @cooldown(2, 5, type=BucketType.guild)
     @bot_has_permissions(embed_links=True)
+    @guild_only()
     async def mention_stats(self, ctx, page=None):
         """
         Get stats on how many times which roles are mentioned on this server
@@ -47,7 +49,7 @@ class Stats(Cog):
         if not rows:
             return await ctx.send('No role mentions logged on this server')
 
-        embed = discord.Embed(title='Most mentioned roles in server {}'.format(guild.name))
+        embed = disnake.Embed(title='Most mentioned roles in server {}'.format(guild.name))
         added = 0
         p = page*10
         for idx, row in enumerate(rows[p-10:p]):
@@ -72,7 +74,7 @@ class Stats(Cog):
         """Get when a user was last seen on this server and elsewhere
         User can be a mention, user id, or full discord username with discrim Username#0001"""
 
-        if isinstance(user, discord.User) or isinstance(user, discord.ClientUser):
+        if isinstance(user, disnake.User) or isinstance(user, disnake.ClientUser):
             user_id = user.id
             username = str(user)
         elif isinstance(user, int):
@@ -132,11 +134,11 @@ class Stats(Cog):
         msg = 'User {} `{}`\n'.format(username, user_id)
         if local:
             time = local['last_seen']
-            fmt = format_timedelta(datetime.utcnow() - time, accuracy=2)
+            fmt = format_timedelta(utcnow() - time, accuracy=2)
             msg += 'Last seen on this server `{} UTC` {} ago\n'.format(time, fmt)
         if global_:
             time = global_['last_seen']
-            fmt = format_timedelta(datetime.utcnow() - time, accuracy=2)
+            fmt = format_timedelta(utcnow() - time, accuracy=2)
             msg += 'Last seen elsewhere `{} UTC` {} ago'.format(time, fmt)
 
         await ctx.send(msg)
@@ -165,7 +167,7 @@ class Stats(Cog):
         pages = [pages[i:i+size] for i in range(0, len(pages), size)]
 
         def get_page(page, idx):
-            if isinstance(page, discord.Embed):
+            if isinstance(page, disnake.Embed):
                 return page
 
             desc = ''
@@ -177,7 +179,7 @@ class Stats(Cog):
 
                 desc += f'` {r["uses"]} uses\n'
 
-            embed = discord.Embed(title='Command usage stats', description=desc)
+            embed = disnake.Embed(title='Command usage stats', description=desc)
             embed.set_footer(text=f'{idx+1}/{len(pages)}')
             pages[idx] = embed
             return embed
@@ -211,7 +213,7 @@ class Stats(Cog):
         # If time not given use the default of half a year
         time = time or timedelta(days=182)
         rows = await self.bot.dbutil.get_command_activity(names,
-                                                          datetime.utcnow() - time,
+                                                          utcnow() - time,
                                                           guild=guild,
                                                           user=user,
                                                           limit=limit)
@@ -232,7 +234,7 @@ class Stats(Cog):
         pages = [pages[i:i + size] for i in range(0, len(pages), size)]
 
         def get_page(page, idx):
-            if isinstance(page, discord.Embed):
+            if isinstance(page, disnake.Embed):
                 return page
 
             desc = ''
@@ -241,7 +243,7 @@ class Stats(Cog):
                 desc += f'` {r["count"]} uses\n'
 
             title = f'Command usage stats for the past {format_timedelta(time, DateAccuracy.Day)}'
-            embed = discord.Embed(title=title, description=desc)
+            embed = disnake.Embed(title=title, description=desc)
             embed.set_footer(text=f'{idx + 1}/{len(pages)}')
             pages[idx] = embed
             return embed
@@ -261,7 +263,8 @@ class Stats(Cog):
         """
         await self.post_command_activity_stats(ctx, cmd, time)
 
-    @command_activity.command(no_pm=True, name='server', aliases=['s', 'g', 'guild'])
+    @command_activity.command(name='server', aliases=['s', 'g', 'guild'])
+    @guild_only()
     async def cmd_a_guild(self, ctx, cmd: typing.Optional[CommandConverter]=None,
                                time: TimeDelta=None):
         """

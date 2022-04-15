@@ -1,5 +1,5 @@
 # Not-a-bot
-Discord bot written in python using discord.py
+Discord bot written in python using disnake
 Not meant to be selfhosted
 
 # Cogs

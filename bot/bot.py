@@ -24,21 +24,20 @@ SOFTWARE.
 
 import asyncio
 import logging
-from typing import Optional, Union
+from typing import Optional, Type
 
-import discord
-from aiohttp import ClientSession
+import disnake
 from aiohttp.client_exceptions import ClientConnectionError
-from discord import ApplicationContext
-from discord.ext import bridge
-from discord.ext import commands
-from discord.ext.commands import CheckFailure
+from disnake import ApplicationCommandInteraction
+from disnake.ext import commands
+from disnake.ext.commands import CheckFailure, CooldownMapping, CommandError
 
-from bot.commands import command, group, Command, Group, cooldown, \
-    bridge_command
-from bot.cooldowns import CooldownMapping
+from bot.commands import command, group, Command, Group
+from bot.cooldowns import monkey_patch
 from bot.formatter import HelpCommand
 from utils.utilities import seconds2str, call_later, check_blacklist
+
+monkey_patch()
 
 try:
     import uvloop
@@ -58,9 +57,7 @@ __all__ = [
     'Group',
     'Command',
     'command',
-    'bridge_command',
     'group',
-    'cooldown',
     'Context',
     'has_permissions',
     'bot_has_permissions',
@@ -69,7 +66,7 @@ __all__ = [
 ]
 
 
-class Context(bridge.BridgeExtContext):
+class Context(commands.Context):
     __slots__ = ('override_perms', 'skip_check', 'original_user',
                  'received_at')
 
@@ -83,6 +80,8 @@ class Context(bridge.BridgeExtContext):
         self.skip_check = attrs.pop('skip_check', False)
         self.received_at = attrs.get('received_at', None)
 
+        self.command: Command = self.command
+
     async def undo(self):
         old = self.undo_messages.pop(self.author.id, None)
         if not old:
@@ -92,12 +91,12 @@ class Context(bridge.BridgeExtContext):
         t.cancel()
         try:
             await msg.delete()
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return False
 
         return True
 
-    def _add_undo(self, msg: discord.Message):
+    def _add_undo(self, msg: disnake.Message):
         if msg:
             old = self.undo_messages.pop(self.author.id, None)
             if old:
@@ -108,14 +107,7 @@ class Context(bridge.BridgeExtContext):
 
             self.undo_messages[self.author.id] = (msg, call_later(a, self.bot.loop, 60))
 
-    async def respond(self, content: Optional[str]=None, *, undoable=False, **kwargs):
-        msg = super().respond(content, **kwargs)
-        if undoable:
-            self._add_undo(msg)
-
-        return msg
-
-    async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs):
+    async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs) -> disnake.Message:
         msg = await super().send(content, **kwargs)
 
         if undoable:
@@ -124,8 +116,8 @@ class Context(bridge.BridgeExtContext):
         return msg
 
 
-class Bot(bridge.AutoShardedBot):
-    def __init__(self, prefix, config, aiohttp=None, **options):
+class Bot(commands.AutoShardedBot):
+    def __init__(self, prefix, config, **options):
         options.setdefault('help_command', HelpCommand())
         super().__init__(prefix, owner_id=config.owner, **options)
         self._runas = None
@@ -134,17 +126,13 @@ class Bot(bridge.AutoShardedBot):
 
         log.debug('Using loop {}'.format(self.loop))
 
-        self.aiohttp_client = aiohttp
-
-        async def set_client():
-            self.aiohttp_client = ClientSession(loop=self.loop)
-
-        if aiohttp is None:
-            self.loop.create_task(set_client())
-
         self.config = config
         self.voice_clients_ = {}
         self._error_cdm = CooldownMapping(commands.Cooldown(2, 5), commands.BucketType.guild)
+
+    @property
+    def exit_code(self):
+        return self._exit_code
 
     @property
     def runas(self):
@@ -162,10 +150,15 @@ class Bot(bridge.AutoShardedBot):
     async def on_error(self, event_method, *args, **kwargs):
         logger.exception('Ignoring exception in {}'.format(event_method))
 
-    async def on_application_command_error(self, ctx: ApplicationContext, ex):
-        await self.on_command_error(ctx, ex)
+    async def on_slash_command_error(
+        self, interaction: ApplicationCommandInteraction, exception: CommandError
+    ) -> None:
+        await self.on_command_error(interaction, exception)
 
-    async def on_command_error(self, context: Union[ApplicationContext, Context], exception):
+        if not interaction.response.is_done():
+            await interaction.send('Failed to execute command due to an unknown error')
+
+    async def on_command_error(self, context: Context | ApplicationCommandInteraction, exception: exceptions.CommandError):
         """|coro|
 
         The default command error handler provided by the bot.
@@ -175,9 +168,10 @@ class Bot(bridge.AutoShardedBot):
 
         This only fires if you do not specify any listeners for command error.
         """
-        if self.extra_events.get('on_command_error', None):
-            return
-        if hasattr(context.command, "on_error"):
+
+        cmd = context.command if isinstance(context, Context) else context.application_command
+
+        if hasattr(cmd, "on_error"):
             return
 
         if hasattr(exception, 'original'):
@@ -186,7 +180,7 @@ class Bot(bridge.AutoShardedBot):
         if isinstance(exception, (commands.errors.CommandNotFound,
                                   exceptions.SilentException,
                                   exceptions.PermException,
-                                  discord.Forbidden,
+                                  disnake.Forbidden,
                                   exceptions.NotOwner,
                                   ClientConnectionError,
                                   commands.errors.DisabledCommand)):
@@ -202,8 +196,8 @@ class Bot(bridge.AutoShardedBot):
 
             if self._check_error_cd(context):
                 try:
-                    return await context.respond(str(exception), ephemeral=True)
-                except discord.Forbidden:
+                    return await context.send(str(exception), ephemeral=True)
+                except disnake.Forbidden:
                     pass
             return
 
@@ -213,10 +207,10 @@ class Bot(bridge.AutoShardedBot):
         error_msg = None
         if isinstance(exception, commands.errors.CommandOnCooldown):
             # Delete message if hidden command
-            if context.command.hidden and isinstance(context, Context):
+            if isinstance(cmd, commands.Command) and cmd.hidden:
                 try:
                     await context.message.delete()
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     pass
 
                 return
@@ -239,8 +233,8 @@ class Bot(bridge.AutoShardedBot):
                     if isinstance(context, Context):
                         await context.message.add_reaction('🚫')
                     else:
-                        await context.respond('🚫', ephemeral=True)
-                except discord.HTTPException:
+                        await context.send('🚫', ephemeral=True)
+                except disnake.HTTPException:
                     pass
 
                 return
@@ -255,8 +249,8 @@ class Bot(bridge.AutoShardedBot):
         if error_msg:
             if self._check_error_cd(context):
                 try:
-                    await context.respond(error_msg, ephemeral=True)
-                except discord.Forbidden:
+                    await context.send(error_msg, ephemeral=True)
+                except disnake.Forbidden:
                     pass
             return
 
@@ -264,10 +258,10 @@ class Bot(bridge.AutoShardedBot):
         elif error_msg == '':
             return
 
-        logger.warning('Ignoring exception in command {}'.format(context.command))
+        logger.warning('Ignoring exception in command {}'.format(cmd.qualified_name))
         logger.exception('', exc_info=exception)
 
-    async def get_context(self, message, *, cls=Context) -> Context:
+    async def get_context(self, message, *, cls: Type[Context]=Context) -> Context:
         # Same as default implementation. This just adds runas variable
         ctx = await super().get_context(message, cls=cls)
         if self.runas is not None and message.author.id == self.owner_id:
@@ -348,9 +342,13 @@ class Bot(bridge.AutoShardedBot):
 
 def has_permissions(**perms):
     """
-    Same as the default discord.ext.commands.has_permissions
+    Same as the default disnake.ext.commands.has_permissions
     except this one supports overriding perms
     """
+    invalid = set(perms) - set(disnake.Permissions.VALID_FLAGS)
+    if invalid:
+        raise TypeError(f"Invalid permission(s): {', '.join(invalid)}")
+
     def predicate(ctx: Context):
         if ctx.override_perms:
             return True
@@ -361,7 +359,8 @@ def has_permissions(**perms):
         # Special case for when manage roles is requested
         # This is needed because the default implementation thinks that
         # manage_channel_perms == manage_roles which can create false negatives
-        # Assumes ctx.author is instance of discord.Member
+        # Assumes ctx.author is instance of disnake.Member
+        # https://docs.disnake.dev/en/latest/api.html?highlight=permissions#disnake.Permissions.manage_roles
         if 'manage_roles' in perms:
             # Set manage roles based on server wide value
             permissions.manage_roles = ctx.author.guild_permissions.manage_roles
@@ -391,7 +390,7 @@ def bot_has_permissions(**perms):
         # Special case for when manage roles is requested
         # This is needed because the default implementation thinks that
         # manage_channel_perms == manage_roles which can create false negatives
-        # Assumes ctx.author is instance of discord.Member
+        # Assumes ctx.author is instance of disnake.Member
         if guild and 'manage_roles' in perms:
             # Set manage roles based on server wide value
             permissions.manage_roles = me.guild_permissions.manage_roles

@@ -1,11 +1,9 @@
 import logging
 
-from discord.ext import bridge
-from discord.ext import commands
+from disnake.ext import commands
 
-from bot.cooldowns import CooldownMapping, Cooldown
 from bot.globals import Auth
-from utils.utilities import is_owner, no_dm
+from utils.utilities import is_owner
 
 terminal = logging.getLogger('terminal')
 
@@ -16,13 +14,6 @@ def command(*args, **attrs):
     return commands.command(*args, **attrs)
 
 
-def bridge_command(**kwargs):
-    def decorator(callback):
-        return BridgeCommand(callback, **kwargs)
-
-    return decorator
-
-
 def group(name=None, **attrs):
     """Uses custom Group class"""
     if 'cls' not in attrs:
@@ -30,32 +21,20 @@ def group(name=None, **attrs):
     return commands.command(name=name, **attrs)
 
 
-def cooldown(rate, per, type=commands.BucketType.default):
-    """See `commands.cooldown` docs"""
-
-    def decorator(func):
-        if isinstance(func, Command):
-            func._buckets = CooldownMapping(Cooldown(rate, per), type)
-        else:
-            func.__commands_cooldown__ = CooldownMapping(Cooldown(rate, per), type)
-        return func
-    return decorator
-
-
 class Command(commands.Command):
     def __init__(self, func, **kwargs):
         # Init called twice because commands are copied
         super(Command, self).__init__(func, **kwargs)
-        self._buckets: CooldownMapping = CooldownMapping(self._buckets._cooldown, self._buckets.type)
         self.owner_only = kwargs.pop('owner_only', False)
         self.auth = kwargs.pop('auth', Auth.NONE)
 
         if self.owner_only:
             terminal.info(f'registered owner_only command {self.name}')
             self.checks.insert(0, is_owner)
+            raise ValueError('owner_only is deprecated')
 
         if 'no_pm' in kwargs or 'no_dm' in kwargs:
-            self.checks.insert(0, no_dm)
+            raise ValueError('no_pm is deprecated')
 
     def undo_use(self, ctx):
         """Undoes one use of command"""
@@ -80,7 +59,8 @@ class Group(Command, commands.Group):
 
     def command(self, *args, **kwargs):
         def decorator(func):
-            if 'owner_only' not in kwargs:
+            if 'owner_only' not in kwargs and self.owner_only:
+                raise ValueError('group owner only deprecated')
                 kwargs['owner_only'] = self.owner_only
 
             kwargs.setdefault('parent', self)
@@ -89,8 +69,3 @@ class Group(Command, commands.Group):
             return result
 
         return decorator
-
-
-class BridgeCommand(bridge.BridgeCommand):
-    def get_ext_command(self):
-        return Command(self.callback, **self.kwargs)

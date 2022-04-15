@@ -6,7 +6,7 @@ beautifulsoup4 ~= 4.8.0
 colormath ~= 3.0.0
 colorthief ~= 0.2.1
 colour ~= 0.1.5
-dblpy ~= 0.4.0
+git+https://github.com/top-gg/python-sdk.git#egg=topggpy
 emoji ~= 0.6.0
 isodate ~= 0.6.0
 git+https://github.com/cristobalcl/geopatterns.git#egg=geopatterns
@@ -24,5 +24,5 @@ sanic ~= 20.6.3
 selenium ~= 3.141.0
 validators ~= 0.18.2
 yt-dlp
-py-cord[voice]==2.0.0b7
+disnake[voice,speed]~=2.4.0
 tatsu.py~=1.0.4

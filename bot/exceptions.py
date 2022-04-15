@@ -25,7 +25,7 @@ SOFTWARE.
 
 import logging
 
-from discord.ext.commands.errors import CommandError, CheckFailure
+from disnake.ext.commands.errors import CommandError, CheckFailure
 
 terminal = logging.getLogger('terminal')
 

@@ -1,31 +1,33 @@
 import logging
 import typing
 
-import discord
+import disnake
 from asyncpg.exceptions import PostgresError
-from discord.ext import commands
-from discord.ext.commands import BucketType, has_permissions
+from disnake.ext import commands
+from disnake.ext.commands import BucketType, has_permissions, cooldown, \
+    guild_only, is_owner
 
-from bot.bot import command, group, cooldown
+from bot.bot import command, group
 from bot.converters import CommandConverter
-from bot.formatter import Paginator
+from bot.formatter import EmbedPaginator
 from bot.globals import BlacklistTypes, PermValues
 from cogs.cog import Cog
 from utils.utilities import (split_string, send_paged_message)
 
 logger = logging.getLogger('terminal')
-perms = discord.Permissions(8)
+perms = disnake.Permissions(8)
 
 
 class CommandBlacklist(Cog):
     def __init__(self, bot):
         super().__init__(bot)
 
-    @group(no_pm=True, invoke_without_command=True)
+    @group(invoke_without_command=True)
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
+    @guild_only()
     async def blacklist(self, ctx, commands_: commands.Greedy[CommandConverter] = None,
-                        *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User] = None):
+                        *, mention: typing.Union[disnake.TextChannel, disnake.Role, disnake.User] = None):
         """Blacklist a command for a user, role or channel
         To blacklist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -62,13 +64,13 @@ class CommandBlacklist(Cog):
                 elif success is None:
                     return 'Removed blacklist for command {} on this server'.format(name)
 
-            elif isinstance(mention, discord.User):
+            elif isinstance(mention, disnake.User):
                 return await self._add_user_blacklist(ctx, name, mention, guild)
 
-            elif isinstance(mention, discord.Role):
+            elif isinstance(mention, disnake.Role):
                 return await self._add_role_blacklist(ctx, name, mention, guild)
 
-            elif isinstance(mention, discord.TextChannel):
+            elif isinstance(mention, disnake.TextChannel):
                 return await self._add_channel_blacklist(ctx, name, mention, guild)
 
         s = ''
@@ -92,8 +94,9 @@ class CommandBlacklist(Cog):
         for msg in split_string(s, splitter='\n'):
             await ctx.send(msg)
 
-    @blacklist.command(no_pm=True)
+    @blacklist.command()
     @has_permissions(administrator=True)
+    @guild_only()
     async def toggle(self, ctx):
         """
         Disable all commands on this server (owner will still be able to use them)
@@ -122,7 +125,7 @@ class CommandBlacklist(Cog):
         type_string = 'Blacklisted' if type == BlacklistTypes.BLACKLIST else 'Whitelisted'
         type_string2 = 'blacklist' if type == BlacklistTypes.BLACKLIST else 'whitelist'
         message = None
-        if isinstance(scope, discord.User):
+        if isinstance(scope, disnake.User):
             userid = scope.id
             success = await self._set_blacklist(ctx, where + 'uid=%s' % userid, (), uid=userid, **values)
             if success:
@@ -130,14 +133,14 @@ class CommandBlacklist(Cog):
             elif success is None:
                 message = f'removed {type_string2} from user {scope}, `{userid}`'
 
-        elif isinstance(scope, discord.Role):
+        elif isinstance(scope, disnake.Role):
             success = await self._set_blacklist(ctx, where + 'role=%s' % scope.id, (), role=scope.id, **values)
             if success:
                 message = '{0} all commands from role {1} `{1.id}`'.format(type_string, scope)
             elif success is None:
                 message = 'Removed {0} from role {1} `{1.id}`'.format(type_string2, scope)
 
-        elif isinstance(scope, discord.TextChannel):
+        elif isinstance(scope, disnake.TextChannel):
             success = await self._set_blacklist(ctx, where + 'channel=%s' % scope.id, (),
                                                 channel=scope.id, **values)
             if success:
@@ -150,10 +153,11 @@ class CommandBlacklist(Cog):
 
         return message
 
-    @command(no_pm=True)
+    @command()
     @has_permissions(administrator=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def whitelist(self, ctx, commands_: commands.Greedy[CommandConverter], *, mention: typing.Union[discord.TextChannel, discord.Role, discord.User]):
+    @guild_only()
+    async def whitelist(self, ctx, commands_: commands.Greedy[CommandConverter], *, mention: typing.Union[disnake.TextChannel, disnake.Role, disnake.User]):
         """Whitelist a command for a user, role or channel
         To whitelist multiple commands at the same time wrap the command names in quotes
         like this {prefix}{name} \"command1 command2 command3\" #channel
@@ -178,13 +182,13 @@ class CommandBlacklist(Cog):
             if _command.cog_name == self.__class__.__name__:
                 return f"Due to safety reasons commands from {_command.cog_name} module can't be whitelisted"
 
-            elif isinstance(mention, discord.User):
+            elif isinstance(mention, disnake.User):
                 return await self._add_user_whitelist(ctx, name, mention, guild)
 
-            elif isinstance(mention, discord.Role):
+            elif isinstance(mention, disnake.Role):
                 return await self._add_role_whitelist(ctx, name, mention, guild)
 
-            elif isinstance(mention, discord.TextChannel):
+            elif isinstance(mention, disnake.TextChannel):
                 return await self._add_channel_whitelist(ctx, name, mention, guild)
 
         s = ''
@@ -344,8 +348,9 @@ class CommandBlacklist(Cog):
         elif success is None:
             return 'Removed command {0} whitelist from channel {1} `{1.id}`'.format(command_name, channel)
 
-    @command(owner_only=True)
-    async def test_perms(self, ctx, user: discord.Member, command_):
+    @command()
+    @is_owner()
+    async def test_perms(self, ctx, user: disnake.Member, command_):
         value = await self.bot.dbutil.check_blacklist(f"(command='{command_}' OR command IS NULL)", user, ctx, True)
         await ctx.send(value or 'No special perms')
 
@@ -386,9 +391,10 @@ class CommandBlacklist(Cog):
 
         return smallest_row
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 30, BucketType.user)
-    async def role_perms(self, ctx, *, role: discord.Role=None):
+    @guild_only()
+    async def role_perms(self, ctx, *, role: disnake.Role=None):
         """Show white- and blacklist for all or specified role"""
         guild = ctx.guild
 
@@ -401,7 +407,7 @@ class CommandBlacklist(Cog):
         if not rows:
             return await ctx.send('No perms found')
 
-        paginator = Paginator('Role perms')
+        paginator = EmbedPaginator('Role perms')
         last = None
         last_type = None
 
@@ -437,9 +443,10 @@ class CommandBlacklist(Cog):
 
         await send_paged_message(ctx, pages, embed=True)
 
-    @command(no_pm=True, aliases=['sp'])
+    @command(aliases=['sp'])
     @cooldown(1, 10, BucketType.guild)
-    async def show_perms(self, ctx, *, type_: typing.Union[discord.Role, discord.User, discord.TextChannel]=None):
+    @guild_only()
+    async def show_perms(self, ctx, *, type_: typing.Union[disnake.Role, disnake.User, disnake.TextChannel]=None):
         """
         Shows all server perms in one paged embed.
         If type is a role, user or a text channel will only show permissions for that.
@@ -447,11 +454,11 @@ class CommandBlacklist(Cog):
         sql = f'SELECT command, type, uid, role, channel FROM command_blacklist WHERE guild={ctx.guild.id}'
 
         # Add extra filters to sql
-        if isinstance(type_, discord.Role):
+        if isinstance(type_, disnake.Role):
             sql += f" AND role={type_.id}"
-        elif isinstance(type_, discord.User):
+        elif isinstance(type_, disnake.User):
             sql += f" AND uid={type_.id}"
-        elif isinstance(type_, discord.TextChannel):
+        elif isinstance(type_, disnake.TextChannel):
             sql += f" AND channel={type_.id}"
 
         sql += " ORDER BY uid, role, channel"
@@ -480,7 +487,7 @@ class CommandBlacklist(Cog):
         for k in perms:
             newperms.extend([(perm, k) for perm in sorted(perms[k], key=lambda r: r['type'])])
 
-        paginator = Paginator(title=f"Permissions for guild {ctx.guild.name}", init_page=False)
+        paginator = EmbedPaginator(title=f"Permissions for guild {ctx.guild.name}", init_page=False)
 
         for i in range(0, len(newperms), ITEMS_PER_PAGE):
             s = ''
@@ -507,9 +514,10 @@ class CommandBlacklist(Cog):
         paginator.finalize()
         await send_paged_message(ctx, paginator.pages, embed=True)
 
-    @command(name='commands', no_pm=True)
+    @command(name='commands')
     @cooldown(1, 30, type=BucketType.user)
-    async def commands_(self, ctx, user: discord.Member=None):
+    @guild_only()
+    async def commands_(self, ctx, user: disnake.Member=None):
         """Get your or the specified users white- and blacklisted commands on this server"""
         guild = ctx.guild
         if not user:

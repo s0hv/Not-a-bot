@@ -24,12 +24,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
+import asyncio
 import logging
 import os
 import sys
 
-import discord
+import disnake
 
 from bot.audio_bot import AudioBot
 from bot.config import Config, is_test_mode, get_test_guilds
@@ -47,6 +47,12 @@ handler = logging.FileHandler(filename='audio.log', encoding='utf-8-sig', mode='
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s:[%(module)s]: %(message)s'))
 logger.addHandler(handler)
 
+discord_logger = logging.getLogger('disnake')
+discord_logger.setLevel(logging.INFO)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8-sig', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+discord_logger.addHandler(handler)
+
 terminal.info('testing colors')
 terminal.debug('test')
 terminal.warning('test')
@@ -60,7 +66,7 @@ except:
 config = Config()
 
 initial_cogs = [
-    # 'audio',
+    'audio',
     'basic_logging',
     'botadmin',
     'command_blacklist'
@@ -71,7 +77,7 @@ terminal.info('Main bot starting up')
 logger.info('Starting bot')
 config.default_activity = {'type': 1, 'name': 'Music'}
 
-intents = discord.Intents.default()
+intents = disnake.Intents.default()
 # Required for seeing voice channel members on startup
 intents.members = True
 
@@ -81,18 +87,28 @@ intents.webhooks = False
 intents.bans = False
 intents.emojis_and_stickers = False
 intents.typing = False
-intents.scheduled_events = False
-intents.message_content = True
+#intents.message_content = True
+
+test_mode = is_test_mode()
+bot: AudioBot = None
 
 
-bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
-               conf=config, max_messages=100, cogs=initial_cogs, intents=intents,
-               debug_guilds=get_test_guilds(), test_mode=is_test_mode())
+async def main():
+    global bot
+    bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
+                   conf=config, max_messages=100, cogs=initial_cogs, intents=intents,
+                   test_guilds=get_test_guilds(), test_mode=test_mode,
+                   sync_commands_debug=test_mode
+                   )
 
-bot.load_extension('cogs.audio')
-bot.run(os.getenv('TOKEN'))
+    await bot.async_init()
+    bot.load_default_cogs()
+
+    await bot.start(os.getenv('TOKEN'))
+
+asyncio.run(main())
 
 # We have systemctl set up in a way that different exit codes
 # have different effects on restarting behavior
 import sys
-sys.exit(bot._exit_code)
+sys.exit(bot.exit_code)

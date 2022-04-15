@@ -21,16 +21,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 import logging
+import signal
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Union, Dict
+from typing import Union
 
 import asyncpg
-import discord
-from discord import Interaction
-from discord.errors import ExtensionError
+import disnake
 
 from bot import exceptions
 from bot.bot import Bot
@@ -41,38 +39,10 @@ from bot.guildcache import GuildCache
 logger = logging.getLogger('terminal')
 
 
-def qualified_name(self: Interaction) -> str:
-    """
-    Temporary fix until command.qualified_name works properly with slash commands
-    """
-    names = []
-
-    def get_name(data: Dict):
-        if data.get('type') != 1:
-            return
-
-        name = data.get('name', None)
-        if not name:
-            return
-        names.append(name)
-
-        options = data.get('options', None)
-        if not options or len(options) != 1:
-            return
-
-        get_name(options[0])
-
-    get_name(self.data)
-    return ' '.join(names)
-
-
-Interaction.qualified_name = qualified_name
-
-
 class BotBase(Bot):
     """Base class for main bot. Used to separate audio part from main bot"""
-    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, cogs=None, **options):
-        super().__init__(self.get_command_prefix, conf, aiohttp, **options)
+    def __init__(self, prefix, conf, test_mode=False, cogs=None, **options):
+        super().__init__(self.get_command_prefix, conf, **options)
         self.default_prefix = prefix
         self._mention_prefix = ()
         self.test_mode = test_mode
@@ -82,7 +52,6 @@ class BotBase(Bot):
         self._guild_cache = GuildCache(self)
         self._dbutil = DatabaseUtils(self)
         self.call_laters = {}
-        self.loop.run_until_complete(self._setup_db())
         self.threadpool = ThreadPoolExecutor(4)
         self.loop.set_default_executor(self.threadpool)
         self.do_not_track = set()
@@ -92,7 +61,22 @@ class BotBase(Bot):
         else:
             self.default_cogs = set()
 
-    def can_track(self, user: Union[int, discord.User, discord.Member]) -> bool:
+    async def async_init(self):
+        await self._setup_db()
+
+    def add_signal_handlers(self):
+        loop = self.loop
+        try:
+            loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
+            loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
+        except NotImplementedError:
+            pass
+
+    def load_default_cogs(self):
+        for cog in self.default_cogs:
+            self.load_extension(cog)
+
+    def can_track(self, user: Union[int, disnake.User, disnake.Member]) -> bool:
         if isinstance(user, int):
             uid = user
         else:
@@ -124,7 +108,7 @@ class BotBase(Bot):
         return prefixes
 
     @property
-    def pool(self):
+    def pool(self) -> asyncpg.Pool:
         return self._pool
 
     @property
@@ -139,33 +123,10 @@ class BotBase(Bot):
     def dbutils(self) -> DatabaseUtils:
         return self._dbutil
 
-    def _load_cogs(self, print_err=True):
-        if not print_err:
-            errors = []
-        for cog in self.default_cogs:
-            try:
-                if cog in self.extensions:
-                    continue
-
-                self.load_extension(cog)
-            except ExtensionError as e:
-                if not print_err:
-                    errors.append('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
-                else:
-                    logger.exception('Failed to load extension {}\n{}: {}'.format(cog, type(e).__name__, e))
-
-        if not print_err:
-            return errors
-
-    def _unload_cogs(self):
-        for c in self.default_cogs:
-            self.unload_extension(c)
-
     async def on_ready(self):
         self._mention_prefix = (self.user.mention, f'<@!{self.user.id}>')
         logger.info(f'Logged in as {self.user.name}')
         await self.dbutil.add_command('help')
-        await self.loop.run_in_executor(self.threadpool, self._load_cogs)
         logger.debug('READY')
 
         for guild in self.guilds:

@@ -28,7 +28,8 @@ import os
 import time
 from typing import Optional
 
-import discord
+import aiohttp
+import disnake
 from aiohttp.web_exceptions import HTTPException
 
 logger = logging.getLogger('audio')
@@ -64,7 +65,7 @@ class Song:
         self.duration = kwargs.pop('duration', 0)
         self.default_duration = self.duration  # Used when speed is changed
         self.uploader = kwargs.pop('uploader', 'None')
-        self.requested_by: Optional[discord.Member, discord.User] = kwargs.pop('requested_by', None)
+        self.requested_by: Optional[disnake.Member | disnake.User] = kwargs.pop('requested_by', None)
         self.is_live = kwargs.pop('is_live', False)
         self.playlist = playlist
         self.seek = False
@@ -166,7 +167,7 @@ class Song:
     def downloading(self):
         return self._downloading
 
-    async def validate_url(self, session):
+    async def validate_url(self):
         if time.time() - self.last_update <= 1800:
             return True  # If link is under 30min old it probably still works
 
@@ -174,10 +175,11 @@ class Song:
             return True
 
         try:
-            async with session.head(self.url) as r:
-                if r.status != 200:
-                    self.last_update = 0  # Reset last update so we dont end up in recursion loop
-                    await self.download()
+            async with aiohttp.ClientSession() as client:
+                async with client.head(self.url) as r:
+                    if r.status != 200:
+                        self.last_update = 0  # Reset last update so we dont end up in recursion loop
+                        await self.download()
             return True
         except HTTPException:
             logger.exception('Failed to validate url')
@@ -216,7 +218,7 @@ class Song:
             self.playlist.bot.loop.call_soon_threadsafe(self.on_ready.set)
             return
 
-        if self.last_update > 0 and await self.validate_url(self.playlist.bot.aiohttp_client):
+        if self.last_update > 0 and await self.validate_url():
             self.last_update = time.time()
             return
 
@@ -240,7 +242,7 @@ class Song:
                 logger.exception(f'Download error: {e}')
                 try:
                     await self.playlist.channel.send(f'Failed to download {self.title}\nlink: <{self.webpage_url}>')
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     pass
 
             self.success = False

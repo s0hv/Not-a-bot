@@ -1,7 +1,7 @@
 import logging
 import sys
 
-import discord
+import disnake
 
 from bot.config import Config
 from bot.formatter import LoggingFormatter
@@ -25,8 +25,8 @@ except:
 
 config = Config()
 
-if not discord.opus.is_loaded():
-    discord.opus.load_opus('opus')
+if not disnake.opus.is_loaded():
+    disnake.opus.load_opus('opus')
 
 
 terminal.info('SFX bot starting up')

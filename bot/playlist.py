@@ -33,8 +33,8 @@ import time
 from collections import deque
 from typing import Union
 
-import discord
-from discord import ApplicationContext
+import disnake
+from disnake import ApplicationCommandInteraction
 from numpy import delete as delete_by_indices
 from validators import url as valid_url
 
@@ -103,12 +103,12 @@ def write_playlist(data, name, user_id, overwrite=False):
     return f'Playlist {name} created'
 
 
-async def create_playlist(songs, user, name, ctx: ApplicationContext):
+async def create_playlist(songs, user, name, ctx: ApplicationCommandInteraction):
     if not validate_playlist_name(name):
-        return await ctx.respond(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
+        return await ctx.send(f"{name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100")
 
     if not songs:
-        return await ctx.respond('Empty playlist. Playlist not created', delete_after=60)
+        return await ctx.send('Empty playlist. Playlist not created', delete_after=60)
 
     new_songs = []
     added = 0
@@ -124,9 +124,9 @@ async def create_playlist(songs, user, name, ctx: ApplicationContext):
                           'duration': song.duration})
 
     try:
-        await ctx.respond(write_playlist(new_songs, name, user.id))
+        await ctx.send(write_playlist(new_songs, name, user.id))
     except (FileExistsError, PermissionError) as e:
-        await ctx.respond(str(e))
+        await ctx.send(str(e))
 
 
 class Playlist:
@@ -264,7 +264,7 @@ class Playlist:
         entry = entries[0]
         try:
             message = await ctx.respond(get_page(entry, 0))
-        except discord.HTTPException:
+        except disnake.HTTPException:
             return
 
         await message.add_reaction('◀')
@@ -303,7 +303,7 @@ class Playlist:
                 await message.edit(content=get_page(entry, paged.index))
                 # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
                 await asyncio.sleep(1)
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 return
 
     async def _add_from_info(self, channel=None, priority=False, no_message=False, metadata=None, **info):
@@ -378,7 +378,7 @@ class Playlist:
                 except asyncio.CancelledError:
                     await message.delete()
                     return
-                except discord.ClientException:
+                except disnake.ClientException:
                     logger.exception('Failed to post progress')
                     return
 
@@ -393,7 +393,7 @@ class Playlist:
                     # We want to get the error for the current entry in the loop so
                     # we access the loop variable here
                     await channel.send('Failed to process {}'.format(entry.get('id')))
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
             return False
@@ -420,7 +420,7 @@ class Playlist:
                 try:
                     if not no_message:
                         await channel.send('Failed to process {}'.format(entry.get('id')))
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     pass
                 continue
 
@@ -497,7 +497,7 @@ class Playlist:
 
         return added
 
-    async def add_from_playlist(self, user, name, channel=None, shuffle=True, author=None):
+    async def add_from_playlist(self, user, name, channel=None, shuffle=True, author=None, max_songs: int=None):
         if channel is None:
             channel = self.channel
 
@@ -505,11 +505,18 @@ class Playlist:
         if songs is False:
             return False
 
-        await self.send('Processing {} songs'.format(len(songs)), delete_after=60, channel=channel)
         added = 0
 
         if shuffle:
             random.shuffle(songs)
+
+        if max_songs:
+            songs = songs[:max_songs]
+
+        if len(songs) == 0:
+            return False
+
+        await self.send('Processing {} songs'.format(len(songs)), delete_after=60, channel=channel)
 
         requested_by = author or user
         for song in songs:
@@ -619,13 +626,11 @@ class Playlist:
 
         return False
 
-    async def send(self, message, channel: Union[ApplicationContext, discord.abc.Messageable, Context]=None, **kwargs):
+    async def send(self, message, channel: Union[ApplicationCommandInteraction, disnake.abc.Messageable, Context]=None, **kwargs):
         if channel is None:
             channel = self.channel
 
-        meth = channel.respond if hasattr(channel, 'respond') else channel.send
-
         try:
-            return await meth(message, **kwargs)
-        except discord.HTTPException:
+            return await channel.send(message, **kwargs)
+        except disnake.HTTPException:
             pass

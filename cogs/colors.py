@@ -8,7 +8,7 @@ import typing
 from io import BytesIO
 from math import ceil, sqrt
 
-import discord
+import disnake
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 from asyncpg.exceptions import PostgresError
@@ -16,17 +16,18 @@ from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
-from discord.errors import InvalidArgument
-from discord.ext import commands
-from discord.ext.commands import (BucketType, BadArgument, clean_content)
+from disnake.errors import InvalidArgument
+from disnake.ext import commands
+from disnake.ext.commands import (BucketType, BadArgument, clean_content,
+                                  cooldown, guild_only)
 from numpy.random import choice
 
-from bot.bot import command, has_permissions, cooldown, group, \
-    bot_has_permissions
+from bot.bot import command, has_permissions, group, bot_has_permissions
 from bot.globals import WORKING_DIR
+from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
-                             Snowflake, check_botperm, send_paged_message)
+                             Snowflake, check_botperm)
 
 logger = logging.getLogger('terminal')
 
@@ -81,10 +82,13 @@ class Colors(Cog):
         self._colors = {}
         self.bot.colors = self._colors
         self._color_jobs = set()
-        asyncio.run_coroutine_threadsafe(self._cache_colors(), self.bot.loop)
 
         with open(os.path.join(os.getcwd(), 'data', 'color_names.json'), 'r', encoding='utf-8') as f:
             self._color_names = json.load(f)
+
+    async def cog_load(self):
+        await super().cog_load()
+        await self._cache_colors()
 
     async def _cache_colors(self):
         sql = 'SELECT colors.id, colors.name, colors.value, roles.guild, colors.lab_l, colors.lab_a, colors.lab_b FROM ' \
@@ -146,13 +150,13 @@ class Colors(Cog):
         """
         Gets the color role from a role or string
         Args:
-            color (discord.Role or str): color of the given server
+            color (disnake.Role or str): color of the given server
             guild_id (int): id of the guild
 
         Returns:
             Color if color found. None otherwise
         """
-        if isinstance(color, discord.Role):
+        if isinstance(color, disnake.Role):
             color = self._colors[guild_id].get(color.id)
         else:
             color = self.get_color(color, guild_id)
@@ -245,7 +249,7 @@ class Colors(Cog):
 
     def get_color(self, name, guild_id):
         name = name.lower()
-        return discord.utils.find(lambda n: str(n[1]).lower() == name,
+        return disnake.utils.find(lambda n: str(n[1]).lower() == name,
                                   self._colors.get(guild_id, {}).items())
 
     def search_color_(self, name):
@@ -356,7 +360,7 @@ class Colors(Cog):
                 await ctx.send('Role {0.name} has no color'.format(role))
                 continue
 
-            r = discord.utils.find(lambda c: c.value == color.value, colors.values())
+            r = disnake.utils.find(lambda c: c.value == color.value, colors.values())
             if r:
                 await ctx.send('Color {0.name} already exists'.format(role))
                 continue
@@ -496,7 +500,7 @@ class Colors(Cog):
             s = f'From {colors[0].get_hex_l()} to {colors[-1].get_hex_l()}'
         else:
             s = ' '.join(hex_colors)
-        await ctx.send(s, file=discord.File(data, 'colors.png'))
+        await ctx.send(s, file=disnake.File(data, 'colors.png'))
 
     @command(aliases=['cdiff', 'color_diff'])
     @cooldown(1, 5, BucketType.user)
@@ -580,11 +584,12 @@ class Colors(Cog):
             return data
 
         data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_the_thing)
-        await ctx.send(' '.join(hex_colors), file=discord.File(data, 'colors.png'))
+        await ctx.send(' '.join(hex_colors), file=disnake.File(data, 'colors.png'))
 
-    @command(no_pm=True, aliases=['colour'])
+    @command(aliases=['colour'])
     @bot_has_permissions(manage_roles=True)
     @commands.cooldown(1, 7, type=BucketType.member)
+    @guild_only()
     async def color(self, ctx, *, color=None):
         """Set you color on the server.
         {prefix}{name} name of color
@@ -631,7 +636,7 @@ class Colors(Cog):
         roles.add(id)
         try:
             await ctx.author.edit(roles=[Snowflake(r) for r in roles])
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             return await ctx.send('Failed to set color because of an error\n\n```\n%s```' % e)
 
         await ctx.send('Color set to %s' % color.name)
@@ -748,8 +753,9 @@ class Colors(Cog):
         data.seek(0)
         return data
 
-    @group(no_pm=True, aliases=['colours'], invoke_without_command=True)
+    @group(aliases=['colours'], invoke_without_command=True)
     @cooldown(1, 5, type=BucketType.guild)
+    @guild_only()
     async def colors(self, ctx):
         """Shows the colors on this guild"""
         guild = ctx.guild
@@ -770,11 +776,12 @@ class Colors(Cog):
             await ctx.send('Failed to generate colors. Try again later')
             return
 
-        await ctx.send(file=discord.File(data, 'colors.png'))
+        await ctx.send(file=disnake.File(data, 'colors.png'))
 
-    @colors.command(no_pm=True)
+    @colors.command()
     @bot_has_permissions(attach_files=True)
     @cooldown(1, 60, type=BucketType.guild)
+    @guild_only()
     async def roles(self, ctx):
         """
         Sorts all roles in the server by color and puts them in one file.
@@ -793,7 +800,7 @@ class Colors(Cog):
         async with ctx.typing():
             data = await self.bot.loop.run_in_executor(self.bot.threadpool, self._sorted_color_image, colors)
 
-        await ctx.send(file=discord.File(data, 'colors.png'))
+        await ctx.send(file=disnake.File(data, 'colors.png'))
 
     def _format_color_names(self, guild, use_role_names):
         """
@@ -822,7 +829,7 @@ class Colors(Cog):
         """
 
         Args:
-            members (list of discord.Member): Members to be used in colorpie
+            members (list of disnake.Member): Members to be used in colorpie
             color2name (dict[str, str]): Convert hex strings to color names
 
         Returns:
@@ -904,8 +911,9 @@ class Colors(Cog):
         buf.seek(0)
         return buf
 
-    @group(no_pm=True, aliases=['colorpie'], invoke_without_command=True)
+    @group(aliases=['colorpie'], invoke_without_command=True)
     @cooldown(1, 10, BucketType.guild)
+    @guild_only()
     async def color_pie(self, ctx, all_roles: typing.Optional[bool]=False):
         """
         Posts a pie chart of colors of this servers members.
@@ -926,10 +934,11 @@ class Colors(Cog):
         if not data:
             return
 
-        await ctx.send(file=discord.File(data, 'colors.png'))
+        await ctx.send(file=disnake.File(data, 'colors.png'))
 
-    @color_pie.command(name="actives", no_pm=True)
+    @color_pie.command(name="actives")
     @cooldown(1, 10, BucketType.guild)
+    @guild_only()
     async def colorpie_filtered(self, ctx, role_amount: typing.Optional[int]=3,
                                 all_roles: typing.Optional[bool]=False):
         """
@@ -952,7 +961,7 @@ class Colors(Cog):
         if not data:
             return
 
-        await ctx.send(file=discord.File(data, 'colors.png'))
+        await ctx.send(file=disnake.File(data, 'colors.png'))
 
     @group(aliases=['search_colour', 'sc'], invoke_without_command=True)
     @cooldown(1, 4, BucketType.user)
@@ -967,10 +976,10 @@ class Colors(Cog):
 
         total = len(matches)
         page_size = 10
-        pages = [None for _ in range(0, total, page_size)]
+        pages: list[None | str] = [None for _ in range(0, total, page_size)]
 
-        def get_page(page, page_idx):
-            nonlocal pages
+        def get_page(page_idx: int):
+            page = pages[page_idx]
             if page:
                 return page
 
@@ -983,7 +992,10 @@ class Colors(Cog):
             pages[page_idx] = s
             return s
 
-        await send_paged_message(ctx, pages, page_method=get_page)
+        paginator = Paginator(pages, generate_page=get_page,
+                              hide_page_count=True,
+                              show_stop_button=True)
+        await paginator.send(ctx)
 
     @search_color.command(name='pic')
     @cooldown(1, 5, BucketType.user)
@@ -1020,12 +1032,13 @@ class Colors(Cog):
 
         await ctx.trigger_typing()
         data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_pic)
-        await ctx.send(file=discord.File(data, 'colors.png'))
+        await ctx.send(file=disnake.File(data, 'colors.png'))
 
-    @command(no_pm=True, aliases=['add_colour'])
+    @command(aliases=['add_colour'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, type=BucketType.guild)
+    @guild_only()
     async def add_color(self, ctx, color: str, *name):
         """Add a new color to the guild"""
         if not name:
@@ -1043,7 +1056,7 @@ class Colors(Cog):
         value = int(color.get_rgb_hex()[1:], 16)
 
         # Find a role with the same color value as this one
-        r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
+        r = disnake.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
         if r:
             k, r = r
             if guild.get_role(r.role_id):
@@ -1055,10 +1068,10 @@ class Colors(Cog):
 
         default_perms = guild.default_role.permissions
         try:
-            d_color = discord.Colour(value)
+            d_color = disnake.Colour(value)
             color_role = await guild.create_role(name=name, permissions=default_perms,
                                                  colour=d_color, reason=f'{ctx.author} created a new color')
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             logger.exception('guild {0.id} rolename: {1} perms: {2} color: {3} {4}'.format(guild, name, default_perms.value, str(rgb), value))
             return await ctx.send('Failed to add color because of an error\n```%s```' % e)
 
@@ -1072,7 +1085,7 @@ class Colors(Cog):
             if role:
                 try:
                     await color_role.edit(position=max(1, role.position))
-                except discord.HTTPException as e:
+                except disnake.HTTPException as e:
                     await ctx.send(f'Failed to move color role up in roles hierarchy because of an exception\n{e}')
 
             self._colors[guild.id][color_role.id] = color_
@@ -1081,11 +1094,12 @@ class Colors(Cog):
 
         await ctx.send('Added color {} {}'.format(name, str(d_color)))
 
-    @command(no_pm=True, aliases=['rename_colour'])
+    @command(aliases=['rename_colour'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def rename_color(self, ctx, color: typing.Union[discord.Role, str], *, new_name):
+    @guild_only()
+    async def rename_color(self, ctx, color: typing.Union[disnake.Role, str], *, new_name):
         """
         Edit the name of the given color. This is not the same as changing the name of the role
         that the color is associated with.
@@ -1103,11 +1117,12 @@ class Colors(Cog):
         await self._add_color2db(color, update=True)
         await ctx.send(f"Renamed {old_name} to {new_name}")
 
-    @command(no_pm=True, aliases=['edit_colour'])
+    @command(aliases=['edit_colour'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, type=BucketType.guild)
-    async def edit_color(self, ctx, color: typing.Union[discord.Role, str], *, new_color):
+    @guild_only()
+    async def edit_color(self, ctx, color: typing.Union[disnake.Role, str], *, new_color):
         """
         Edit the color of an existing color role.
         Color is the name of the color role or the role id of the role it's assigned to
@@ -1130,7 +1145,7 @@ class Colors(Cog):
         value = int(rgb.get_rgb_hex()[1:], 16)
 
         # Find a role with the same color value as this one
-        r = discord.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
+        r = disnake.utils.find(lambda i: i[1].value == value, self._colors.get(guild.id, {}).items())
         if r:
             k, r = r
             if guild.get_role(r.role_id):
@@ -1145,11 +1160,11 @@ class Colors(Cog):
 
         try:
             if role.name.lower() == color.name.lower():
-                await role.edit(name=new_color, color=discord.Colour(value))
+                await role.edit(name=new_color, color=disnake.Colour(value))
                 color.name = new_color
             else:
-                await role.edit(color=discord.Colour(value))
-        except discord.HTTPException as e:
+                await role.edit(color=disnake.Colour(value))
+        except disnake.HTTPException as e:
             await ctx.send(f'Failed to add color because of an error\n{e}')
             return
 
@@ -1159,10 +1174,11 @@ class Colors(Cog):
         await self._add_color2db(color, update=True)
         await ctx.send(f'Updated color to value {new_color} (#{value:06X})')
 
-    @command(no_pm=True, aliases=['colors_from_roles'])
+    @command(aliases=['colors_from_roles'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 5, type=BucketType.guild)
+    @guild_only()
     async def add_colors_from_roles(self, ctx, *, roles):
         """Turn existing role(s) to colors.
         Usage:
@@ -1215,10 +1231,11 @@ class Colors(Cog):
 
         await self._add_colors_from_roles(success, ctx)
 
-    @command(no_pm=True, aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
+    @command(aliases=['del_color', 'remove_color', 'delete_colour', 'remove_colour'])
     @has_permissions(manage_roles=True)
     @bot_has_permissions(manage_roles=True)
     @cooldown(1, 3, type=BucketType.guild)
+    @guild_only()
     async def delete_color(self, ctx, *, name):
         """Delete a color from the server"""
         guild = ctx.guild
@@ -1236,13 +1253,14 @@ class Colors(Cog):
         try:
             await role.delete(reason=f'{ctx.author} deleted this color')
             await self._delete_color(guild.id, role_id)
-        except discord.HTTPException as e:
+        except disnake.HTTPException as e:
             return await ctx.send(f'Failed to remove color because of an error\n```{e}```')
 
         await ctx.send(f'Removed color {color[1]}')
 
-    @command(no_pm=True, aliases=['show_colours'])
+    @command(aliases=['show_colours'])
     @cooldown(1, 4, type=BucketType.guild)
+    @guild_only()
     async def show_colors(self, ctx):
         """Show current colors on the guild in an embed.
         This allows you to see how they look"""
@@ -1256,7 +1274,7 @@ class Colors(Cog):
         switch = 0
         current_embed = 0
         fields = 0
-        embeds = [discord.Embed() for i in range(embed_count)]
+        embeds = [disnake.Embed() for i in range(embed_count)]
         for color in colors.values():
             if switch == 0:
                 field_title = str(color)
@@ -1311,9 +1329,9 @@ class Colors(Cog):
                 try:
                     await member.add_roles(next(role))
                     colored += 1
-                except discord.errors.Forbidden:
+                except disnake.errors.Forbidden:
                     return
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     continue
 
             elif len(found) > 1:
@@ -1322,7 +1340,7 @@ class Colors(Cog):
                     removed_roles.remove(found[0].id)
                     await member.remove_roles(*map(Snowflake, removed_roles), reason='Removing duplicate colors', atomic=False)
                     duplicate_colors += 1
-                except (discord.HTTPException, discord.ClientException, ValueError):
+                except (disnake.HTTPException, disnake.ClientException, ValueError):
                     logger.exception('failed to remove duplicate colors')
 
         self._color_jobs.discard(guild.id)

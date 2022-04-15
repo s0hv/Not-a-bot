@@ -2,8 +2,8 @@ import logging
 import typing
 from datetime import timedelta
 
-import discord
-from discord.abc import PrivateChannel
+import disnake
+from disnake.abc import PrivateChannel
 
 from cogs.cog import Cog
 from enums.data_enums import RedisKeyNamespaces
@@ -147,7 +147,7 @@ class Logger(Cog):
 
     @Cog.listener()
     async def on_message_delete(self, msg):
-        if isinstance(msg.channel, discord.DMChannel) or msg.guild is None:
+        if isinstance(msg.channel, disnake.DMChannel) or msg.guild is None:
             return
 
         if msg.author.bot or msg.channel.id == 336917918040326166:
@@ -183,7 +183,7 @@ class Logger(Cog):
 
     @Cog.listener()
     async def on_message_edit(self, before, after):
-        if isinstance(before.channel, discord.DMChannel) or before.guild is None:
+        if isinstance(before.channel, disnake.DMChannel) or before.guild is None:
             return
 
         if self.bot.redis and before.content == after.content and self.bot.can_track(before.author):
@@ -234,7 +234,7 @@ class Logger(Cog):
 
     @staticmethod
     def create_embed(message, title, description, timestamp):
-        embed = discord.Embed(title=title, description=description, timestamp=timestamp)
+        embed = disnake.Embed(title=title, description=description, timestamp=timestamp)
         embed.set_author(name=str(message.author), icon_url=get_avatar(message.author))
         return embed
 

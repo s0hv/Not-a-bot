@@ -2,13 +2,13 @@ import os
 from datetime import datetime, timedelta
 from random import Random, choice
 
-import discord
-from discord.ext.commands import BucketType
+import disnake
+from disnake.ext.commands import BucketType, cooldown, guild_only
 
-from bot.bot import command, cooldown, group, has_permissions
+from bot.bot import command, group, has_permissions
 from bot.globals import PLAYLISTS
 from cogs.cog import Cog
-from utils.utilities import call_later
+from utils.utilities import call_later, utcnow
 from utils.utilities import read_lines
 
 
@@ -19,7 +19,7 @@ class WrestlingGif:
 
     def build_embed(self, author, recipient):
         description = self.text.format(author=author, recipient=recipient)
-        embed = discord.Embed(description=description)
+        embed = disnake.Embed(description=description)
         embed.set_image(url=self.url)
         return embed
 
@@ -105,7 +105,7 @@ class gachiGASM(Cog):
 
             try:
                 await channel.send(f'Daily gachi {vid}')
-            except discord.HTTPException:
+            except disnake.HTTPException:
                 pass
 
         self.reload_call = call_later(self._reload_and_post, self.bot.loop,
@@ -119,14 +119,14 @@ class gachiGASM(Cog):
     def time2tomorrow():
         # Get utcnow, add 1 day to it and check how long it is to the next day
         # by subtracting utcnow from the gained date
-        now = datetime.utcnow()
+        now = utcnow()
         tomorrow = now + timedelta(days=1)
         return (tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
                 - now).total_seconds()
 
     @staticmethod
     def get_day():
-        return (datetime.utcnow() - datetime.min).days
+        return (utcnow() - datetime.min).days
 
     @command()
     @cooldown(1, 2, BucketType.channel)
@@ -151,7 +151,8 @@ class gachiGASM(Cog):
     async def randomgachi(self, ctx):
         await ctx.send(choice(self.gachilist))
 
-    @group(invoke_without_command=True, aliases=['dg'], no_pm=True)
+    @group(invoke_without_command=True, aliases=['dg'])
+    @guild_only()
     @cooldown(1, 5, BucketType.channel)
     async def dailygachi(self, ctx):
         await ctx.send(Random(self.get_day()+ctx.guild.id).choice(self.gachilist))
@@ -159,7 +160,7 @@ class gachiGASM(Cog):
     @dailygachi.command(np_pm=True)
     @cooldown(1, 5)
     @has_permissions(manage_guild=True)
-    async def subscribe(self, ctx, *, channel: discord.TextChannel=None):
+    async def subscribe(self, ctx, *, channel: disnake.TextChannel=None):
         if channel:
             await self.bot.guild_cache.set_dailygachi(ctx.guild.id, channel.id)
             return await ctx.send(f'New dailygachi channel set to {channel}')
@@ -172,16 +173,18 @@ class gachiGASM(Cog):
         else:
             await ctx.send('No dailygachi channel set')
 
-    @dailygachi.command(no_pm=True)
+    @dailygachi.command()
     @cooldown(1, 5)
     @has_permissions(manage_guild=True)
+    @guild_only()
     async def unsubscribe(self, ctx):
         await self.bot.guild_cache.set_dailygachi(ctx.guild.id, None)
         await ctx.send('Dailygachi channel no longer set')
 
-    @command(no_pm=True)
+    @command()
     @cooldown(1, 5, BucketType.member)
-    async def wrestle(self, ctx, *, user: discord.User):
+    @guild_only()
+    async def wrestle(self, ctx, *, user: disnake.User):
         if user == ctx.author:
             await ctx.send('Wrestling against yourself...')
             return

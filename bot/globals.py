@@ -28,7 +28,6 @@ import shutil
 from os.path import join
 from pathlib import Path
 
-from discord import Permissions as Permissions_
 
 terminal = logging.getLogger('terminal')
 
@@ -46,8 +45,6 @@ SFX_FOLDER = join(_wd, 'data', 'audio', 'sfx')
 TTS = join(_wd, 'data', 'audio', 'tts')
 CACHE = join(_wd, 'data', 'audio', 'cache')
 POKESTATS = join(DATA, 'pokestats')
-PERMISSIONS_FOLDER = join(_wd, 'data', 'permissions')
-PERMISSIONS = join(PERMISSIONS_FOLDER, 'permissions.db')
 WORKING_DIR = _wd
 IMAGES_PATH = os.path.join(_wd, 'data', 'images')
 
@@ -69,8 +66,6 @@ def create_folders():
         raise FileNotFoundError(f'Path {PLAYLISTS} does not exist')
 
     _create_folder(SFX_FOLDER)
-
-    _create_folder(PERMISSIONS_FOLDER)
 
     _create_folder(IMAGES_PATH)
 
@@ -96,6 +91,7 @@ class BlacklistTypes:
         return cls.OPPOSITES.get(value, 0)
 
 
+# TODO please fix these they make no sense
 class PermValues:
     VALUES = {'user': 0x1, 'whitelist': 0x0, 'blacklist': 0x2, 'role': 0x4,
               'channel': 0x8, 'guild': 0x10}
@@ -117,21 +113,3 @@ class Auth:
     @classmethod
     def to_string(cls, i):
         return cls.TO_STRING.get(i)
-
-
-class Permissions(Permissions_):
-    def __init__(self, permissions=0):
-        super().__init__(permissions=permissions)
-
-    def __or__(self, other):
-        return Permissions(self.value | other.value)
-
-
-class Perms:
-    MANAGE_ROLES = Permissions(268435456)
-    MANAGE_CHANNEL = Permissions(16)
-    MANAGE_ROLE_CHANNEL = MANAGE_ROLES | MANAGE_CHANNEL
-    MANAGE_MESSAGES = Permissions(8192)
-    ADMIN = Permissions(8)
-    MANAGE_EMOJIS = Permissions(1073741824)
-    MANAGE_GUILD = Permissions(32)

@@ -27,25 +27,26 @@ import logging
 import os
 import re
 import shutil
+from datetime import timedelta
 from math import floor
 from random import choice
 from typing import Optional, Union
 
-import discord
-from discord import AllowedMentions, ApplicationContext
-from discord.commands import (slash_command, permissions, SlashCommandGroup)
-from discord.commands.options import Option
-from discord.ext import commands
-from discord.ext.commands import guild_only
-from discord.ext.commands.cooldowns import BucketType
+import disnake
+from disnake import AllowedMentions, ApplicationCommandInteraction
+from disnake.ext import commands
+from disnake.ext.commands import Param
+from disnake.ext.commands import guild_only
+from disnake.ext.commands import (slash_command, is_owner, cooldown)
+from disnake.ext.commands.cooldowns import BucketType
 
 from bot import player
-from bot.bot import command, cooldown, Context, bridge_command
-from bot.converters import TimeDelta, BoolChoices
+from bot.bot import command, Context
+from bot.converters import convert_timedelta
 from bot.downloader import Downloader
 from bot.globals import ADD_AUTOPLAYLIST, DELETE_AUTOPLAYLIST
 from bot.globals import Auth
-from bot.paginator import ViewPaginator
+from bot.paginator import Paginator
 from bot.player import get_track_pos, MusicPlayer, format_time
 from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
                           create_playlist, validate_playlist, write_playlist,
@@ -61,17 +62,16 @@ from utils.utilities import (search, parse_seek,
 logger = logging.getLogger('audio')
 terminal = logging.getLogger('terminal')
 
-stereo_modes = ("sine", "triangle", "square", "sawup", "sawdown", 'off', 'left', 'right')
-on_off = ('On', 'Off')
+stereo_modes = ["sine", "triangle", "square", "sawup", "sawdown", 'off', 'left', 'right']
 
-VolumeType = Option(int, name='volume', required=False, default=None, min_value=0, max_value=200)
-PlaylistOwner = Option(discord.User, description='Owner of the playlist', name='user', required=False, default=None)
-PlaylistShuffle = Option(BoolChoices, description='Whether to shuffle the playlist or not. Shuffles by default.', name='shuffle', required=False, default=True, choices=on_off)
-PlaylistName = Option(str, description='Name of the playlist', name='playlist_name')
-LongerThan = Option(bool, description='If false will find songs shorter than the given duration', name='longer_than', required=False, default=True)
-Duration = Option(TimeDelta, description='Duration in the format 1h 1m 1s', name='duration')
-Clear = Option(bool, description='If set to True will clear the found items', name='clear', required=False, default=False)
-on_off_dict = {'required': False, 'default': None, 'choices': on_off}
+VolumeType = Param(name='volume', default=None, min_value=0, max_value=200)
+PlaylistOwner = Param(description='Owner of the playlist', name='user', default=None)
+PlaylistShuffle = Param(description='Whether to shuffle the playlist or not. Shuffles by default.', name='shuffle', default=True)
+PlaylistName = Param(description='Name of the playlist', name='playlist_name')
+LongerThan = Param(description='If false will find songs shorter than the given duration', name='longer_than', default=True)
+Duration = Param(converter=convert_timedelta, description='Duration in the format 1h 1m 1s', name='duration')
+Clear = Param(description='If set to True will clear the found items', name='clear', default=False)
+OptionalBool = Param(None)
 
 
 def check_who_queued(user):
@@ -164,11 +164,11 @@ class Audio(commands.Cog):
                 self.musicplayers[guild_id] = obj
                 return obj
 
-    async def check_player(self, ctx: ApplicationContext) -> Optional[MusicPlayer]:
+    async def check_player(self, ctx: ApplicationCommandInteraction | Context) -> Optional[MusicPlayer]:
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
             terminal.error('Playlist not found even when voice is playing')
-            await ctx.respond(f'No playlist found. Use force_stop to reset voice state')
+            await ctx.send(f'No playlist found. Use force_stop to reset voice state')
 
         return musicplayer
 
@@ -216,17 +216,18 @@ class Audio(commands.Cog):
             return options
 
     @staticmethod
-    async def check_voice(ctx: ApplicationContext, user_connected: bool=True) -> bool:
-        if ctx.voice_client is None:
-            await ctx.respond('Not connected to a voice channel')
+    async def check_voice(ctx: ApplicationCommandInteraction | Context, user_connected: bool=True) -> bool:
+        voice_client = ctx.guild.voice_client
+        if voice_client is None:
+            await ctx.send('Not connected to a voice channel')
             return False
 
         if user_connected and not ctx.author.voice:
-            await ctx.respond("You aren't connected to a voice channel")
+            await ctx.send("You aren't connected to a voice channel")
             return False
 
         elif user_connected and ctx.author.voice.channel.id != ctx.voice_client.channel.id:
-            await ctx.respond("You aren't connected to this bots voice channel")
+            await ctx.send("You aren't connected to this bots voice channel")
             return False
 
         return True
@@ -254,7 +255,7 @@ class Audio(commands.Cog):
         """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
 
-    async def _again(self, ctx: ApplicationContext, priority: bool=False):
+    async def _again(self, ctx: ApplicationCommandInteraction, priority: bool=False):
         """
         Args:
             ctx: class Context
@@ -266,8 +267,9 @@ class Audio(commands.Cog):
         if not await self.check_voice(ctx):
             return
 
-        if not ctx.voice_client.is_playing():
-            return await ctx.respond('Not playing anything')
+        voice_client = ctx.guild.voice_client
+        if not voice_client.is_playing():
+            return await ctx.send('Not playing anything')
 
         musicplayer = await self.check_player(ctx)
         if not musicplayer:
@@ -277,15 +279,14 @@ class Audio(commands.Cog):
         await musicplayer.playlist.add_from_song(song, priority, channel=ctx)
 
     @commands.cooldown(2, 3, type=BucketType.guild)
-    @slash_command()
-    async def seek(self, ctx: ApplicationContext, where: Option(str, description='Position to seek to (1h 1m 1s)')):
+    @slash_command(description='Seeks to the given position in the song')
+    async def seek(self, ctx: ApplicationCommandInteraction, where: str = Param(description='Position to seek to using this format: 1h 1m 1s')):
         """
         Seek a song using this format 1h 1m 1s 1ms,
         where at least one of them is required. Milliseconds must be zero padded
-        so to seek only one millisecond put 001ms. Otherwise the song will just
+        so to seek only one millisecond put 001ms. Otherwise, the song will just
         restart. e.g. 1h 4s and 2m1s3ms both should work.
         """
-
         if not await self.check_voice(ctx):
             return
 
@@ -294,15 +295,15 @@ class Audio(commands.Cog):
             return
 
         current = musicplayer.current
-        if current is None or not ctx.voice_client.is_playing():
-            return await ctx.respond('Not playing anything', ephemeral=True)
+        if current is None or not ctx.guild.voice_client.is_playing():
+            return await ctx.send('Not playing anything', ephemeral=True)
 
         seek = parse_seek(where)
         if seek is None:
-            return ctx.respond('Invalid time string')
+            return await ctx.send('Invalid time string')
 
         await self._seek(musicplayer, current, seek)
-        await ctx.respond('✅')
+        await ctx.send('✅')
 
     async def _seek(self, musicplayer, current, seek_dict, options=None,
                     speed=None):
@@ -321,7 +322,7 @@ class Audio(commands.Cog):
 
         logger.debug('Seeking with dict {0} and these options: before_options="{1}", options="{2}"'.format(seek_dict, current.before_options, options))
 
-        await current.validate_url(self.bot.aiohttp_client)
+        await current.validate_url()
         musicplayer.player.seek(current.filename, seek_dict, before_options=current.before_options, options=options, speed=speed)
 
     @staticmethod
@@ -368,33 +369,43 @@ class Audio(commands.Cog):
 
         musicplayer.player.source2 = player.FFmpegPCMAudio('file', reconnect=False)
 
-    @bridge_command(cooldown_after_parsing=True, name='play')
-    @guild_only()
+    @slash_command(cooldown_after_parsing=True, name='play',
+                   description='Play the given song. A link will play the link and keywords will do a YouTube search.')
     @commands.cooldown(1, 3, type=BucketType.user)
-    async def play(self, ctx: ApplicationContext, *, song_name: str):
+    @guild_only()
+    async def play_slash(self, ctx: ApplicationCommandInteraction, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
         if you put keywords it will search YouTube for them"""
-        await ctx.defer()
+        await ctx.response.defer()
+        await self.play_song(ctx, song_name)
+
+    @command(cooldown_after_parsing=True, name='play')
+    @commands.cooldown(1, 3, type=BucketType.user)
+    @guild_only()
+    async def play_cmd(self, ctx: Context, *, song_name: str):
+        """Put a song in the playlist. If you put a link it will play that link and
+        if you put keywords it will search YouTube for them"""
         await self.play_song(ctx, song_name)
 
     @slash_command()
     @commands.cooldown(1, 3, type=BucketType.user)
-    async def play_gapless(self, ctx: ApplicationContext, song_name: str):
-        """Works the same as `{prefix}play` but this also sets gapless playback mode on"""
-        await ctx.defer()
+    async def play_gapless(self, ctx: ApplicationCommandInteraction, song_name: str):
+        """Works the same as /play but this also sets gapless playback mode on"""
+        await ctx.response.defer()
         await self.play_song(ctx, song_name, gapless=True)
 
-    async def summon_checks(self, ctx):
+    async def summon_checks(self, ctx: ApplicationCommandInteraction | Context) -> tuple[Optional[MusicPlayer], Optional[bool]]:
         if not ctx.author.voice:
-            await ctx.respond('Not connected to a voice channel')
+            await ctx.send('Not connected to a voice channel')
             return None, None
 
-        if ctx.voice_client and ctx.voice_client.channel.id != ctx.author.voice.channel.id:
-            await ctx.respond('Not connected to the same channel as the bot')
+        voice_client = ctx.guild.voice_client
+        if voice_client and voice_client.channel.id != ctx.author.voice.channel.id:
+            await ctx.send('Not connected to the same channel as the bot')
             return None, None
 
         success = False
-        if ctx.voice_client is None:
+        if voice_client is None:
             success = await self._summon(ctx, create_task=False)
             if not success:
                 terminal.debug('Failed to join vc')
@@ -406,7 +417,7 @@ class Audio(commands.Cog):
 
         return musicplayer, success
 
-    async def play_song(self, ctx: Union[ApplicationContext, Context], song_name, priority=False, gapless=False, **metadata):
+    async def play_song(self, ctx: ApplicationCommandInteraction | Context, song_name, priority=False, gapless=False, **metadata):
         musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
@@ -423,36 +434,41 @@ class Audio(commands.Cog):
         if success:
             musicplayer.start_playlist()
 
-    playlist_group = SlashCommandGroup('playlist', 'Playlist related commands')
+    @slash_command(name='playlist', description='Playlist related commands')
+    async def playlist(self, _):
+        pass
 
-    @playlist_group.command(aliases=['play_p', 'pp'], name='play')
+    @playlist.sub_command(aliases=['play_p', 'pp'], name='play')
     @cooldown(1, 10, BucketType.user)
     async def play_playlist(
-            self, ctx: ApplicationContext,
-            playlist_name: PlaylistName,
-            user: PlaylistOwner,
-            shuffle: PlaylistShuffle):
+            self, ctx: ApplicationCommandInteraction,
+            playlist_name: str = PlaylistName,
+            user: disnake.User = PlaylistOwner,
+            shuffle: bool = PlaylistShuffle,
+            max_songs: int = Param(None, min_value=0)):
         """Queue a saved playlist in random order"""
-        await ctx.defer()
+        await ctx.response.defer()
         musicplayer, success = await self.summon_checks(ctx)
         if not musicplayer:
             return
 
         user = user if user else ctx.author
-        if not await musicplayer.playlist.add_from_playlist(user, playlist_name, ctx, shuffle=shuffle, author=ctx.author):
-            await ctx.respond(f"Couldn't find playlist {playlist_name} of user {user} or playlist was empty")
+        if not await musicplayer.playlist.add_from_playlist(
+                user, playlist_name, ctx, shuffle=shuffle, author=ctx.author, max_songs=max_songs
+        ):
+            return await ctx.send(f"Couldn't find playlist {playlist_name} of user {user} or playlist was empty")
 
         if success:
             musicplayer.start_playlist()
 
-    @playlist_group.command(name='play_random')
+    @playlist.sub_command(name='play_random')
     @cooldown(1, 5, BucketType.user)
     async def play_random_playlist(
-            self, ctx: ApplicationContext,
-            playlist_name: PlaylistName,
-            user: PlaylistOwner):
+            self, ctx: ApplicationCommandInteraction,
+            playlist_name: str =PlaylistName,
+            user: disnake.User = PlaylistOwner):
         """Queue a random song from given playlist"""
-        await ctx.defer()
+        await ctx.response.defer()
         songs = await self.get_playlist(ctx, user, playlist_name)
         if songs is False:
             return
@@ -469,17 +485,17 @@ class Audio(commands.Cog):
         if success:
             musicplayer.start_playlist()
 
-    @playlist_group.command(name='play_viewed')
+    @playlist.sub_command(name='play_viewed', description='Enqueues all the songs from the last playlist you viewed filters included.')
     @cooldown(1, 5)
-    async def play_viewed_playlist(self, ctx: ApplicationContext):
+    async def play_viewed_playlist(self, ctx: ApplicationCommandInteraction):
         """
         Enqueues all the songs from the last playlist you viewed.
         You can use this to filter playlist and add songs based on that filter
         """
-        await ctx.defer()
+        await ctx.response.defer()
         songs = self.viewed_playlists.get(ctx.author.id, None)
         if not songs:
-            await ctx.respond("You haven't viewed any playlists. Use `view_playlist` "
+            await ctx.send("You haven't viewed any playlists. Use `view_playlist` "
                            "or any of it's subcommands then use this command to add those songs to the list")
             return
 
@@ -495,12 +511,12 @@ class Audio(commands.Cog):
 
         added = await musicplayer.playlist.add_from_partials(songs, ctx.author, ctx)
 
-        await ctx.respond(f'Enqueued {added} songs from {name}')
+        await ctx.send(f'Enqueued {added} songs from {name}')
 
         if success:
             musicplayer.start_playlist()
 
-    async def _process_links(self, ctx: ApplicationContext, links, max_size=30):
+    async def _process_links(self, ctx: ApplicationCommandInteraction, links, max_size=30):
         is_owner = ctx.author.id == self.bot.owner_id
         songs = links
         failed = []
@@ -515,7 +531,7 @@ class Audio(commands.Cog):
 
         for song in songs:
             if len(new_songs) >= max_size:
-                await ctx.respond(f'Playlist filled (max size {max_size}) before all songs could be processed. Latest processed song was {new_songs[-1].webpage_url}')
+                await ctx.send(f'Playlist filled (max size {max_size}) before all songs could be processed. Latest processed song was {new_songs[-1].webpage_url}')
                 break
 
             if not test_url(song):
@@ -537,7 +553,7 @@ class Audio(commands.Cog):
                                                       download=False,
                                                       on_error=on_error)
             if not info:
-                await ctx.respond('Nothing found or error')
+                await ctx.send('Nothing found or error')
                 return
 
             if 'entries' in info:
@@ -586,13 +602,13 @@ class Audio(commands.Cog):
                                               playlist_id, Part.ContentDetails,
                                               max_results)
             if not videos:
-                await ctx.respond(f"Failed to download youtube playlist with the id {playlist_id}")
+                await ctx.send(f"Failed to download youtube playlist with the id {playlist_id}")
             else:
                 youtube_vids.extend([vid['contentDetails']['videoId'] for vid in videos])
 
         if youtube_vids:
             if len(youtube_vids) > max_results:
-                await ctx.respond(f'Youtube vid limit reached. Skipping {len(youtube_vids) - max_results} entries')
+                await ctx.send(f'Youtube vid limit reached. Skipping {len(youtube_vids) - max_results} entries')
 
             videos = await self.bot.run_async(self.bot.yt_api.video_info,
                                               youtube_vids[:max_results], Part.combine(Part.ContentDetails, Part.Snippet))
@@ -606,47 +622,47 @@ class Audio(commands.Cog):
         return new_songs, failed
 
     # TODO Add subcommands to add from queue but with a filter
-    @playlist_group.command(name='add', aliases=['atp'], cooldown_after_parsing=True)
+    @playlist.sub_command(name='add', aliases=['atp'], cooldown_after_parsing=True, description='Adds songs to the given playlist.')
     @cooldown(1, 20, BucketType.user)
     async def add_to_playlist(
-            self, ctx: ApplicationContext,
-            playlist_name: PlaylistName,
-            song_links: str):
+            self, ctx: ApplicationCommandInteraction,
+            playlist_name: str = PlaylistName,
+            song_links: str = Param()):
         """
         Adds songs to the given playlist.
         If the keyword queue is given as in `{prefix}{name} queue` it will
         add the current queue to the playlist. There is no limit to the max added
         songs with this method.
 
-        Otherwise you can give it links to songs or playlists and it'll add
+        Otherwise, you can give it links to songs or playlists, and it'll add
         those to the playlist. Max amount of songs added this way is 30 for
         non YouTube links and hundreds for YouTube links
         """
-        await ctx.defer()
+        await ctx.response.defer()
         songs = load_playlist(playlist_name, ctx.author.id)
         if songs is False:
-            await ctx.respond(f"Couldn't find playlist {playlist_name}")
-            ctx.command.reset_cooldown(ctx)
+            await ctx.send(f"Couldn't find playlist {playlist_name}")
+            ctx.application_command.reset_cooldown(ctx)
             return
 
         path = os.path.join(PLAYLISTS, str(ctx.author.id), playlist_name)
         if os.path.islink(path):
-            await ctx.respond('Playlist cannot be edited because it\'s a shallow copy.\n'
+            await ctx.send('Playlist cannot be edited because it\'s a shallow copy.\n'
                            'See help of copy_playlist for info on how to make a deep copy')
             return
 
         if song_links.lower().strip(' \n') == 'queue':
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
-                ctx.command.reset_cooldown(ctx)
-                await ctx.respond('No songs currently in queue')
+                ctx.application_command.reset_cooldown(ctx)
+                await ctx.send('No songs currently in queue')
                 return
 
             new_songs = list(musicplayer.playlist.playlist)
             if musicplayer.current:
                 new_songs.append(musicplayer.current)
 
-            await ctx.respond('Getting song infos for playlist')
+            await ctx.send('Getting song infos for playlist')
             added = 0
             for song in new_songs:
                 if not song.duration:
@@ -660,16 +676,16 @@ class Audio(commands.Cog):
                               'duration': song.duration})
 
         else:
-            await ctx.respond('Getting song infos for playlist')
+            await ctx.send('Getting song infos for playlist')
             res = await self._process_links(ctx, song_links.replace('\n', ' ').split(' '))
             if not res:
-                await ctx.respond('Failed to process links')
+                await ctx.send('Failed to process links')
                 return
 
             new_songs, failed = res
 
             if failed:
-                await ctx.respond('Failed to add %s' % ', '.join(failed))
+                await ctx.send('Failed to add %s' % ', '.join(failed))
 
             if not new_songs:
                 return
@@ -685,29 +701,33 @@ class Audio(commands.Cog):
             await ctx.send(str(e))
             return
 
-        await ctx.respond(f'{s}\nAdded {added} songs')
+        await ctx.send(f'{s}\nAdded {added} songs')
 
-    playlist_delete = playlist_group.create_subgroup('delete', 'Delete playlists or songs from them')
+    @playlist.sub_command_group(name='delete', description='Delete playlists or songs from them')
+    async def playlist_delete(self, _):
+        pass
 
-    @playlist_delete.command(name='from')
+    @playlist_delete.sub_command(name='from', description='Delete the given links from the playlist. If no links given deletes current song.')
     @cooldown(1, 5, BucketType.user)
-    async def delete_from_playlist(self, ctx: ApplicationContext, playlist_name: PlaylistName, song_links: str=None):
+    async def delete_from_playlist(self, ctx: ApplicationCommandInteraction,
+                                   playlist_name: str = PlaylistName,
+                                   song_links: str = None):
         """Delete the given links from the playlist.
         If no links are given will delete the currently playing song.
         There is no limit to how many links can be deleted from a playlist at once
         other than discords maximum character limit"""
-        await ctx.defer()
+        await ctx.response.defer()
         songs = load_playlist(playlist_name, ctx.author.id)
 
         if songs is False:
             await ctx.send(f"Couldn't find playlist {playlist_name}")
-            ctx.command.reset_cooldown(ctx)
+            ctx.application_command.reset_cooldown(ctx)
             return
 
         if not song_links:
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
-                ctx.command.reset_cooldown(ctx)
+                ctx.application_command.reset_cooldown(ctx)
                 await ctx.send('No songs currently in queue')
                 return
 
@@ -727,61 +747,61 @@ class Audio(commands.Cog):
             await ctx.send(str(e))
             return
 
-        await ctx.respond(f'{s}\nDeleted {deleted} song(s)')
+        await ctx.send(f'{s}\nDeleted {deleted} song(s)')
 
-    @playlist_group.command(name='create')
+    @playlist.sub_command(name='create', description='Create a playlist from the current queue or from links you pass after the prompt.')
     @cooldown(1, 20, BucketType.user)
-    async def create_playlist(self, ctx: ApplicationContext, playlist_name: PlaylistName):
+    async def create_playlist(self, ctx: ApplicationCommandInteraction, playlist_name: str = PlaylistName):
         """
         Create a playlist from the current queue or from links you pass after the prompt.
         When creating a playlist from current queue there is no limit to song amount
         """
-        await ctx.defer()
+        await ctx.response.defer()
         if not validate_playlist_name(playlist_name):
-            ctx.command.reset_cooldown(ctx)
-            return await ctx.respond(f"{playlist_name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100", ephemeral=True)
+            ctx.application_command.reset_cooldown(ctx)
+            return await ctx.send(f"{playlist_name} doesn't follow naming rules. Allowed characters are a-Z and 0-9 and max length is 100", ephemeral=True)
 
-        await ctx.respond('What would you like the contents of the playlist to be\n'
+        await ctx.send('What would you like the contents of the playlist to be\n'
                        'For current music queue say `yes` otherwise post all the links you want in your playlist.\n'
                        'Max amount of self posted links is 30 for non youtube links and hundreds for youtube links')
 
         try:
             msg = await self.bot.wait_for('message', check=basic_check(ctx.author, ctx.channel), timeout=60)
         except asyncio.TimeoutError:
-            ctx.command.reset_cooldown(ctx)
-            return await ctx.respond('Took too long.')
+            ctx.application_command.reset_cooldown(ctx)
+            return await ctx.send('Took too long.')
 
         if msg.content.lower() == 'yes':
             musicplayer = self.get_musicplayer(ctx.guild.id)
             if not musicplayer or musicplayer.player is None or musicplayer.current is None:
-                ctx.command.reset_cooldown(ctx)
-                await ctx.respond("No songs currently in queue. Playlist wasn't created")
+                ctx.application_command.reset_cooldown(ctx)
+                await ctx.send("No songs currently in queue. Playlist wasn't created")
                 return
 
             songs = list(musicplayer.playlist.playlist)
             if musicplayer.current:
                 songs.append(musicplayer.current)
 
-            await ctx.send_response('Getting song infos for playlist')
+            await ctx.send('Getting song infos for playlist')
             await create_playlist(songs, ctx.author, playlist_name, ctx)
 
         else:
-            await ctx.respond('Getting song infos for playlist')
+            await ctx.send('Getting song infos for playlist')
             new_songs, failed = await self._process_links(ctx, msg.content.replace('\n', ' ').split(' '))
 
             if new_songs:
                 await create_playlist(new_songs, ctx.author, playlist_name, ctx)
 
             if failed:
-                await ctx.respond('Failed to add %s' % ', '.join(failed))
+                await ctx.send('Failed to add %s' % ', '.join(failed))
 
     @staticmethod
-    async def _copy_playlist(ctx: ApplicationContext, user: discord.Member, name, deep=False):
+    async def _copy_playlist(ctx: ApplicationCommandInteraction, user: disnake.User, name, deep=False):
         user = user if user else ctx.author
         src = validate_playlist(name, user.id)
         if src is False:
-            ctx.command.reset_cooldown(ctx)
-            await ctx.respond(f"Couldn't find playlist {name} of user {user}")
+            ctx.application_command.reset_cooldown(ctx)
+            await ctx.send(f"Couldn't find playlist {name} of user {user}")
             return
 
         dst = os.path.join(PLAYLISTS, str(ctx.author.id))
@@ -790,8 +810,8 @@ class Audio(commands.Cog):
         dst = os.path.join(dst, name)
 
         if os.path.exists(dst):
-            ctx.command.reset_cooldown(ctx)
-            await ctx.respond(f'Filename {name} is already in use')
+            ctx.application_command.reset_cooldown(ctx)
+            await ctx.send(f'Filename {name} is already in use')
             return
 
         try:
@@ -801,27 +821,27 @@ class Audio(commands.Cog):
                 os.symlink(src, dst)
         except OSError:
             logger.exception('failed to copy playlist')
-            await ctx.respond('Failed to copy playlist. Try again later')
+            await ctx.send('Failed to copy playlist. Try again later')
             return
 
-        await ctx.respond(f'Successfully copied {user}\'s playlist {name} to {name}')
+        await ctx.send(f'Successfully copied {user}\'s playlist {name} to {name}')
 
-    @playlist_group.command(name='copy')
+    @playlist.sub_command(name='copy', description='Copy a playlist to your own playlists with a name.')
     @cooldown(1, 20, BucketType.user)
     async def copy_playlist(
-            self, ctx: ApplicationContext,
-            playlist_name: PlaylistName,
-            user: PlaylistOwner,
-            deep: Option(bool, description='If set to True you can edit the copied playlist.', default=False, required=False)):
+            self, ctx: ApplicationCommandInteraction,
+            playlist_name: str = PlaylistName,
+            user: disnake.User = PlaylistOwner,
+            deep: bool = Param(description='If set to True you can edit the copied playlist.', default=False)):
         """
         Copy a playlist to your own playlists with a name.
-        By default you can't edit a playlist you've copied, but it mirrors all changes the original user will make to it.
+        By default, you can't edit a playlist you've copied, but it mirrors all changes the original user will make to it.
         This means if the original owner deletes the playlist the copy will also become empty.
 
         If you want to make a deep copy that doesn't mirror changes but will work and be editable by you
         no matter what happens to the original use the subcommand deep as shown in the example
         """
-        await ctx.defer()
+        await ctx.response.defer()
         await self._copy_playlist(ctx, user, playlist_name, deep=deep)
 
     @staticmethod
@@ -844,38 +864,37 @@ class Audio(commands.Cog):
         task = asyncio.run_coroutine_threadsafe(pop_list(), loop=self.bot.loop)
         self.viewed_playlists[user.id] = (playlist, task, name)
 
-    @playlist_group.command(name='list', aliases=['lp'])
+    @playlist.sub_command(name='list', aliases=['lp'])
     @cooldown(1, 5, BucketType.user)
-    async def list_playlists(self, ctx: ApplicationContext, user: PlaylistOwner):
+    async def list_playlists(self, ctx: ApplicationCommandInteraction, user: disnake.User = PlaylistOwner):
         """
-        List all the names of the playlists a user own.
-        If user is not provided defaults to you
+        List all the names of the playlists a user own. If user is not provided defaults to you
         """
         user = user if user else ctx.author
         p = os.path.join(PLAYLISTS, str(user.id))
 
         if not os.path.exists(p):
-            return await ctx.respond(f"{user} doesn't have any playlists")
+            return await ctx.send(f"{user} doesn't have any playlists")
 
         try:
             playlists = os.listdir(p)
         except OSError:
             logger.exception(f'Failed to list playlists of {user.id}')
-            await ctx.respond('Failed to get playlists because of an error')
+            await ctx.send('Failed to get playlists because of an error')
             return
 
         if not playlists:
-            return await ctx.respond(f"{user} doesn't have any playlists")
+            return await ctx.send(f"{user} doesn't have any playlists")
 
-        await ctx.respond(f'Playlists of {user}\n\n' + '\n'.join(playlists))
+        await ctx.send(f'Playlists of {user}\n\n' + '\n'.join(playlists))
 
-    @playlist_delete.command(name='duplicates')
+    @playlist_delete.sub_command(name='duplicates')
     @cooldown(1, 5, BucketType.user)
-    async def clear_playlist_duplicates(self, ctx: ApplicationContext, playlist_name: PlaylistName):
+    async def clear_playlist_duplicates(self, ctx: ApplicationCommandInteraction, playlist_name: str = PlaylistName):
         """
         Clears all duplicate links from the given playlist
         """
-        await ctx.defer()
+        await ctx.response.defer()
         songs = await self.get_playlist(ctx, ctx.author, playlist_name)
         if not songs:
             return
@@ -887,16 +906,20 @@ class Audio(commands.Cog):
         try:
             write_playlist(new_songs, playlist_name, ctx.author.id, overwrite=True)
         except (FileExistsError, PermissionError) as e:
-            await ctx.respond(str(e))
+            await ctx.send(str(e))
             return
 
-        await ctx.respond(f'Deleted {len(songs) - len(new_songs)} duplicate(s) from the playlist "{playlist_name}"')
+        await ctx.send(f'Deleted {len(songs) - len(new_songs)} duplicate(s) from the playlist "{playlist_name}"')
 
-    playlist_view = playlist_group.create_subgroup('view', 'View a playlist with or without filters')
+    @playlist.sub_command_group(name='view', description='View a playlist with or without filters')
+    async def playlist_view(self):
+        pass
 
-    @playlist_view.command(name='playlist')
+    @playlist_view.sub_command(name='playlist', description="Get the contents of one of your playlists or someone else's playlists")
     @cooldown(1, 5, BucketType.user)
-    async def view_playlist(self, ctx: ApplicationContext, playlist_name: PlaylistName, user: PlaylistOwner):
+    async def view_playlist(self, ctx: ApplicationCommandInteraction,
+                            playlist_name: str = PlaylistName,
+                            user: disnake.User = PlaylistOwner):
         """
         Get the contents of one of your playlists or someone else's playlists
         Usage
@@ -905,7 +928,7 @@ class Audio(commands.Cog):
         User is an optional parameter and when not given will default to your playlists
         """
         # This is needed for add_viewed_playlist to work when no user is provided
-        await ctx.defer()
+        await ctx.response.defer()
         user = user if user else ctx.author
         songs = await self.get_playlist(ctx, user, playlist_name)
         if songs is False:
@@ -915,29 +938,27 @@ class Audio(commands.Cog):
         self.add_viewed_playlist(user, songs, playlist_name)
         await self.send_playlist(ctx, songs, None, partial=True, accurate_indices=False)
 
-    @playlist_view.command(name='by_duration')
+    @playlist_view.sub_command(name='by_duration', description='Filters playlist by song duration.')
     @cooldown(1, 5, BucketType.user)
     async def playlist_by_time(
-            self, ctx: ApplicationContext,
-            playlist_name: PlaylistName,
-            duration: Duration,
-            user: PlaylistOwner,
-            longer_than: LongerThan,
-            clear: Clear):
+            self, ctx: ApplicationCommandInteraction,
+            playlist_name: str = PlaylistName,
+            duration: timedelta = Duration,
+            user: disnake.User = PlaylistOwner,
+            longer_than: bool = LongerThan,
+            clear: bool = Clear):
         """Filters playlist by song duration.
-        Longer than parameter is optional.
-        Usage ([] means optional):
         `{prefix}{name} [User#1234] "playlist name" no 10m` will select all songs under 10min and
         `{prefix}{name} [User#1234] "playlist name" 10m` will select songs over 10min"""
         user = user if user else ctx.author
         songs = load_playlist(playlist_name, user.id)
         if songs is False:
-            await ctx.respond(f"Couldn't find playlist {playlist_name} of user {user}")
+            await ctx.send(f"Couldn't find playlist {playlist_name} of user {user}")
             return
 
         selected = select_by_predicate(playlist2partialsong(songs), check_duration(duration.total_seconds(), longer_than))
         if not selected:
-            await ctx.respond(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
+            await ctx.send(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
             return
 
         if clear:
@@ -947,30 +968,30 @@ class Audio(commands.Cog):
                 s = write_playlist([song.__dict__() for song in selected], playlist_name,
                                    user.id, overwrite=True)
             except (FileExistsError, PermissionError) as e:
-                await ctx.respond(str(e))
+                await ctx.send(str(e))
                 return
 
             s += f'\n{length - len(selected)} songs deleted that were longer than {duration}'
-            await ctx.respond(s)
+            await ctx.send(s)
             return
 
         self.add_viewed_playlist(user, selected, playlist_name)
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
-    @playlist_view.command(name='by_name')
+    @playlist_view.sub_command(name='by_name', description='Filter playlist by song name. Regex can be used for this.')
     @cooldown(1, 5, BucketType.user)
     async def playlist_by_name(
-            self, ctx: ApplicationContext,
-            playlist_name: PlaylistName,
-            song_name: str,
-            user: PlaylistOwner,
-            clear: Clear):
+            self, ctx: ApplicationCommandInteraction,
+            playlist_name: str = PlaylistName,
+            song_name: str = Param(),
+            user: disnake.User = PlaylistOwner,
+            clear: bool = Clear):
         """Filter playlist by song name. Regex can be used for this.
         Trying to kill the bot with regex will get u botbanned tho"""
         user = user if user else ctx.author
         songs = load_playlist(playlist_name, user.id)
         if songs is False:
-            await ctx.respond(f"Couldn't find playlist {playlist_name} of user {user}")
+            await ctx.send(f"Couldn't find playlist {playlist_name} of user {user}")
             return
 
         songs = playlist2partialsong(songs)
@@ -979,7 +1000,7 @@ class Audio(commands.Cog):
             return
 
         if not matches:
-            return await ctx.respond(f'No songs found with `{song_name}`')
+            return await ctx.send(f'No songs found with `{song_name}`')
 
         def pred(song):
             return song.title in matches
@@ -987,7 +1008,7 @@ class Audio(commands.Cog):
         selected = select_by_predicate(songs, pred)
         if not selected:
             # We have this 2 times in case the playlist changes while we are checking
-            await ctx.respond(f'No songs found with `{song_name}`')
+            await ctx.send(f'No songs found with `{song_name}`')
             return
 
         if clear:
@@ -997,27 +1018,27 @@ class Audio(commands.Cog):
                 s = write_playlist([song.__dict__() for song in selected], playlist_name,
                                    user.id, overwrite=True)
             except (FileExistsError, PermissionError) as e:
-                await ctx.respond(str(e))
+                await ctx.send(str(e))
                 return
 
             s += f'\n{length - len(selected)} songs deleted that matched `{song_name}`'
-            await ctx.respond(s)
+            await ctx.send(s)
             return
 
         self.add_viewed_playlist(user, selected, playlist_name)
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
-    @playlist_delete.command(name='playlist', description='Deletes a whole playlist')
+    @playlist_delete.sub_command(name='playlist', description='Deletes a whole playlist')
     @cooldown(1, 10, BucketType.user)
-    async def delete_playlist(self, ctx: ApplicationContext, playlist_name: PlaylistName):
+    async def delete_playlist(self, ctx: ApplicationCommandInteraction, playlist_name: str = PlaylistName):
         """Delete a playlist with the given name"""
         src = validate_playlist(playlist_name, ctx.author.id)
         if not src:
-            ctx.command.reset_cooldown(ctx)
-            await ctx.respond(f"Couldn't find playlist with name {playlist_name}")
+            ctx.application_command.reset_cooldown(ctx)
+            await ctx.send(f"Couldn't find playlist with name {playlist_name}")
             return
 
-        await ctx.respond(f"You're about to delete your playlist \"{playlist_name}\". Type `confirm` for confirmation")
+        await ctx.send(f"You're about to delete your playlist \"{playlist_name}\". Type `confirm` for confirmation")
         if not await wait_for_words(ctx, ['confirm'], timeout=60):
             return
 
@@ -1025,12 +1046,12 @@ class Audio(commands.Cog):
             os.remove(src)
         except OSError:
             logger.exception(f'Failed to remove playlist {src}')
-            await ctx.respond('Failed to delete playlist because of an error')
+            await ctx.send('Failed to delete playlist because of an error')
             return
 
-        await ctx.respond(f'Successfully deleted playlist {playlist_name}')
+        await ctx.send(f'Successfully deleted playlist {playlist_name}')
 
-    async def _search(self, ctx: Union[ApplicationContext, Context], name):
+    async def _search(self, ctx: ApplicationCommandInteraction | Context, name):
         vc = True if ctx.author.voice else False
         if name.startswith('-yt '):
             site = 'yt'
@@ -1048,7 +1069,7 @@ class Audio(commands.Cog):
                 success = await self._summon(ctx, create_task=False)
                 if not success:
                     terminal.debug('Failed to join vc')
-                    return await ctx.respond('Failed to join vc')
+                    return await ctx.send('Failed to join vc')
 
             musicplayer = await self.check_player(ctx)
             if not musicplayer:
@@ -1063,19 +1084,28 @@ class Audio(commands.Cog):
 
             await search(name, ctx, site, self.downloader, on_error=on_error)
 
-    @bridge_command()
+    @slash_command(name='search', description='Search for songs from YouTube or Soundcloud (using "-sc " prefix)')
     @commands.cooldown(1, 5, type=BucketType.user)
-    async def search(self, ctx: ApplicationContext, *, name):
+    async def search_slash(self, ctx: ApplicationCommandInteraction, *, name):
         """Search for songs. Default site is YouTube
         Supported sites: -yt YouTube, -sc Soundcloud
         To use a different site start the search with the site prefix
         e.g. {prefix}{name} -sc a cool song"""
-        await ctx.defer()
+        await ctx.response.defer()
         await self._search(ctx, name)
 
-    async def _summon(self, ctx: ApplicationContext, create_task=True, change_channel=False, channel=None):
+    @command(name='search')
+    @commands.cooldown(1, 5, type=BucketType.user)
+    async def search_cmd(self, ctx: Context, *, name):
+        """Search for songs. Default site is YouTube
+        Supported sites: -yt YouTube, -sc Soundcloud
+        To use a different site start the search with the site prefix
+        e.g. {prefix}{name} -sc a cool song"""
+        await self._search(ctx, name)
+
+    async def _summon(self, ctx: ApplicationCommandInteraction | Context, create_task=True, change_channel=False, channel=None):
         if not ctx.author.voice:
-            await ctx.respond("You aren't connected to a voice channel")
+            await ctx.send("You aren't connected to a voice channel")
             return False
 
         if not channel:
@@ -1090,16 +1120,17 @@ class Audio(commands.Cog):
             musicplayer.change_channel(ctx.channel)
 
         if musicplayer.voice is None:
+            voice_client = ctx.guild.voice_client
             try:
-                if ctx.voice_client and ctx.voice_client.channel:
-                    await ctx.voice_client.disconnect(force=True)
+                if voice_client and voice_client.channel:
+                    await voice_client.disconnect(force=True)
 
                 musicplayer.voice = await channel.connect()
-            except (discord.HTTPException, asyncio.TimeoutError) as e:
-                await ctx.respond(f'Failed to join vc because of an error\n{e}')
+            except (disnake.HTTPException, asyncio.TimeoutError) as e:
+                await ctx.send(f'Failed to join vc because of an error\n{e}')
                 return False
-            except discord.ClientException:
-                await ctx.respond(f'Bot is having some difficulties joining voice. You should probably use `/force_stop`')
+            except disnake.ClientException:
+                await ctx.send(f'Bot is having some difficulties joining voice. You should probably use `/force_stop`')
                 return False
 
             if create_task:
@@ -1113,36 +1144,36 @@ class Audio(commands.Cog):
                         await ctx.send("You aren't allowed to change channels")
                 elif not musicplayer.voice.is_connected():
                     await musicplayer.voice.channel.connect()
-            except (discord.HTTPException, asyncio.TimeoutError) as e:
-                await ctx.respond(f'Failed to join vc because of an error\n{e}')
+            except (disnake.HTTPException, asyncio.TimeoutError) as e:
+                await ctx.send(f'Failed to join vc because of an error\n{e}')
                 return False
-            except discord.ClientException:
-                await ctx.respond(f'Failed to join vc because of an error')
+            except disnake.ClientException:
+                await ctx.send(f'Failed to join vc because of an error')
                 return False
 
         return True
 
     @slash_command()
     @cooldown(1, 3, type=BucketType.guild)
-    async def summon(self, ctx: ApplicationContext):
+    async def summon(self, ctx: ApplicationCommandInteraction):
         """Summons the bot to join your voice channel."""
-        await ctx.defer()
+        await ctx.response.defer()
         await self._summon(ctx)
         if not ctx.response.is_done():
-            await ctx.respond('✅')
+            await ctx.send('✅')
 
     @slash_command()
     @cooldown(1, 3, type=BucketType.guild)
-    async def move(self, ctx: ApplicationContext, channel: discord.VoiceChannel=None):
+    async def move(self, ctx: ApplicationCommandInteraction, channel: disnake.VoiceChannel=None):
         """Moves the bot to your current voice channel or the specified voice channel"""
-        await ctx.defer()
+        await ctx.response.defer()
         await self._summon(ctx, change_channel=True, channel=channel)
         if not ctx.response.is_done():
-            await ctx.respond('✅')
+            await ctx.send('✅')
 
     @cooldown(2, 5, BucketType.guild)
     @slash_command()
-    async def repeat(self, ctx, value: Option(BoolChoices, **on_off_dict)):
+    async def repeat(self, ctx: ApplicationCommandInteraction, value: bool = OptionalBool):
         """If set on the current song will repeat until this is set off"""
         if not await self.check_voice(ctx):
             return
@@ -1159,13 +1190,12 @@ class Audio(commands.Cog):
         else:
             s = 'Repeat set off'
 
-        await ctx.respond(s)
+        await ctx.send(s)
 
     @cooldown(1, 5, BucketType.guild)
     @slash_command()
-    async def speed(self, ctx: ApplicationContext, value: Option(float, max_value=2, min_value=0.5)):
-        """Change the speed of the currently playing song.
-        Values must be between 0.5 and 2"""
+    async def speed(self, ctx: ApplicationCommandInteraction, value: float = Param(min_value=0.5, max_value=2)):
+        """Change the speed of the currently playing song"""
         if not await self.check_voice(ctx):
             return
 
@@ -1175,7 +1205,7 @@ class Audio(commands.Cog):
 
         current = musicplayer.current
         if current is None:
-            return await ctx.respond('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
@@ -1184,13 +1214,13 @@ class Audio(commands.Cog):
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         musicplayer._speed_mod = value
         await self._seek(musicplayer, current, seek, options=current.options, speed=value)
-        await ctx.respond(f'Speed set to {value:.1f}')
+        await ctx.send(f'Speed set to {value:.1f}')
 
     @commands.cooldown(2, 5, BucketType.guild)
     @slash_command(name='remove_silence')
     async def cutsilence(
-            self, ctx: ApplicationContext,
-            is_enabled: Option(bool, description='Sets silence removing on or off', required=False)=None
+            self, ctx: ApplicationCommandInteraction,
+            is_enabled: bool = Param(None, description='Sets silence removing on or off')
     ):
         """
         Cut the silence at the end of audio
@@ -1230,11 +1260,11 @@ class Audio(commands.Cog):
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)
 
-        await ctx.respond(s)
+        await ctx.send(s)
 
-    @slash_command(name='filter', default_permissions=False)
-    @permissions.is_owner()
-    async def custom_filter(self, ctx, name: str, value: Optional[str]=None):
+    @command(name='filter')
+    @is_owner()
+    async def custom_filter(self, ctx: Context, name: str, value: str=None):
         """Set custom filter and value. owner only"""
         if not await self.check_voice(ctx):
             return
@@ -1245,7 +1275,7 @@ class Audio(commands.Cog):
 
         current = musicplayer.current
         if current is None:
-            return await ctx.respond('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
@@ -1258,18 +1288,14 @@ class Audio(commands.Cog):
 
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)
-        await ctx.respond('✅')
+        await ctx.send('✅')
 
     @commands.cooldown(1, 5, BucketType.guild)
     @slash_command()
     @guild_only()
-    async def bass(self, ctx, bass: Option(int, max_value=60, min_value=-60)):
-        """Add or decrease the amount of bass boost. Value will persist for every song until set back to 0
-        Value can range between -60 and 60"""
+    async def bass(self, ctx: ApplicationCommandInteraction, bass: int = Param(max_value=60, min_value=-60)):
+        """Add or decrease the amount of bass boost. Value will persist for every song until set back to 0."""
         value = bass
-        if not (-60 <= value <= 60):
-            return await ctx.respond('Value must be between -60 and 60', delete_after=20)
-
         if not await self.check_voice(ctx):
             return
 
@@ -1279,7 +1305,7 @@ class Audio(commands.Cog):
 
         current = musicplayer.current
         if current is None:
-            return await ctx.respond('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
@@ -1295,13 +1321,13 @@ class Audio(commands.Cog):
 
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)
-        await ctx.respond(f'Bass set to {bass}')
+        await ctx.send(f'Bass set to {bass}')
 
     @cooldown(1, 5, BucketType.guild)
-    @slash_command()
+    @slash_command(description='Set a stereo effect on the song')
     async def stereo(
-            self, ctx: ApplicationContext,
-            mode: Option(str, "Type of stereo effect", default='sine', choices=stereo_modes, required=False),
+            self, ctx: ApplicationCommandInteraction,
+            mode: str = Param('sine', description="Type of stereo effect", choices=stereo_modes),
     ):
         """Works almost the same way {prefix}play does
         Default stereo type is sine.
@@ -1320,13 +1346,13 @@ class Audio(commands.Cog):
 
         current = musicplayer.current
         if current is None:
-            return await ctx.respond('Not playing anything right now', delete_after=20)
+            return await ctx.send('Not playing anything right now', delete_after=20)
 
         mode = mode.lower()
         modes = stereo_modes
         if mode not in modes:
-            ctx.command.reset_cooldown(ctx)
-            return await ctx.respond('Incorrect mode specified')
+            ctx.application_command.reset_cooldown(ctx)
+            return await ctx.send('Incorrect mode specified')
 
         sec = musicplayer.duration
         logger.debug('seeking with timestamp {}'.format(sec))
@@ -1345,15 +1371,17 @@ class Audio(commands.Cog):
 
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)
-        await ctx.respond('✅')
+        await ctx.send('✅')
 
-    clear = SlashCommandGroup('clear', 'Clears the playlist or removes some songs from it.')
+    @slash_command(name='clear', description='Clears the playlist or removes some songs from it.')
+    async def clear(self, _):
+        pass
 
-    @clear.command(name='some')
+    @clear.sub_command(name='some', description='Clear the selected indexes from the playlist.')
     @cooldown(1, 4, type=BucketType.guild)
     async def clear_(
-            self, ctx: ApplicationContext,
-            items: Option(str, description='Which playlist positions to remove. e.g. "4", "1-10" or "1 5-9"')
+            self, ctx: ApplicationCommandInteraction,
+            items: str = Param(description='Which playlist positions to remove. e.g. "4", "1-10", "1 5-9" or "all"')
     ):
         """
         Clear the selected indexes from the playlist.
@@ -1363,13 +1391,13 @@ class Audio(commands.Cog):
             would delete songs at positions 1 to 4, 5 and 7 to 9
         """
         if not items:
-            await ctx.respond('No arguments given. To clear playlist completely give `all` '
+            await ctx.send('No arguments given. To clear playlist completely give `all` '
                            'as an argument. Otherwise the indexes of the songs')
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
-            await ctx.respond('Not playing music')
+            await ctx.send('Not playing music')
             return
 
         indexes = items.split(' ')
@@ -1385,33 +1413,34 @@ class Audio(commands.Cog):
 
         await musicplayer.playlist.clear(index, ctx)
 
-    @clear.command(name='all')
+    @clear.sub_command(name='all')
     @cooldown(1, 4, type=BucketType.guild)
-    async def clear_(self, ctx: ApplicationContext):
+    async def clear_(self, ctx: ApplicationCommandInteraction):
         """
         Clears the whole playlist
         """
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
-            await ctx.respond('Not playing music')
+            await ctx.send('Not playing music')
             return
 
         await musicplayer.playlist.clear(None, ctx)
 
-    @clear.command(name='from')
+    @clear.sub_command(name='from')
     @cooldown(2, 5)
-    async def from_(self, ctx: ApplicationContext, user: discord.User):
+    async def from_(self, ctx: ApplicationCommandInteraction, user: disnake.User):
         """Clears all songs from the specified user"""
         musicplayer = await self.get_player_and_check(ctx)
         if not musicplayer:
             return
 
         cleared = musicplayer.playlist.clear_by_predicate(check_who_queued(user))
-        await ctx.respond(f'Cleared {cleared} songs from user {user}')
+        await ctx.send(f'Cleared {cleared} songs from user {user}')
 
-    @clear.command(name='longer_than')
+    @clear.sub_command(name='longer_than', description='Delete all songs from queue longer than specified duration.')
     @cooldown(2, 5)
-    async def longer_than(self, ctx: ApplicationContext, duration: Option(TimeDelta, description='Time in the format of 1d 1h 1m 1s')):
+    async def longer_than(self, ctx: ApplicationCommandInteraction,
+                          duration: timedelta = Duration):
         """Delete all songs from queue longer than specified duration.
         Duration is a time string in the format of 1d 1h 1m 1s"""
         musicplayer = await self.get_player_and_check(ctx)
@@ -1420,9 +1449,9 @@ class Audio(commands.Cog):
 
         sec = duration.total_seconds()
         cleared = musicplayer.playlist.clear_by_predicate(check_duration(sec))
-        await ctx.respond(f'Cleared {cleared} songs longer than {duration}')
+        await ctx.send(f'Cleared {cleared} songs longer than {duration}')
 
-    async def prepare_regex_search(self, ctx: ApplicationContext, songs, song_name):
+    async def prepare_regex_search(self, ctx: ApplicationCommandInteraction, songs, song_name):
         """
         Prepare regex for use in playlist filtering
         """
@@ -1431,7 +1460,7 @@ class Audio(commands.Cog):
         try:
             r = re.compile(song_name, re.IGNORECASE)
         except re.error as e:
-            await ctx.respond('Failed to compile regex\n' + str(e))
+            await ctx.send('Failed to compile regex\n' + str(e))
             return False
 
         # This needs to be run in executor in case someone decides to use
@@ -1449,14 +1478,14 @@ class Audio(commands.Cog):
                              timeout=1.5)
         except asyncio.TimeoutError:
             logger.warning(f'{ctx.author} {ctx.author.id} timeouted regex. Used regex was {song_name}')
-            await ctx.respond('Search timed out')
+            await ctx.send('Search timed out')
             return False
 
         return matches
 
-    @clear.command(name='name')
+    @clear.sub_command(name='name', description='Clear queue by song name. Regex can be used for this.')
     @cooldown(2, 4)
-    async def by_name(self, ctx, song_name: str):
+    async def by_name(self, ctx: ApplicationCommandInteraction, song_name: str):
         """Clear queue by song name. Regex can be used for this.
         Trying to kill the bot with regex will get u botbanned tho"""
         musicplayer = await self.get_player_and_check(ctx)
@@ -1471,17 +1500,26 @@ class Audio(commands.Cog):
             return song.title in matches
 
         cleared = musicplayer.playlist.clear_by_predicate(pred)
-        await ctx.respond(f'Cleared {cleared} songs matching {song_name}')
+        await ctx.send(f'Cleared {cleared} songs matching {song_name}')
 
     @cooldown(2, 3, type=BucketType.guild)
-    @bridge_command(aliases=['vol'], name='volume')
+    @slash_command(aliases=['vol'], name='volume', description='Sets the volume of the currently playing song. Displays the current volume if no value given')
     @guild_only()
-    async def volume(self, ctx, volume: VolumeType = None):
+    async def volume_slash(self, inter: ApplicationCommandInteraction, volume: int = VolumeType):
+        await self.volume(inter, volume)
+
+    @cooldown(2, 3, type=BucketType.guild)
+    @command(aliases=['vol'], name='volume')
+    @guild_only()
+    async def volume_cmd(self, ctx: Context, volume: int):
         """
         Sets the volume of the currently playing song.
         If no parameters are given it shows the current volume instead
         Effective values are between 0 and 200
         """
+        await self.volume(ctx, volume)
+
+    async def volume(self, ctx: ApplicationCommandInteraction | Context, volume: int = None):
         value = volume
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not await self.check_voice(ctx):
@@ -1489,19 +1527,18 @@ class Audio(commands.Cog):
 
         # If value is smaller than zero, or it hasn't been given this shows the current volume
         if value is None or value < 0:
-            await ctx.respond('Volume is currently at {:.0%}'.format(musicplayer.current_volume))
+            await ctx.send('Volume is currently at {:.0%}'.format(musicplayer.current_volume))
             return
 
         musicplayer.current_volume = value / 100
-        await ctx.respond('Set the volume to {:.0%}'.format(musicplayer.current_volume))
+        await ctx.send('Set the volume to {:.0%}'.format(musicplayer.current_volume))
 
     @commands.cooldown(2, 3, type=BucketType.guild)
-    @slash_command()
-    async def default_volume(self, ctx: ApplicationContext, volume: VolumeType):
+    @slash_command(description="Sets the default volume of the player that will be used when song specific volume isn't set.")
+    async def default_volume(self, ctx: ApplicationCommandInteraction, volume: int = VolumeType):
         """
         Sets the default volume of the player that will be used when song specific volume isn't set.
         If no parameters are given it shows the current default volume instead
-        Effective values are between 0 and 200
         """
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not await self.check_voice(ctx):
@@ -1509,20 +1546,30 @@ class Audio(commands.Cog):
 
         # If value is smaller than zero or it hasn't been given this shows the current volume
         if volume is None:
-            await ctx.respond('Default volume is currently at {:.0%}'.format(musicplayer.volume))
+            await ctx.send('Default volume is currently at {:.0%}'.format(musicplayer.volume))
             return
 
         musicplayer.volume = min(volume / 100, 2)
-        await ctx.respond('Set the default volume to {:.0%}'.format(musicplayer.volume))
+        await ctx.send('Set the default volume to {:.0%}'.format(musicplayer.volume))
 
     @commands.cooldown(1, 4, type=BucketType.guild)
-    @bridge_command(name='playing', aliases=['np'])
+    @slash_command(name='playing', aliases=['np'])
     @guild_only()
-    async def playing(self, ctx):
+    async def playing_slash(self, inter: ApplicationCommandInteraction):
         """Gets the currently playing song"""
+        await self.playing(inter)
+
+    @commands.cooldown(1, 4, type=BucketType.guild)
+    @command(name='playing', aliases=['np'])
+    @guild_only()
+    async def playing_cmd(self, ctx: Context):
+        """Gets the currently playing song"""
+        await self.playing(ctx)
+
+    async def playing(self, ctx: ApplicationCommandInteraction | Context):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer or musicplayer.player is None or musicplayer.current is None:
-            await ctx.respond('No songs currently in queue')
+            await ctx.send('No songs currently in queue')
         else:
             duration = musicplayer.current.duration
             tr_pos = get_track_pos(duration, musicplayer.duration)
@@ -1535,11 +1582,11 @@ class Audio(commands.Cog):
                 slider = f'00:00 {"─"*19}●  {format_time(musicplayer.duration)}'
 
             s += slider
-            await ctx.respond(s, allowed_mentions=AllowedMentions.none())
+            await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
     @cooldown(1, 3, type=BucketType.user)
     @slash_command(name='playnow')
-    async def play_now(self, ctx: ApplicationContext, song_name: str):
+    async def play_now(self, ctx: ApplicationCommandInteraction, song_name: str):
         """
         Adds a song to the top of the queue.
         """
@@ -1555,20 +1602,30 @@ class Audio(commands.Cog):
             musicplayer.start_playlist()
 
     @cooldown(1, 3, type=BucketType.guild)
-    @bridge_command(aliases=['p'], name='pause')
+    @slash_command(aliases=['p'], name='pause')
     @guild_only()
-    async def pause(self, ctx):
+    async def pause_slash(self, inter: ApplicationCommandInteraction):
         """Pauses the currently playing song."""
+        await self.pause(inter)
+
+    @cooldown(1, 3, type=BucketType.guild)
+    @command(aliases=['p'], name='pause')
+    @guild_only()
+    async def pause_cmd(self, ctx: Context):
+        """Pauses the currently playing song."""
+        await self.pause(ctx)
+
+    async def pause(self, ctx: ApplicationCommandInteraction | Context):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer:
             musicplayer.pause()
         else:
-            if isinstance(ctx, ApplicationContext):
-                await ctx.respond('❌', ephemeral=True)
+            if isinstance(ctx, ApplicationCommandInteraction):
+                await ctx.send('❌', ephemeral=True)
             return
 
-        if isinstance(ctx, ApplicationContext):
-            await ctx.respond('✅')
+        if isinstance(ctx, ApplicationCommandInteraction):
+            await ctx.send('✅')
 
     @cooldown(1, 60, type=BucketType.guild)
     @command(enabled=False, hidden=True)
@@ -1580,37 +1637,47 @@ class Audio(commands.Cog):
         await musicplayer.playlist.current_to_file(name, ctx.message.channel)
 
     @cooldown(1, 3, type=BucketType.guild)
-    @bridge_command(name='resume', aliases=['r'])
+    @slash_command(name='resume', aliases=['r'])
     @guild_only()
-    async def resume(self, ctx):
+    async def resume_slash(self, inter: ApplicationCommandInteraction):
         """Resumes the currently played song."""
+        await self.resume(inter)
+
+    @cooldown(1, 3, type=BucketType.guild)
+    @command(name='resume', aliases=['r'])
+    @guild_only()
+    async def resume_cmd(self, ctx: Context):
+        """Resumes the currently played song."""
+        await self.resume(ctx)
+
+    async def resume(self, ctx: ApplicationCommandInteraction | Context):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            if isinstance(ctx, ApplicationContext):
-                await ctx.respond('❌', ephemeral=True)
+            if isinstance(ctx, ApplicationCommandInteraction):
+                await ctx.send('❌', ephemeral=True)
             return
 
         await musicplayer.resume()
 
-        if isinstance(ctx, ApplicationContext):
-            await ctx.respond('✅')
+        if isinstance(ctx, ApplicationCommandInteraction):
+            await ctx.send('✅')
 
     @cooldown(1, 4, type=BucketType.guild)
     @slash_command()
-    async def shuffle(self, ctx):
+    async def shuffle(self, ctx: ApplicationCommandInteraction):
         """Shuffles the current playlist"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
             return
         await musicplayer.playlist.shuffle()
         await musicplayer.reset_gapless()
-        await ctx.respond('Playlist shuffled')
+        await ctx.send('Playlist shuffled')
 
     async def shutdown(self):
         self.clear_cache()
 
     @staticmethod
-    async def close_player(musicplayer):
+    async def close_player(musicplayer: MusicPlayer):
         if musicplayer is None:
             return
 
@@ -1631,12 +1698,12 @@ class Audio(commands.Cog):
                 musicplayer.voice = None
 
             if musicplayer.guild.voice_client:
-                await musicplayer.voice_client.disconnect(force=True)
+                await musicplayer.guild.voice_client.disconnect(force=True)
 
         except Exception:
             terminal.exception('Error while stopping voice')
 
-    async def disconnect_voice(self, musicplayer):
+    async def disconnect_voice(self, musicplayer: MusicPlayer):
         try:
             del self.musicplayers[musicplayer.channel.guild.id]
         except (KeyError, AttributeError):
@@ -1644,21 +1711,21 @@ class Audio(commands.Cog):
 
         await self.close_player(musicplayer)
         if not self.musicplayers:
-            await self.bot.change_presence(activity=discord.Activity(**self.bot.config.default_activity))
+            await self.bot.change_presence(activity=disnake.Activity(**self.bot.config.default_activity))
 
-    @slash_command()
+    @slash_command(description="Forces voice to be stopped no matter what state the bot is in as long as it's connected to voice")
     @cooldown(1, 6, BucketType.guild)
-    async def force_stop(self, ctx: ApplicationContext):
+    async def force_stop(self, ctx: ApplicationCommandInteraction):
         """
         Forces voice to be stopped no matter what state the bot is in
         as long as it's connected to voice and the internal state is in sync.
         Not meant to be used for normal disconnecting
         """
-        await ctx.defer()
+        await ctx.response.defer()
         try:
-            await self.stop.callback(self, ctx)
+            await self.stop(ctx)
         except Exception as e:
-            print(e)
+            terminal.exception('Failed to force stop')
 
         # Just to be sure, delete every single musicplayer related to this server
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
@@ -1679,20 +1746,27 @@ class Audio(commands.Cog):
         import gc
         gc.collect()
 
-        if ctx.voice_client:
-            await ctx.voice_client.disconnect(force=True)
-            await ctx.respond('Forced disconnect')
+        if ctx.guild.voice_client:
+            await ctx.guild.voice_client.disconnect(force=True)
+            await ctx.send('Forced disconnect')
         else:
-            await ctx.respond('Disconnected')
+            await ctx.send('Disconnected')
 
     @commands.cooldown(1, 6, BucketType.user)
-    @bridge_command()
-    async def stop(self, ctx: Union[ApplicationContext, Context]):
-        """Stops playing audio and leaves the voice channel.
-        This also clears the queue.
-        """
-        if isinstance(ctx, ApplicationContext):
-            await ctx.defer()
+    @slash_command(name='stop')
+    async def stop_slash(self, inter: ApplicationCommandInteraction):
+        """Stops playing audio and leaves the voice channel."""
+        await self.stop(inter)
+
+    @commands.cooldown(1, 6, BucketType.user)
+    @command(name='stop')
+    async def stop_cmd(self, ctx: Context):
+        """Stops playing audio and leaves the voice channel."""
+        await self.stop(ctx)
+
+    async def stop(self, ctx: ApplicationCommandInteraction | Context):
+        if isinstance(ctx, ApplicationCommandInteraction):
+            await ctx.response.defer()
 
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
@@ -1706,54 +1780,73 @@ class Audio(commands.Cog):
         if not self.musicplayers:
             self.clear_cache()
 
-        await ctx.respond('✅')
+        await ctx.send('✅')
 
     @slash_command()
-    async def votestop(self, ctx: ApplicationContext):
+    async def votestop(self, ctx: ApplicationCommandInteraction):
         """Stops the bot if enough people vote for it. Votes expire in 60s"""
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
-            if ctx.voice_client:
-                await ctx.voice_client.disconnect(force=False)
+            if ctx.guild.voice_client:
+                await ctx.guild.voice_client.disconnect(force=False)
                 return
 
         resp = await musicplayer.votestop(ctx.author)
 
         if resp is True:
-            await ctx.respond('Votes reached disconnecting')
+            await ctx.send('Votes reached disconnecting')
             await self.disconnect_voice(musicplayer)
         else:
-            await ctx.respond(f'{resp} votes until disconnect')
+            await ctx.send(f'{resp} votes until disconnect')
 
     @cooldown(1, 5, type=BucketType.user)
-    @bridge_command(aliases=['skipsen', 'skipperino', 's'], name='skip')
+    @slash_command(name='skip')
     @guild_only()
-    async def skip(self, ctx):
+    async def skip_slash(self, inter: ApplicationCommandInteraction):
         """Skips the current song"""
+        await self.skip(inter)
+
+    @cooldown(1, 5, type=BucketType.user)
+    @command(aliases=['skipsen', 'skipperino', 's'], name='skip')
+    @guild_only()
+    async def skip_cmd(self, ctx: Context):
+        """Skips the current song"""
+        await self.skip(ctx)
+
+    async def skip(self, ctx: ApplicationCommandInteraction | Context):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            if isinstance(ctx, ApplicationContext):
-                await ctx.respond('❌', ephemeral=True)
+            if isinstance(ctx, ApplicationCommandInteraction):
+                await ctx.send('❌', ephemeral=True)
             return
 
         if not await self.check_voice(ctx):
             return
 
         if not musicplayer.is_playing():
-            await ctx.respond('Not playing any music right now...')
+            await ctx.send('Not playing any music right now...')
             return
 
         await musicplayer.skip(ctx.author, ctx.channel)
 
     @cooldown(1, 5, type=BucketType.user)
-    @bridge_command(aliases=['force_skipsen', 'force_skipperino', 'fs'], name='force_skip')
+    @slash_command(name='force_skip', description='Force skips this song no matter who queued it without requiring any votes')
     @guild_only()
-    async def force_skip(self, ctx):
+    async def force_skip_slash(self, inter: ApplicationCommandInteraction):
+        await self.force_skip(inter)
+
+    @cooldown(1, 5, type=BucketType.user)
+    @command(aliases=['force_skipsen', 'force_skipperino', 'fs'], name='force_skip')
+    @guild_only()
+    async def force_skip_cmd(self, ctx: Context):
         """
         Force skips this song no matter who queued it without requiring any votes
         For public servers it's recommended you blacklist this from your server
         and only give some people access to it
         """
+        await self.force_skip(ctx)
+
+    async def force_skip(self, ctx: ApplicationCommandInteraction | Context):
         if not await self.check_voice(ctx):
             return
 
@@ -1762,14 +1855,14 @@ class Audio(commands.Cog):
             return
 
         if not musicplayer.is_playing():
-            await ctx.respond('Not playing any music right now...')
+            await ctx.send('Not playing any music right now...')
             return
 
         await musicplayer.skip(None, ctx)
-        if isinstance(ctx, ApplicationContext) and not ctx.response.is_done():
-            await ctx.respond('✅')
+        if isinstance(ctx, ApplicationCommandInteraction) and not ctx.response.is_done():
+            await ctx.send('✅')
 
-    async def send_playlist(self, ctx: Union[ApplicationContext, Context],
+    async def send_playlist(self, ctx: Union[ApplicationCommandInteraction, Context],
                             playlist, musicplayer, page_index=0, accurate_indices=True,
                             partial=False):
         """
@@ -1784,7 +1877,7 @@ class Audio(commands.Cog):
             raise ValueError('Cant have partial and accurate indices set to True at the same time')
 
         if not playlist:
-            return await ctx.respond('Empty playlist')
+            return await ctx.send('Empty playlist')
 
         pages = []
         for i in range(0, len(playlist), 10):
@@ -1871,61 +1964,60 @@ class Audio(commands.Cog):
 
             title = f'Total length {duration}  |  {len(playlist)} songs in queue'
 
-            embeds[idx] = discord.Embed(
+            embeds[idx] = disnake.Embed(
                 title=title,
                 description=response
             )
 
-        paginator = ViewPaginator(embeds, generate_page=generate_page)
+        paginator = Paginator(embeds, generate_page=generate_page, initial_page=page_index)
 
-        await paginator.send(ctx, starting_page=page_index)
+        await paginator.send(ctx)
 
-    queue = SlashCommandGroup('queue', 'View current song queue with or without filters')
+    @slash_command(name='queue', description='View current song queue with or without filters')
+    async def queue(self, _):
+        pass
 
     @cooldown(1, 5, type=BucketType.guild)
-    @queue.command(name='view')
-    async def playlist(self, ctx: ApplicationContext, page_index: int=0):
-        """Get a list of the current queue in 10 song chunks
-        To skip to a certain page set the page_index argument"""
-
+    @queue.sub_command(name='view')
+    async def playlist_view(self, ctx: ApplicationCommandInteraction, page_index: int=0):
+        """Get a list of the current queue. To skip to a certain page set the page_index argument"""
         if not await self.check_voice(ctx, user_connected=False):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         playlist = list(musicplayer.playlist.playlist)  # good variable naming
         if not playlist and musicplayer.current is None:
-            return await ctx.respond('Nothing playing atm')
+            return await ctx.send('Nothing playing atm')
 
         await self.send_playlist(ctx, playlist, musicplayer, page_index, accurate_indices=False)
 
-    @queue.command(name='from')
+    @queue.sub_command(name='from')
     @cooldown(1, 5)
-    async def queue_by_user(self, ctx: ApplicationContext, user: discord.User, page_index: int=0):
+    async def queue_by_user(self, ctx: ApplicationCommandInteraction, user: disnake.User, page_index: int=0):
         """Filters playlist to the songs queued by user"""
         if not await self.check_voice(ctx, user_connected=False):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         selected = musicplayer.playlist.select_by_predicate(check_who_queued(user))
         if not selected:
-            await ctx.respond(f'No songs enqueued by {user}')
+            await ctx.send(f'No songs enqueued by {user}')
             return
 
         await self.send_playlist(ctx, selected, musicplayer, page_index)
 
-    @queue.command(name='length')
+    @queue.sub_command(name='length', description='Filters playlist by song duration.')
     @cooldown(1, 5)
-    async def queue_by_time(self, ctx: ApplicationContext, duration: TimeDelta, longer_than: bool=True):
+    async def queue_by_time(self, ctx: ApplicationCommandInteraction, duration: timedelta = Duration, longer_than: bool=True):
         """Filters playlist by song duration.
-        Longer than param is optional.
         Usage:
         `{prefix}{name} no 10m` will select all songs under 10min and
         `{prefix}{name} 10m` will select songs over 10min"""
@@ -1934,19 +2026,19 @@ class Audio(commands.Cog):
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         selected = musicplayer.playlist.select_by_predicate(check_duration(duration.total_seconds(), longer_than))
         if not selected:
-            await ctx.respond(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
+            await ctx.send(f'No songs {"longer" if longer_than else "shorter"} than {duration}')
             return
 
         await self.send_playlist(ctx, selected, musicplayer)
 
-    @queue.command(name='name')
+    @queue.sub_command(name='name', description='Filter playlist by song name. Regex can be used for this.')
     @cooldown(1, 5)
-    async def queue_by_name(self, ctx: ApplicationContext, song_name):
+    async def queue_by_name(self, ctx: ApplicationCommandInteraction, song_name):
         """Filter playlist by song name. Regex can be used for this.
         Trying to kill the bot with regex will get u botbanned tho"""
         if not await self.check_voice(ctx, user_connected=False):
@@ -1954,7 +2046,7 @@ class Audio(commands.Cog):
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         matches = await self.prepare_regex_search(ctx, musicplayer.playlist.playlist, song_name)
@@ -1962,7 +2054,7 @@ class Audio(commands.Cog):
             return
 
         if not matches:
-            return await ctx.respond(f'No songs found with `{song_name}`')
+            return await ctx.send(f'No songs found with `{song_name}`')
 
         def pred(song):
             return song.title in matches
@@ -1970,38 +2062,38 @@ class Audio(commands.Cog):
         selected = musicplayer.playlist.select_by_predicate(pred)
         if not selected:
             # We have this 2 times in case the playlist changes while we are checking
-            await ctx.respond(f'No songs found with `{song_name}`')
+            await ctx.send(f'No songs found with `{song_name}`')
             return
 
         await self.send_playlist(ctx, selected, musicplayer)
 
     @cooldown(1, 3, type=BucketType.guild)
     @slash_command()
-    async def length(self, ctx):
+    async def length(self, ctx: ApplicationCommandInteraction):
         """Gets the length of the current queue"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         if musicplayer.current is None or not musicplayer.playlist.playlist:
-            return await ctx.respond('No songs in queue')
+            return await ctx.send('No songs in queue')
 
         time_left = self.list_length(musicplayer)
         minutes, seconds = divmod(floor(time_left), 60)
         hours, minutes = divmod(minutes, 60)
 
-        return await ctx.respond('The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
+        return await ctx.send('The length of the playlist is about {0}h {1}m {2}s'.format(hours, minutes, seconds))
 
     @command(auth=Auth.BOT_MOD)
     @guild_only()
-    async def ds(self, ctx):
+    async def ds(self, ctx: Context):
         """Delete song from autoplaylist and skip it"""
         await ctx.invoke(self.delete_from_ap)
         await ctx.invoke(self.skip)
 
     @staticmethod
-    def list_length(musicplayer, index=None):
+    def list_length(musicplayer: MusicPlayer, index=None):
         playlist = musicplayer.playlist
         if not playlist:
             return
@@ -2038,45 +2130,44 @@ class Audio(commands.Cog):
 
     @slash_command()
     @cooldown(2, 6)
-    async def autoplay(self, ctx: ApplicationContext, value: Option(BoolChoices, **on_off_dict)):
-        """Determines if YouTube autoplay should be emulated
-        If no value is passed current value is output"""
+    async def autoplay(self, ctx: ApplicationCommandInteraction, value: bool = OptionalBool):
+        """Determines if YouTube autoplay should be emulated. If no value is passed current value is output"""
         musicplayer = await self.check_player(ctx)
 
         if not musicplayer:
-            return await ctx.respond('Not playing any music right now')
+            return await ctx.send('Not playing any music right now')
 
         if not await self.check_voice(ctx):
             return
 
         if value is None:
-            return await ctx.respond(f'Autoplay currently {"on" if musicplayer.autoplay else "off"}')
+            return await ctx.send(f'Autoplay currently {"on" if musicplayer.autoplay else "off"}')
 
         musicplayer.autoplay = value
         s = f'Autoplay set {"on" if value else "off"}'
-        await ctx.respond(s)
+        await ctx.send(s)
 
-    @slash_command(name='volm')
+    @slash_command(name='volume_multiplier')
     @cooldown(1, 4, type=BucketType.guild)
-    async def vol_multiplier(self, ctx: ApplicationContext, value: float=None):
+    async def vol_multiplier(self, ctx: ApplicationCommandInteraction, value: float=None):
         """The multiplier that is used when dynamically calculating the volume"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not value:
-            return await ctx.respond('Current volume multiplier is %s' % str(musicplayer.volume_multiplier))
+            return await ctx.send('Current volume multiplier is %s' % str(musicplayer.volume_multiplier))
         try:
             value = float(value)
             musicplayer.volume_multiplier = value
-            await ctx.respond(f'Volume multiplier set to {value}')
+            await ctx.send(f'Volume multiplier set to {value}')
         except ValueError:
-            await ctx.respond('Value is not a number', delete_after=60)
+            await ctx.send('Value is not a number', delete_after=60)
 
     @slash_command()
     @cooldown(2, 4, type=BucketType.guild)
-    async def auto_volm(self, ctx: ApplicationContext):
-        """Automagically set the volm value based on current volume"""
+    async def auto_volm(self, ctx: ApplicationCommandInteraction):
+        """Automagically set the volume multiplier value based on current volume"""
         musicplayer = await self.check_player(ctx)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         if not await self.check_voice(ctx):
@@ -2084,7 +2175,7 @@ class Audio(commands.Cog):
 
         current = musicplayer.current
         if not current:
-            return await ctx.respond('Not playing anything right now')
+            return await ctx.send('Not playing anything right now')
 
         old = musicplayer.volume_multiplier
         if not current.rms:
@@ -2093,34 +2184,34 @@ class Audio(commands.Cog):
                     continue
 
                 new = round(h.rms * h.volume, 1)
-                await ctx.respond("Current song hadn't been processed yet so used song history to determine volm\n"
+                await ctx.send("Current song hadn't been processed yet so used song history to determine volm\n"
                                f"{old} -> {new}")
                 musicplayer.volume_multiplier = new
                 return
 
-            await ctx.respond('Failed to set volm. No mean volume calculated for songs.')
+            await ctx.send('Failed to set volm. No mean volume calculated for songs.')
             return
 
         new = round(current.rms * musicplayer.current_volume, 1)
         musicplayer.volume_multiplier = new
-        await ctx.respond(f'volm changed automagically {old} -> {new}')
+        await ctx.send(f'volm changed automagically {old} -> {new}')
 
     @slash_command()
     @cooldown(1, 10, type=BucketType.guild)
-    async def link(self, ctx: ApplicationContext):
+    async def link(self, ctx: ApplicationCommandInteraction):
         """Link to the current song"""
         if not await self.check_voice(ctx, user_connected=False):
             return
 
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if musicplayer is None:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         current = musicplayer.current
         if not current:
-            return await ctx.respond('Not playing anything')
-        await ctx.respond('Link to **{0.title}** {0.webpage_url}'.format(current), allowed_mentions=AllowedMentions.none())
+            return await ctx.send('Not playing anything')
+        await ctx.send('Link to **{0.title}** {0.webpage_url}'.format(current), allowed_mentions=AllowedMentions.none())
 
     @command(name='delete', aliases=['del', 'd'], auth=Auth.BOT_MOD)
     @guild_only()
@@ -2191,13 +2282,13 @@ class Audio(commands.Cog):
 
     @slash_command()
     @cooldown(1, 5, type=BucketType.guild)
-    async def autoplaylist(self, ctx: ApplicationContext, value: Option(BoolChoices, default=True, required=False, choices=on_off)):
+    async def autoplaylist(self, ctx: ApplicationCommandInteraction, value: bool = True):
         """Set the autoplaylist on or off"""
         if not await self.check_voice(ctx, user_connected=False):
             return
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         if value:
@@ -2205,17 +2296,17 @@ class Audio(commands.Cog):
         else:
             musicplayer.autoplaylist = False
 
-        await ctx.respond(f'Autoplaylist set {"on" if value else "off"}')
+        await ctx.send(f'Autoplaylist set {"on" if value else "off"}')
 
     @slash_command()
     @cooldown(1, 5, type=BucketType.guild)
-    async def gapless(self, ctx: ApplicationContext, value: Option(BoolChoices, **on_off_dict)):
+    async def gapless(self, ctx: ApplicationCommandInteraction, value: bool = OptionalBool):
         """EXPERIMENTAL: Set the gapless playback on or off. Might break other features"""
         if not await self.check_voice(ctx, user_connected=False):
             return
         musicplayer = self.get_musicplayer(ctx.guild.id)
         if not musicplayer:
-            await ctx.respond('❌', ephemeral=True)
+            await ctx.send('❌', ephemeral=True)
             return
 
         if value is None:
@@ -2225,7 +2316,7 @@ class Audio(commands.Cog):
         else:
             musicplayer.gapless = False
 
-        await ctx.respond(f'Gapless playback set {"on" if musicplayer.gapless else "off"}')
+        await ctx.send(f'Gapless playback set {"on" if musicplayer.gapless else "off"}')
 
     def clear_cache(self):
         songs = []

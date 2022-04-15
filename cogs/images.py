@@ -10,19 +10,21 @@ from math import ceil
 from random import randint
 from typing import Optional
 
+import aiohttp
 import matplotlib.pyplot as plt
 from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
 from asyncpg.exceptions import PostgresError
-from discord import File
-from discord.ext.commands import BucketType, BotMissingPermissions
-from discord.ext.commands.errors import BadArgument
+from disnake import File
+from disnake.ext.commands import BucketType, BotMissingPermissions, cooldown, \
+    is_owner, guild_only
+from disnake.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
-from bot.bot import command, cooldown
+from bot.bot import command
 from bot.converters import CleanContent
 from bot.exceptions import NoPokeFoundException, BotException
 from cogs.cog import Cog
@@ -41,17 +43,16 @@ class Pokefusion:
     RANDOM = '%'
     LAST_UPDATED = 0
 
-    def __init__(self, client, bot):
+    def __init__(self, bot):
         self._last_dex_number = 0
         self._pokemon = {}
         self._poke_reverse = {}
         self._poke_ids = []
-        self._client = client
         self._quit_chrome_task = None
         self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
-        self._driver_lock = Lock(loop=bot.loop)
+        self._driver_lock = Lock()
         self._bot = bot
-        self._update_lock = Lock(loop=bot.loop)
+        self._update_lock = Lock()
 
         options = Options()
         options.add_argument('--headless')
@@ -85,10 +86,6 @@ class Pokefusion:
 
         return self._driver
 
-    @property
-    def client(self):
-        return self._client
-
     async def _quit_chrome(self):
         if not self._driver:
             return
@@ -100,16 +97,17 @@ class Pokefusion:
     async def cache_types(self, start=1):
         name = 'sprPKMType_{}.png'
         url = 'https://japeal.com/wordpress/wp-content/themes/total/PKM/others/sprPKMType_{}.png'
-        while True:
-            r = await self.client.get(url.format(start))
-            if r.status == 404:
-                r.close()
-                break
+        async with aiohttp.ClientSession() as client:
+            while True:
+                r = await client.get(url.format(start))
+                if r.status == 404:
+                    r.close()
+                    break
 
-            with open(os.path.join(self._data_folder, name.format(start)), 'wb') as f:
-                f.write(await r.read())
+                with open(os.path.join(self._data_folder, name.format(start)), 'wb') as f:
+                    f.write(await r.read())
 
-            start += 1
+                start += 1
 
     async def update_cache(self):
         if self._update_lock.locked():
@@ -293,7 +291,7 @@ class Images(Cog):
         super().__init__(bot)
         self.threadpool = bot.threadpool
         try:
-            self._pokefusion = Pokefusion(self.bot.aiohttp_client, bot)
+            self._pokefusion = Pokefusion(bot)
         except WebDriverException:
             logger.exception('failed to load pokefusion')
             self._pokefusion = None
@@ -1483,15 +1481,17 @@ class Images(Cog):
 
         await send_paged_message(ctx, imgs, page_method=get_page, undoable=True)
 
-    @command(owner_only=True)
+    @command()
+    @is_owner()
     async def update_poke_cache(self, ctx):
         if await self._pokefusion.update_cache() is False:
             await ctx.send('Failed to update cache')
         else:
             await ctx.send('Successfully updated cache')
 
-    @command(no_pm=True, aliases=['mr_graph'])
+    @command(aliases=['mr_graph'])
     @cooldown(1, 10, BucketType.guild)
+    @guild_only()
     async def mute_roll_histogram(self, ctx):
         sql = 'SELECT wins::decimal/games FROM mute_roll_stats WHERE guild=%s AND games>3' % ctx.guild.id
         try:

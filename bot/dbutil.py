@@ -5,9 +5,9 @@ import types
 import typing
 from datetime import datetime
 
-import discord
+import disnake
 from asyncpg.exceptions import PostgresError
-from discord.errors import InvalidArgument
+from disnake.errors import InvalidArgument
 
 from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
@@ -188,7 +188,7 @@ class DatabaseUtils:
 
         return row
 
-    async def index_guild_member_roles(self, guild: discord.Guild):
+    async def index_guild_member_roles(self, guild: disnake.Guild):
         t = time.time()
         default_role = guild.default_role.id
 
@@ -701,41 +701,6 @@ class DatabaseUtils:
         sql = 'SELECT guild FROM guild_blacklist'
         return await self.fetch(sql)
 
-    async def add_multiple_activities(self, data):
-        """
-        data is a list of dicts with each dict containing user, game and time
-        """
-
-        sql = 'INSERT INTO activity_log (uid, game, time) VALUES ($1, $2, $3) ON CONFLICT (uid) DO UPDATE SET time=EXCLUDED.time'
-
-        try:
-            await self.execute(sql, data)
-        except PostgresError:
-            logger.exception('Failed to log activities')
-            return False
-
-        return True
-
-    async def get_activities(self, user):
-        sql = 'SELECT uid as "user", * FROM activity_log WHERE uid=$1 ORDER BY time DESC LIMIT 5'
-        try:
-            rows = await self.fetch(sql, (user,))
-        except PostgresError:
-            logger.exception('Failed to log activities')
-            return False
-
-        return rows
-
-    async def delete_activities(self, user):
-        sql = 'DELETE FROM activity_log WHERE uid=$1'
-        try:
-            await self.execute(sql, (user,))
-        except PostgresError:
-            logger.exception('Failed to log activities')
-            return False
-
-        return True
-
     async def log_pokespawn(self, name, guild: int):
         sql = 'INSERT INTO pokespawns (name, guild) VALUES ($1, $2) ON CONFLICT (guild, name) DO UPDATE SET count=count+1'
 
@@ -1125,7 +1090,7 @@ class DatabaseUtils:
             return True
 
         channel = ctx.channel
-        if isinstance(user, discord.Member) and user.roles:
+        if isinstance(user, disnake.Member) and user.roles:
             roles = '(role IS NULL OR role IN ({}))'.format(', '.join(map(lambda r: str(r.id), user.roles)))
         else:
             roles = 'role IS NULL'

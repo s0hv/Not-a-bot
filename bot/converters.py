@@ -1,9 +1,13 @@
 import re
+from datetime import timedelta
+from typing import Any
 
-import discord
+import disnake
 import pytz
-from discord.ext.commands import converter, Context
-from discord.ext.commands.errors import BadArgument
+from disnake import ApplicationCommandInteraction
+from disnake.ext import commands
+from disnake.ext.commands import converter
+from disnake.ext.commands.errors import BadArgument
 
 from utils.tzinfo import fuzzy_tz
 from utils.utilities import parse_time
@@ -21,7 +25,7 @@ class MentionedMember(converter.MemberConverter):
             if not result:
                 try:
                     result = await guild.fetch_member(user_id)
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     pass
 
         if result is None:
@@ -45,7 +49,7 @@ class PossibleUser(converter.IDConverter):
             if not result:
                 try:
                     result = await ctx.bot.fetch_user(user_id)
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     result = user_id
         else:
             arg = argument
@@ -53,12 +57,12 @@ class PossibleUser(converter.IDConverter):
             if len(arg) > 5 and arg[-5] == '#':
                 discrim = arg[-4:]
                 name = arg[:-5]
-                user = discord.utils.find(lambda u: u.name == name and u.discriminator == discrim,
+                user = disnake.utils.find(lambda u: u.name == name and u.discriminator == discrim,
                                           state._users.values())
                 if user is not None:
                     return user
 
-            result = discord.utils.find(lambda u: u.name == arg,
+            result = disnake.utils.find(lambda u: u.name == arg,
                                         state._users.values())
             if result is None:
                 raise BadArgument(f'No user id or user found with "{argument}"')
@@ -94,7 +98,7 @@ class MentionedUser(converter.UserConverter):
             if not result:
                 try:
                     result = await ctx.bot.fetch_user(user_id)
-                except discord.HTTPException:
+                except disnake.HTTPException:
                     pass
 
         if result is None:
@@ -124,11 +128,16 @@ class TimeDelta(converter.Converter):
         super().__init__()
 
     async def convert(self, ctx, argument):
-        time = parse_time(argument)
-        if not time:
-            raise BadArgument(f'Failed to parse time from {argument}')
+        return convert_timedelta(None, argument)
 
-        return time
+
+@commands.register_injection
+def convert_timedelta(_, value: Any) -> timedelta:
+    time = parse_time(value)
+    if not time:
+        raise BadArgument(f'Failed to parse time from {value}')
+
+    return time
 
 
 class FuzzyRole(converter.RoleConverter):
@@ -139,12 +148,12 @@ class FuzzyRole(converter.RoleConverter):
 
         match = self._get_id_match(argument) or re.match(r'<@&([0-9]+)>$', argument)
         params = dict(id=int(match.group(1))) if match else dict(name=argument)
-        result = discord.utils.get(guild.roles, **params)
+        result = disnake.utils.get(guild.roles, **params)
         if result is None:
             def pred(role):
                 return role.name.lower().startswith(argument)
 
-            result = discord.utils.find(pred, guild.roles)
+            result = disnake.utils.find(pred, guild.roles)
 
         if result is None:
             raise BadArgument('Role not found with "{}"'.format(argument))
@@ -162,14 +171,14 @@ class GuildEmoji(converter.EmojiConverter):
         if match is None:
             # Try to get the emoji by name. Try local guild first.
             if guild:
-                result = discord.utils.get(guild.emojis, name=argument)
+                result = disnake.utils.get(guild.emojis, name=argument)
 
         else:
             emoji_id = int(match.group(1))
 
             # Try to look up emoji by id.
             if guild:
-                result = discord.utils.get(guild.emojis, id=emoji_id)
+                result = disnake.utils.get(guild.emojis, id=emoji_id)
 
         if result is None:
             raise BadArgument('Emoji "{}" not found.'.format(argument))
@@ -315,13 +324,15 @@ class CleanContent(converter.Converter):
             return result
 
 
-class BoolChoices(converter.Converter):
-    async def convert(self, ctx: Context, argument: str):
-        argument = argument.lower()
-        if argument == 'on':
-            return True
+def bool_choice(_: ApplicationCommandInteraction, argument: Any):
+    if not isinstance(argument, str):
+        raise BadArgument('Argument must be a string')
 
-        if argument == 'off':
-            return False
+    argument = argument.lower().strip()
+    if argument == 'on':
+        return True
 
-        raise BadArgument('Argument must be On or Off')
+    if argument == 'off':
+        return False
+
+    raise BadArgument('Argument must be On or Off')

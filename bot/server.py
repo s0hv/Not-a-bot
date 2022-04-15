@@ -42,4 +42,3 @@ class WebhookServer:
 
     def remove_listener(self, listener):
         self._listeners.discard(listener)
-

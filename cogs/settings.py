@@ -253,7 +253,7 @@ class Settings(Cog):
 
         lock = self._guild_locks['keeproles'].get(guild.id, None)
         if lock is None:
-            lock = Lock(loop=self.bot.loop)
+            lock = Lock()
             self._guild_locks['keeproles'][guild.id] = lock
 
         if lock.locked():

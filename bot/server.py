@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 try:
@@ -29,13 +28,15 @@ class WebhookServer:
                 return text('OK')
 
             for listener in self._listeners:
-                asyncio.run_coroutine_threadsafe(listener(request.json), loop=bot.loop)
+                await listener(request.json)
 
             return text('OK')
 
-        self._server = asyncio.run_coroutine_threadsafe(app.create_server(bot.config.dbl_host,
-                                                                          bot.config.dbl_port, return_asyncio_server=True),
-                                                        bot.loop)
+        self._server = bot.loop.create_task(app.create_server(
+            bot.config.dbl_host,
+            bot.config.dbl_port,
+            return_asyncio_server=True)
+        )
 
     def add_listener(self, listener):
         self._listeners.add(listener)

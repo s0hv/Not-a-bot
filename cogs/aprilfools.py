@@ -44,7 +44,7 @@ class BattleArena(Cog):
         self._members = set()
 
         self._active_spawn: Optional[PointSpawn] = None
-        self._claim_lock = Lock(loop=self.bot.loop)
+        self._claim_lock = Lock()
         self._protects = {}
 
         asyncio.ensure_future(self.load_users(), loop=self.bot.loop)

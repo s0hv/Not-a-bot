@@ -762,7 +762,7 @@ def call_later(func, loop, timeout: float, *args, after=None, **kwargs):
     async def wait():
         if timeout > 0:
             try:
-                await asyncio.sleep(timeout, loop=loop)
+                await asyncio.sleep(timeout)
             except asyncio.CancelledError:
                 return
 

@@ -19,10 +19,12 @@ from importlib import reload, import_module
 from io import BytesIO, StringIO
 from pprint import PrettyPrinter
 from py_compile import PyCompileError
+from typing import Optional
 
 import aiohttp
 import disnake
 import matplotlib.pyplot as plt
+from aioredis import Redis
 from asyncpg.exceptions import PostgresError
 from disnake import File
 from disnake.errors import HTTPException, InvalidArgument
@@ -344,11 +346,10 @@ class BotAdmin(Cog):
 
         self.bot._exit_code = int(exit_code)
 
-        redis = getattr(self.bot, 'redis', None)
+        redis: Optional[Redis] = getattr(self.bot, 'redis', None)
         if redis:
             try:
-                redis.close()
-                await redis.wait_closed()
+                await redis.close()
             except:
                 logger.exception('Failed to gracefully close redis')
 
@@ -371,6 +372,8 @@ class BotAdmin(Cog):
 
         try:
             await self._bot.pool.close()
+        except asyncio.exceptions.CancelledError:
+            pass
         except:
             logger.exception('Failed to shut db down gracefully')
         else:

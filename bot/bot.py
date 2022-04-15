@@ -108,6 +108,7 @@ class Context(commands.Context):
             self.undo_messages[self.author.id] = (msg, call_later(a, self.bot.loop, 60))
 
     async def send(self, content: Optional[str]=None, *, undoable=False, **kwargs) -> disnake.Message:
+        kwargs.pop('ephemeral', None)
         msg = await super().send(content, **kwargs)
 
         if undoable:
@@ -156,7 +157,7 @@ class Bot(commands.AutoShardedBot):
         await self.on_command_error(interaction, exception)
 
         if not interaction.response.is_done():
-            await interaction.send('Failed to execute command due to an unknown error')
+            await interaction.send('Failed to execute command due to an unknown error', ephemeral=True)
 
     async def on_command_error(self, context: Context | ApplicationCommandInteraction, exception: exceptions.CommandError):
         """|coro|

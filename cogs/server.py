@@ -25,8 +25,7 @@ from cogs.cog import Cog
 from utils.imagetools import raw_image_from_url
 from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
                               concatenate_images)
-from utils.utilities import (send_paged_message,
-                             format_timedelta, DateAccuracy,
+from utils.utilities import (format_timedelta, DateAccuracy,
                              wait_for_yes, get_image,
                              get_emote_name_id, split_string,
                              get_filename_from_url, utcnow)
@@ -93,11 +92,16 @@ class Server(Cog):
         else:
             author_role_count = len(ctx.author.roles)
 
-        def get_msg(page, _):
-            s = 'Leaderboards for **{}**\n\n```md\n'.format(guild.name)
+        def get_msg(page_idx):
+            pg = pages[page_idx]
+            if not isinstance(pg, int):
+                return pg
+
+            s = 'Leaderboards for **{}**\n\n'.format(guild.name)
             added = 0
-            p = page*10
-            for idx, u in enumerate(sorted_users[p-10:p]):
+            p = page_idx*10
+            u: disnake.Member
+            for idx, u in enumerate(sorted_users[p:p+10]):
                 # Count user roles filtered if a specific server
                 if guild.id == 217677285442977792:
                     role_count = len(set(u.roles) - filtered_roles)
@@ -106,26 +110,26 @@ class Server(Cog):
 
                 added += 1
                 # role_count - 1 to not count the default role
-                s += '{}. {} with {} roles\n'.format(idx + p-9, u, role_count - 1)
+                s += '{}. {} with {} roles\n'.format(idx + p + 1, u.mention, role_count - 1)
 
             if added == 0:
-                return 'Page out of range'
+                pages[page_idx] = 'Page out of range'
+                return
 
             try:
                 idx = sorted_users.index(ctx.author) + 1
                 s += '\nYour rank is {} with {} roles\n'.format(idx, author_role_count - 1)
             except ValueError:
                 pass
-            s += '```'
-            return s
+            pages[page_idx] = s
 
-        await send_paged_message(ctx, pages, starting_idx=page,
-                                 page_method=get_msg)
+        paginator = Paginator(pages, initial_page=page, generate_page=get_msg)
+        await paginator.send(ctx, allowed_mentions=disnake.AllowedMentions.none())
 
     @staticmethod
-    async def _date_sort(ctx, page, key, dtype='joined'):
-        if page > 0:
-            page -= 1
+    async def _date_sort(ctx, starting_page, key, dtype='joined'):
+        if starting_page > 0:
+            starting_page -= 1
 
         guild = ctx.guild
         sorted_users = list(sorted(guild.members, key=key))
@@ -135,40 +139,40 @@ class Server(Cog):
         own_rank = ''
 
         try:
-            idx = sorted_users.index(ctx.author) + 1
+            author_idx = sorted_users.index(ctx.author) + 1
             t = utcnow() - key(ctx.author)
             t = format_timedelta(t, DateAccuracy.Day)
-            own_rank = f'\nYour rank is {idx}. You {dtype} {t} ago at {key(ctx.author).strftime("%a, %d %b %Y %H:%M:%S GMT")}\n'
+            own_rank = f'\nYour rank is {author_idx}. You {dtype} {t} ago at {disnake.utils.format_dt(key(ctx.author), "F")}\n'
         except ValueError:
             pass
 
-        def get_page(pg, _):
-            s = 'Leaderboards for **{}**\n\n```md\n'.format(guild.name)
-            index = pg*10
-            page = sorted_users[index-10:index]
-            max_s = max(map(lambda u: len(str(u)), page))
+        def get_page(page_idx):
+            existing_page = pages[page_idx]
+            if not isinstance(existing_page, int):
+                return existing_page
+
+            s = 'Leaderboards for **{}**\n\n'.format(guild.name)
+            p = page_idx * 10
+
+            page = sorted_users[p:p+10]
 
             if not page:
-                return 'Page out of range'
+                pages[page_idx] = 'Page out of range'
+                return
 
+            u: disnake.Member
             for idx, u in enumerate(page):
-                t = utcnow() - key(u)
-                t = format_timedelta(t, DateAccuracy.Day)
+                date = key(u)
+                td = format_timedelta(utcnow() - date, DateAccuracy.Day)
+                join_date = disnake.utils.format_dt(date, 'F')
 
-                join_date = key(u).strftime('%a, %d %b %Y %H:%M:%S GMT')
-
-                # We try to align everything but due to non monospace fonts
-                # it will never be perfect
-                tabs, spaces = divmod(max_s-len(str(u)), 4)
-                padding = '\t'*tabs + ' '*spaces
-
-                s += f'{idx+index-9}. {u} {padding}{dtype} {t} ago at {join_date}\n'
+                s += f'{idx + p + 1}. {u.mention} {dtype} {td} ago on {join_date}\n'
 
             s += own_rank
-            s += '```'
-            return s
+            pages[page_idx] = s
 
-        await send_paged_message(ctx, pages, starting_idx=page, page_method=get_page)
+        paginator = Paginator(pages, initial_page=starting_page, generate_page=get_page)
+        await paginator.send(ctx, allowed_mentions=disnake.AllowedMentions.none())
 
     @top.command(np_pm=True)
     @cooldown(1, 10)

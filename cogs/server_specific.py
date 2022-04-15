@@ -31,6 +31,7 @@ from tatsu.wrapper import ApiWrapper
 from bot.bot import (command, has_permissions, bot_has_permissions,
                      Context)
 from bot.formatter import EmbedPaginator
+from bot.paginator import Paginator
 from cogs.cog import Cog
 from cogs.colors import Colors
 from cogs.voting import Poll
@@ -587,7 +588,9 @@ class ServerSpecific(Cog):
                 paginator.add_to_field(f'<@&{role}> `{role}`\n')
 
         paginator.finalize()
-        await send_paged_message(ctx, paginator.pages, embed=True)
+
+        view = Paginator(paginator.pages, show_stop_button=True, hide_page_count=True, page_to_footer=True)
+        await view.send(ctx)
 
     @command(aliases=['get_grants', 'grants'])
     @cooldown(1, 4)

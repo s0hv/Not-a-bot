@@ -15,6 +15,7 @@ class Paginator(View):
             disable_on_timeout=True,
             show_stop_button=False,
             hide_page_count=False,
+            page_to_footer=False,
             timeout: Optional[float] = 180,
             initial_page: int = 0,
             generate_page: Callable[[int], NoReturn]=None
@@ -25,8 +26,10 @@ class Paginator(View):
         self.author_check = author_check
         self.generate_page = generate_page
         self.disable_on_timeout = disable_on_timeout
+        self.page_to_footer = page_to_footer
         self.message: Optional[disnake.InteractionMessage | disnake.Message] = None
         self.author: Optional[disnake.User] = None
+        self._msg_kwargs = {}
 
         if not show_stop_button:
             self.children.remove(self.stop_button)
@@ -89,6 +92,7 @@ class Paginator(View):
         return f'{self.page_idx+1}/{len(self.pages)}'
 
     async def send(self, ctx: Union[Context, disnake.ApplicationCommandInteraction], **kwargs):
+        self._msg_kwargs = kwargs
         page = self.get_current_page()
         args = (page,) if isinstance(page, str) else ()
         if isinstance(page, disnake.Embed):
@@ -105,16 +109,20 @@ class Paginator(View):
         if self.generate_page:
             self.generate_page(self.page_idx)
 
-        return self.pages[self.page_idx]
+        page = self.pages[self.page_idx]
+        if self.page_to_footer and isinstance(page, disnake.Embed):
+            page.set_footer(text=f'Page {self.get_page_text()}')
+
+        return page
 
     async def update_view(self, interaction: MessageInteraction):
         page = self.get_current_page()
         self.update_button_states()
 
         if isinstance(page, disnake.Embed):
-            await interaction.response.edit_message(embed=page, view=self)
+            await interaction.response.edit_message(embed=page, view=self, **self._msg_kwargs)
         else:
-            await interaction.response.edit_message(page, view=self)
+            await interaction.response.edit_message(content=page, view=self, **self._msg_kwargs)
 
     @disnake.ui.button(label='<<', style=disnake.ButtonStyle.blurple)
     async def first_page(self, _, interaction: MessageInteraction):

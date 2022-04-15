@@ -650,7 +650,7 @@ class Utilities(Cog):
             await ctx.send('Over 5 timezones given. Give fewer timezones (Use quotes if a tz has spaces)')
             return
 
-        async def add_time(dt):
+        async def add_time(dt: datetime) -> datetime:
             try:
                 if addition:
                     return dt + duration

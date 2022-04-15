@@ -20,7 +20,7 @@ import pytz
 from asyncpg.exceptions import PostgresError
 from dateutil import parser
 from dateutil.tz import gettz
-from disnake.ext.commands import (BucketType, Group, clean_content, cooldown,
+from disnake.ext.commands import (BucketType, Group, cooldown,
                                   guild_only)
 from disnake.ext.commands.errors import BadArgument
 
@@ -333,7 +333,7 @@ class Utilities(Cog):
 
     @command(hidden=True)
     @cooldown(1, 5, BucketType.user)
-    async def birthday(self, ctx, *, user: clean_content):
+    async def birthday(self, ctx, *, user): # clean_content):
         url = 'http://itsyourbirthday.today/#' + quote(user)
         await ctx.send(url)
 

@@ -10,7 +10,7 @@ from math import ceil
 import disnake
 from PIL import Image
 from disnake.ext.commands import (
-    BucketType, PartialEmojiConverter, Greedy, clean_content, cooldown,
+    BucketType, PartialEmojiConverter, Greedy, cooldown,
     Cooldown, CooldownMapping, NoPrivateMessage
 )
 from disnake.user import BaseUser
@@ -867,13 +867,13 @@ class Server(Cog):
 
         try:
             for msg in messages:
-                await message.channel.send(msg)
+                await message.channel.send(msg, allowed_mentions=disnake.AllowedMentions.none())
         except disnake.HTTPException:
             return
 
     @command(np_pm=True)
     @cooldown(1, 5, BucketType.user)
-    async def afk(self, ctx, *, message: clean_content()=''):
+    async def afk(self, ctx, *, message = ''):
         """
         Set an afk message on this server that will be posted every time someone
         pings you until you send your next message

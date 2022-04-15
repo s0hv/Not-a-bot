@@ -18,8 +18,7 @@ from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
 from disnake.errors import InvalidArgument
 from disnake.ext import commands
-from disnake.ext.commands import (BucketType, BadArgument, clean_content,
-                                  cooldown, guild_only)
+from disnake.ext.commands import (BucketType, BadArgument, cooldown, guild_only)
 from numpy.random import choice
 
 from bot.bot import command, has_permissions, group, bot_has_permissions
@@ -521,7 +520,7 @@ class Colors(Cog):
 
     @command(aliases=['c'], name='get_color')
     @cooldown(1, 5, BucketType.channel)
-    async def get_color_image(self, ctx, *, color_list: clean_content):
+    async def get_color_image(self, ctx, *, color_list): # clean_content): # TODO re add this when clean content works again
         """
         Post a picture of a color or multiple colors
         when specifying multiple colors make sure colors that have a space in them

@@ -450,7 +450,7 @@ class Server(Cog):
                 return await ctx.send('Too many errors while uploading emotes. Aborting')
 
             try:
-                data = await emote.url.read()
+                data = await emote.read()
             except (disnake.DiscordException, disnake.HTTPException) as e:
                 await ctx.send(f'Failed to download emote {emote.name}\n{e}')
                 errors += 1

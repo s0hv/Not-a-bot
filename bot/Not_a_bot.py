@@ -24,10 +24,10 @@ SOFTWARE.
 from typing import Optional
 
 import matplotlib
+from disnake.ext import tasks
 
 matplotlib.use('Agg')
 
-import asyncio
 import logging
 import time
 
@@ -47,7 +47,6 @@ class NotABot(BotBase):
     def __init__(self, prefix, conf, test_mode=False, cogs=None, model: LoadedModel=None, poke_model=None, **options):
         super().__init__(prefix, conf, test_mode=test_mode, cogs=cogs, **options)
 
-        self._random_color = None
         self._tf_model = model
         self._poke_model = poke_model
         self.polls = {}
@@ -149,9 +148,6 @@ class NotABot(BotBase):
 
         # If this has been already called once only do a subset of actions
         if self._ready_called:
-            if self._random_color is None or self._random_color.done():
-                self._random_color = self.loop.create_task(self._random_color_task())
-
             if self.config.default_activity:
                 await self.change_presence(activity=disnake.Activity(**self.config.default_activity))
             return
@@ -172,8 +168,6 @@ class NotABot(BotBase):
 
         if self.config.default_activity:
             await self.change_presence(activity=disnake.Activity(**self.config.default_activity))
-        if self._random_color is None or self._random_color.done():
-            self._random_color = self.loop.create_task(self._random_color_task())
         logger.debug('READY')
 
     def create_redis(self) -> Redis:
@@ -184,6 +178,7 @@ class NotABot(BotBase):
 
         return redis
 
+    @tasks.loop(hours=3)
     async def _random_color_task(self):
         if self.test_mode:
             return
@@ -196,18 +191,7 @@ class NotABot(BotBase):
         if not role:
             return
 
-        while True:
-            try:
-                await asyncio.sleep(3600*3)
-            except asyncio.CancelledError:
-                return
-
-            try:
-                await role.edit(color=random_color())
-            except disnake.HTTPException:
-                role = guild.get_role(348208141541834773)
-                if role is None:
-                    return
+        await role.edit(color=random_color())
 
     async def on_guild_join(self, guild):
         logger.info(f'Joined guild {guild.name} {guild.id}')

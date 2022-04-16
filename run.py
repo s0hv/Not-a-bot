@@ -32,16 +32,6 @@ error_handler.setFormatter(logging.Formatter('{color}[{module}][{asctime}] [Thre
 error_handler.setLevel(logging.ERROR)
 terminal.addHandler(error_handler)
 
-terminal.info('testing colors')
-terminal.debug('test')
-terminal.warning('test')
-terminal.error('test')
-terminal.critical('test')
-try:
-    int('d')
-except:
-    terminal.exception('test exception')
-
 config = Config()
 
 initial_cogs = [

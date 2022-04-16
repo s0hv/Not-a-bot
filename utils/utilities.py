@@ -30,7 +30,6 @@ import py_compile
 import re
 import shlex
 import subprocess
-import time
 from collections import OrderedDict
 from collections.abc import Iterable
 from datetime import timedelta, datetime, timezone
@@ -46,18 +45,17 @@ from asyncpg.exceptions import PostgresError
 from disnake import ApplicationCommandInteraction
 from disnake import abc
 from disnake.embeds import EmptyEmbed
-from disnake.ext.commands.errors import MissingPermissions
 from validators import url as test_url
 
-from bot.exceptions import NoCachedFileException, CommandBlacklisted, NotOwner
+from bot.exceptions import CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
 from bot.paged_message import PagedMessage
 from enums.data_enums import RedisKeyNamespaces
-from enums.discord_enums import TimestampFormat
 from utils.imagetools import image_from_url
 
 if TYPE_CHECKING:
     from bot.bot import Context
+    from bot.botbase import BotBase
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -65,13 +63,17 @@ logger = logging.getLogger('terminal')
 audio = logging.getLogger('audio')
 
 # https://stackoverflow.com/a/4628148/6046713
-# Added days and and aliases for names
+# Added days and aliases for names
 # Also fixed any string starting with the first option (e.g. 10dd would count as 10 days) being accepted
-time_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
-timeout_regex = re.compile(r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
-                           re.DOTALL)
-timedelta_regex = re.compile(r'((?P<days>\d+?) )?(?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
-seek_regex = re.compile(r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
+time_regex = re.compile(
+    r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?')
+timeout_regex = re.compile(
+    r'((?P<days>\d+?) ?(d|days)( |$))?((?P<hours>\d+?) ?(h|hours)( |$))?((?P<minutes>\d+?) ?(m|min|minutes)( |$))?((?P<seconds>\d+?) ?(s|sec|seconds)( |$))?(?P<reason>.*)+?',
+    re.DOTALL)
+timedelta_regex = re.compile(
+    r'((?P<days>\d+?) )?(?P<hours>\d+?):(?P<minutes>\d+?):(?P<seconds>\d+?)')
+seek_regex = re.compile(
+    r'((?P<h>\d+)*(?:h ?))?((?P<m>\d+)*(?:m[^s]? ?))?((?P<s>\d+)*(?:s ?))?((?P<ms>\d+)*(?:ms ?))?')
 FORMAT_BLACKLIST = ['mentions', 'channel_mentions', 'reactions', 'call',
                     'embeds', 'attachments', 'role_mentions', 'application',
                     'raw_channel_mentions', 'raw_role_mentions', 'raw_mentions']
@@ -127,7 +129,8 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
-def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: int=None):
+def split_string(to_split, list_join='', maxlen=2000, splitter=' ',
+                 max_word: int = None):
     """
 
     Args:
@@ -155,21 +158,21 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: in
             l = len(s)
             if length + l > maxlen:
                 if max_word and l > max_word:
-                        delta = maxlen - length
-                        if delta > 3:
-                            split += s[:delta]
-                            splits.append(split)
-                            s = s[delta:]
+                    delta = maxlen - length
+                    if delta > 3:
+                        split += s[:delta]
+                        splits.append(split)
+                        s = s[delta:]
 
+                    l = len(s)
+
+                    while l > maxlen:
+                        splits.append(s[:maxlen])
+                        s = s[maxlen:]
                         l = len(s)
 
-                        while l > maxlen:
-                            splits.append(s[:maxlen])
-                            s = s[maxlen:]
-                            l = len(s)
-
-                        split = s
-                        length = l
+                    split = s
+                    length = l
 
                 else:
                     splits.append(split)
@@ -212,12 +215,12 @@ def split_string(to_split, list_join='', maxlen=2000, splitter=' ', max_word: in
             elif chunk:
                 splits.append(chunk)
                 if len(s) > maxlen:
-                    s = s[:maxlen-3] + '...'
+                    s = s[:maxlen - 3] + '...'
                     splits.append(s)
                 else:
                     chunk = s
             elif not chunk:
-                splits.append(s[:maxlen-3] + '...')
+                splits.append(s[:maxlen - 3] + '...')
 
         if chunk:
             splits.append(chunk)
@@ -240,7 +243,8 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
         start = int(duration * 0.2)
 
     analyze_duration = 50
-    cmd = '{0} -ss {2} -i {1} -ss 0 -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(ffmpeg, file, start, analyze_duration)
+    cmd = '{0} -ss {2} -i {1} -ss 0 -t {3} -filter:a "volumedetect" -vn -sn -f null /dev/null'.format(
+        ffmpeg, file, start, analyze_duration)
     audio.debug(cmd)
     args = shlex.split(cmd)
     process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -258,13 +262,6 @@ async def mean_volume(file, loop, threadpool, avconv=False, duration=0):
         return volume
     except ValueError:
         return
-
-
-def get_cached_song(name):
-    if os.path.isfile(name):
-        return name
-    else:
-        raise NoCachedFileException
 
 
 # Write the contents of an iterable or string to a file
@@ -295,10 +292,6 @@ def empty_file(file):
         pass
 
 
-def timestamp():
-    return time.strftime('%d-%m-%Y--%H-%M-%S')
-
-
 def get_config_value(config, section, option, option_type=None, fallback=None):
     try:
         if option_type is None:
@@ -322,22 +315,6 @@ def get_config_value(config, section, option, option_type=None, fallback=None):
     except ValueError as e:
         logger.error('{0}\n{1} value is not {2}. {1} set to {3}'.format(e, option, str(option_type), str(fallback)))
         return fallback
-
-
-def write_wav(stdout, filename):
-    with open(filename, 'wb') as f:
-        f.write(stdout.read(36))
-
-        # ffmpeg puts metadata that breaks bpm detection. We are going to remove that
-        stdout.read(34)
-
-        while True:
-            data = stdout.read(100000)
-            if len(data) == 0:
-                break
-            f.write(data)
-
-    return filename
 
 
 def y_n_check(msg):
@@ -383,11 +360,6 @@ def get_emote_url(emote):
     return 'https://cdn.discordapp.com/emojis/{}.{}'.format(emote_id, extension)
 
 
-def emote_url_from_id(id, animated=False):
-    extension = 'png' if not animated else 'gif'
-    return f'https://cdn.discordapp.com/emojis/{id}.{extension}'
-
-
 def get_picture_from_msg(msg):
     if msg is None:
         return
@@ -412,11 +384,12 @@ def normalize_text(s):
     return s
 
 
-def slots2dict(obj, d: dict=None, replace=True):
-    # Turns slots and @properties to a dict
+def slots2dict(obj, d: dict = None, replace=True):
+    # Turn slots and @properties to a dict
 
     if d is None:
-        d = {k: getattr(obj, k, None) for k in obj.__slots__ if not k.startswith('_')}
+        d = {k: getattr(obj, k, None) for k in obj.__slots__
+             if not k.startswith('_')}
     else:
         for k in obj.__slots__:
             if k.startswith('_'):
@@ -433,7 +406,7 @@ def slots2dict(obj, d: dict=None, replace=True):
             continue
 
         v = getattr(obj, k, None)
-        if not callable(v):    # Don't need methods here
+        if not callable(v):  # Don't need methods here
             if not replace and k in d:
                 continue
 
@@ -460,15 +433,7 @@ async def retry(f, *args, retries_=3, break_on=(), **kwargs):
 
 
 def get_emote_id(s):
-    emote = re.match(r'(?:<(a)?:\w+:)(\d+)(?=>)', s)
-    if emote:
-        return emote.groups()
-
-    return None, None
-
-
-def get_emote_name(s):
-    emote = re.match(r'(?:<(a)?:)(\w+)(?::\d+)(?=>)', s)
+    emote = re.match(r'<(a)?:\w+:(\d+)(?=>)', s)
     if emote:
         return emote.groups()
 
@@ -480,17 +445,21 @@ def get_emote_name_id(s):
     Returns:
         (animated, name, id)
     """
-    emote = re.match(r'(?:<(a)?:)(\w+)(?::)(\d+)(?=>)', s)
+    emote = re.match(r'<(a)?:(\w+):(\d+)(?=>)', s)
     if emote:
         return emote.groups()
 
     return None, None, None
 
 
-async def get_images(ctx: 'Context', content, current_message_only=False, leave_empty=False):
+async def get_images(ctx: 'Context', content, current_message_only=False,
+                     leave_empty=False):
     """
     Get all images from a message
     Args:
+        ctx: Context
+        content: message content to check for images
+        current_message_only: Does not try to fetch a given message id
         leave_empty (bool): If set to true will return an empty list when no images were found
     """
     images = []
@@ -575,7 +544,7 @@ async def get_images(ctx: 'Context', content, current_message_only=False, leave_
         attachments = ()
 
         if embed_type == 'video':
-            attachments = (embed.thumbnail.url, )
+            attachments = (embed.thumbnail.url,)
         elif embed_type == 'rich':
             attachments = (embed.image.url, embed.thumbnail.url)
         elif embed_type == 'image':
@@ -600,7 +569,8 @@ async def get_image(ctx, image, current_message_only=False):
         if image is not None:
             await ctx.send(f'No image found from {image}')
         else:
-            await ctx.send('Please input a mention, emote or an image when using the command')
+            await ctx.send(
+                'Please input a mention, emote or an image when using the command')
 
         return
 
@@ -617,7 +587,8 @@ async def dl_image(ctx, url):
         await ctx.send('Link is not a direct link to an image')
     except OSError:
         logger.exception('Failed to dl image because of an unknown error')
-        await ctx.send('Failed to use image because of an unknown error. The image file is probably a bit broken')
+        await ctx.send(
+            'Failed to use image because of an unknown error. The image file is probably a bit broken')
     else:
         return img
 
@@ -649,7 +620,8 @@ def get_image_from_message(bot, message: disnake.Message, content=None):
     Get image from disnake.Message
     """
     image = None
-    if len(message.attachments) > 0 and isinstance(message.attachments[0].width, int):
+    if len(message.attachments) > 0 and isinstance(message.attachments[0].width,
+                                                   int):
         image = message.attachments[0].url
     elif content or message.content:
         image = content or message.content.split(' ')[0]
@@ -735,16 +707,13 @@ def parse_timeout(time_str):
     return timedelta(**time_params), reason
 
 
-def datetime2sql(dt: datetime):
-    return '{0.year}-{0.month}-{0.day} {0.hour}:{0.minute}:{0.second}'.format(dt)
-
-
 def timedelta2sql(td: timedelta):
-    return f'{td.days} {td.seconds//3600}:{(td.seconds//60)%60}:{td.seconds%60}'
+    return f'{td.days} {td.seconds // 3600}:{(td.seconds // 60) % 60}:{td.seconds % 60}'
 
 
 def sql2timedelta(value):
-    return timedelta(**{k: int(v) if v else 0 for k, v in timedelta_regex.match(value).groupdict().items()})
+    return timedelta(**{k: int(v) if v else 0 for k, v
+                        in timedelta_regex.match(value).groupdict().items()})
 
 
 def call_later(func, loop, timeout: float, *args, after=None, **kwargs):
@@ -775,24 +744,6 @@ def call_later(func, loop, timeout: float, *args, after=None, **kwargs):
     return CallLater(fut, utcnow() + timedelta(seconds=timeout))
 
 
-def get_users_from_ids(guild, *ids):
-    users = []
-    for i in ids:
-        user = guild.get_member(i)
-        if user:
-            users.append(user)
-
-    return users
-
-
-def check_channel_mention(msg, word):
-    if msg.channel_mentions:
-        if word != msg.channel_mentions[0].mention:
-            return False
-        return True
-    return False
-
-
 def get_channel(channels, s, name_matching=False, only_text=True):
     channel = get_channel_id(s)
     if channel:
@@ -821,18 +772,6 @@ def get_channel(channels, s, name_matching=False, only_text=True):
     return channel
 
 
-def check_role_mention(msg, word, guild):
-    if msg.raw_role_mentions:
-        id = msg.raw_role_mentions[0]
-        if str(id) not in word:
-            return False
-        role = list(filter(lambda r: r.id == id, guild.roles))
-        if not role:
-            return False
-        return role[0]
-    return False
-
-
 def get_role(role, roles, name_matching=False):
     try:
         role_id = int(role)
@@ -849,38 +788,19 @@ def get_role(role, roles, name_matching=False):
     return disnake.utils.find(lambda r: r.id == role_id, roles)
 
 
-def check_user_mention(msg, word):
-    if msg.mentions:
-        if word != msg.mentions[0].mention:
-            return False
-        return True
-    return False
-
-
 def get_avatar(user: disnake.User):
     return user.display_avatar.url
 
 
-def formatted_datetime(dt: datetime, style: TimestampFormat=TimestampFormat.ShortDate):
-    return f'<t:{int(dt.timestamp())}:{style.value}>'
-
-
 def get_role_id(s):
-    regex = re.compile(r'(?:<@&)?(\d+)(?:>)?(?: |$)')
-    match = regex.match(s)
-    if match:
-        return int(match.groups()[0])
-
-
-def get_user_id(s):
-    regex = re.compile(r'(?:<@!?)?(\d+)(?:>)?(?: |$)')
+    regex = re.compile(r'(?:<@&)?(\d+)>?(?: |$)')
     match = regex.match(s)
     if match:
         return int(match.groups()[0])
 
 
 def get_channel_id(s):
-    regex = re.compile(r'(?:<#)?(\d+)(?:>)?')
+    regex = re.compile(r'(?:<#)?(\d+)>?')
     match = regex.match(s)
     if match:
         return int(match.groups()[0])
@@ -893,7 +813,7 @@ def check_plural(string, i):
 
 
 def native_format_timedelta(td: timedelta) -> str:
-    return disnake.utils.format_dt(utcnow()+td, style='R')
+    return disnake.utils.format_dt(utcnow() + td, style='R')
 
 
 def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
@@ -973,7 +893,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
             last, val = divmod(last, d)
             times.insert(0, val)
 
-        # appendleft
+        # append left
         times.insert(0, last)
 
         for i, t, in enumerate(times):
@@ -988,7 +908,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         idx = 0
         if is_slice:
             old_acc = accuracy
-            accuracy = DateAccuracy(accuracy.stop)
+            accuracy = DateAccuracy(cast(slice, accuracy).stop)
 
         # Week is an exception and we want to keep it out of calculations
         # unless it is the requested accuracy. We use day here since we count
@@ -1001,7 +921,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
             times.append(val)
 
             if len(times) - 1 >= accuracy.value:
-                last = last*d+val
+                last = last * d + val
                 times[-1] = last
                 break
 
@@ -1013,8 +933,8 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         # Exception. We want to exclude weeks when possible to increase accuracy
         # of years and months. When using DateAccuracy include_weeks will be
         # True only when week is the requested format
-        if include_weeks and len(times)-1 >= accuracy.value:
-            val = last//7
+        if include_weeks and len(times) - 1 >= accuracy.value:
+            val = last // 7
             if val == 0:
                 names.pop(2)  # Index of week
                 val = last
@@ -1024,18 +944,19 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
         else:
             val = last
 
-        # Fallback to the closest non zero value
+        # Fallback to the closest non-zero value
         if val == 0:
             val = times[-1]
 
         if is_slice:
+            old_acc = cast(slice, old_acc)
             # Slices are given in the format of from int to int inclusive
-            # when slices from exclusive at the end so we have to recreate the slice
+            # when slices from exclusive at the end, so we have to recreate the slice
             old_acc = slice(old_acc.start, old_acc.stop + 1)
-            # Extend times so every accuracy has an unit attached to it
-            # This makes it so we can slice the list like normal
-            times.extend([0]*(len(names)-len(times)))
-            #times = list(reversed(times))[old_acc]
+            # Extend times so every accuracy has a unit attached to it
+            # This allows us to slice the list like normal
+            times.extend([0] * (len(names) - len(times)))
+            # times = list(reversed(times))[old_acc]
             times = times[old_acc]
             names = list(reversed(names))
 
@@ -1050,7 +971,7 @@ def format_timedelta(td, accuracy=3, include_weeks=False, long_format=True):
                 names = list(reversed(names))
                 times = list(reversed(times))
         else:
-            names = [names[len(names)-1-idx]]
+            names = [names[len(names) - 1 - idx]]
             times = [val]
 
     else:
@@ -1093,54 +1014,6 @@ def seconds2str(seconds, long_def=True):
     return (d + h + m + s).strip()
 
 
-def find_user(s, members, case_sensitive=False, ctx=None):
-    if not s:
-        return
-    if ctx:
-        # if ctx is present check mentions first
-        if ctx.message.mentions and ctx.message.mentions[0].mention.replace('!', '') == s.replace('!', ''):
-            return ctx.message.mentions[0]
-
-        try:
-            uid = int(s)
-        except ValueError:
-            pass
-        else:
-            for user in members:
-                if user.id == uid:
-                    return user
-
-    def filter_users(predicate):
-        for member in members:
-            if predicate(member):
-                return member
-
-            if member.nick and predicate(member.nick):
-                return member
-
-    if case_sensitive:
-        def pred(u):
-            return str(u).startswith(s)
-    else:
-        def pred(u):
-            return str(u).lower().startswith(s)
-
-    found = filter_users(pred)
-    # s = '`<@!{}>` {}'  what is this????
-    if found:
-        return found
-
-    if case_sensitive:
-        def predicate(u):
-            return s in str(u)
-    else:
-        def predicate(u):
-            return s in str(u).lower()
-    found = filter_users(predicate)
-
-    return found
-
-
 def is_image_url(url):
     if url is None:
         return
@@ -1160,13 +1033,6 @@ def is_image_url(url):
         is_image = mimetype and mimetype.startswith('image')
 
     return is_image
-
-
-def msg2dict(msg):
-    d = {}
-    attachments = [attachment.url for attachment in msg.attachments]
-    d['attachments'] = ', '.join(attachments)
-    return d
 
 
 def format_message(d):
@@ -1351,19 +1217,10 @@ def check_perms(values, return_raw=False):
     return PermValues.RETURNS.get(smallest, False) if not return_raw else smallest
 
 
-def is_superset(ctx):
-    if ctx.override_perms is None and ctx.command.required_perms is not None:
-        perms = ctx.message.channel.permissions_for(ctx.message.author)
-
-        if not perms.is_superset(ctx.command.required_perms):
-            req = [r[0] for r in ctx.command.required_perms if r[1]]
-            raise MissingPermissions(req)
-
-    return True
-
-
-async def send_paged_message(ctx: Union['Context', ApplicationCommandInteraction], pages, embed=False, starting_idx=0,
-                             page_method=None, timeout=60, undoable=False):
+async def send_paged_message(
+        ctx: Union['Context', ApplicationCommandInteraction], pages,
+        embed=False, starting_idx=0,
+        page_method=None, timeout=60, undoable=False):
     """
     Send a paged message
     Args:
@@ -1414,11 +1271,13 @@ async def send_paged_message(ctx: Union['Context', ApplicationCommandInteraction
                 await message.edit(content=page)
 
     def check(reaction, user):
-        return paged.check(reaction, user) and ctx.author.id == user.id and reaction.message.id == message.id
+        return paged.check(reaction,
+                           user) and ctx.author.id == user.id and reaction.message.id == message.id
 
     while True:
         try:
-            result = await bot.wait_for('reaction_changed', check=check, timeout=timeout)
+            result = await bot.wait_for('reaction_changed', check=check,
+                                        timeout=timeout)
         except asyncio.TimeoutError:
             return
 
@@ -1438,24 +1297,6 @@ async def send_paged_message(ctx: Union['Context', ApplicationCommandInteraction
             return
 
 
-async def get_all_reaction_users(reaction, limit=100):
-    users = []
-    limits = [100 for i in range(limit // 100)]
-    remainder = limit % 100
-    if remainder > 0:
-        limits.append(remainder)
-
-    for limit in limits:
-        if users:
-            user = users[-1]
-        else:
-            user = None
-        _users = await reaction.users(limit=limit, after=user)
-        users.extend(_users)
-
-    return users
-
-
 def is_owner(ctx):
     if ctx.bot.owner_id != ctx.original_user.id:
         raise NotOwner
@@ -1469,7 +1310,7 @@ async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
     if getattr(ctx, 'skip_check', False):
         return True
 
-    bot = cast('BotBase', ctx.bot)
+    bot: 'BotBase' = cast('BotBase', ctx.bot)
     if not hasattr(bot, 'check_auth'):
         # No database blacklisting detected
         return True
@@ -1477,8 +1318,11 @@ async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
     if not await bot.check_auth(ctx):
         return False
 
-    overwrite_perms = await bot.dbutil.check_blacklist("(command='%s' OR command IS NULL)" % ctx.command.name, ctx.author, ctx, True)
-    msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms, (None, None))
+    overwrite_perms = await bot.dbutil.check_blacklist(
+        "(command='%s' OR command IS NULL)" % ctx.command.name, ctx.author, ctx,
+        True)
+    msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms,
+                                                      (None, None))
     if isinstance(overwrite_perms, int):
         if ctx.guild and ctx.guild.owner_id == ctx.author.id:
             overwrite_perms = True
@@ -1495,8 +1339,13 @@ async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
 
 
 async def search(s, ctx, site, downloader, on_error=None):
-    search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
-    urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
+    search_keys = {
+        'yt': 'ytsearch',
+        'sc': 'scsearch'
+    }
+    urls = {
+        'yt': 'https://www.youtube.com/watch?v=%s'
+    }
     max_results = 10
     search_key = search_keys.get(site, 'ytsearch')
     channel = ctx.channel
@@ -1541,7 +1390,7 @@ def parse_seek(s):
 
 
 def seek_to_sec(seek_dict):
-    return int(seek_dict['h'])*3600 + int(seek_dict['m'])*60 + int(seek_dict['s'])
+    return int(seek_dict['h']) * 3600 + int(seek_dict['m']) * 60 + int(seek_dict['s'])
 
 
 def check_import(module_name):
@@ -1558,7 +1407,8 @@ def check_import(module_name):
     py_compile.compile(module_name, doraise=True)
 
 
-def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None, raise_error=None):
+def check_botperm(*perms, ctx=None, channel=None, guild=None, me=None,
+                  raise_error=None):
     if not perms:
         return True
 
@@ -1625,7 +1475,12 @@ def seek_from_timestamp(timestamp) -> dict:
     h, m, s = str(int(h)), str(int(m)), str(int(s))
     ms = str(round(ms, 3))[2:]
 
-    return {'h': h, 'm': m, 's': s, 'ms': ms}
+    return {
+        'h': h,
+        'm': m,
+        's': s,
+        'ms': ms
+    }
 
 
 async def wants_to_be_noticed(member, guild, remove=True):

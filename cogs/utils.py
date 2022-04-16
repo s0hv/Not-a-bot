@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 from email.utils import formatdate as format_rfc2822
 from io import StringIO
-from typing import Union
+from typing import Union, cast
 from urllib.parse import quote
 
 import aiohttp
@@ -27,13 +27,11 @@ from disnake.ext.commands.errors import BadArgument
 from bot.bot import command, bot_has_permissions, Context
 from bot.converters import FuzzyRole, TzConverter, PossibleUser
 from cogs.cog import Cog
-from enums.discord_enums import TimestampFormat
 from utils.tzinfo import fuzzy_tz, tz_dict
 from utils.unzalgo import unzalgo
 from utils.utilities import (random_color, get_avatar, split_string,
-                             get_emote_url, send_paged_message,
-                             format_timedelta, parse_timeout,
-                             DateAccuracy, formatted_datetime, utcnow)
+                             send_paged_message, format_timedelta,
+                             parse_timeout, DateAccuracy, utcnow)
 
 try:
     from pip.commands import SearchCommand
@@ -101,18 +99,15 @@ class Utilities(Cog):
 
     @command(aliases=['e', 'emoji'])
     @cooldown(1, 5, BucketType.channel)
-    async def emote(self, ctx, emote: str):
+    async def emote(self, ctx, emote: disnake.PartialEmoji):
         """Get the link to an emote"""
-        emote = get_emote_url(emote)
-        if emote is None:
-            raise BadArgument('You need to specify an emote. Default (unicode) emotes are not supported ~~yet~~')
-
-        await ctx.send(emote)
+        await ctx.send(emote.url)
 
     @command(aliases=['roleping'])
     @cooldown(1, 4, BucketType.channel)
     async def how2role(self, ctx, *, role: FuzzyRole):
         """Searches a role and tells you how to ping it"""
+        role = cast(disnake.Role, role)
         name = role.name.replace('@', '@\u200b')
         await ctx.send(f'`{role.mention}` {name}')
 
@@ -154,11 +149,11 @@ class Utilities(Cog):
 
     @command(aliases=['src', 'source_code', 'sauce'])
     @cooldown(1, 5, BucketType.user)
-    async def source(self, ctx, *cmd):
+    async def source(self, ctx, *, cmd=None):
         """Link to the source code for this bot
         You can also get the source code of commands by doing {prefix}{name} cmd_name"""
         if cmd:
-            full_name = ' '.join(cmd)
+            full_name = cmd
             cmnd = self.bot.all_commands.get(cmd[0])
             if cmnd is None:
                 raise BadArgument(f'Command "{full_name}" not found')
@@ -190,7 +185,7 @@ class Utilities(Cog):
 
         if len(source) > 2000:
             file = disnake.File(StringIO(original_source), filename=f'{full_name}.py')
-            await ctx.send(f'Content was longer than 2000 ({len(source)} > 2000)\n<{url}>', file=file)
+            await ctx.send(file=file)
             return
         await ctx.send(source)
 
@@ -776,13 +771,13 @@ class Utilities(Cog):
 
         embed.add_field(
             name='Created at',
-            value=formatted_datetime(user.created_at, TimestampFormat.Relative)
+            value=disnake.utils.format_dt(user.created_at, 'R')
         )
 
         if isinstance(user, disnake.Member):
             embed.add_field(
                 name='Joined at',
-                value=formatted_datetime(user.joined_at, TimestampFormat.Relative)
+                value=disnake.utils.format_dt(user.joined_at, 'R')
             )
 
             max_roles = 20

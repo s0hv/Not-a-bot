@@ -61,6 +61,10 @@ class NotABot(BotBase):
         self.antispam = True
         self._ready_called = False
 
+    async def async_init(self):
+        await super().async_init()
+        await self._server.create_server()
+
     @property
     def server(self):
         return self._server

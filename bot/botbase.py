@@ -22,7 +22,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 import logging
-import signal
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Union
@@ -63,14 +62,7 @@ class BotBase(Bot):
 
     async def async_init(self):
         await self._setup_db()
-
-    def add_signal_handlers(self):
-        loop = self.loop
-        try:
-            loop.add_signal_handler(signal.SIGINT, lambda: loop.stop())
-            loop.add_signal_handler(signal.SIGTERM, lambda: loop.stop())
-        except NotImplementedError:
-            pass
+        await self.dbutil.add_command('help')
 
     def load_default_cogs(self):
         for cog in self.default_cogs:
@@ -126,7 +118,6 @@ class BotBase(Bot):
     async def on_ready(self):
         self._mention_prefix = (self.user.mention, f'<@!{self.user.id}>')
         logger.info(f'Logged in as {self.user.name}')
-        await self.dbutil.add_command('help')
         logger.debug('READY')
 
         for guild in self.guilds:

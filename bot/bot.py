@@ -183,6 +183,7 @@ class Bot(commands.AutoShardedBot):
                                   exceptions.PermException,
                                   disnake.Forbidden,
                                   exceptions.NotOwner,
+                                  commands.errors.NotOwner,
                                   ClientConnectionError,
                                   commands.errors.DisabledCommand)):
             return

@@ -322,6 +322,7 @@ class Server(Cog):
         if not await wait_for_yes(ctx, 30):
             return
 
+        emote = None
         try:
             for emote in emotes:
                 await emote.delete()
@@ -435,7 +436,7 @@ class Server(Cog):
                     emotes.append(e)
 
         if len(emotes) > 20:
-            await ctx.send(f'Too many emotes ({len(emotes)}>20). Maximum amount of emotes that can be stolen at a time is 20')
+            await ctx.send(f'Too many emotes ({len(emotes)}). Maximum amount of emotes that can be stolen at a time is 20')
             return
 
         update_msg = None

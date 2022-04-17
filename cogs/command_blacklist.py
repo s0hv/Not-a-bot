@@ -11,8 +11,9 @@ from bot.bot import command, group
 from bot.converters import CommandConverter
 from bot.formatter import EmbedPaginator
 from bot.globals import BlacklistTypes, PermValues
+from bot.paginator import Paginator
 from cogs.cog import Cog
-from utils.utilities import (split_string, send_paged_message)
+from utils.utilities import split_string
 
 logger = logging.getLogger('terminal')
 perms = disnake.Permissions(8)
@@ -437,11 +438,9 @@ class CommandBlacklist(Cog):
                 paginator.add_to_field(s)
 
         paginator.finalize()
-        pages = paginator.pages
-        for idx, page in enumerate(pages):
-            page.set_footer(text='Page {}/{}'.format(idx + 1, len(pages)))
 
-        await send_paged_message(ctx, pages, embed=True)
+        view = Paginator(paginator.pages)
+        await view.send(ctx)
 
     @command(aliases=['sp'])
     @cooldown(1, 10, BucketType.guild)
@@ -512,7 +511,9 @@ class CommandBlacklist(Cog):
             paginator.add_page(description=s)
 
         paginator.finalize()
-        await send_paged_message(ctx, paginator.pages, embed=True)
+
+        view = Paginator(paginator.pages)
+        await view.send(ctx)
 
     @command(name='commands')
     @cooldown(1, 30, type=BucketType.user)

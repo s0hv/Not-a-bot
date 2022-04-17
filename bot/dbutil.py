@@ -576,7 +576,7 @@ class DatabaseUtils:
 
         return True
 
-    async def get_command_stats(self, parent=None, name=""):
+    async def get_command_stats(self, parent=None, name="") -> list[dict] | bool:
         sql = 'SELECT * FROM command_stats'
         args = ()
         if parent:

@@ -6,7 +6,7 @@ import disnake
 import pytz
 from disnake import ApplicationCommandInteraction
 from disnake.ext import commands
-from disnake.ext.commands import converter
+from disnake.ext.commands import converter, SubCommandGroup
 from disnake.ext.commands.errors import BadArgument
 
 from utils.tzinfo import fuzzy_tz
@@ -225,7 +225,7 @@ class TzConverter(converter.Converter):
         return tz
 
 
-class CleanContent(converter.Converter):
+class CleanContent(converter.clean_content):
     """Converts the argument to mention scrubbed version of
     said content.
 
@@ -246,93 +246,60 @@ class CleanContent(converter.Converter):
     """
     def __init__(self, *, fix_channel_mentions=False, use_nicknames=True, escape_markdown=False,
                  remove_everyone=True, fix_emotes=False):
-        self.fix_channel_mentions = fix_channel_mentions
-        self.use_nicknames = use_nicknames
-        self.escape_markdown = escape_markdown
-        self.remove_everyone = remove_everyone
+        setattr(converter, 'Context', commands.Context)  # TODO remove in disnake 2.5
+        super().__init__(
+            fix_channel_mentions=fix_channel_mentions,
+            use_nicknames=use_nicknames,
+            escape_markdown=escape_markdown,
+            remove_markdown=remove_everyone,
+        )
         self.fix_emotes = fix_emotes
 
     async def convert(self, ctx, argument):
-        message = ctx.message
-        transformations = {}
-
-        if self.fix_channel_mentions and ctx.guild:
-            def resolve_channel(id, *, _get=ctx.guild.get_channel):
-                ch = _get(id)
-                return ('<#%s>' % id), ('#' + ch.name if ch else '#deleted-channel')
-
-            transformations.update(resolve_channel(channel) for channel in message.raw_channel_mentions)
-
-        if self.use_nicknames and ctx.guild:
-            def resolve_member(id_, *, _get=ctx.guild.get_member):
-                m = _get(id_)
-                return '@' + m.display_name if m else '@deleted-user'
-        else:
-            def resolve_member(id_, *, _get=ctx.bot.get_user):
-                m = _get(id_)
-                return '@' + m.name if m else '@deleted-user'
-
-        transformations.update(
-            ('<@%s>' % member_id, resolve_member(member_id))
-            for member_id in message.raw_mentions
-        )
-
-        transformations.update(
-            ('<@!%s>' % member_id, resolve_member(member_id))
-            for member_id in message.raw_mentions
-        )
-
-        if ctx.guild:
-            def resolve_role(_id, *, _find=ctx.guild.get_role):
-                r = _find(_id)
-                return '@' + r.name if r else '@deleted-role'
-
-            transformations.update(
-                ('<@&%s>' % role_id, resolve_role(role_id))
-                for role_id in message.raw_role_mentions
-            )
-
-        def repl(obj):
-            return transformations.get(obj.group(0), '')
-
-        pattern = re.compile('|'.join(transformations.keys()))
-        result = pattern.sub(repl, argument)
-
-        if self.escape_markdown:
-            transformations = {
-                re.escape(c): '\\' + c
-                for c in ('*', '`', '_', '~', '\\')
-            }
-
-            def replace(obj):
-                return transformations.get(re.escape(obj.group(0)), '')
-
-            pattern = re.compile('|'.join(transformations.keys()))
-            result = pattern.sub(replace, result)
+        msg = await super().convert(ctx, argument)
 
         if self.fix_emotes:
             def repl(obj):  # skipcq: PYL-E0102
                 return obj.groups()[0]
 
             pattern = re.compile(r'<:(\w+):[0-9]{17,21}>')
-            result = pattern.sub(repl, result)
+            msg = pattern.sub(repl, msg)
 
-        # Completely ensure no mentions escape:
-        if self.remove_everyone:
-            return re.sub(r'@(everyone|here|[!&]?[0-9]{17,21})', '@\u200b\\1', result)
-        else:
-            return result
+        return msg
 
 
-def bool_choice(_: ApplicationCommandInteraction, argument: Any):
-    if not isinstance(argument, str):
-        raise BadArgument('Argument must be a string')
+def autocomplete_command(inter: ApplicationCommandInteraction, user_input: str):
+    """
+    Autocomplete for a command name. Works for normal and slash commands
+    """
+    user_input = user_input.lower().strip()
+    bot = inter.bot
+    command_names: set[str] = {
+        cmd.qualified_name for cmd in bot.walk_commands()
+        if user_input in cmd.qualified_name and (cmd.cog is None or 'admin' not in cmd.cog.qualified_name.lower())
+    }
 
-    argument = argument.lower().strip()
-    if argument == 'on':
-        return True
+    slash_commands = []
+    for cmd in bot.slash_commands:
+        if cmd.cog and 'admin' in cmd.cog.qualified_name.lower():
+            continue
 
-    if argument == 'off':
-        return False
+        if not cmd.children:
+            if user_input in cmd.qualified_name:
+                slash_commands.append(cmd.qualified_name)
+            continue
 
-    raise BadArgument('Argument must be On or Off')
+        for child in cmd.children.values():
+            if not isinstance(child, SubCommandGroup):
+                if user_input in child.qualified_name:
+                    slash_commands.append(child.qualified_name)
+                continue
+
+            for last_child in child.children.values():
+                if user_input in last_child.qualified_name:
+                    slash_commands.append(last_child.qualified_name)
+
+    command_names.update(slash_commands)
+    commands_sorted = list(sorted(command_names))[:20]
+    return commands_sorted
+

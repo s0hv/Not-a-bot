@@ -1,4 +1,4 @@
-from typing import Union, List, Optional, Callable, NoReturn, Any
+from typing import Union, List, Optional, Callable, Any
 
 import disnake
 from disnake import MessageInteraction
@@ -16,9 +16,9 @@ class Paginator(View):
             show_stop_button=False,
             hide_page_count=False,
             page_to_footer=False,
-            timeout: Optional[float] = 180,
+            timeout: Optional[float] = 120,
             initial_page: int = 0,
-            generate_page: Callable[[int], NoReturn]=None
+            generate_page: Callable[[int], disnake.Embed | str | None]=None
     ) -> None:
         super().__init__(timeout=timeout)
         self.pages = pages
@@ -69,20 +69,23 @@ class Paginator(View):
             await self.message.edit(content=page, view=self)
 
     def update_button_states(self):
+        one_page = len(self.pages) <= 1
         self.next_page.disabled = False
         self.last_page.disabled = False
         self.prev_page.disabled = False
         self.first_page.disabled = False
 
-        if self.page_idx == 0:
+        if self.page_idx == 0 or one_page:
             self.prev_page.disabled = True
             self.first_page.disabled = True
 
-        elif self.page_idx == len(self.pages) - 1:
+        if self.page_idx == len(self.pages) - 1 or one_page:
             self.next_page.disabled = True
             self.last_page.disabled = True
 
         if len(self.pages) < 3:
+            self.remove_item(self.last_page)
+            self.remove_item(self.first_page)
             self.last_page.disabled = True
             self.first_page.disabled = True
 
@@ -92,7 +95,7 @@ class Paginator(View):
         return f'{self.page_idx+1}/{len(self.pages)}'
 
     async def send(self, ctx: Union[Context, disnake.ApplicationCommandInteraction], **kwargs):
-        self._msg_kwargs = kwargs
+        self._msg_kwargs = kwargs.copy()
         page = self.get_current_page()
         args = (page,) if isinstance(page, str) else ()
         if isinstance(page, disnake.Embed):
@@ -106,10 +109,16 @@ class Paginator(View):
         self.message = msg
 
     def get_current_page(self) -> Union[str, disnake.Embed]:
+        page = None
         if self.generate_page:
-            self.generate_page(self.page_idx)
+            page = self.generate_page(self.page_idx)
 
-        page = self.pages[self.page_idx]
+        if not page:
+            page = self.pages[self.page_idx]
+
+        if not isinstance(page, (str, disnake.Embed)):
+            raise ValueError('Invalid page returned')
+
         if self.page_to_footer and isinstance(page, disnake.Embed):
             page.set_footer(text=f'Page {self.get_page_text()}')
 
@@ -129,7 +138,7 @@ class Paginator(View):
         self.page_idx = 0
         await self.update_view(interaction)
 
-    @disnake.ui.button(label='<', style=disnake.ButtonStyle.red)
+    @disnake.ui.button(label='<', style=disnake.ButtonStyle.green)
     async def prev_page(self, _, interaction: MessageInteraction):
         self.page_idx -= 1
         await self.update_view(interaction)

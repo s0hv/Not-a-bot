@@ -26,11 +26,12 @@ from disnake.ext.commands.errors import BadArgument
 
 from bot.bot import command, bot_has_permissions, Context
 from bot.converters import FuzzyRole, TzConverter, PossibleUser
+from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.tzinfo import fuzzy_tz, tz_dict
 from utils.unzalgo import unzalgo
 from utils.utilities import (random_color, get_avatar, split_string,
-                             send_paged_message, format_timedelta,
+                             format_timedelta,
                              parse_timeout, DateAccuracy, utcnow)
 
 try:
@@ -51,7 +52,7 @@ class Utilities(Cog):
 
     @command()
     @cooldown(1, 10, BucketType.guild)
-    async def changelog(self, ctx, page: int=1):
+    async def changelog(self, ctx, starting_page: int=1):
         sql = 'SELECT * FROM changelog ORDER BY time DESC'
         rows = await self.bot.dbutil.fetch(sql)
 
@@ -60,7 +61,8 @@ class Utilities(Cog):
                                   timestamp=row['time'])
             return embed
 
-        def get_page(page, idx):
+        def get_page(idx: int):
+            page = rows[idx]
             if not isinstance(page, disnake.Embed):
                 page = create_embed(page)
                 page.set_footer(text=f'Page {idx+1}/{len(rows)}')
@@ -68,12 +70,14 @@ class Utilities(Cog):
 
             return page
 
-        if page > 0:
-            page -= 1
-        elif page == 0:
-            page = 1
+        if starting_page > 0:
+            starting_page -= 1
+        elif starting_page == 0:
+            starting_page = 1
 
-        await send_paged_message(ctx, rows, True, page, get_page)
+        paginator = Paginator(rows, generate_page=get_page, initial_page=starting_page,
+                              hide_page_count=True, show_stop_button=True)
+        await paginator.send(ctx)
 
     @command(aliases=['pong'])
     @cooldown(1, 5, BucketType.guild)
@@ -295,25 +299,25 @@ class Utilities(Cog):
     @command(name='roles')
     @cooldown(1, 10, type=BucketType.guild)
     @guild_only()
-    async def get_roles(self, ctx, page=''):
+    async def get_roles(self, ctx, starting_page: int=0):
         """Get roles on this server"""
         guild_roles = sorted(ctx.guild.roles, key=lambda r: r.name)
-        idx = 0
-        if page:
-            try:
-                idx = int(page) - 1
-                if idx < 0:
-                    return await ctx.send('Index must be bigger than 0')
-            except ValueError:
-                return await ctx.send('%s is not a valid integer' % page, delete_after=30)
+
+        if starting_page > 0:
+            starting_page -= 1
 
         roles = 'A total of %s roles\n' % len(guild_roles)
         for role in guild_roles:
             roles += '{}: {}\n'.format(role.name, role.mention)
 
         roles = split_string(roles, splitter='\n', maxlen=1000)
-        await send_paged_message(ctx, roles, starting_idx=idx,
-                                 page_method=lambda p, i: '```{}```'.format(p))
+
+        def generate_page(page_index) -> str:
+            role_str = roles[page_index]
+            return f'```{role_str}```'
+
+        paginator = Paginator(roles, initial_page=starting_page, generate_page=generate_page)
+        await paginator.send(ctx, allowed_mentions=disnake.AllowedMentions.none())
 
     @command(aliases=['created_at', 'snowflake', 'snoflake'])
     @cooldown(1, 5, type=BucketType.guild)

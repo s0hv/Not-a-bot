@@ -42,9 +42,8 @@ import disnake
 import numpy
 from aioredis.client import Redis
 from asyncpg.exceptions import PostgresError
-from disnake import ApplicationCommandInteraction
+from disnake import ApplicationCommandInteraction, Embed
 from disnake import abc
-from disnake.embeds import EmptyEmbed
 from validators import url as test_url
 
 from bot.exceptions import CommandBlacklisted, NotOwner
@@ -551,7 +550,7 @@ async def get_images(ctx: 'Context', content, current_message_only=False,
             attachments = (embed.url, embed.thumbnail.url)
 
         for attachment in attachments:
-            if attachment != EmptyEmbed and is_image_url(attachment):
+            if attachment != Embed.Empty and is_image_url(attachment):
                 add_link(attachment)
 
     if not images:
@@ -612,7 +611,7 @@ def get_image_from_embeds(embeds):
         else:
             continue
 
-        return attachment if attachment != EmptyEmbed else None
+        return attachment if attachment != Embed.Empty else None
 
 
 def get_image_from_message(bot, message: disnake.Message, content=None):

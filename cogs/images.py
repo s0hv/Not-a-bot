@@ -27,13 +27,14 @@ from selenium.webdriver.chrome.options import Options
 from bot.bot import command
 from bot.converters import CleanContent
 from bot.exceptions import NoPokeFoundException, BotException
+from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
                               optimize_gif, func_to_gif,
                               get_duration, convert_frames, apply_transparency)
 from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
                              split_string, get_image, dl_image, call_later,
-                             get_images, send_paged_message)
+                             get_images)
 
 logger = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
@@ -1476,10 +1477,12 @@ class Images(Cog):
         All urls will be returned as is and embed urls will be extracted"""
         imgs = await get_images(ctx, data)
 
-        def get_page(_, idx):
+        def get_page(idx):
             return f'{idx+1}/{len(imgs)}\n{imgs[idx]}'
 
-        await send_paged_message(ctx, imgs, page_method=get_page, undoable=True)
+        paginator = Paginator(imgs, generate_page=get_page, hide_page_count=True,
+                              show_stop_button=True)
+        await paginator.send(ctx)
 
     @command()
     @is_owner()

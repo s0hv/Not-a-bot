@@ -8,9 +8,9 @@ from disnake.ext.commands import BucketType, cooldown, guild_only
 
 from bot.bot import command, bot_has_permissions, group, Group
 from bot.converters import AnyUser, CommandConverter, TimeDelta
+from bot.paginator import Paginator
 from cogs.cog import Cog
-from utils.utilities import send_paged_message, format_timedelta, DateAccuracy, \
-    utcnow
+from utils.utilities import format_timedelta, DateAccuracy, utcnow
 
 logger = logging.getLogger('terminal')
 
@@ -153,20 +153,21 @@ class Stats(Cog):
         if cmd:
             cmd = cmd.qualified_name.split(' ')
             parent = cmd[0]
-            name = ' '.join(cmd[1:])
+            cmd_name = ' '.join(cmd[1:])
         else:
             parent = None
-            name = None
+            cmd_name = None
 
-        cmds = await self.bot.dbutil.get_command_stats(parent, name)
+        cmds: list[dict] = await self.bot.dbutil.get_command_stats(parent, cmd_name)
         if not cmds:
             return await ctx.send('Failed to get command stats')
 
-        pages = list(cmds)
+        pages_temp = list(cmds)
         size = 15
-        pages = [pages[i:i+size] for i in range(0, len(pages), size)]
+        pages: list[disnake.Embed | list[dict]] = [pages_temp[i:i+size] for i in range(0, len(pages_temp), size)]
 
-        def get_page(page, idx):
+        def get_page(idx: int):
+            page = pages[idx]
             if isinstance(page, disnake.Embed):
                 return page
 
@@ -180,11 +181,12 @@ class Stats(Cog):
                 desc += f'` {r["uses"]} uses\n'
 
             embed = disnake.Embed(title='Command usage stats', description=desc)
-            embed.set_footer(text=f'{idx+1}/{len(pages)}')
             pages[idx] = embed
             return embed
 
-        await send_paged_message(ctx, pages, embed=True, page_method=get_page)
+        paginator = Paginator(pages, generate_page=get_page)
+
+        await paginator.send(ctx)
 
     async def post_command_activity_stats(self, ctx, cmd, time, user=None,
                                           guild=None, limit=None):
@@ -229,11 +231,12 @@ class Stats(Cog):
         for name in not_found:
             rows.append({'count': 0, 'cmd': name})
 
-        pages = list(rows)
+        pages_temp = list(rows)
         size = 15
-        pages = [pages[i:i + size] for i in range(0, len(pages), size)]
+        pages: list[disnake.Embed | list[dict]] = [pages_temp[i:i + size] for i in range(0, len(pages_temp), size)]
 
-        def get_page(page, idx):
+        def get_page(idx: int):
+            page = pages[idx]
             if isinstance(page, disnake.Embed):
                 return page
 
@@ -248,7 +251,8 @@ class Stats(Cog):
             pages[idx] = embed
             return embed
 
-        await send_paged_message(ctx, pages, embed=True, page_method=get_page)
+        paginator = Paginator(pages, generate_page=get_page)
+        await paginator.send(ctx)
 
     @group(aliases=['cmd_a', 'cmd_activity'], invoke_without_command=True)
     @cooldown(1, 5)

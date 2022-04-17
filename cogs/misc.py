@@ -1,9 +1,10 @@
 import json
 import math
 import urllib
-from datetime import timedelta, datetime
+from datetime import timedelta
 
 import aiohttp
+import dateutil.parser
 import disnake
 from disnake.ext.commands import BucketType, cooldown
 
@@ -99,7 +100,7 @@ class Misc(Cog):
                         description += f'Estimated release interval: {release_interval_}\n'
 
                     if estimated_release:
-                        estimated_release = datetime.strptime(estimated_release, '%Y-%m-%dT%H:%M:%S.%fZ')
+                        estimated_release = dateutil.parser.isoparse(estimated_release)
                         now = utcnow()
                         to_estimate = None
                         if estimated_release < now:
@@ -119,7 +120,7 @@ class Misc(Cog):
                             description += '\n'
 
                 if latest_release:
-                    latest_release = datetime.strptime(latest_release, '%Y-%m-%dT%H:%M:%S.%fZ')
+                    latest_release = dateutil.parser.isoparse(latest_release)
                     since_latest_release = format_timedelta(utcnow() - latest_release, DateAccuracy.Day - DateAccuracy.Hour)
                     description += f'Latest release: {since_latest_release} ago ({latest_release.strftime("%A %H:00, %b %d %Y")})'
 

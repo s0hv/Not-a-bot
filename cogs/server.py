@@ -110,7 +110,7 @@ class Server(Cog):
 
                 added += 1
                 # role_count - 1 to not count the default role
-                s += '{}. {} with {} roles\n'.format(idx + p + 1, u.mention, role_count - 1)
+                s += f'{idx + p + 1}. <@{u.id}> with {role_count - 1} roles  `{u}`\n'
 
             if added == 0:
                 pages[page_idx] = 'Page out of range'
@@ -166,7 +166,7 @@ class Server(Cog):
                 td = format_timedelta(utcnow() - date, DateAccuracy.Day)
                 join_date = disnake.utils.format_dt(date, 'F')
 
-                s += f'{idx + p + 1}. {u.mention} {dtype} {td} ago on {join_date}\n'
+                s += f'{idx + p + 1}. {u.mention} {dtype} {td} ago on {join_date}  `{u}`\n'
 
             s += own_rank
             pages[page_idx] = s

@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2017 s0hvaperuna
+Copyright (c) s0hvaperuna
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,7 +21,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
 import asyncio
 import logging
 import mimetypes
@@ -48,7 +47,6 @@ from validators import url as test_url
 
 from bot.exceptions import CommandBlacklisted, NotOwner
 from bot.globals import BlacklistTypes, PermValues
-from bot.paged_message import PagedMessage
 from enums.data_enums import RedisKeyNamespaces
 from utils.imagetools import image_from_url
 
@@ -1216,86 +1214,6 @@ def check_perms(values, return_raw=False):
     return PermValues.RETURNS.get(smallest, False) if not return_raw else smallest
 
 
-async def send_paged_message(
-        ctx: Union['Context', ApplicationCommandInteraction], pages,
-        embed=False, starting_idx=0,
-        page_method=None, timeout=60, undoable=False):
-    """
-    Send a paged message
-    Args:
-        ctx: Context object to be used
-        pages: List of pages to be sent
-        embed: Determines if the content of the list is Embed or str
-        starting_idx: What page index we starting at
-        page_method:
-            Method that returns the actual page when given the page and
-            index of the page in that order
-        timeout: How long to wait before stopping listening to reactions
-        undoable: Determines if message can be undone
-    """
-    bot = ctx.bot
-    try:
-        if callable(page_method):
-            page = page_method(pages[starting_idx], starting_idx)
-        else:
-            page = pages[starting_idx]
-    except IndexError:
-        return await ctx.send(f'Page index {starting_idx} is out of bounds')
-
-    kwargs = {}
-    if not isinstance(ctx, ApplicationCommandInteraction):
-        kwargs['undoable'] = undoable
-
-    if embed:
-        message = await ctx.send(embed=page, **kwargs)
-    else:
-        message = await ctx.send(page, **kwargs)
-    if len(pages) == 1:
-        return
-
-    paged = PagedMessage(pages, starting_idx=starting_idx)
-    await paged.add_reactions(message)
-
-    if callable(page_method):
-        async def send():
-            if embed:
-                await message.edit(embed=page_method(page, paged.index))
-            else:
-                await message.edit(content=page_method(page, paged.index))
-    else:
-        async def send():
-            if embed:
-                await message.edit(embed=page)
-            else:
-                await message.edit(content=page)
-
-    def check(reaction, user):
-        return paged.check(reaction,
-                           user) and ctx.author.id == user.id and reaction.message.id == message.id
-
-    while True:
-        try:
-            result = await bot.wait_for('reaction_changed', check=check,
-                                        timeout=timeout)
-        except asyncio.TimeoutError:
-            return
-
-        page = paged.reaction_changed(*result)
-        if page is PagedMessage.DELETE:
-            await message.delete()
-            return
-
-        if page is PagedMessage.INVALID:
-            continue
-
-        try:
-            await send()
-            # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
-            await asyncio.sleep(1)
-        except disnake.HTTPException:
-            return
-
-
 def is_owner(ctx):
     if ctx.bot.owner_id != ctx.original_user.id:
         raise NotOwner
@@ -1335,36 +1253,6 @@ async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
         return False
 
     return True
-
-
-async def search(s, ctx, site, downloader, on_error=None):
-    search_keys = {
-        'yt': 'ytsearch',
-        'sc': 'scsearch'
-    }
-    urls = {
-        'yt': 'https://www.youtube.com/watch?v=%s'
-    }
-    max_results = 10
-    search_key = search_keys.get(site, 'ytsearch')
-    channel = ctx.channel
-    query = '{0}{1}:{2}'.format(search_key, max_results, s)
-
-    info = await downloader.extract_info(ctx.bot.loop, url=query,
-                                         on_error=on_error,
-                                         download=False)
-    if info is None or 'entries' not in info:
-        return await channel.respond('Search gave no results', ephemeral=True)
-
-    url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
-
-    def get_page(page, _):
-        id = page.get('id')
-        if id is None:
-            return page.get('url')
-        return url % id
-
-    await send_paged_message(ctx, info['entries'], page_method=get_page)
 
 
 def basic_check(author=None, channel=None):

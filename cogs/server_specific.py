@@ -37,7 +37,7 @@ from cogs.colors import Colors
 from cogs.voting import Poll
 from enums.data_enums import RedisKeyNamespaces
 from utils.utilities import (split_string, parse_time, call_later,
-                             get_avatar, retry, send_paged_message,
+                             get_avatar, retry,
                              check_botperm, format_timedelta, DateAccuracy,
                              wait_for_yes, utcnow)
 
@@ -1849,7 +1849,7 @@ class ServerSpecific(Cog):
         def get_page(_, idx):
             return pages[idx] or cache_page(idx)
 
-        await send_paged_message(ctx, pages, True, page_method=get_page)
+        # await send_paged_message(ctx, pages, True, page_method=get_page)
 
     # noinspection PyUnreachableCode
     @command(enabled=False, hidden=True)

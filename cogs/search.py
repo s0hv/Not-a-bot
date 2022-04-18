@@ -31,13 +31,13 @@ from disnake import DMChannel
 from disnake.ext.commands import cooldown
 
 from bot.bot import command
+from bot.paginator import Paginator
 from cogs.cog import Cog
-from utils.utilities import send_paged_message
 
 logger = logging.getLogger('terminal')
 
 
-class SearchItem():
+class SearchItem:
     def __init__(self, **kwargs):
         self.url = kwargs.pop('link', 'None')
         self.title = kwargs.pop('title', 'Untitled')
@@ -61,14 +61,14 @@ class Search(Cog):
         if ctx.guild and ctx.guild.id == 217677285442977792 and query.strip().lower() == 'penile hemorrhage':
             return
 
-        safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'high'
+        safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'active'
         return await self._search(ctx, query, True, safe=safe)
 
     @command()
     @cooldown(2, 5)
     async def google(self, ctx, *, query):
         #logger.debug('Web search query: {}'.format(query))
-        safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'medium'
+        safe = 'off' if not isinstance(ctx.channel, DMChannel) and ctx.channel.nsfw else 'active'
         return await self._search(ctx, query, safe=safe)
 
     async def _search(self, ctx, query, image=False, safe='off'):
@@ -99,8 +99,12 @@ class Search(Cog):
                         for item in json['items']:
                             items.append(SearchItem(**item))
 
+                        def gen_page(i: int):
+                            return str(items[i])
+                        paginator = Paginator(items, show_stop_button=True, generate_page=gen_page)
+
                         try:
-                            await send_paged_message(ctx, items, page_method=lambda p, i: str(p))
+                            await paginator.send(ctx)
                         except disnake.HTTPException:
                             pass
                         return

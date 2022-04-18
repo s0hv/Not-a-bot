@@ -1,16 +1,17 @@
-from typing import Union, List, Optional, Callable, Any
+from typing import Union, Optional, Callable, Generic, TypeVar
 
 import disnake
 from disnake import MessageInteraction
+from disnake.ext.commands import Context
 from disnake.ui import View
 
-from bot.bot import Context
+TEntry = TypeVar('TEntry')
 
 
-class Paginator(View):
+class Paginator(View, Generic[TEntry]):
     def __init__(
             self,
-            pages: List[str | disnake.Embed | Any],
+            pages: list[str | disnake.Embed | TEntry],
             author_check=True,
             disable_on_timeout=True,
             show_stop_button=False,
@@ -61,6 +62,7 @@ class Paginator(View):
         self.first_page.disabled = True
         self.next_page.disabled = True
         self.last_page.disabled = True
+        self.stop_button.disabled = True
 
         page = self.get_current_page()
         if isinstance(page, disnake.Embed):
@@ -94,14 +96,19 @@ class Paginator(View):
     def get_page_text(self):
         return f'{self.page_idx+1}/{len(self.pages)}'
 
-    async def send(self, ctx: Union[Context, disnake.ApplicationCommandInteraction], **kwargs):
+    async def send(self, ctx: Union[Context, disnake.ApplicationCommandInteraction], ctx_reply: bool=False, **kwargs):
         self._msg_kwargs = kwargs.copy()
+        self._msg_kwargs.pop('mention_author', None)
+
         page = self.get_current_page()
         args = (page,) if isinstance(page, str) else ()
         if isinstance(page, disnake.Embed):
             kwargs['embed'] = page
 
-        msg = await ctx.send(*args, view=self, **kwargs)
+        if ctx_reply and isinstance(ctx, Context):
+            msg = await ctx.reply(*args, view=self, **kwargs)
+        else:
+            msg = await ctx.send(*args, view=self, **kwargs)
         if isinstance(ctx, disnake.ApplicationCommandInteraction):
             msg = await ctx.original_message()
 
@@ -157,7 +164,7 @@ class Paginator(View):
         self.page_idx = len(self.pages) - 1
         await self.update_view(interaction)
 
-    @disnake.ui.button(emoji='🛑', style=disnake.ButtonStyle.red)
+    @disnake.ui.button(emoji='🗑️', style=disnake.ButtonStyle.red)
     async def stop_button(self, *_):
         if self.message:
             await self.message.delete()

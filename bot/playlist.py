@@ -1,7 +1,7 @@
 """
 MIT License
 
-Copyright (c) 2017 s0hvaperuna
+Copyright (c) s0hvaperuna
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -31,22 +31,24 @@ import random
 import re
 import time
 from collections import deque
-from typing import Union
+from typing import Union, Callable, TypeVar, Awaitable
 
 import disnake
-from disnake import ApplicationCommandInteraction
+from disnake import ApplicationCommandInteraction, MessageInteraction
 from numpy import delete as delete_by_indices
 from validators import url as valid_url
 
 from bot.bot import Context
 from bot.downloader import Downloader
 from bot.globals import PLAYLISTS
-from bot.paged_message import PagedMessage
+from bot.paginator import Paginator
 from bot.song import Song
 from utils.utilities import (read_lines, seconds2str)
 
 terminal = logging.getLogger('terminal')
 logger = logging.getLogger('audio')
+
+T = TypeVar('T')
 
 
 def validate_playlist_name(name):
@@ -127,6 +129,52 @@ async def create_playlist(songs, user, name, ctx: ApplicationCommandInteraction)
         await ctx.send(write_playlist(new_songs, name, user.id))
     except (FileExistsError, PermissionError) as e:
         await ctx.send(str(e))
+
+
+class SearchPaginator(Paginator):
+    def __init__(self,
+                 entries: list[T],
+                 on_accept: Callable[[T, int], Awaitable[T | int]]=None,
+                 generate_page=None,
+                 timeout: float=120):
+        super().__init__(entries, generate_page=generate_page, timeout=timeout)
+
+        self._on_accept = on_accept
+        self.remove_item(self.first_page)
+        self.remove_item(self.last_page)
+
+        self.remove_item(self.accept)
+        self.remove_item(self.reject)
+
+        self.add_item(self.accept)
+        self.add_item(self.reject)
+
+    async def on_timeout(self) -> None:
+        self.accept.disabled = True
+        self.reject.disabled = True
+        await super().on_timeout()
+
+    @disnake.ui.button(label='✅', style=disnake.ButtonStyle.green)
+    async def accept(self, *_):
+        if self.message:
+            try:
+                await self.message.delete()
+            except disnake.HTTPException:
+                pass
+            finally:
+                self.message = None
+                self.stop()
+
+        if self._on_accept:
+            await self._on_accept(self.pages[self.page_idx], self.page_idx)
+
+    @disnake.ui.button(label='❌', style=disnake.ButtonStyle.red)
+    async def reject(self, _, interaction: MessageInteraction):
+        await self.update_view(interaction)
+        if self.message:
+            await self.message.delete()
+            self.message = None
+            self.stop()
 
 
 class Playlist:
@@ -245,66 +293,28 @@ class Playlist:
 
         url = urls.get(site, 'https://www.youtube.com/watch?v=%s')
         entries = info['entries']
-        length = len(entries)
-        paged = PagedMessage(entries, stop='❌', accept='✅')
-        emoji = ('◀', '▶', '✅', '❌')
 
-        def get_url(entry):
-            if entry.get('id') is None:
-                new_url = entry.get('url')
+        def get_url(entry_):
+            if entry_.get('id') is None:
+                new_url = entry_.get('url')
             else:
-                new_url = url % entry['id']
+                new_url = url % entry_['id']
 
             return new_url
 
-        def get_page(entry, idx):
-            new_url = get_url(entry)
-            return f'{new_url} {idx+1}/{length}'
+        def get_page(idx: int):
+            return get_url(entries[idx])
 
-        entry = entries[0]
-        try:
-            message = await ctx.respond(get_page(entry, 0))
-        except disnake.HTTPException:
-            return
+        async def enqueue_entry(entry, *_):
+            await self._add_url(get_url(entry), priority=priority,
+                                channel=ctx, requested_by=ctx.author)
 
-        await message.add_reaction('◀')
-        await message.add_reaction('▶')
-        await message.add_reaction('✅')
-        await message.add_reaction('❌')
+        if in_vc:
+            paginator = SearchPaginator(entries, on_accept=enqueue_entry, generate_page=get_page)
+        else:
+            paginator = Paginator(entries, generate_page=get_page, show_stop_button=True)
 
-        def check(reaction, user):
-            return reaction.emoji in emoji and ctx.author.id == user.id and reaction.message.id == message.id
-
-        while True:
-            try:
-                result = await self.bot.wait_for('reaction_changed', check=check,
-                                                 timeout=60)
-            except asyncio.TimeoutError:
-                return await ctx.respond('Took too long.')
-
-            entry = paged.reaction_changed(*result)
-            if entry is PagedMessage.INVALID:
-                continue
-
-            if entry is PagedMessage.DELETE:
-                await message.delete()
-                return
-
-            if entry is PagedMessage.VALID:
-                if in_vc:
-                    entry = paged.current_page
-                    await message.delete()
-                    await self._add_url(get_url(entry), priority=priority,
-                                        channel=ctx, requested_by=ctx.author)
-
-                return
-
-            try:
-                await message.edit(content=get_page(entry, paged.index))
-                # Wait for a bit so the bot doesn't get ratelimited from reaction spamming
-                await asyncio.sleep(1)
-            except disnake.HTTPException:
-                return
+        await paginator.send(ctx, ctx_reply=True, mention_author=False)
 
     async def _add_from_info(self, channel=None, priority=False, no_message=False, metadata=None, **info):
         try:

@@ -4,7 +4,7 @@ import os
 import re
 from datetime import timedelta
 from random import randint, random
-from typing import Union, List, Optional
+from typing import Union, List, Optional, cast
 
 import disnake
 from asyncpg.exceptions import PostgresError
@@ -17,12 +17,13 @@ from bot.bot import (command, group, has_permissions,
 from bot.converters import MentionedMember, PossibleUser, TimeDelta
 from bot.formatter import EmbedPaginator, EmbedLimits
 from bot.globals import DATA
+from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.utilities import (call_later, parse_timeout,
                              get_avatar, is_image_url,
                              seconds2str, get_channel, Snowflake, basic_check,
                              sql2timedelta, check_botperm, format_timedelta,
-                             DateAccuracy, send_paged_message, split_string,
+                             DateAccuracy, split_string,
                              utcnow)
 
 logger = logging.getLogger('terminal')
@@ -408,7 +409,7 @@ class Moderator(Cog):
 
         await ctx.send('Successfully created role %s `%s`' % (name, r.id))
 
-    async def _mute_check(self, ctx):
+    async def _mute_check(self, ctx: Context) -> bool | Optional[disnake.Role]:
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:
@@ -430,6 +431,7 @@ class Moderator(Cog):
         Mute a user(s). Only works if the server has set the mute role.
         Maximum amount of users muted at once is 10
         """
+        users = cast(list[disnake.Member], users)
         if not users:
             ctx.command.reset_cooldown(ctx)
             await ctx.send('No users given to mute')
@@ -804,7 +806,8 @@ class Moderator(Cog):
         pages = self.format_tlog_message(rows, f'Timeouts for {user}',
                                          '`{id}` {time} ago {duration} by {author} for the reason "{reason}"\n')
 
-        await send_paged_message(ctx, pages, embed=True)
+        paginator = Paginator(pages, hide_page_count=True, show_stop_button=True, page_to_footer=True)
+        await paginator.send(ctx)
 
     @timeout_logs.command(name='remove', aliases=['r', 'delete'])
     @cooldown(1, 5, BucketType.user)
@@ -853,13 +856,14 @@ class Moderator(Cog):
         pages = self.format_tlog_message(rows, f'Timeouts by {user}',
                                          '`{id}` <@{uid}> {time} ago {duration} for the reason "{reason}"\n')
 
-        await send_paged_message(ctx, pages, embed=True)
+        paginator = Paginator(pages, hide_page_count=True, show_stop_button=True, page_to_footer=True)
+        await paginator.send(ctx)
 
     @command(aliases=['temp_mute'])
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
     @cooldown(1, 5, BucketType.user)
-    async def timeout(self, ctx, users: Greedy[MentionedMember], *, timeout):
+    async def timeout(self, ctx, users_: Greedy[MentionedMember], *, timeout):
         """
         Mute user/users for a specified amount of time
         Users must be pinged or their id used for them to be timeouted.
@@ -870,6 +874,7 @@ class Moderator(Cog):
         Maximum length for a timeout is 30 days
         e.g. `{prefix}{name} <@!12345678> 10d 10h 10m 10s This is the reason for the timeout`
         """
+        users = cast(list[disnake.Member], users_)
         if not users:
             ctx.command.reset_cooldown(ctx)
             await ctx.send('No users given to timeout')
@@ -999,6 +1004,7 @@ class Moderator(Cog):
     @has_permissions(manage_roles=True)
     async def unmute(self, ctx, user: MentionedMember, *, reason='idk kev'):
         """Unmute a user"""
+        user = cast(disnake.Member, user)
         guild = ctx.guild
         mute_role = self.bot.guild_cache.mute_role(guild.id)
         if mute_role is None:

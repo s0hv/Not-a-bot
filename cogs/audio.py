@@ -54,8 +54,7 @@ from bot.playlist import (Playlist, validate_playlist_name, load_playlist,
 from bot.song import Song, PartialSong
 from bot.youtube import (extract_playlist_id, extract_video_id, Part, id2url,
                          parse_youtube_duration)
-from utils.utilities import (search, parse_seek,
-                             seek_from_timestamp,
+from utils.utilities import (parse_seek, seek_from_timestamp,
                              basic_check, format_timedelta, test_url,
                              wait_for_words, DateAccuracy)
 
@@ -1052,6 +1051,9 @@ class Audio(commands.Cog):
         await ctx.send(f'Successfully deleted playlist {playlist_name}')
 
     async def _search(self, ctx: ApplicationCommandInteraction | Context, name):
+        if isinstance(ctx, Context):
+            await ctx.trigger_typing()
+
         vc = True if ctx.author.voice else False
         if name.startswith('-yt '):
             site = 'yt'
@@ -1079,10 +1081,7 @@ class Audio(commands.Cog):
             if success:
                 musicplayer.start_playlist()
         else:
-            def on_error(_):
-                pass
-
-            await search(name, ctx, site, self.downloader, on_error=on_error)
+            await Playlist(self.bot, downloader=self.downloader).search(name, ctx, site, in_vc=False)
 
     @slash_command(name='search', description='Search for songs from YouTube or Soundcloud (using "-sc " prefix)')
     @commands.cooldown(1, 5, type=BucketType.user)

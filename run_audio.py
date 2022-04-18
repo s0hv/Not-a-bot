@@ -30,9 +30,11 @@ import os
 import sys
 
 import disnake
+from disnake.ext.commands import Param
 
 from bot.audio_bot import AudioBot
 from bot.config import Config, is_test_mode, get_test_guilds
+from bot.converters import autocomplete_command
 from bot.formatter import LoggingFormatter
 
 terminal = logging.getLogger('terminal')
@@ -103,6 +105,16 @@ async def main():
 
     await bot.async_init()
     bot.load_default_cogs()
+
+    @bot.slash_command(name='help')
+    async def help_slash(inter: disnake.ApplicationCommandInteraction, command: str = Param(autocomplete=autocomplete_command)):
+        cmd = inter.bot.get_command(command)
+        slash_cmd = inter.bot.get_slash_command(command)
+
+        description = (cmd and cmd.description) or \
+                      (slash_cmd and (slash_cmd.docstring.get('description') or slash_cmd.body.description))
+        embed = disnake.Embed(title=command, description=description)
+        await inter.send(embed=embed)
 
     await bot.start(os.getenv('TOKEN'))
 

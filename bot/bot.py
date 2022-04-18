@@ -308,39 +308,6 @@ class Bot(commands.AutoShardedBot):
 
         return decorator
 
-    def handle_reaction_changed(self, reaction, user):
-        removed = []
-        event = 'reaction_changed'
-        listeners = self._listeners.get(event)
-        if not listeners:
-            return
-        for i, (future, condition) in enumerate(listeners):
-            if future.cancelled():
-                removed.append(i)
-                continue
-
-            try:
-                result = condition(reaction, user)
-            except Exception as e:
-                future.set_exception(e)
-                removed.append(i)
-            else:
-                if result:
-                    future.set_result((reaction, user))
-                    removed.append(i)
-
-        if len(removed) == len(listeners):
-            self._listeners.pop(event)
-        else:
-            for idx in reversed(removed):
-                del listeners[idx]
-
-    async def on_reaction_add(self, reaction, user):
-        self.handle_reaction_changed(reaction, user)
-
-    async def on_reaction_remove(self, reaction, user):
-        self.handle_reaction_changed(reaction, user)
-
 
 def has_permissions(**perms):
     """

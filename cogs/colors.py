@@ -21,10 +21,12 @@ from disnake.ext import commands
 from disnake.ext.commands import (BucketType, BadArgument, cooldown, guild_only)
 from numpy.random import choice
 
-from bot.bot import command, has_permissions, group, bot_has_permissions
+from bot.bot import (command, has_permissions, group, bot_has_permissions,
+                     Context)
 from bot.globals import WORKING_DIR
 from bot.paginator import Paginator
 from cogs.cog import Cog
+from utils.imagetools import stack_images, concatenate_images
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
                              Snowflake, check_botperm)
 
@@ -34,6 +36,8 @@ rgb_splitter = re.compile(r'^(\d{1,3})([, ])(\d{1,3})\2(\d{1,3})$')
 
 
 class Color:
+    __slots__ = ('role_id', 'name', 'value', 'lab', 'guild_id')
+
     def __init__(self, role_id, name, value, guild_id, lab):
         self.role_id = role_id
         self.name = name
@@ -89,6 +93,11 @@ class Colors(Cog):
         await super().cog_load()
         await self._cache_colors()
 
+    @Cog.listener()
+    async def on_ready(self):
+        logger.debug('Caching colors')
+        await self._cache_colors()
+
     async def _cache_colors(self):
         sql = 'SELECT colors.id, colors.name, colors.value, roles.guild, colors.lab_l, colors.lab_a, colors.lab_b FROM ' \
               'colors LEFT OUTER JOIN roles on roles.id=colors.id'
@@ -100,9 +109,32 @@ class Colors(Cog):
             return
 
         for row in rows:
+            # This will fail before on ready is called
             if not self.bot.get_guild(row['guild']):
                 continue
 
+            await self._add_color(**row)
+
+    @Cog.listener()
+    async def on_guild_join(self, guild: disnake.Guild):
+        await self._cache_guild_colors(guild.id)
+
+    async def _cache_guild_colors(self, guild_id: int):
+        sql = '''
+        SELECT 
+            colors.id, colors.name, colors.value, roles.guild, 
+            colors.lab_l, colors.lab_a, colors.lab_b 
+        FROM colors 
+        LEFT OUTER JOIN roles on roles.id=colors.id 
+        WHERE roles.guild=$1'''
+
+        try:
+            rows = await self.bot.dbutil.fetch(sql, (guild_id,))
+        except PostgresError:
+            logger.exception('Failed to cache colors')
+            return
+
+        for row in rows:
             await self._add_color(**row)
 
     async def _add_color2db(self, color, update=False):
@@ -232,7 +264,7 @@ class Colors(Cog):
             await self._update_color(color, role)
         else:
             lab = self.rgb2lab(tuple(map(lambda x: x/255, role.color.to_rgb())))
-            if not lab_l==lab.lab_l and lab_a==lab.lab_a and lab_b==lab.lab_b:
+            if (lab_l, lab_a, lab_b) != (lab.lab_l, lab.lab_a, lab.lab_b):
                 await self._update_color(color, role, lab=lab)
 
         return color
@@ -346,7 +378,7 @@ class Colors(Cog):
             color.name = after.name
             await self._add_color2db(color, update=True)
 
-    async def _add_colors_from_roles(self, roles, ctx):
+    async def _add_colors_from_roles(self, roles, ctx: Context):
         guild = ctx.guild
         colors = self._colors.get(guild.id)
         if colors is None:
@@ -371,35 +403,6 @@ class Colors(Cog):
                 colors[role.id] = color
             else:
                 await ctx.send('Failed to create color {0.name}'.format(role))
-
-    @staticmethod
-    def concatenate_colors(images, width=50):
-        max_width = width*len(images)
-        height = max(map(lambda i: i.height, images))
-
-        empty = Image.new('RGBA', (max_width, height), (0,0,0,0))
-
-        offset = 0
-        for im in images:
-            empty.paste(im, (offset, 0))
-            offset += width
-
-        return empty
-
-    @staticmethod
-    def stack_colors(images, height=50, max_width: int=None):
-        max_height = height*len(images)
-        if not max_width:
-            max_width = max(map(lambda i: i.width, images))
-
-        empty = Image.new('RGBA', (max_width, max_height), (0,0,0,0))
-
-        offset = 0
-        for im in images:
-            empty.paste(im, (0, offset))
-            offset += height
-
-        return empty
 
     @staticmethod
     def split_rgb(s):
@@ -488,7 +491,7 @@ class Colors(Cog):
                 except (TypeError, ValueError):
                     raise BadArgument(f'Failed to create image using color {color}')
 
-            concat = self.concatenate_colors(images)
+            concat = concatenate_images(images)
             data = BytesIO()
             concat.save(data, 'PNG')
             data.seek(0)
@@ -570,10 +573,10 @@ class Colors(Cog):
                     except (TypeError, ValueError):
                         raise BadArgument(f'Failed to create image using color {color}')
 
-                images.append(self.concatenate_colors(ims))
+                images.append(concatenate_images(ims))
 
             if len(images) > 1:
-                concat = self.stack_colors(images)
+                concat = stack_images(images)
             else:
                 concat = images[0]
 
@@ -743,9 +746,9 @@ class Colors(Cog):
             else:
                 reverse = True
 
-            images.append(self.concatenate_colors(ims, width=size[0]))
+            images.append(concatenate_images(ims, width=size[0]))
 
-        stack = self.stack_colors(images, size[1])
+        stack = stack_images(images, size[1])
 
         data = BytesIO()
         stack.save(data, 'PNG')
@@ -837,7 +840,7 @@ class Colors(Cog):
 
         # dict of
         # hex value: amount of users with said value
-        role_data = {}
+        role_data: dict[int, int] = {}
 
         for m in members:
             val = m.color.value
@@ -1274,6 +1277,9 @@ class Colors(Cog):
         current_embed = 0
         fields = 0
         embeds = [disnake.Embed() for i in range(embed_count)]
+        field_title = ''
+        field_value = ''
+
         for color in colors.values():
             if switch == 0:
                 field_title = str(color)

@@ -28,7 +28,7 @@ from typing import Optional, Type
 
 import disnake
 from aiohttp.client_exceptions import ClientConnectionError
-from disnake import ApplicationCommandInteraction
+from disnake import ApplicationCommandInteraction, AllowedMentions
 from disnake.ext import commands
 from disnake.ext.commands import CheckFailure, CooldownMapping, CommandError
 
@@ -198,7 +198,7 @@ class Bot(commands.AutoShardedBot):
 
             if self._check_error_cd(context):
                 try:
-                    return await context.send(str(exception), ephemeral=True)
+                    return await context.send(str(exception), ephemeral=True, allowed_mentions=AllowedMentions.none())
                 except disnake.Forbidden:
                     pass
             return
@@ -251,7 +251,7 @@ class Bot(commands.AutoShardedBot):
         if error_msg:
             if self._check_error_cd(context):
                 try:
-                    await context.send(error_msg, ephemeral=True)
+                    await context.send(error_msg, ephemeral=True, allowed_mentions=AllowedMentions.none())
                 except disnake.Forbidden:
                     pass
             return

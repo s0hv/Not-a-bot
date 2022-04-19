@@ -64,6 +64,11 @@ class Moderator(Cog):
             raise NoPrivateMessage()
         return True
 
+    @Cog.listener()
+    async def on_ready(self):
+        if not self.load_expiring_events.is_running():
+            self.load_expiring_events.start()
+
     async def _load_automute(self):
         sql = 'SELECT * FROM automute_blacklist'
 

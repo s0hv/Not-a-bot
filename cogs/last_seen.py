@@ -36,6 +36,8 @@ class LastSeen(Cog):
         self._update_task = bot.loop.create_task(self._status_loop(), name='update_last_seen')
         self._update_now = asyncio.Event()
 
+        self._check_loop.start()
+
     def cog_unload(self):
         self._check_loop.cancel()
         self._update_task.cancel()

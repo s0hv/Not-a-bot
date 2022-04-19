@@ -154,6 +154,8 @@ class NotABot(BotBase):
 
         self._ready_called = True
 
+        self._random_color_task.start()
+
         self._mention_prefix = (self.user.mention + ' ', f'<@!{self.user.id}> ')
         await self.dbutil.add_command('help')
         try:

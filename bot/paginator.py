@@ -3,7 +3,7 @@ from typing import Union, Optional, Callable, Generic, TypeVar
 import disnake
 from disnake import MessageInteraction
 from disnake.ext.commands import Context
-from disnake.ui import View
+from disnake.ui import View, Item
 
 TEntry = TypeVar('TEntry')
 
@@ -53,6 +53,12 @@ class Paginator(View, Generic[TEntry]):
             return False
 
         return True
+
+    async def on_error(self, error: Exception, item: Item, interaction: MessageInteraction) -> None:
+        if isinstance(error, disnake.NotFound):
+            return
+
+        await super().on_error(error, item, interaction)
 
     async def on_timeout(self) -> None:
         if not self.disable_on_timeout or self.message is None:
@@ -167,6 +173,7 @@ class Paginator(View, Generic[TEntry]):
     @disnake.ui.button(emoji='🗑️', style=disnake.ButtonStyle.red)
     async def stop_button(self, *_):
         if self.message:
-            await self.message.delete()
+            msg = self.message
             self.message = None
+            await msg.delete()
             self.stop()

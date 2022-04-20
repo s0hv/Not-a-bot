@@ -1510,7 +1510,7 @@ class Audio(commands.Cog):
     @cooldown(2, 3, type=BucketType.guild)
     @command(aliases=['vol'], name='volume')
     @guild_only()
-    async def volume_cmd(self, ctx: Context, volume: int):
+    async def volume_cmd(self, ctx: Context, volume: int = None):
         """
         Sets the volume of the currently playing song.
         If no parameters are given it shows the current volume instead

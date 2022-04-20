@@ -345,7 +345,7 @@ class Server(Cog):
 
         else:
             if not ctx.message.attachments:
-                return await ctx.send('No image provided')
+                return await ctx.send(f'No image provided in {link} or attachments', allowed_mentions=disnake.AllowedMentions.none())
 
             name = link or None
             link = ctx.message.attachments[0].url

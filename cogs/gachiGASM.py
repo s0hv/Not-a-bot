@@ -1,14 +1,14 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timezone
 from random import Random, choice
 
 import disnake
+from disnake.ext import tasks
 from disnake.ext.commands import BucketType, cooldown, guild_only
 
 from bot.bot import command, group, has_permissions
 from bot.globals import PLAYLISTS
 from cogs.cog import Cog
-from utils.utilities import call_later, utcnow
 from utils.utilities import read_lines
 
 
@@ -85,16 +85,16 @@ class gachiGASM(Cog):
         if not self.gachilist:
             self.reload_gachilist()
 
-        self.reload_call = call_later(self._reload_and_post, self.bot.loop, self.time2tomorrow())
+        self._reload_and_post.start()
 
     def cog_unload(self):
-        self.reload_call.cancel()
+        self._reload_and_post.cancel()
 
+    @tasks.loop(time=time(tzinfo=timezone.utc))
     async def _reload_and_post(self):
         self.reload_gachilist()
 
         for guild in self.bot.guilds:
-            vid = Random(self.get_day()+guild.id).choice(self.gachilist)
             channel = self.bot.guild_cache.dailygachi(guild.id)
             if not channel:
                 continue
@@ -103,30 +103,19 @@ class gachiGASM(Cog):
             if not channel:
                 continue
 
+            vid = Random(self.get_day()+guild.id).choice(self.gachilist)
             try:
                 await channel.send(f'Daily gachi {vid}')
             except disnake.HTTPException:
                 pass
-
-        self.reload_call = call_later(self._reload_and_post, self.bot.loop,
-                                      self.time2tomorrow())
 
     def reload_gachilist(self):
         self.bot.gachilist = read_lines(os.path.join(PLAYLISTS, 'gachi.txt'))
         self.gachilist = self.bot.gachilist
 
     @staticmethod
-    def time2tomorrow():
-        # Get utcnow, add 1 day to it and check how long it is to the next day
-        # by subtracting utcnow from the gained date
-        now = utcnow()
-        tomorrow = now + timedelta(days=1)
-        return (tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
-                - now).total_seconds()
-
-    @staticmethod
     def get_day():
-        return (utcnow() - datetime.min).days
+        return (datetime.utcnow() - datetime.min).days
 
     @command()
     @cooldown(1, 2, BucketType.channel)

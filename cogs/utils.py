@@ -20,7 +20,7 @@ import pytz
 from asyncpg.exceptions import PostgresError
 from dateutil import parser
 from dateutil.tz import gettz
-from disnake.ext.commands import (BucketType, Group, cooldown,
+from disnake.ext.commands import (BucketType, cooldown,
                                   guild_only)
 from disnake.ext.commands.errors import BadArgument
 
@@ -158,17 +158,10 @@ class Utilities(Cog):
         You can also get the source code of commands by doing {prefix}{name} cmd_name"""
         if cmd:
             full_name = cmd
-            cmnd = self.bot.all_commands.get(cmd[0])
-            if cmnd is None:
+
+            cmd = self.bot.get_command(cmd)
+            if cmd is None:
                 raise BadArgument(f'Command "{full_name}" not found')
-
-            for c in cmd[1:]:
-                if not isinstance(cmnd, Group):
-                    raise BadArgument(f'Command "{full_name}" not found')
-
-                cmnd = cmnd.get_command(c)
-
-            cmd = cmnd
 
         if not cmd:
             await ctx.send('You can find the source code for this bot here https://github.com/s0hv/Not-a-bot')

@@ -71,10 +71,13 @@ class Paginator(View, Generic[TEntry]):
         self.stop_button.disabled = True
 
         page = self.get_current_page()
-        if isinstance(page, disnake.Embed):
-            await self.message.edit(embed=page, view=self)
-        else:
-            await self.message.edit(content=page, view=self)
+        try:
+            if isinstance(page, disnake.Embed):
+                await self.message.edit(embed=page, view=self)
+            else:
+                await self.message.edit(content=page, view=self)
+        except disnake.NotFound:
+            pass
 
     def update_button_states(self):
         one_page = len(self.pages) <= 1

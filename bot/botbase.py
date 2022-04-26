@@ -28,9 +28,10 @@ from typing import Union
 
 import asyncpg
 import disnake
+from disnake import ApplicationCommandInteraction
 
 from bot import exceptions
-from bot.bot import Bot
+from bot.bot import Bot, Context
 from bot.dbutil import DatabaseUtils
 from bot.globals import Auth
 from bot.guildcache import GuildCache
@@ -154,7 +155,10 @@ class BotBase(Bot):
         else:
             return False
 
-    async def check_auth(self, ctx):
+    async def check_auth(self, ctx: Context | ApplicationCommandInteraction):
+        if isinstance(ctx, ApplicationCommandInteraction):
+            return True
+
         if not hasattr(ctx.command, 'auth'):
             return True
 

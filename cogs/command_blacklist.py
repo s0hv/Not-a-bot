@@ -35,12 +35,12 @@ class CommandBlacklist(Cog):
         The hierarchy of `blacklist` and `whitelist` is as follows
         Whitelist always overrides blacklist of the same level
 
-        Then levels of scope it can have are as follows
+        Then levels of scope are as follows
         `User` > `Role` > `Channel` > `Server` where each level overrides every scope perm after it
         e.g. Blacklisting command ping for role Member and whitelisting it for role Mod
         would make it so people with Member role wouldn't be able to use it unless they had Mod role
 
-        Also if you further whitelisted ping from a single member
+        Also, if you further whitelisted ping from a single member
         that user would be able to use the command always
         since user whitelist overrides every other scope
 

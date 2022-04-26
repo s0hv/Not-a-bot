@@ -125,6 +125,8 @@ class Bot(commands.AutoShardedBot):
         self._exit_code = 0
         self.add_check(check_blacklist)
 
+        self.add_app_command_check(check_blacklist, slash_commands=True)
+
         log.debug('Using loop {}'.format(self.loop))
 
         self.config = config

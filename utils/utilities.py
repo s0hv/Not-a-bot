@@ -1235,8 +1235,10 @@ async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
     if not await bot.check_auth(ctx):
         return False
 
+    command = ctx.application_command if isinstance(ctx, ApplicationCommandInteraction) else ctx.command
+
     overwrite_perms = await bot.dbutil.check_blacklist(
-        "(command='%s' OR command IS NULL)" % ctx.command.name, ctx.author, ctx,
+        "(command='%s' OR command IS NULL)" % command.name, ctx.author, ctx,
         True)
     msg, full_msg = PermValues.BLACKLIST_MESSAGES.get(overwrite_perms,
                                                       (None, None))
@@ -1245,7 +1247,8 @@ async def check_blacklist(ctx: Union[ApplicationCommandInteraction, 'Context']):
             overwrite_perms = True
         else:
             overwrite_perms = PermValues.RETURNS.get(overwrite_perms, False)
-    ctx.override_perms = overwrite_perms
+
+    setattr(ctx, 'override_perms', overwrite_perms)
 
     if overwrite_perms is False:
         if msg is not None or full_msg is not None:

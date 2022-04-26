@@ -192,6 +192,9 @@ class CommandConverter(converter.Converter):
 
         cmd = bot.get_command(argument)
         if not cmd:
+            cmd = bot.get_slash_command(argument)
+
+        if not cmd:
             raise BadArgument('Command "%s" not found' % argument)
 
         return cmd

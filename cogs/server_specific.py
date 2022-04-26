@@ -88,8 +88,119 @@ yousei yunde"""
 
 # Name, chance of spawning, character id, japanese name, spawn images in a list
 waifus = [('Billy Herrington', 3, 1000006, 'ビリー・ヘリントン', ['https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/RxxYp62.png']),
-
           ('Sans', 3, 1000007, 'オイラ', ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
+          ]
+
+waifus_tsuma = [
+    ('Billy Herrington', 3, 900263, ['https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/RxxYp62.png']),
+    ('Sans', 3, 900264, ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
+    ('Artoria Pendragon', 10, 497, ['https://i.imgur.com/pey3ckb.png',
+                                    'https://i.imgur.com/JXPtxvH.png',
+                                    'https://i.imgur.com/PTyq3vw.png',
+                                    'https://i.imgur.com/UJcZZIl.png',
+                                    'https://i.imgur.com/chjdbKl.png',
+                                    'https://tsumabot.com/Images/497/5.jpg',
+                                    'https://i.imgur.com/clNCrV7.png',
+                                    'https://i.imgur.com/evMc389.jpg',
+                                    'https://i.imgur.com/YKBjDrJ.png',
+                                    'https://imgur.com/z5wWfmR.png',
+                                    'https://i.imgur.com/YNdHyPT.jpg',
+                                    'https://i.imgur.com/ryV5Xwt.png',
+                                    'https://i.imgur.com/4GsSxA1.png',
+                                    'https://i.imgur.com/oio5Yqe.png']),
+    ('Astolfo', 8, 79995, ['https://i.imgur.com/mT4jo1u.png',
+                           'https://i.imgur.com/O2MCa31.jpg',
+                           'https://i.imgur.com/DArhRll.jpg',
+                           'https://i.imgur.com/IXEYVOV.jpg',
+                           'https://i.imgur.com/845UiKU.png',
+                           'https://i.imgur.com/yZwOIi7.png',
+                           'https://i.imgur.com/81uWiI7.jpg',
+                           'https://i.imgur.com/3wxnd1R.png',
+                           'https://i.imgur.com/0VMIewR.png',
+                           'https://i.imgur.com/3SPQ8Jt.png',
+                           'https://i.imgur.com/1cHJCCs.png']),
+    ('Inui Toko', 10, 191000, ['https://i.imgur.com/n8vLZBP.jpg',
+                               'https://i.imgur.com/bmbURRg.jpg',
+                               'https://i.imgur.com/VSuuieD.jpg',
+                               'https://i.imgur.com/1mMpHbW.png',
+                               'https://i.imgur.com/1mvQYYI.png',
+                               'https://i.imgur.com/D2Yl9Z9.png',
+                               'https://i.imgur.com/hAO68qG.png',
+                               'https://i.imgur.com/nGvfnOa.png',
+                               'https://i.imgur.com/mx7jl39.png',
+                               'https://i.imgur.com/JBgYoVB.png',
+                               'https://i.imgur.com/rYHAXpt.png',
+                               'https://i.imgur.com/f5K3ASG.png',
+                               'https://i.imgur.com/Qt5Zd9q.png',
+                               'https://i.imgur.com/NnBcBCf.png']),
+    ('YoRHa 2gou Bgata', 10, 153798, ['https://cdn.myanimelist.net/images/characters/7/337223.jpg',
+                                      'https://cdn.myanimelist.net/images/characters/3/392119.jpg',
+                                      'https://i.imgur.com/iHIx0QC.jpg',
+                                      'https://i.imgur.com/9zUAwjI.jpg',
+                                      'https://i.imgur.com/ZFv9NSu.jpg',
+                                      'https://i.imgur.com/cXJRcic.jpg',
+                                      'https://i.imgur.com/rEWtZot.jpg',
+                                      'https://i.imgur.com/zKfPb6w.jpg',
+                                      'https://i.imgur.com/uQMAmwM.jpg',
+                                      'https://i.imgur.com/WJo7OZl.jpg']),
+    ('Gawr Gura', 9, 188696, ['https://i.imgur.com/uXAxNeH.png',
+                              'https://i.imgur.com/CBPXwdz.png',
+                              'https://i.imgur.com/v1pY2VZ.png',
+                              'https://i.imgur.com/5uLHK18.png',
+                              'https://i.imgur.com/Z4VqDWK.png',
+                              'https://i.imgur.com/ZdCvtPs.png',
+                              'https://i.imgur.com/l7PZf3X.png',
+                              'https://i.imgur.com/sdZqBg8.png']),
+    ('Miku Nakano', 10, 160603, ['https://tsumabot.com/Images/Tsumas/2a9cebd7-57a4-42cf-ac19-20512b73a243.jpg',
+                                 'https://tsumabot.com/Images/Tsumas/b7b4cb23-749e-481a-ab95-c789de9258b0.jpg',
+                                 'https://i.imgur.com/Q40o0vE.png',
+                                 'https://imgur.com/k2jzyab.png',
+                                 'https://imgur.com/ZiAoCol.png',
+                                 'https://i.imgur.com/lx0lklZ.jpg',
+                                 'https://imgur.com/NLVsmUa.png',
+                                 'https://i.imgur.com/uiEUw5M.png',
+                                 'https://i.imgur.com/9os97EF.png',
+                                 'https://imgur.com/zMlusRJ.png',
+                                 'https://imgur.com/wUyla41.png',
+                                 'https://i.imgur.com/WTM6o4c.png',
+                                 'https://i.imgur.com/AY28CoF.png',
+                                 'https://i.imgur.com/IFHew18.png']),
+    ('Nino Nakano', 10, 161472, ['https://cdn.myanimelist.net/images/characters/5/360121.jpg',
+                                 'https://imgur.com/Nr3jJ5g.png',
+                                 'https://i.imgur.com/yVLA4Fe.png',
+                                 'https://cdn.myanimelist.net/images/characters/3/385946.jpg',
+                                 'https://cdn.myanimelist.net/images/characters/12/385951.jpg',
+                                 'https://i.imgur.com/0zA2Civ.jpg',
+                                 'https://i.imgur.com/2cKoBdR.png',
+                                 'https://i.imgur.com/TdcOD29.png',
+                                 'https://i.imgur.com/BscfoNX.png',
+                                 'https://i.imgur.com/nH5g15G.png',
+                                 'https://i.imgur.com/YLP9y05.png',
+                                 'https://i.imgur.com/Bgxs3fA.png',
+                                 'https://i.imgur.com/mEkIDgE.png',
+                                 'https://i.imgur.com/IPkIPH6.png']),
+    ('Musashi Miyamoto', 8, 6194, ['https://i.imgur.com/mWlNxJS.jpg',
+                                   'https://i.imgur.com/74icPLS.png',
+                                   'https://i.imgur.com/1kixdJf.jpg',
+                                   'https://i.imgur.com/nZATrTe.jpg',
+                                   'https://i.imgur.com/fTF9UFD.jpg']),
+    ('Ouzen', 7, 140106, ['https://cdn.myanimelist.net/images/characters/2/337540.jpg',
+                          'https://cdn.myanimelist.net/images/characters/2/337577.jpg',
+                          'https://cdn.myanimelist.net/images/characters/8/337579.jpg',
+                          'https://cdn.myanimelist.net/images/characters/3/337582.jpg',
+                          'https://cdn.myanimelist.net/images/characters/12/338457.jpg',
+                          'https://cdn.myanimelist.net/images/characters/7/342925.jpg',
+                          'https://cdn.myanimelist.net/images/characters/4/355419.jpg',
+                          'https://cdn.myanimelist.net/images/characters/14/358235.jpg',
+                          'https://i.imgur.com/ulrTIDE.png',
+                          'https://cdn.myanimelist.net/images/characters/4/368293.jpg']),
+    ('Diego Brando', 9, 20148, ['https://cdn.myanimelist.net/images/characters/7/241077.jpg',
+                                'https://cdn.myanimelist.net/images/characters/5/318241.jpg',
+                                'https://cdn.myanimelist.net/images/characters/11/326273.jpg',
+                                'https://cdn.myanimelist.net/images/characters/8/328089.jpg',
+                                'https://cdn.myanimelist.net/images/characters/9/362645.jpg',
+                                'https://cdn.myanimelist.net/images/characters/12/372773.jpg',
+                                'https://i.imgur.com/EQzXED3.jpg'])
 ]
 '''
           ("Aqua", 10, 117223, 'アクア', ['https://remilia.cirno.pw/image/117223/8a5bf967-ea5c-4077-8693-3a72dfdeda15.jpg',
@@ -179,6 +290,13 @@ waifu_chances = [t[1] for t in waifus]
 _s = sum(waifu_chances)
 waifu_chances = [p / _s for p in waifu_chances]
 del _s
+
+waifu_chances_tsuma = [t[1] for t in waifus_tsuma]
+_s = sum(waifu_chances_tsuma)
+waifu_chances_tsuma = [p / _s for p in waifu_chances_tsuma]
+del _s
+
+TSUMABOT_ID = 722390040977735712
 
 FILTERED_ROLES = {321374867557580801, 331811458012807169, 361889118210359297,
                   380814558769578003, 337290275749756928, 422432520643018773,
@@ -342,6 +460,7 @@ class ServerSpecific(Cog):
         self.grant_whitelist = grant_whitelist
         self.redis: Redis = self.bot.redis
         self._zetas = {}
+        self._d = {}
         self._redis_fails = 0
         self._removing_every = False
         self.replace_tatsu_api = False
@@ -1670,6 +1789,203 @@ class ServerSpecific(Cog):
         e.set_image(url=link)
 
         await wh.send(embed=e, username=wb.name, avatar_url=wb.display_avatar.url)
+
+    @command(hidden=True)
+    @cooldown(1, 60, BucketType.channel)
+    async def tsuma_d(self, ctx: Context, channel: disnake.TextChannel = None):
+        try:
+            await ctx.message.delete()
+        except disnake.HTTPException:
+            pass
+
+        if not channel:
+            channel = ctx.channel
+
+        # Check that we can retrieve a webhook
+        try:
+            wh = await channel.webhooks()
+            if not wh:
+                return
+
+            wh = wh[0]
+        except disnake.HTTPException:
+            return
+
+        # Get random waifu
+        waifu: int = choice(len(waifus_tsuma), p=waifu_chances_tsuma)
+        waifu_name, _, tsuma_id, pictures = waifus_tsuma[waifu]
+
+        name_unmasked = waifu_name.replace(' ', '')
+        name_mask = [False for _ in range(len(name_unmasked))]
+
+        idx = 0
+        for word in waifu_name.split(' '):
+            name_mask[idx] = True
+            idx += len(word)
+
+        def apply_mask():
+            out = ''
+            for idx, char in enumerate(name_unmasked):
+                unmasked = name_mask[idx]
+                if unmasked:
+                    out += char
+                else:
+                    out += r' \_ '
+
+            return out
+
+        # Get image link
+        image_url = choice(pictures)
+        image_number = pictures.index(image_url) + 1
+
+        # Description of the spawn message
+        desc = f"""
+        Try claiming the tsuma with their name
+        `.claim <name>`
+        
+        Hints
+        Use the .hint command to get hints
+        
+        You can use [this]({image_url}) link to view the image"""
+
+        # Create spawn message
+        desc = textwrap.dedent(desc).strip()
+        tsuma_embed = disnake.Embed(
+            title=apply_mask(),
+            color=61183,  # #00EEFF
+            description=desc
+        )
+        tsuma_embed.set_image(url=image_url)
+        tsuma_embed.set_footer(text='use .claim <name>')
+        tsumabot = ctx.guild.get_member(TSUMABOT_ID) or self.bot.get_user(TSUMABOT_ID)
+        if not tsumabot:
+            return
+
+        if isinstance(tsumabot, disnake.Member):
+            wh_name = tsumabot.display_name
+        else:
+            wh_name = tsumabot.name
+
+        webhook_kwargs = {
+            'username': wh_name,
+            'avatar_url': tsumabot.display_avatar.url
+        }
+
+        original_message = await wh.send(embed=tsuma_embed, wait=True, **webhook_kwargs)
+
+        # Checking for character claims below
+        guessed = False
+
+        # Check that the message is a valid tsumabot command
+        def check_(msg):
+            if msg.channel != channel:
+                return False
+
+            if not msg.content.startswith('.'):
+                return False
+
+            content = msg.content.lstrip('. ').lower()
+            if content.startswith('claim ') or content.startswith('hint'):
+                return True
+
+            # Used for despawning
+            if msg.author.id == TSUMABOT_ID:
+                return True
+
+            return False
+
+        claimer = None
+        self._d[ctx.guild.id] = ctx.message.id
+
+        async def wait_for_claim_msg():
+            def tsumabot_check(msg: disnake.Message):
+                if msg.channel != channel:
+                    return False
+
+                if msg.author.id == TSUMABOT_ID and msg.content == 'No active spawn yet.':
+                    return True
+
+                return False
+
+            while True:
+                msg: disnake.Message = await self.bot.wait_for('message',
+                                                               check=tsumabot_check)
+                try:
+                    await msg.delete()
+                except disnake.HTTPException:
+                    pass
+
+        delete_msg_task = self.bot.loop.create_task(wait_for_claim_msg())
+
+        try:
+            # Claim check loop
+            while guessed is False:
+                try:
+                    msg: disnake.Message = await self.bot.wait_for('message', check=check_, timeout=360)
+                except asyncio.TimeoutError:
+                    guessed = None
+                    continue
+
+                # Check if new tsuma spawned
+                if ctx.guild.id in self._d and ctx.message.id != self._d[ctx.guild.id]:
+                    return
+
+                if msg.author.id == TSUMABOT_ID:
+                    if not msg.embeds:
+                        continue
+
+                    # If tsumabot spawns a new character remove this zeta spawn
+                    if '_ ' in msg.embeds[0].title:
+                        guessed = None
+
+                    continue
+
+                msg_words = msg.content.lstrip('. ').lower().split(' ')
+                cmd = msg_words[0].lower()
+
+                if cmd not in ('claim', 'hint'):
+                    # something weird happened
+                    guessed = None
+                    continue
+
+                if cmd == 'hint':
+                    continue
+
+                # Check if correct character name given
+                guess = ' '.join(msg_words[1:])
+                if guess != waifu_name.lower():
+                    await wh.send("Incorrect Name, Try Again.", **webhook_kwargs)
+                    continue
+
+                await wh.send(f'Congratulations {msg.author.mention}! You have claimed [Ⅾ] {waifu_name}',
+                              **webhook_kwargs)
+                claimer = msg.author
+                guessed = True
+
+                # Description of the spawn message
+                desc = f"""
+                        TsumaID: {tsuma_id}
+                        
+                        `.harem` to view your tsumas.
+                        `.latest` to view your most recent claim.
+                        
+                        Image #{image_number} - Click [here]({image_url}) to view"""
+                tsuma_embed.description = desc
+                tsuma_embed.title = waifu_name
+                tsuma_embed.set_footer(text=f'claimed by: {msg.author.name}', icon_url=msg.author.display_avatar)
+
+                try:
+                    await original_message.edit(embed=tsuma_embed)
+                except disnake.HTTPException:
+                    pass
+        finally:
+            delete_msg_task.cancel()
+
+        try:
+            self._d.pop(ctx.guild.id)
+        except KeyError:
+            pass
+
 
     @command(enabled=False, hidden=True)
     @cooldown(1, 10, BucketType.user)

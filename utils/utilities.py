@@ -476,6 +476,8 @@ async def get_images(ctx: 'Context', content, current_message_only=False,
             if isinstance(activity, disnake.CustomActivity) and activity.emoji:
                 add_link(str(activity.emoji.url))
 
+    message = ctx.message
+
     # Check if message id given and fetch that message if that is the case
     if not current_message_only:
         try:
@@ -485,19 +487,22 @@ async def get_images(ctx: 'Context', content, current_message_only=False,
 
         if msg_id:
             try:
-                ctx.message = await ctx.channel.fetch_message(msg_id)
+                message = await ctx.channel.fetch_message(msg_id)
             except disnake.HTTPException:
                 pass
 
     # Images from attachments
-    for attachment in ctx.message.attachments:
+    for attachment in message.attachments:
         if not isinstance(attachment.width, int):
             continue
 
         add_link(attachment.url)
 
+    for sticker in message.stickers:
+        add_link(sticker.url)
+
     # Images from message contents
-    content = ctx.message.content or ''
+    content = message.content or ''
     for word in content.split(' '):
         # Image url
         if is_image_url(word):
@@ -531,12 +536,12 @@ async def get_images(ctx: 'Context', content, current_message_only=False,
             continue
 
     # Mentioned user avatars
-    for user in ctx.message.mentions:
+    for user in message.mentions:
         add_link(get_avatar(user))
         add_activities(user)
 
     # Embed images
-    for embed in ctx.message.embeds:
+    for embed in message.embeds:
         embed_type = embed.type
         attachments = ()
 
@@ -617,9 +622,10 @@ def get_image_from_message(bot, message: disnake.Message, content=None):
     Get image from disnake.Message
     """
     image = None
-    if len(message.attachments) > 0 and isinstance(message.attachments[0].width,
-                                                   int):
+    if len(message.attachments) > 0 and isinstance(message.attachments[0].width, int):
         image = message.attachments[0].url
+    elif message.stickers:
+        image = message.stickers[0].url
     elif content or message.content:
         image = content or message.content.split(' ')[0]
         if not test_url(image):

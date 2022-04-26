@@ -90,7 +90,8 @@ yousei yunde"""
 waifus = [('Billy Herrington', 3, 1000006, 'ビリー・ヘリントン', ['https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/RxxYp62.png']),
 
           ('Sans', 3, 1000007, 'オイラ', ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
-
+]
+'''
           ("Aqua", 10, 117223, 'アクア', ['https://remilia.cirno.pw/image/117223/8a5bf967-ea5c-4077-8693-3a72dfdeda15.jpg',
                                        'https://remilia.cirno.pw/image/117223/4491938b-9852-43a4-9e77-3c88fc2a83c1.jpg',
                                        'https://remilia.cirno.pw/image/117223/249ee590-d9cf-49db-9e82-dc81f3e976de.jpg',
@@ -172,6 +173,7 @@ waifus = [('Billy Herrington', 3, 1000006, 'ビリー・ヘリントン', ['http
           ('Fumino Furuhashi', 10, 148394, '古橋 文乃', ['https://remilia.cirno.pw/image/148394/06fe5be2-90a7-48f6-a0ec-054d5f8c643d.jpg',
                                                      'https://remilia.cirno.pw/image/148394/5a1e0587-ad4e-477a-b84e-d2ae973f920f.jpg'])
           ]
+'''
 
 waifu_chances = [t[1] for t in waifus]
 _s = sum(waifu_chances)
@@ -261,6 +263,10 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None,  data={"id": 348900633979518977, "name": "Role to die"}),
         disnake.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"}),
         disnake.Role(guild=None, state=None,  data={"id": 318383761953652741, "name": "The Ashura"})
+    },
+
+    1500: {
+        disnake.Role(guild=None, state=None, data={"id": 968563116130578472, "name": "Radahn festival enjoyer"})
     }
 }
 
@@ -1359,9 +1365,9 @@ class ServerSpecific(Cog):
     @command(aliases=['tole_get', 'toletole', 'give_role', 'give_tole'])
     @check(create_check((217677285442977792,)))
     @cooldown(1, 10, BucketType.user)
-    async def role_get(self, ctx, mentionable: bool=False):
+    async def role_get(self, ctx, mentionable: bool=None):
         """
-        Chance to get a role. By default you don't get mentionable roles.
+        Chance to get a role. By default, only gives mentionable roles if no other roles are available.
         This can be changed if you use set mentionable to true.
         e.g.
         `{prefix}{name} on` will also take mentionable roles into account
@@ -1398,6 +1404,7 @@ class ServerSpecific(Cog):
 
         # Set of all the roles a user can get
         roles = set()
+        mentionable_roles = set()
 
         # Get available roles
         for days, toles in AVAILABLE_ROLES.items():
@@ -1405,16 +1412,24 @@ class ServerSpecific(Cog):
                 for role in toles:
                     role = guild.get_role(role.id)
                     # Check that the role exists and the if it can be mentionable
-                    if not role or (not mentionable and role.mentionable):
+                    if not role:
                         continue
 
-                    roles.add(role)
+                    if role.mentionable:
+                        mentionable_roles.add(role)
+                    else:
+                        roles.add(role)
 
         # Check that roles are available
         user_roles = set(ctx.author.roles)
         roles = roles - user_roles
+        mentionable_roles = mentionable_roles - user_roles
+
+        if mentionable or (mentionable is None and not roles):
+            roles.update(mentionable_roles)
+
         if not roles:
-            if not mentionable:
+            if mentionable is False:
                 await ctx.send('No unmentionable roles available. Use `!toletole on` to include mentionable roles.')
             else:
                 await ctx.send('No roles available to you at the moment. Try again after being more active')

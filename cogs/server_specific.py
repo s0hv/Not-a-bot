@@ -1979,13 +1979,13 @@ class ServerSpecific(Cog):
                 except disnake.HTTPException:
                     pass
         finally:
+            await asyncio.sleep(0.4)
             delete_msg_task.cancel()
 
         try:
             self._d.pop(ctx.guild.id)
         except KeyError:
             pass
-
 
     @command(enabled=False, hidden=True)
     @cooldown(1, 10, BucketType.user)

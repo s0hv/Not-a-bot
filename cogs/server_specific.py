@@ -1916,7 +1916,7 @@ class ServerSpecific(Cog):
                 if msg.channel != channel:
                     return False
 
-                if msg.author.id == TSUMABOT_ID and (msg.content == 'No active spawn yet.' or msg.content.replace("'", '') == 'Couldnt find spawn. Try Again'):
+                if msg.author.id == TSUMABOT_ID and (msg.content in ('No active spawn yet.', 'Incorrect Name, Try Again.') or msg.content.replace("'", '') == 'Couldnt find spawn. Try Again'):
                     return True
 
                 return False

@@ -14,6 +14,7 @@ from typing import Union, Optional
 
 import disnake
 import emoji
+import numpy as np
 import unicodedata
 from aioredis import Redis
 from aioredis.exceptions import ConnectionError as RedisConnectionError
@@ -472,6 +473,9 @@ class ServerSpecific(Cog):
         await self.load_giveaways()
 
     def cog_unload(self):
+        self._zetas.clear()
+        self._d.clear()
+
         self.bot.server.remove_listener(self.reduce_role_cooldown)
         for g in list(self.bot.every_giveaways.values()):
             g.cancel()
@@ -1815,18 +1819,25 @@ class ServerSpecific(Cog):
         waifu: int = choice(len(waifus_tsuma), p=waifu_chances_tsuma)
         waifu_name, _, tsuma_id, pictures = waifus_tsuma[waifu]
 
+        case_order_insensitive_name = Counter(waifu_name.lower().split(' '))
+
         name_unmasked = waifu_name.replace(' ', '')
-        name_mask = [False for _ in range(len(name_unmasked))]
+        name_mask = np.zeros((len(name_unmasked),), dtype=bool)
 
         idx = 0
+        space_indices = set()
         for word in waifu_name.split(' '):
             name_mask[idx] = True
             idx += len(word)
+            space_indices.add(idx)
 
         def apply_mask():
             out = ''
-            for idx, char in enumerate(name_unmasked):
-                unmasked = name_mask[idx]
+            for idx_, char in enumerate(name_unmasked):
+                unmasked = name_mask[idx_]
+                if idx_ in space_indices:
+                    out += ' '
+
                 if unmasked:
                     out += char
                 else:
@@ -1884,7 +1895,7 @@ class ServerSpecific(Cog):
             if not msg.content.startswith('.'):
                 return False
 
-            content = msg.content.lstrip('. ').lower()
+            content = strip_cmd(msg.content)
             if content.startswith('claim ') or content.startswith('hint'):
                 return True
 
@@ -1897,12 +1908,15 @@ class ServerSpecific(Cog):
         claimer = None
         self._d[ctx.guild.id] = ctx.message.id
 
+        def strip_cmd(s):
+            return s.lstrip('. ').lower()
+
         async def wait_for_claim_msg():
             def tsumabot_check(msg: disnake.Message):
                 if msg.channel != channel:
                     return False
 
-                if msg.author.id == TSUMABOT_ID and msg.content == 'No active spawn yet.':
+                if msg.author.id == TSUMABOT_ID and (msg.content == 'No active spawn yet.' or msg.content.replace("'", '') == 'Couldnt find spawn. Try Again'):
                     return True
 
                 return False
@@ -1926,8 +1940,8 @@ class ServerSpecific(Cog):
                     guessed = None
                     continue
 
-                # Check if new tsuma spawned
-                if ctx.guild.id in self._d and ctx.message.id != self._d[ctx.guild.id]:
+                # Check if new tsuma spawned or cog unloaded
+                if ctx.guild.id not in self._d or ctx.message.id != self._d[ctx.guild.id]:
                     return
 
                 if msg.author.id == TSUMABOT_ID:
@@ -1940,7 +1954,7 @@ class ServerSpecific(Cog):
 
                     continue
 
-                msg_words = msg.content.lstrip('. ').lower().split(' ')
+                msg_words = strip_cmd(msg.content).split(' ')
                 cmd = msg_words[0].lower()
 
                 if cmd not in ('claim', 'hint'):
@@ -1949,28 +1963,43 @@ class ServerSpecific(Cog):
                     continue
 
                 if cmd == 'hint':
+                    if name_mask.sum() == len(name_unmasked) - 1:
+                        await wh.send('Out of Hints.', **webhook_kwargs)
+                        continue
+
+                    available_indices = np.where(~name_mask)[0]
+                    max_revealed = random.randint(int(len(available_indices) * 0.30), int(len(available_indices) * 0.40))
+                    max_revealed = min(max(max_revealed, 3), len(available_indices) - 1)
+
+                    name_mask[choice(available_indices, max_revealed, replace=False)] = True
+
+                    tsuma_embed.title = apply_mask()
+                    try:
+                        await original_message.edit(embed=tsuma_embed)
+                    except disnake.HTTPException:
+                        return
                     continue
 
                 # Check if correct character name given
-                guess = ' '.join(msg_words[1:])
-                if guess != waifu_name.lower():
+                guess = Counter(msg_words[1:])
+                if guess != case_order_insensitive_name:
                     await wh.send("Incorrect Name, Try Again.", **webhook_kwargs)
                     continue
 
                 await wh.send(f'Congratulations {msg.author.mention}! You have claimed [Ⅾ] {waifu_name}',
-                              **webhook_kwargs)
+                              wait=True, **webhook_kwargs)
                 claimer = msg.author
                 guessed = True
 
                 # Description of the spawn message
                 desc = f"""
-                        TsumaID: {tsuma_id}
-                        
-                        `.harem` to view your tsumas.
-                        `.latest` to view your most recent claim.
-                        
-                        Image #{image_number} - Click [here]({image_url}) to view"""
-                tsuma_embed.description = desc
+                TsumaID: {tsuma_id}
+                
+                `.harem` to view your tsumas.
+                `.latest` to view your most recent claim.
+                
+                Image #{image_number} - Click [here]({image_url}) to view"""
+                tsuma_embed.description = textwrap.dedent(desc).strip()
                 tsuma_embed.title = waifu_name
                 tsuma_embed.set_footer(text=f'claimed by: {msg.author.name}', icon_url=msg.author.display_avatar)
 
@@ -1986,6 +2015,60 @@ class ServerSpecific(Cog):
             self._d.pop(ctx.guild.id)
         except KeyError:
             pass
+
+        async def delete_latest_msg():
+            def tsumabot_check(msg: disnake.Message):
+                if msg.channel != channel or msg.author.id != TSUMABOT_ID:
+                    return False
+
+                if not msg.embeds:
+                    return False
+
+                embed = msg.embeds[0]
+                if embed.author and embed.author.name == str(claimer):
+                    return True
+
+                return False
+
+            try:
+                msg: disnake.Message = await self.bot.wait_for('message', check=tsumabot_check, timeout=60)
+            except asyncio.TimeoutError:
+                return
+
+            try:
+                await msg.delete()
+            except disnake.HTTPException:
+                pass
+
+        latest_desc = f"""
+        LocalID: {random.randint(5000, 25000)}
+        Tag:
+        ❤ Affection: 0"""
+        latest_desc = textwrap.dedent(latest_desc).strip()
+        latest_embed = disnake.Embed(title=f'{waifu_name} [Ⅾ]', description=latest_desc, color=61183)
+
+        latest_embed.set_author(name=str(claimer), icon_url=claimer.display_avatar.url)
+        latest_embed.set_footer(text=f'Image Variant : {image_number}')
+        latest_embed.set_image(url=image_url)
+
+        def check_latest(msg: disnake.Message):
+            if msg.channel != channel or msg.author != claimer:
+                return False
+
+            cmd = strip_cmd(msg.content)
+            if not cmd or cmd not in ('last', 'latest'):
+                return False
+
+            return True
+
+        try:
+            await self.bot.wait_for('message', check=check_latest, timeout=60)
+        except asyncio.TimeoutError:
+            return
+
+        self.bot.loop.create_task(delete_latest_msg())
+
+        await wh.send(embed=latest_embed, **webhook_kwargs)
 
     @command(enabled=False, hidden=True)
     @cooldown(1, 10, BucketType.user)

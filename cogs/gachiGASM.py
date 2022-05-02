@@ -1,4 +1,6 @@
+import logging
 import os
+import traceback
 from datetime import datetime, time, timezone
 from random import Random, choice
 
@@ -10,6 +12,8 @@ from bot.bot import command, group, has_permissions
 from bot.globals import PLAYLISTS
 from cogs.cog import Cog
 from utils.utilities import read_lines
+
+logger = logging.getLogger('terminal')
 
 
 class WrestlingGif:
@@ -86,6 +90,7 @@ class gachiGASM(Cog):
             self.reload_gachilist()
 
         self._reload_and_post.start()
+        logger.info(f'Starting gachi loop.\n{"".join(traceback.format_stack()[-8:])}')
 
     def cog_unload(self):
         self._reload_and_post.cancel()

@@ -89,7 +89,7 @@ class gachiGASM(Cog):
         if not self.gachilist:
             self.reload_gachilist()
 
-        self._reload_and_post.start()
+        self._start_task = self._reload_and_post.start()
         logger.info(f'Starting gachi loop.\n{"".join(traceback.format_stack()[-8:])}')
 
     def cog_unload(self):
@@ -98,6 +98,8 @@ class gachiGASM(Cog):
     @tasks.loop(time=time(tzinfo=timezone.utc))
     async def _reload_and_post(self):
         self.reload_gachilist()
+
+        logger.info(f'Start task is {self._start_task} and current task is {self._reload_and_post.get_task()}.\n{"".join(traceback.format_stack()[-8:])}')
 
         for guild in self.bot.guilds:
             channel = self.bot.guild_cache.dailygachi(guild.id)

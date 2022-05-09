@@ -95,7 +95,7 @@ class gachiGASM(Cog):
     def cog_unload(self):
         self._reload_and_post.cancel()
 
-    @tasks.loop(time=time(tzinfo=timezone.utc))
+    @tasks.loop(time=time(tzinfo=timezone.utc), reconnect=False)
     async def _reload_and_post(self):
         self.reload_gachilist()
 

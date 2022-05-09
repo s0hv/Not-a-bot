@@ -505,9 +505,9 @@ class Pokemon(Cog):
         (usually in the format of "Congratulations @user! You caught a level 10 Magikarp!")
 
         Usage:
-            {prefix}{name} https://disnake.com/channels/353927534439825429/354712220761980939/826470021713625169
+            {prefix}{name} https://discord.com/channels/353927534439825429/354712220761980939/826470021713625169
         """
-        link = f'https://disnake.com/channels/{message.guild.id}/{message.channel.id}/{message.id}'
+        link = message.jump_url
 
         if not self._is_pokebot(message.author.id):
             await ctx.send(f'Message not from a supported bot. {link}')
@@ -612,7 +612,7 @@ class Pokemon(Cog):
             icon = f'https://raw.githubusercontent.com/msikma/pokesprite/master/icons/pokemon/{shiny[1:] or "regular"}/{icon_fmt}.png'
 
         desc = f'{mention} caught a **{"Shiny " if shiny else ""}{poke}**\n' \
-               f'[Jump to message](https://disnake.com/channels/{message.guild.id}/{message.channel.id}/{message.id})'
+               f'[Jump to message]({message.jump_url})'
         embed = Embed(description=desc, colour=random_color())
         embed.set_image(url=url)
         embed.set_thumbnail(url=icon)

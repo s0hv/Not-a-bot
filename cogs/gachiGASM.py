@@ -97,9 +97,11 @@ class gachiGASM(Cog):
 
     @tasks.loop(time=time(tzinfo=timezone.utc), reconnect=False)
     async def _reload_and_post(self):
+        logger.info(f'Start task is {self._start_task}, '
+                    f'current task is {self._reload_and_post.get_task()}, '
+                    f'fail status: {self._reload_and_post._last_iteration_failed}, '
+                    f'next iter {self._reload_and_post.next_iteration}.\n{"".join(traceback.format_stack()[-8:])}')
         self.reload_gachilist()
-
-        logger.info(f'Start task is {self._start_task} and current task is {self._reload_and_post.get_task()}.\n{"".join(traceback.format_stack()[-8:])}')
 
         for guild in self.bot.guilds:
             channel = self.bot.guild_cache.dailygachi(guild.id)

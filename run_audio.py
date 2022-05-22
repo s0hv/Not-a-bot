@@ -89,7 +89,7 @@ intents.webhooks = False
 intents.bans = False
 intents.emojis_and_stickers = False
 intents.typing = False
-#intents.message_content = True
+intents.message_content = True
 
 test_mode = is_test_mode()
 bot: AudioBot = None

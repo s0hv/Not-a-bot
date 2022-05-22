@@ -84,7 +84,7 @@ except:
 
 intents = disnake.Intents.default()
 intents.members = True
-#intents.messages = True
+intents.message_content = True
 
 intents.invites = False
 intents.voice_states = False

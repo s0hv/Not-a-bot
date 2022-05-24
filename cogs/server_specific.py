@@ -65,28 +65,6 @@ grant_check = create_check(grant_whitelist)
 tatsu_user_regex = re.compile(r'.+?Viewing server rankings .+? \[.+? (?P<user>.+?#\d{4}) +[*]{0,2}].+?', re.UNICODE)
 tatsu_score_regex = re.compile(r'.+?with a total of `?(?P<score>\d+)`? .+ [*]{0,2}server score[*]{0,2}', re.I | re.U | re.M | re.DOTALL)
 
-# waifus to add
-"""
-ram
-emilia
-chiaki nanami
-nagito komaeda
-ochako uraraka 
-tsuyu asui
-kyouka jirou
-momo yaoyorozu
-rias gremory
-himiko toga
-akeno himejima
-xenovia quarta 
-ushikai musume
-Koneko toujou
-asuna yuuki
-Mai Sakurajima
-kanna kamui
-ann takamaki
-yousei yunde"""
-
 # Name, chance of spawning, character id, japanese name, spawn images in a list
 waifus = [('Billy Herrington', 3, 1000006, 'ビリー・ヘリントン', ['https://i.imgur.com/ny8IwLI.png', 'https://i.imgur.com/V9X7Rbm.png', 'https://i.imgur.com/RxxYp62.png']),
           ('Sans', 3, 1000007, 'オイラ', ['https://imgur.com/VSet9rA.jpg', 'https://imgur.com/Dv5HNHH.jpg']),
@@ -203,89 +181,6 @@ waifus_tsuma = [
                                 'https://cdn.myanimelist.net/images/characters/12/372773.jpg',
                                 'https://i.imgur.com/EQzXED3.jpg'])
 ]
-'''
-          ("Aqua", 10, 117223, 'アクア', ['https://remilia.cirno.pw/image/117223/8a5bf967-ea5c-4077-8693-3a72dfdeda15.jpg',
-                                       'https://remilia.cirno.pw/image/117223/4491938b-9852-43a4-9e77-3c88fc2a83c1.jpg',
-                                       'https://remilia.cirno.pw/image/117223/249ee590-d9cf-49db-9e82-dc81f3e976de.jpg',
-                                       'https://remilia.cirno.pw/image/117223/a5aebd7c-a1d4-472f-94f0-f8cad133aac3.jpg',
-                                       'https://remilia.cirno.pw/image/117223/a80a8a44-ea9a-4ec3-8634-3ec266af23ae.jpg'
-                                       'https://remilia.cirno.pw/image/117223/d629b228-62de-465b-88b9-ee43e1d9a4d5.jpg',
-                                       'https://remilia.cirno.pw/image/117223/30367c34-ac96-4f53-a2bf-86519188273a.jpg',
-                                       'https://remilia.cirno.pw/image/117223/8f122ed8-236f-4b0a-8dd0-ad2351fe4ec6.jpg',
-                                       'https://remilia.cirno.pw/image/117223/db90d082-bb3f-488d-9401-7db8234b7448.jpg',
-                                       'https://remilia.cirno.pw/image/117223/afc94ad7-a5bc-4bbf-b9e1-17f945a81a88.jpg',
-                                       'https://remilia.cirno.pw/image/117223/13d69193-a8ce-44af-88fc-d65f8c47baa7.jpg',
-                                       'https://remilia.cirno.pw/image/117223/434274bd-9e85-4da8-aebf-6862a0ff3db9.jpg',
-                                       'https://remilia.cirno.pw/image/117223/e9ebb3bf-5cad-44b1-b80e-6b5d29d4086e.jpg',
-                                       'https://remilia.cirno.pw/image/117223/7d92c3b3-4c73-4bd4-a4b9-60e2b81e2572.jpg',
-                                       'https://remilia.cirno.pw/image/117223/561f660b-fcbc-4d46-9738-c56b7c284974.jpg',
-                                       'https://remilia.cirno.pw/image/117223/f32cd559-a5ae-44c1-9279-d1fa79fc0678.jpg',
-                                       'https://remilia.cirno.pw/image/117223/3db706fc-728e-4d85-a0a1-be2a7c41e803.jpg']),
-
-          ('Zero Two', 10, 155679, 'ゼロツー', ['https://remilia.cirno.pw/image/155679/3b985740-607e-43cf-9e70-2b99124995f4.jpg',
-                                            'https://remilia.cirno.pw/image/155679/c28593d0-08c4-4616-ab7a-905d0e693923.jpg',
-                                            'https://remilia.cirno.pw/image/155679/d526e174-881f-4539-b2df-251d7577c094.jpg',
-                                            'https://remilia.cirno.pw/image/155679/07fd0fc6-193e-40fa-a93d-1969338c7293.jpg',
-                                            'https://remilia.cirno.pw/image/155679/ae537ce5-95e5-46a6-9975-3efcba887758.jpg',
-                                            'https://remilia.cirno.pw/image/155679/621a6ec6-a946-43bf-88d8-54f89e55558d.jpg',
-                                            'https://remilia.cirno.pw/image/155679/f715e4b4-412e-40df-af10-0e6287603a2f.jpg',
-                                            'https://remilia.cirno.pw/image/155679/27e9fc57-9e94-4abc-a53f-c5ae117b81be.jpg',
-                                            'https://remilia.cirno.pw/image/155679/40a7a452-3b10-4502-9347-a9f8e9f3c96f.jpg']),
-
-          ('Albedo', 10, 116275, 'アルベド', ['https://remilia.cirno.pw/image/116275/9f928af1-25c8-4c47-b64b-e6ade0b21852.jpg',
-                                          'https://remilia.cirno.pw/image/116275/2a3e9176-f65c-4a80-9a71-5b27cfc0d718.jpg',
-                                          'https://remilia.cirno.pw/image/116275/93f07543-7fd2-4144-8c4c-91e58e207624.jpg',
-                                          'https://remilia.cirno.pw/image/116275/62f84a38-a8b3-49e6-985b-cd95256e5e21.jpg',
-                                          'https://remilia.cirno.pw/image/116275/68cd7f9b-9113-41cc-829d-808b3a61d415.jpg',
-                                          'https://remilia.cirno.pw/image/116275/1035ee75-c2d4-4ac9-8880-1d04da7b833f.jpg']),
-
-          ('Rem', 10, 118763, 'レム', ['https://remilia.cirno.pw/image/118763/eb7f66a2-7c4e-4a60-8db2-2b71194b3f16.jpg',
-                                     'https://remilia.cirno.pw/image/118763/0e18b232-c09f-427d-967a-ba13cfed68cc.jpg',
-                                     'https://remilia.cirno.pw/image/118763/2a9edebc-16dc-4238-8527-3c29c8f7e88e.jpg',
-                                     'https://remilia.cirno.pw/image/118763/30f70c08-1a9e-4280-a60d-22ffb27de0d2.jpg',
-                                     'https://remilia.cirno.pw/image/118763/566b834c-4ff6-4467-9aaa-04b6e4928a7d.jpg',
-                                     'https://remilia.cirno.pw/image/118763/f151eba2-4bbe-46fb-a42c-78a97ce4200e.jpg',
-                                     'https://remilia.cirno.pw/image/118763/040d7267-4469-4526-81ec-990dd6caa24c.jpg',
-                                     'https://remilia.cirno.pw/image/118763/bde14658-fd55-49b7-be21-2950824a5609.jpg',
-                                     'https://remilia.cirno.pw/image/118763/3a430b82-918c-4565-bf21-6e4b57d9b502.jpg',
-                                     'https://remilia.cirno.pw/image/118763/663cc9f9-bf65-4a70-b663-e64b3af98b3b.jpg',
-                                     'https://remilia.cirno.pw/image/118763/35f22c51-0d3d-432c-b1ab-0ad3aa7bc3ba.jpg',
-                                     'https://remilia.cirno.pw/image/118763/51666a5c-c2f0-4445-8918-910d2e4147e5.jpg',
-                                     'https://remilia.cirno.pw/image/118763/85f3bc45-ff71-43e9-ae55-8c7af22eb900.jpg',
-                                     'https://remilia.cirno.pw/image/118763/26b48261-d208-41d9-8c6a-9057e17b533d.jpg',
-                                     'https://remilia.cirno.pw/image/118763/e3f0d401-7d33-4d80-bb1a-ef9590ce98f1.jpg',
-                                     'https://remilia.cirno.pw/image/118763/358a4347-6c43-49a5-bd16-9490a6f7e7e5.jpg']),
-
-          ('Diego Brando', 10, 20148, 'ディエゴ・ブランド', ['https://remilia.cirno.pw/image/20148/a784eb6a-9e51-4aac-8181-8f95ad4e4082.jpg',
-                                                        'https://remilia.cirno.pw/image/20148/d17cb5f6-442b-4453-ba2a-2fb33ed98c39.jpg',
-                                                        'https://remilia.cirno.pw/image/20148/7f361064-d410-4ec7-89e2-c47dd31f3340.jpg',
-                                                        'https://remilia.cirno.pw/image/20148/8c7140e9-d9f8-4d40-81a8-601bd553cefe.jpg',
-                                                        'https://remilia.cirno.pw/image/20148/b680c43d-2e2c-430d-9b0e-7e23db457333.jpg']),
-
-          ('Caesar Anthonio Zeppeli', 10, 21959, 'シーザー・アントニオ・ツェペリ', ['https://remilia.cirno.pw/image/21959/2fd6b9f9-3657-40f6-a5c5-87b9a8e245a9.jpg',
-                                                                                'https://remilia.cirno.pw/image/21959/c82c68fd-a172-466c-a4a7-10e395da6440.jpg']),
-
-          ('Nezuko Kamado', 10, 146157, '竈門 禰豆子', ['https://remilia.cirno.pw/image/146157/b14931d7-9c59-46fc-b4d7-3375cf2510b1.jpg',
-                                                        'https://remilia.cirno.pw/image/146157/42b6fbd8-4090-42e9-bbf8-d795751e42c4.jpg']),
-          ('YoRHa 2-gou B-gata', 10, 153798, 'ヨルハ2号B型', ['https://remilia.cirno.pw/image/153798/3d422bbf-4a91-4ea2-b59a-d59a8f82f07b.jpg']),
-
-          ('Rias Gremory', 10, 50389, 'リアス・グレモリー', ['https://remilia.cirno.pw/image/50389/64667c4b-452e-4545-9fd9-405eba3331bf.jpg',
-                                                           'https://remilia.cirno.pw/image/50389/2baa6fcf-78f2-4c93-9590-32a3bd90b32c.jpg',
-                                                           'https://remilia.cirno.pw/image/50389/24da6571-e509-4808-855c-4d1864d90d3c.jpg',
-                                                           'https://remilia.cirno.pw/image/50389/d57f41fb-f0dd-4ecf-bc02-82197513473c.jpg'
-                                                           'https://remilia.cirno.pw/image/50389/352880a3-7f9a-4cb3-9234-590ab3e946ca.jpg',
-                                                           'https://remilia.cirno.pw/image/50389/3fc0938f-8712-4b6c-9ebf-3f742ef266e6.jpg',
-                                                           'https://remilia.cirno.pw/image/50389/b1def5ff-a6bb-4939-8800-e9747efd2b74.jpg',
-                                                           'https://remilia.cirno.pw/image/50389/81d290db-8845-4443-9853-eebe824f35f2.jpg']),
-
-          ('Mai Sakurajima', 10, 118739, '桜島 麻衣', ['https://remilia.cirno.pw/image/118739/1616c1cc-e043-46a2-96a1-76daeb880b9b.jpg',
-                                                   'https://remilia.cirno.pw/image/118739/6ca5f2a9-e6df-48cb-bb0c-0a2abf3360d2.jpg',
-                                                   'https://remilia.cirno.pw/image/118739/048a5491-4b69-4936-b9f4-ec49d97c2e47.jpg',
-                                                   'https://remilia.cirno.pw/image/118739/a8b92e98-7865-4cf9-99a3-976ef015d186.jpg']),
-          ('Fumino Furuhashi', 10, 148394, '古橋 文乃', ['https://remilia.cirno.pw/image/148394/06fe5be2-90a7-48f6-a0ec-054d5f8c643d.jpg',
-                                                     'https://remilia.cirno.pw/image/148394/5a1e0587-ad4e-477a-b84e-d2ae973f920f.jpg'])
-          ]
-'''
 
 waifu_chances = [t[1] for t in waifus]
 _s = sum(waifu_chances)
@@ -372,7 +267,8 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None,  data={"id": 320638312375386114, "name": "Dolphin l̶o̶v̶e̶r̶ fucker"}),
         disnake.Role(guild=None, state=None,  data={"id": 318683559462436864, "name": "Sex pistols ( ͡° ͜ʖ ͡°)"}),
         disnake.Role(guild=None, state=None,  data={"id": 318843712098533376, "name": "Taste of a liar"}),
-        disnake.Role(guild=None, state=None,  data={"id": 323474940298788864, "name": "Wannabe bot"})
+        disnake.Role(guild=None, state=None,  data={"id": 323474940298788864, "name": "Wannabe bot"}),
+        disnake.Role(guild=None, state=None,  data={"id": 325712897843920896, "name": "Can't spell s0hvaperuna"})
     },
 
     900: {
@@ -385,7 +281,8 @@ AVAILABLE_ROLES = {10: {
     },
 
     1500: {
-        disnake.Role(guild=None, state=None, data={"id": 968563116130578472, "name": "Radahn festival enjoyer"})
+        disnake.Role(guild=None, state=None, data={"id": 968563116130578472, "name": "Radahn festival enjoyer"}),
+        disnake.Role(guild=None, state=None, data={"id": 978028956395634779, "name": "Saucy jack"}),
     }
 }
 

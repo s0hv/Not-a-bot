@@ -30,7 +30,7 @@ class HelpCommand(help.HelpCommand):
     def __init__(self, **options):
         options.setdefault('command_attrs', {})
         options['command_attrs']['aliases'] = ['helpall']
-        options['command_attrs']['cooldown'] = CooldownMapping.from_cooldown(2, 3, BucketType.guild)
+        options['command_attrs']['cooldown'] = CooldownMapping.from_cooldown(2, 8, BucketType.guild)
         super().__init__(**options)
 
     def show_all(self):

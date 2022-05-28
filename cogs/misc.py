@@ -24,20 +24,20 @@ class Misc(Cog):
         """Queries a problem to be solved by wolfram alpha"""
         async with aiohttp.ClientSession() as client:
             await ctx.send(await wolfram.math(query, client,
-                                              self.bot.config.wolfram_key))
+                                              self.bot.config.wolfram_key), allowed_mentions=disnake.AllowedMentions.none())
 
     @command(name='say')
     @cooldown(1, 2, BucketType.channel)
     async def say_command(self, ctx, *, words: str):
         """Says the text that was put as a parameter"""
-        await ctx.send('{0} {1}'.format(ctx.author.mention, words[:1950]))
+        await ctx.send('{0} {1}'.format(ctx.author.mention, words[:1950]), allowed_mentions=disnake.AllowedMentions.none())
 
     @command(aliases=['twitchquotes'])
     @cooldown(1, 2, type=BucketType.guild)
     async def twitchquote(self, ctx, tts: bool=None):
         """Random twitch quote from twitchquotes.com"""
         async with aiohttp.ClientSession() as client:
-            await ctx.send(await memes.twitch_poems(client), tts=tts)
+            await ctx.send(await memes.twitch_poems(client), tts=tts, allowed_mentions=disnake.AllowedMentions.none())
 
     @command(cooldown_after_parsing=True)
     @cooldown(1, 60, BucketType.user)

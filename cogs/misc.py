@@ -30,7 +30,10 @@ class Misc(Cog):
     @cooldown(1, 2, BucketType.channel)
     async def say_command(self, ctx, *, words: str):
         """Says the text that was put as a parameter"""
-        await ctx.send('{0} {1}'.format(ctx.author.mention, words[:1950]), allowed_mentions=disnake.AllowedMentions.none())
+        am = disnake.AllowedMentions.none()
+        am.users = [ctx.author]
+        await ctx.send('{0} {1}'.format(ctx.author.mention, words[:1950]),
+                       allowed_mentions=am)
 
     @command(aliases=['twitchquotes'])
     @cooldown(1, 2, type=BucketType.guild)

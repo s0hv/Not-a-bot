@@ -1396,6 +1396,9 @@ class Images(Cog):
 
             im_clip = ImageClip(np.asarray(img))
             mask = VideoFileClip(os.path.join(TEMPLATES, 'armstrong_mask.mp4'), has_mask=True)
+            def make_frame(t):
+                return mask.reader.get_frame(t)[:,:,2]/255.0
+            mask.mask.make_frame = make_frame
 
             armstrong = VideoFileClip(os.path.join(TEMPLATES, 'armstrong.mp4'))
             armstrong_audio = armstrong.audio

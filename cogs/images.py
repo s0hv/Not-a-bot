@@ -1415,6 +1415,7 @@ class Images(Cog):
                 outfile,
                 bitrate='4000k',
                 verbose=False,
+                threads=2,
                 logger=None
             )
 
@@ -1426,6 +1427,7 @@ class Images(Cog):
                 return
 
             try:
+                await ctx.send('Please wait a moment while the video generates. This will take like 30s.')
                 await self.image_func(do_it)
                 if not os.path.exists(outfile):
                     await ctx.send('Failed to generate video.')

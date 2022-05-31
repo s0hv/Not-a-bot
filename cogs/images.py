@@ -11,7 +11,9 @@ from random import randint
 from typing import Optional
 
 import aiohttp
+import disnake
 import matplotlib.pyplot as plt
+import numpy as np
 from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
 from asyncpg.exceptions import PostgresError
@@ -19,6 +21,10 @@ from disnake import File
 from disnake.ext.commands import BucketType, BotMissingPermissions, cooldown, \
     is_owner, guild_only
 from disnake.ext.commands.errors import BadArgument
+from moviepy.video.VideoClip import ImageClip
+from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
+from moviepy.video.compositing.concatenate import concatenate_videoclips
+from moviepy.video.io.VideoFileClip import VideoFileClip
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
@@ -38,6 +44,9 @@ from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
 
 logger = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
+TEMP_DATA = os.path.join('data', 'temp')
+
+os.makedirs(TEMP_DATA, exist_ok=True)
 
 
 class Pokefusion:
@@ -296,6 +305,8 @@ class Images(Cog):
         except WebDriverException:
             logger.exception('failed to load pokefusion')
             self._pokefusion = None
+
+        self.mgr_lock = asyncio.Lock()
 
     def cog_unload(self):
         if self._pokefusion and self._pokefusion._driver:
@@ -1357,6 +1368,75 @@ class Images(Cog):
         async with ctx.typing():
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='thinkingAbout.png'))
+
+    @command(aliases=['mgr'])
+    @cooldown(1, 5, BucketType.guild)
+    async def armstrong(self, ctx, stretch: Optional[bool]=None, image=None):
+        """Revengeance status"""
+        img = await get_image(ctx, image)
+        outfile = os.path.join(TEMP_DATA, 'armstrong_out.mp4')
+        if img is None:
+            return
+
+        def do_it():
+            nonlocal img, stretch
+
+            if stretch is None:
+                stretch = self.stretch_image(img)
+
+            img = img.convert('RGBA')
+            size = (1280, 720)
+            if stretch:
+                img = img.resize(size, resample=Image.BICUBIC)
+            else:
+                img = resize_keep_aspect_ratio(img, size, can_be_bigger=False,
+                                               resample=Image.BICUBIC,
+                                               crop_to_size=True,
+                                               center_cropped=True)
+
+            im_clip = ImageClip(np.asarray(img))
+            mask = VideoFileClip(os.path.join(TEMPLATES, 'armstrong_mask.mp4'), has_mask=True)
+
+            armstrong = VideoFileClip(os.path.join(TEMPLATES, 'armstrong.mp4'))
+            armstrong_audio = armstrong.audio
+            armstrong = armstrong.subclip(mask.duration).without_audio()
+
+            masked_arm = VideoFileClip(os.path.join(TEMPLATES, 'armstrong_start.mp4')).set_mask(mask.mask)
+
+            final_video = concatenate_videoclips([
+                CompositeVideoClip([im_clip, masked_arm], use_bgclip=True).set_duration(mask.duration),
+                armstrong
+            ]).set_audio(armstrong_audio).set_duration(8)
+
+            t = time.perf_counter()
+            final_video.write_videofile(
+                outfile,
+                bitrate='4000k',
+                verbose=False,
+                logger=None
+            )
+            print(time.perf_counter() - t)
+
+        async with ctx.typing():
+            try:
+                await asyncio.wait_for(self.mgr_lock.acquire(), timeout=5)
+            except asyncio.TimeoutError:
+                await ctx.send('Timed out. Try again in a bit')
+                return
+
+            try:
+                await self.image_func(do_it)
+                if not os.path.exists(outfile):
+                    await ctx.send('Failed to generate video.')
+                    return
+
+                file = disnake.File(outfile, filename='revengeance_status.mp4', description='Revengeance status')
+                await ctx.send(file=file)
+            finally:
+                self.mgr_lock.release()
+                if os.path.exists(outfile):
+                    os.remove(outfile)
+
 
     @command()
     @cooldown(2, 5, BucketType.guild)

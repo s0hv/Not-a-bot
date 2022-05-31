@@ -1408,14 +1408,12 @@ class Images(Cog):
                 armstrong
             ]).set_audio(armstrong_audio).set_duration(8)
 
-            t = time.perf_counter()
             final_video.write_videofile(
                 outfile,
                 bitrate='4000k',
                 verbose=False,
                 logger=None
             )
-            print(time.perf_counter() - t)
 
         async with ctx.typing():
             try:

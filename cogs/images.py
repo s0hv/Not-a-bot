@@ -2,6 +2,8 @@ import asyncio
 import base64
 import logging
 import os
+import shlex
+import subprocess
 import time
 from asyncio import Lock
 from functools import partial
@@ -13,7 +15,6 @@ from typing import Optional
 import aiohttp
 import disnake
 import matplotlib.pyplot as plt
-import numpy as np
 from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
 from asyncpg.exceptions import PostgresError
@@ -21,10 +22,6 @@ from disnake import File
 from disnake.ext.commands import BucketType, BotMissingPermissions, cooldown, \
     is_owner, guild_only
 from disnake.ext.commands.errors import BadArgument
-from moviepy.video.VideoClip import ImageClip
-from moviepy.video.compositing.CompositeVideoClip import CompositeVideoClip
-from moviepy.video.compositing.concatenate import concatenate_videoclips
-from moviepy.video.io.VideoFileClip import VideoFileClip
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
@@ -1394,30 +1391,20 @@ class Images(Cog):
                                                crop_to_size=True,
                                                center_cropped=True)
 
-            im_clip = ImageClip(np.asarray(img))
-            mask = VideoFileClip(os.path.join(TEMPLATES, 'armstrong_mask.mp4'), has_mask=True)
-            def make_frame(t):
-                return mask.reader.get_frame(t)[:,:,2]/255.0
-            mask.mask.make_frame = make_frame
+            files = [
+                '-i', os.path.join(TEMPLATES, 'armstrong_start.mp4'),
+                '-i', os.path.join(TEMPLATES, 'armstrong_mask.mp4'),
+                '-i', os.path.join(TEMPLATES, 'armstrong_clipped.mp4'),
+                '-i', os.path.join(TEMPLATES, 'armstrong.mp4')
+            ]
+            cmd = [*shlex.split('ffmpeg -f image2pipe -i -'), *files]
+            cmd.extend(shlex.split('-t 8 -r 30000/1001 -filter_complex "[1][2]alphamerge[alf];[0][alf]overlay[ovr];[ovr][3:v]concat" -map 4:a:0 -preset ultrafast'))
+            cmd.append(outfile)
 
-            armstrong = VideoFileClip(os.path.join(TEMPLATES, 'armstrong.mp4'))
-            armstrong_audio = armstrong.audio
-            armstrong = armstrong.subclip(mask.duration).without_audio()
-
-            masked_arm = VideoFileClip(os.path.join(TEMPLATES, 'armstrong_start.mp4')).set_mask(mask.mask)
-
-            final_video = concatenate_videoclips([
-                CompositeVideoClip([im_clip, masked_arm], use_bgclip=True).set_duration(mask.duration),
-                armstrong
-            ]).set_audio(armstrong_audio).set_duration(8)
-
-            final_video.write_videofile(
-                outfile,
-                bitrate='4000k',
-                verbose=False,
-                threads=2,
-                logger=None
-            )
+            p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            buf = BytesIO()
+            img.save(buf, format='png')
+            p.communicate(buf.getvalue())
 
         async with ctx.typing():
             try:
@@ -1427,11 +1414,8 @@ class Images(Cog):
                 return
 
             try:
-                await ctx.send('Please wait a moment while the video generates. This will take like 30s.')
+                await ctx.send('Please wait a moment while the video generates.')
                 await self.image_func(do_it)
-                if not os.path.exists(outfile):
-                    await ctx.send('Failed to generate video.')
-                    return
 
                 file = disnake.File(outfile, filename='revengeance_status.mp4', description='Revengeance status')
                 await ctx.send(file=file)
@@ -1439,7 +1423,6 @@ class Images(Cog):
                 self.mgr_lock.release()
                 if os.path.exists(outfile):
                     os.remove(outfile)
-
 
     @command()
     @cooldown(2, 5, BucketType.guild)

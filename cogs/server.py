@@ -3,16 +3,18 @@ import ntpath
 import os
 import random
 import time
-import typing
 from io import BytesIO
 from math import ceil
+from typing import Optional
 
 import disnake
 from PIL import Image
 from disnake.ext.commands import (
     BucketType, PartialEmojiConverter, Greedy, cooldown,
-    Cooldown, CooldownMapping, NoPrivateMessage
+    Cooldown, CooldownMapping, NoPrivateMessage, slash_command,
+    Param, MessageConverter
 )
+from disnake.ext.commands.context import AnyContext
 from disnake.user import BaseUser
 from validators import url as is_url
 
@@ -384,12 +386,74 @@ class Server(Cog):
 
         await ctx.send(f'Renamed the given emote to {new_name}')
 
+    @staticmethod
+    async def _steal_sticker(ctx: AnyContext, message: disnake.Message):
+        guild = ctx.guild
+
+        # sticker_limit does not support free stickers atm
+        if len(guild.stickers) > max(guild.sticker_limit, 5):
+            await ctx.send('Sticker limit reached for guild')
+            return
+
+        if not message:
+            message = ctx.message
+
+        if not message.stickers:
+            await ctx.send('No stickers found from message')
+            return
+
+        sticker = message.stickers[0]
+
+        try:
+            file = await sticker.to_file()
+        except:
+            logger.exception('Failed to download sticker')
+            await ctx.send('Failed to download sticker. Try again later')
+            return
+
+        try:
+            sticker = await guild.create_sticker(
+                name=sticker.name,
+                emoji='no_emoji',
+                file=file,
+                reason=f'{ctx.author} stole {sticker.name}')
+        except disnake.HTTPException as e:
+            await ctx.send(f'Failed to steal sticker.\n{e}')
+            return
+
+        if isinstance(ctx, disnake.ApplicationCommandInteraction):
+            await ctx.send(f'Created sticker {sticker.name}')
+        else:
+            await ctx.send('Created sticker', stickers=[sticker])
+
+    @slash_command(name='steal_sticker', dm_permission=False, default_member_permissions=disnake.Permissions(manage_emojis=True))
+    @cooldown(2, 6, BucketType.guild)
+    @bot_has_permissions(manage_emojis=True)
+    async def steal_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,
+                                  message: str = Param(name='message_id', description='Id of the message containing the sticker to be stolen')):
+        """
+        Steals a sticker from the given message or the command message by default
+        """
+        actual_message = await MessageConverter().convert(inter, message)
+
+        await self._steal_sticker(inter, actual_message)
+
+    @command(aliases=['ssteal'])
+    @cooldown(2, 6, BucketType.guild)
+    @has_permissions(manage_emojis=True)
+    @bot_has_permissions(manage_emojis=True)
+    async def steal_sticker(self, ctx: Context, message: Optional[disnake.Message] = None):
+        """
+        Steals a sticker from the given message or the command message by default
+        """
+        await self._steal_sticker(ctx, message or ctx.message)
+
     @command(aliases=['trihard'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def steal(self, ctx, emoji: Greedy[PartialEmojiConverter]=None,
-                    message: typing.Optional[disnake.Message]=None,
+                    message: Optional[disnake.Message]=None,
                     user: disnake.Member=None):
         """Add emotes to this server from other servers.
         You can either use the emotes you want separated by spaces in the message

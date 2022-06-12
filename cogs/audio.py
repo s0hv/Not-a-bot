@@ -225,7 +225,7 @@ class Audio(commands.Cog):
             await ctx.send("You aren't connected to a voice channel")
             return False
 
-        elif user_connected and ctx.author.voice.channel.id != ctx.voice_client.channel.id:
+        elif user_connected and ctx.author.voice.channel.id != voice_client.channel.id:
             await ctx.send("You aren't connected to this bots voice channel")
             return False
 
@@ -1769,8 +1769,8 @@ class Audio(commands.Cog):
 
         musicplayer = self.get_musicplayer(ctx.guild.id, False)
         if not musicplayer:
-            if ctx.voice_client:
-                await ctx.voice_client.disconnect(force=True)
+            if ctx.guild.voice_client:
+                await ctx.guild.voice_client.disconnect(force=True)
                 return
 
         await self.disconnect_voice(musicplayer)

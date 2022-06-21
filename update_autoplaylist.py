@@ -6,7 +6,7 @@ from utils.utilities import write_playlist, read_lines
 import sys
 
 lines = ''.join(sys.stdin.readlines())
-videos = json.loads(lines, encoding='utf-8')
+videos = json.loads(lines)
 
 
 def add_to_ap(new_vids):

@@ -43,6 +43,8 @@ from bot.downloader import Downloader
 from bot.globals import PLAYLISTS
 from bot.paginator import Paginator
 from bot.song import Song
+from bot.youtube import extract_playlist_id, Part, id2url, \
+    parse_youtube_duration
 from utils.utilities import (read_lines, seconds2str)
 
 terminal = logging.getLogger('terminal')
@@ -461,10 +463,47 @@ class Playlist:
                 msg = 'Enqueued playlist %s' % title
             return await self.send(msg, delete_after=60, channel=channel)
 
+    async def add_youtube_playlist(self, playlist_id: str, channel=None, priority=False, **metadata):
+        # Max results for youtube api
+        max_results = 500
+        videos = await self.bot.run_async(self.bot.yt_api.playlist_items,
+                                          playlist_id, Part.ContentDetails,
+                                          max_results)
+        if not videos:
+            await self.send(f"Failed to download youtube playlist with the id {playlist_id}", channel=channel)
+            return
+        else:
+            youtube_vids = [vid['contentDetails']['videoId'] for vid in videos]
+
+        videos: list = await self.bot.run_async(self.bot.yt_api.video_info,
+                                          youtube_vids[:max_results],
+                                          Part.combine(Part.ContentDetails, Part.Snippet))
+
+        for song in videos:
+            snippet = song['snippet']
+            await self._append_song(
+                Song(self,
+                     config=self.bot.config,
+                     webpage_url=id2url(song['id']),
+                     title=snippet['title'],
+                     duration=parse_youtube_duration(song['contentDetails']['duration']),
+                     **metadata),
+                priority)
+
     async def add_song(self, name, no_message=False, maxlen=30, priority=False,
                        channel=None, **metadata):
 
         on_error = functools.partial(self.failed_info, channel=channel)
+
+        playlist_id = extract_playlist_id(name)
+        if playlist_id:
+            self.adding_songs = True
+            try:
+                await self.add_youtube_playlist(playlist_id, channel, priority)
+            finally:
+                self.adding_songs = False
+
+            return
 
         try:
             self.adding_songs = True

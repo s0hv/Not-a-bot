@@ -62,7 +62,7 @@ class Misc(Cog):
 
         manga_name = urllib.parse.quote_plus(manga_name)
         async with aiohttp.ClientSession() as client:
-            async with client.get(f'https://manga-tracker-rss.herokuapp.com/api/search?query={manga_name}') as r:
+            async with client.get(f'https://manga.gachimuchi.men/api/search?query={manga_name}') as r:
                 if r.status != 200:
                     await ctx.send('Http error. Try again later')
                     return

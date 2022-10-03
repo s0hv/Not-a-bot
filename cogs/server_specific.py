@@ -327,7 +327,8 @@ role_response_success = [
     RoleResponse("You bribe the mods of this server for a new role. {role}"),
     RoleResponse("You weren't supposed to get a role now but you gave yourself one anyways. {role}", 'https://manly.gachimuchi.men/4r38X6qL.gif'),
     RoleResponse("||You gain a new role {role}{role_padding}||"),
-    RoleResponse("Our daddy taught us not to be ashamed of our roles. Especially when they're {role}", 'https://manly.gachimuchi.men/POpNeZDE.gif')
+    RoleResponse("Our daddy taught us not to be ashamed of our roles. Especially when they're {role}", 'https://manly.gachimuchi.men/POpNeZDE.gif'),
+    RoleResponse("The {role}. The {role} is real.", 'https://manly.gachimuchi.men/38pa8425l1zr.gif'),
 ]
 
 role_response_fail = [
@@ -344,7 +345,8 @@ role_response_fail = [
     RoleResponse("You get canceled on twitter and thus are not eligible to get a role now."),
     RoleResponse("You're finally awake. You hit your head pretty hard there. A new role? Discord? What are you talking about? Epic Games is just about to reveal Fortnite 2! Let's go watch the event."),
     RoleResponse("||No role this time. Maybe next time.{role_padding}||"),
-    RoleResponse("I think you got the wrong door. The leatherclub's two blocks down.")
+    RoleResponse("I think you got the wrong door. The leatherclub's two blocks down."),
+    RoleResponse('', 'https://manly.gachimuchi.men/ll2a095z8whe.jpg')
 ]
 
 start_date = datetime(year=2020, month=8, day=1, hour=12)
@@ -1480,6 +1482,15 @@ class ServerSpecific(Cog):
 
         else:
             await choice(role_response_fail).send_message(ctx)
+
+    @command()
+    @is_owner()
+    async def check_role_response(self, ctx: Context, response_idx: int, is_success: bool = True):
+        role = ctx.author.roles[-1]
+        if is_success:
+            await role_response_success[response_idx].send_message(ctx, role)
+        else:
+            await role_response_fail[response_idx].send_message(ctx)
 
     @command(hidden=True)
     @cooldown(1, 60, BucketType.channel)

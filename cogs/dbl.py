@@ -68,6 +68,8 @@ class DBApi(Cog):
     async def _check_votes(self):
         try:
             bot_info = await self.dbl.get_bot_info(self.bot.user.id)
+        except topgg.ServerError:
+            return
         except Exception as e:
             logger.exception(f'Failed to get bot info\n{e}')
             return

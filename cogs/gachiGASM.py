@@ -86,6 +86,7 @@ class gachiGASM(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.gachilist = self.bot.gachilist
+        self.last_post = None
         if not self.gachilist:
             self.reload_gachilist()
 
@@ -97,6 +98,10 @@ class gachiGASM(Cog):
 
     @tasks.loop(time=time(tzinfo=timezone.utc), reconnect=False)
     async def _reload_and_post(self):
+        if self.last_post is not None and (datetime.utcnow() - self.last_post).total_seconds() < 60*10:
+            return
+        self.last_post = datetime.utcnow()
+
         logger.info(f'Start task is {self._start_task}, '
                     f'current task is {self._reload_and_post.get_task()}, '
                     f'fail status: {self._reload_and_post._last_iteration_failed}, '

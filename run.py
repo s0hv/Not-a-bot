@@ -8,6 +8,7 @@ import sys
 from typing import Optional
 
 import disnake
+from disnake.ext.commands import CommandSyncFlags
 
 from bot.Not_a_bot import NotABot
 from bot.config import Config, is_test_mode, get_test_guilds
@@ -98,7 +99,7 @@ async def main():
         bot = NotABot(prefix='-', conf=config, max_messages=5000,
                       test_mode=True, cogs=initial_cogs, model=model,
                       intents=intents, test_guilds=get_test_guilds(),
-                      sync_commands_debug=True)
+                      command_sync_flags=CommandSyncFlags.all())
     else:
         bot = NotABot(prefix='!', conf=config, max_messages=5000,
                       cogs=initial_cogs,

@@ -16,7 +16,6 @@ from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
 from colormath.color_objects import LabColor, sRGBColor
 from colour import Color as Colour
-from disnake.errors import InvalidArgument
 from disnake.ext import commands
 from disnake.ext.commands import (BucketType, BadArgument, cooldown, guild_only)
 from numpy.random import choice
@@ -1320,7 +1319,7 @@ class Colors(Cog):
 
         try:
             await guild.chunk()
-        except InvalidArgument:
+        except (TypeError, ValueError):
             pass
         roles = guild.roles
         colored = 0

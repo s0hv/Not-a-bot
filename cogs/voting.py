@@ -547,7 +547,7 @@ class VoteManager(Cog):
         if parsed.description:
             description = ' '.join(parsed.description)
         else:
-            description = disnake.Embed.Empty
+            description = None
 
         embed = disnake.Embed(title=title, description=description, timestamp=expired_date)
         if parsed.time:

@@ -901,7 +901,7 @@ class Server(Cog):
 
         try:
             await guild.edit(banner=data)
-        except (disnake.HTTPException, disnake.InvalidArgument):
+        except (disnake.HTTPException, TypeError, ValueError):
             return
 
     async def do_guild_rotate(self, guild_id: int):
@@ -979,7 +979,7 @@ class Server(Cog):
 
         try:
             await guild.edit(banner=data)
-        except (disnake.HTTPException, disnake.InvalidArgument) as e:
+        except (disnake.HTTPException, TypeError, ValueError) as e:
             await ctx.send(f'Failed to set banner because of an error\n{e}')
             return
 

@@ -6,7 +6,6 @@ import colors
 import disnake
 from asyncpg.exceptions import PostgresError
 from disnake import Embed
-from disnake.embeds import EmptyEmbed
 from disnake.ext.commands import help, BucketType, CooldownMapping, is_owner
 from disnake.ext.commands.errors import CommandError
 
@@ -246,7 +245,7 @@ class HelpCommand(help.HelpCommand):
         if command.help:
             description = command.help.format(prefix=self.context.prefix, name=cmd_name.strip())
         else:
-            description = Embed.Empty
+            description = None
 
         paginator = EmbedPaginator(title=command.name, description=description)
         signature = self.get_command_signature(command)
@@ -324,7 +323,7 @@ class EmbedLimits:
 
 
 class EmbedPaginator:
-    def __init__(self, title=None, description=EmptyEmbed, page_count=True, init_page=True):
+    def __init__(self, title=None, description=None, page_count=True, init_page=True):
         """
         Args:
             title: title of the embed
@@ -356,7 +355,7 @@ class EmbedPaginator:
         for idx, embed in enumerate(self.pages):
             embed.set_footer(text=f'{idx+1}/{total}')
 
-    def add_page(self, title=None, description=EmptyEmbed, paginate_description=False):
+    def add_page(self, title=None, description=None, paginate_description=False):
         """
         Args:
             title:

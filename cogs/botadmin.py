@@ -27,7 +27,6 @@ import matplotlib.pyplot as plt
 from aioredis import Redis
 from asyncpg.exceptions import PostgresError
 from disnake import File
-from disnake.errors import HTTPException, InvalidArgument
 from disnake.ext.commands.errors import ExtensionError, ExtensionFailed
 from disnake.user import BaseUser
 from matplotlib.dates import AutoDateLocator, DateFormatter
@@ -385,7 +384,7 @@ class BotAdmin(Cog):
         if guild.id == 217677285442977792:
             try:
                 await guild.chunk()
-            except InvalidArgument:
+            except (TypeError, ValueError):
                 pass
 
             added = 0

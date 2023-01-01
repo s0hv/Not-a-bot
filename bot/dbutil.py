@@ -7,7 +7,6 @@ from datetime import datetime
 
 import disnake
 from asyncpg.exceptions import PostgresError
-from disnake.errors import InvalidArgument
 
 from bot.globals import BlacklistTypes
 from utils.utilities import check_perms
@@ -210,7 +209,7 @@ class DatabaseUtils:
         try:
             await guild.chunk()
             logger.info(f'added offline users in {time.time() - t1}')
-        except InvalidArgument:
+        except (TypeError, ValueError):
             pass
         _m = list(guild.members)
         members = list(filter(lambda u: len(u.roles) > 1, _m))

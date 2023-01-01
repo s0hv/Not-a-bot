@@ -1124,7 +1124,7 @@ class Moderator(Cog):
         author += f'Muted on `{muted_at.strftime("%Y-%m-%d %H:%M")}` UTC which was {format_timedelta(td_at, DateAccuracy.Day)} ago\n'
 
         if embed:
-            embed = disnake.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or disnake.Embed.Empty)
+            embed = disnake.Embed(title='Unmute when', description=td, timestamp=row['expires_on'] or None)
             embed.add_field(name='Who muted', value=author, inline=False)
             embed.add_field(name='Reason', value=reason, inline=False)
             embed.set_footer(text='Expires at')
@@ -1487,7 +1487,7 @@ class Moderator(Cog):
             return
 
         try:
-            await ctx.guild.ban(user, delete_message_days=delete_days, reason=f'Banned by {author}: {reason[:400]}')
+            await ctx.guild.ban(user, clean_history_duration=delete_days, reason=f'Banned by {author}: {reason[:400]}')
             pass
         except disnake.HTTPException as e:
             await ctx.send(f'Failed to ban user {user}\n{e}')
@@ -1523,7 +1523,7 @@ class Moderator(Cog):
     @command(aliases=['softbab'])
     @bot_has_permissions(ban_members=True)
     @has_permissions(ban_members=True)
-    async def softban(self, ctx, user: PossibleUser, message_days: int=1):
+    async def softban(self, ctx: Context, user: PossibleUser, message_days: int=1):
         """Ban and unban a user from the server deleting that users messages from
         n amount of days in the process"""
         guild = ctx.guild
@@ -1535,7 +1535,7 @@ class Moderator(Cog):
             user = user.id
             user_name += f' `{user}`'
         try:
-            await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', delete_message_days=message_days)
+            await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', clean_history_duration=message_days)
         except disnake.Forbidden:
             return await ctx.send("The bot doesn't have ban perms")
         except disnake.HTTPException:

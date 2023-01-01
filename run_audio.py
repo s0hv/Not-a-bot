@@ -30,7 +30,7 @@ import os
 import sys
 
 import disnake
-from disnake.ext.commands import Param
+from disnake.ext.commands import Param, CommandSyncFlags
 
 from bot.audio_bot import AudioBot
 from bot.config import Config, is_test_mode, get_test_guilds
@@ -100,7 +100,7 @@ async def main():
     bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
                    conf=config, max_messages=100, cogs=initial_cogs, intents=intents,
                    test_guilds=get_test_guilds(), test_mode=test_mode,
-                   sync_commands_debug=test_mode
+                   command_sync_flags=CommandSyncFlags.all() if test_mode else CommandSyncFlags.default()
                    )
 
     await bot.async_init()

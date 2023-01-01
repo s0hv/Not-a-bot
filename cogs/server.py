@@ -2,13 +2,17 @@ import logging
 import ntpath
 import os
 import random
+import re
 import time
+from datetime import timedelta, time as dtime
 from io import BytesIO
 from math import ceil
 from typing import Optional
 
 import disnake
+import pytz
 from PIL import Image
+from disnake.ext import tasks
 from disnake.ext.commands import (
     BucketType, PartialEmojiConverter, Greedy, cooldown,
     Cooldown, CooldownMapping, NoPrivateMessage, slash_command,
@@ -20,7 +24,7 @@ from validators import url as is_url
 
 from bot.bot import (command, has_permissions, group,
                      guild_has_features, bot_has_permissions, Context)
-from bot.converters import PossibleUser, GuildEmoji
+from bot.converters import PossibleUser, GuildEmoji, TimeDelta
 from bot.formatter import EmbedPaginator
 from bot.paginator import Paginator
 from cogs.cog import Cog
@@ -30,12 +34,26 @@ from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
 from utils.utilities import (format_timedelta, DateAccuracy,
                              wait_for_yes, get_image,
                              get_emote_name_id, split_string,
-                             get_filename_from_url, utcnow)
+                             get_filename_from_url, utcnow, call_later,
+                             native_format_timedelta)
 
 logger = logging.getLogger('terminal')
 
 # Size of banner thumbnail
 THUMB_SIZE = (288, 162)
+
+
+def get_next_rotate_run_time(t: dtime, delay: timedelta) -> float:
+    now = utcnow()
+    fixed = now.replace(hour=t.hour, minute=t.minute, second=0,
+                        microsecond=0) - delay - timedelta(days=1)
+
+    while fixed < now:
+        fixed += delay
+
+    timeout = (fixed - now).total_seconds()
+
+    return timeout
 
 
 class AFK:
@@ -51,6 +69,28 @@ class Server(Cog):
         self.afks = getattr(bot, 'afks', {})
         self.bot.afks = self.afks
         self._afk_cd = CooldownMapping(Cooldown(1, 4), BucketType.guild)
+
+    async def cog_load(self):
+        await super().cog_load()
+        await self._load_banner_rotate()
+
+    def cog_unload(self):
+        self.load_expiring_events.cancel()
+
+        for task in list(self.bot.banner_rotate.values()):
+            task.cancel()
+
+    @tasks.loop(hours=3)
+    async def load_expiring_events(self):
+        # Load events that expire in an hour
+        await self._load_banner_rotate()
+
+    async def _load_banner_rotate(self):
+        sql = 'SELECT guild, banner_delay, banner_delay_start FROM guilds WHERE banner_delay IS NOT NULL'
+        rows = await self.bot.dbutil.fetch(sql)
+        for row in rows:
+            timeout = get_next_rotate_run_time(row['banner_delay_start'], timedelta(seconds=row['banner_delay']))
+            self.load_guild_rotate(timeout, row['guild'])
 
     async def cog_check(self, ctx: Context) -> bool:
         if ctx.guild is None:
@@ -820,7 +860,68 @@ class Server(Cog):
             await ctx.send('Failed to show banners')
             return
 
-    @command(aliases=['brotate'])
+
+    async def random_banner(self, base_path, guild_id: int):
+        if not os.path.exists(base_path):
+            os.makedirs(base_path, exist_ok=True)
+
+        (_, _, files) = next(os.walk(base_path))
+
+        old_banner = await self.bot.dbutil.last_banner(guild_id)
+
+        try:
+            files.remove(old_banner)
+        except ValueError:
+            pass
+        else:
+            if not files:
+                return None
+
+        if not files:
+            return None
+
+        filename = random.choice(files)
+        return filename
+
+    async def rotate_banner(self, guild: disnake.Guild):
+        base_path = os.path.join('data', 'banners', str(guild.id))
+        filename = await self.random_banner(base_path, guild.id)
+
+        if not filename:
+            return
+
+        data = bytes()
+        with open(os.path.join(base_path, filename), 'rb') as f:
+            while True:
+                bt = f.read(4096)
+                if not bt:
+                    break
+
+                data += bt
+
+        try:
+            await guild.edit(banner=data)
+        except (disnake.HTTPException, disnake.InvalidArgument):
+            return
+
+    async def do_guild_rotate(self, guild_id: int):
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return
+
+        await self.rotate_banner(guild)
+
+    def load_guild_rotate(self, timeout: float, guild_id: int):
+        old_task = self.bot.banner_rotate.get(guild_id)
+        if old_task and not old_task.done():
+            return
+
+        task = call_later(self.do_guild_rotate, self.bot.loop, timeout, guild_id,
+                          after=lambda _: self.bot.banner_rotate.pop(guild_id, None))
+
+        self.bot.banner_rotate[guild_id] = task
+
+    @group(aliases=['brotate'], invoke_without_command=True)
     @guild_has_features('BANNER')
     @bot_has_permissions(manage_guild=True)
     @cooldown(1, 1800, BucketType.guild)
@@ -884,6 +985,83 @@ class Server(Cog):
 
         await self.bot.dbutil.set_last_banner(guild.id, filename)
         await ctx.send('♻')
+
+    @banner_rotate.command(name='stop_schedule', aliases=['stop'])
+    @has_permissions(manage_guild=True)
+    async def banner_schedule_stop(self, ctx: Context):
+        """
+        Disables the automatic banner rotation
+        """
+        sql = 'UPDATE guilds SET banner_delay=NULL, banner_delay_start=NULL WHERE guild=$1'
+        try:
+            await self.bot.dbutil.execute(sql, (ctx.guild.id,))
+        except:
+            logger.exception('Failed to reset banner schedule')
+            await ctx.send('Failed to update settings. Try again later')
+            return
+
+        await ctx.send('Automatic banner rotation disabled')
+
+    async def get_timezone(self, ctx, user_id: int):
+        tz = await self.bot.dbutil.get_timezone(user_id)
+        if tz:
+            try:
+                return await ctx.bot.loop.run_in_executor(ctx.bot.threadpool, pytz.timezone, tz)
+            except pytz.UnknownTimeZoneError:
+                pass
+
+        return pytz.FixedOffset(0)
+
+    @banner_rotate.command(name='schedule')
+    @guild_has_features('BANNER')
+    @bot_has_permissions(manage_guild=True)
+    @has_permissions(manage_guild=True)
+    @cooldown(1, 5)
+    async def banner_schedule(self, ctx: Context, start_time: str, *, delay: TimeDelta):
+        """
+        Automatically rotate the server banner on a schedule.
+        Usage:
+        {prefix}{name} 12:00 12h
+        """
+        if delay < timedelta(hours=6):
+            await ctx.send('Minimum delay is 6 hours')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        if delay > timedelta(days=4):
+            await ctx.send('Maximum delay is 4 days')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        if not re.match(r'^(\d{2}):(\d{2})$', start_time):
+            await ctx.send('Start time should be in the 24h format. e.g. 18:00')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        t = dtime.fromisoformat(start_time)
+
+        tz = await self.get_timezone(ctx, ctx.author.id)
+        tztime = utcnow().astimezone(tz).replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+        t = tztime.astimezone(pytz.UTC).time()
+
+
+        sql = 'UPDATE guilds SET banner_delay=$1, banner_delay_start=$2::time WHERE guild=$3'
+        try:
+            await self.bot.dbutil.execute(sql, (delay.total_seconds(), t, ctx.guild.id))
+        except:
+            logger.exception('Failed to update banner schedule')
+            await ctx.send('Failed to update settings. Try again later')
+            return
+
+        timeout = get_next_rotate_run_time(t, delay)
+
+        task = self.bot.banner_rotate.get(ctx.guild.id)
+        if task:
+            task.cancel()
+            self.bot.banner_rotate.pop(ctx.guild.id, None)
+
+        self.load_guild_rotate(timeout, ctx.guild.id)
+        await ctx.send(f'Next automatic banner rotation {native_format_timedelta(timedelta(seconds=timeout))}')
 
     @Cog.listener()
     async def on_message(self, message):

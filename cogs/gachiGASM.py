@@ -1,6 +1,5 @@
 import logging
 import os
-import traceback
 from datetime import datetime, time, timezone
 from random import Random, choice
 
@@ -91,7 +90,6 @@ class gachiGASM(Cog):
             self.reload_gachilist()
 
         self._start_task = self._reload_and_post.start()
-        logger.info(f'Starting gachi loop.\n{"".join(traceback.format_stack()[-8:])}')
 
     def cog_unload(self):
         self._reload_and_post.cancel()
@@ -101,11 +99,6 @@ class gachiGASM(Cog):
         if self.last_post is not None and (datetime.utcnow() - self.last_post).total_seconds() < 60*10:
             return
         self.last_post = datetime.utcnow()
-
-        logger.info(f'Start task is {self._start_task}, '
-                    f'current task is {self._reload_and_post.get_task()}, '
-                    f'fail status: {self._reload_and_post._last_iteration_failed}, '
-                    f'next iter {self._reload_and_post.next_iteration}.\n{"".join(traceback.format_stack()[-8:])}')
         self.reload_gachilist()
 
         for guild in self.bot.guilds:

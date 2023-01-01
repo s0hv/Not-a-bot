@@ -520,7 +520,7 @@ class Utilities(Cog):
         user = ctx.author
         if not timezone:
             tz = await self.get_timezone(ctx, user.id)
-            s = tz.localize(utcnow()).strftime('Your current timezone is UTC %z')
+            s = tz.localize(datetime.utcnow()).strftime('Your current timezone is UTC %z')
             await ctx.send(s)
             return
 

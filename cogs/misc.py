@@ -98,6 +98,9 @@ class Misc(Cog):
                     estimated_release = None
                 else:
                     if release_interval:
+                        # These two are always 0
+                        release_interval.pop('years', None)
+                        release_interval.pop('months', None)
                         release_interval = timedelta(**release_interval)
                         release_interval_ = format_timedelta(release_interval, DateAccuracy.Day-DateAccuracy.Hour)
                         description += f'Estimated release interval: {release_interval_}\n'

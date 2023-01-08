@@ -268,7 +268,9 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None,  data={"id": 318683559462436864, "name": "Sex pistols ( ͡° ͜ʖ ͡°)"}),
         disnake.Role(guild=None, state=None,  data={"id": 318843712098533376, "name": "Taste of a liar"}),
         disnake.Role(guild=None, state=None,  data={"id": 323474940298788864, "name": "Wannabe bot"}),
-        disnake.Role(guild=None, state=None,  data={"id": 325712897843920896, "name": "Can't spell s0hvaperuna"})
+        disnake.Role(guild=None, state=None,  data={"id": 325712897843920896, "name": "Can't spell s0hvaperuna"}),
+        disnake.Role(guild=None, state=None,  data={"id": 1061291489960923227, "name": "Gary loves you"}),
+        disnake.Role(guild=None, state=None,  data={"id": 1061706836723634196, "name": "Smelled the pine trees along the way"}),
     },
 
     900: {
@@ -329,6 +331,7 @@ role_response_success = [
     RoleResponse("||You gain a new role {role}{role_padding}||"),
     RoleResponse("Our daddy taught us not to be ashamed of our roles. Especially when they're {role}", 'https://manly.gachimuchi.men/POpNeZDE.gif'),
     RoleResponse("The {role}. The {role} is real.", 'https://manly.gachimuchi.men/38pa8425l1zr.gif'),
+    RoleResponse("It's your birthday today. You get {role} as a gift."),
 ]
 
 role_response_fail = [
@@ -346,7 +349,9 @@ role_response_fail = [
     RoleResponse("You're finally awake. You hit your head pretty hard there. A new role? Discord? What are you talking about? Epic Games is just about to reveal Fortnite 2! Let's go watch the event."),
     RoleResponse("||No role this time. Maybe next time.{role_padding}||"),
     RoleResponse("I think you got the wrong door. The leatherclub's two blocks down."),
-    RoleResponse('', 'https://manly.gachimuchi.men/ll2a095z8whe.jpg')
+    RoleResponse('', 'https://manly.gachimuchi.men/ll2a095z8whe.jpg'),
+    RoleResponse('You know nothing pendejo.'),
+    RoleResponse('You get killed by demons while trying to get a role.', 'https://manly.gachimuchi.men/pacbscl1un9a.jpg'),
 ]
 
 start_date = datetime(year=2020, month=8, day=1, hour=12)

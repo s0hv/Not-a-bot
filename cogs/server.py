@@ -25,10 +25,11 @@ from validators import url as is_url
 from bot.bot import (command, has_permissions, group,
                      guild_has_features, bot_has_permissions, Context)
 from bot.converters import PossibleUser, GuildEmoji, TimeDelta
+from bot.exceptions import BotException
 from bot.formatter import EmbedPaginator
 from bot.paginator import Paginator
 from cogs.cog import Cog
-from utils.imagetools import raw_image_from_url
+from utils.imagetools import raw_image_from_url, resize_gif
 from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
                               concatenate_images)
 from utils.utilities import (format_timedelta, DateAccuracy,
@@ -663,33 +664,70 @@ class Server(Cog):
         p = os.path.join('data', 'templates', 'loading.gif')
         await ctx.send('Please wait. Server deletion in progress', file=disnake.File(p, filename='loading.gif'))
 
-    @command()
+    @command(aliases=['pls'])
     @cooldown(1, 15, BucketType.guild)
     @has_permissions(manage_guild=True)
-    async def pls(self, ctx, image=None):
-        """Add an image to the server banner rotation"""
-        img = await get_image(ctx, image, True)
+    async def upload_banner(self, ctx, no_resize: Optional[bool]=False, image=None):
+        """Add an image to the server banner rotation. If no_resize is True then the image will be saved as is without resizing."""
+        img: Image.Image = await get_image(ctx, image, True, get_raw=no_resize)
         if img is None:
             return
 
+        data: Optional[BytesIO] = None
+        if no_resize:
+            data = img
+            img = Image.open(data)
+
         def do_it():
             nonlocal img
-            w, h = (960, 540)
 
-            # According to docs LANCZOS is best for downsampling. In other cases use bicubic
-            resample = Image.LANCZOS if (img.width > w and img.height > h) else Image.BICUBIC
-            img = resize_keep_aspect_ratio(img, (w, h), crop_to_size=True,
-                                           center_cropped=True,
-                                           can_be_bigger=True,
-                                           resample=resample)
+            is_gif = img.format == 'GIF'
+
+            if not no_resize:
+                w, h = (960, 540)
+
+                # According to docs LANCZOS is best for downsampling. In other cases use bicubic
+                resample = Image.LANCZOS if (img.width > w and img.height > h) else Image.BICUBIC
+
+                if is_gif:
+                    # Returns bytes io
+                    img = resize_gif(img, (w, h), crop_to_size=True,
+                                     center_cropped=True,
+                                     can_be_bigger=True,
+                                     resample=resample,
+                                     get_raw=True)
+                else:
+                    img = resize_keep_aspect_ratio(img, (w, h), crop_to_size=True,
+                                                   center_cropped=True,
+                                                   can_be_bigger=True,
+                                                   resample=resample)
 
             base_path = os.path.join('data', 'banners', str(ctx.guild.id))
             os.makedirs(base_path, exist_ok=True)
-            filename = str(ctx.message.id) + '.png'
-            img.save(
-                os.path.join(base_path, filename),
-                'PNG'
-            )
+            filename = str(ctx.message.id) + ('.gif' if is_gif else '.png')
+
+            full_path = os.path.join(base_path, filename)
+
+            if is_gif:
+                img = data if no_resize else img
+                buffer = img.getbuffer()
+                if buffer.nbytes > 8_000_000:
+                    raise BotException('Banner image was too big in filesize')
+
+                with open(full_path, 'wb') as f:
+                    f.write(buffer)
+
+                img.seek(0)
+                img = Image.open(img)
+            else:
+                if no_resize:
+                    with open(full_path, 'wb') as f:
+                        f.write(data.getbuffer())
+                else:
+                    img.save(
+                        full_path,
+                        'PNG'
+                    )
 
             # Make thumbnails every banner for faster access when viewing multiple
             # banners at once

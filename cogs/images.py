@@ -33,8 +33,8 @@ from bot.exceptions import NoPokeFoundException, BotException
 from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
-                              optimize_gif, func_to_gif,
-                              get_duration, convert_frames, apply_transparency)
+                              func_to_gif, get_duration, convert_frames,
+                              apply_transparency)
 from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
                              split_string, get_image, dl_image, call_later,
                              get_images)
@@ -493,7 +493,10 @@ class Images(Cog):
                         80, 120, 120, 120, 120, 120, 30, 120, 120, 120, 120, 120,
                         120, 120, 760, 2000]  # Frame timing
 
-            frames = [frame.copy().convert('RGBA') for frame in ImageSequence.Iterator(Image.open(os.path.join(TEMPLATES, 'jotaro_photo.gif')))]
+            template = Image.open(os.path.join(TEMPLATES, 'jotaro_photo.gif'))
+            frames = [frame.copy().convert('RGBA') for frame in ImageSequence.Iterator(template)]
+            template.close()
+
             photo = os.path.join(TEMPLATES, 'photo.png')
             finger = os.path.join(TEMPLATES, 'finger.png')
 
@@ -531,7 +534,7 @@ class Images(Cog):
                 raise BotException('Generated image was too big in filesize')
 
             file.seek(0)
-            return optimize_gif(file.getvalue())
+            return file
 
         await ctx.send(file=File(await self.image_func(do_it), filename='jotaro_photo.{}'.format(extension)))
 
@@ -889,11 +892,8 @@ class Images(Cog):
             frames = apply_transparency(frames)
             file = BytesIO()
             frames[0].save(file, format='GIF', duration=durations, save_all=True,
-                           append_images=frames[1:], loop=65535, optimize=False, disposal=2)
+                           append_images=frames[1:], loop=65535, optimize=True, disposal=2)
             file.seek(0)
-            if file.getbuffer().nbytes > 8000000:
-                return optimize_gif(file.getvalue())
-
             return file
 
         async with ctx.typing():

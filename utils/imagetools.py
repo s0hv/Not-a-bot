@@ -26,7 +26,6 @@ import logging
 import os
 import subprocess
 from io import BytesIO
-from shlex import split
 from threading import Lock
 
 import aiohttp
@@ -263,7 +262,10 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     return img, pattern.base_color
 
 
-async def image_from_url(url):
+async def image_from_url(url, get_raw=False):
+    if get_raw:
+        return await raw_image_from_url(url)
+
     return Image.open(await raw_image_from_url(url))
 
 
@@ -281,7 +283,7 @@ async def raw_image_from_url(url, get_mime=False):
                 if not r.headers.get('Content-Type', '').startswith('image'):
                     raise ImageDownloadError("url isn't an image (Invalid header)", url)
 
-                max_size = 8000000
+                max_size = 8_000_000
                 size = int(r.headers.get('Content-Length', 0))
                 if size > max_size:
                     raise ImageDownloadError('image too big', url)
@@ -517,6 +519,25 @@ def convert_frames(img, mode='RGBA'):
     return fixed_gif_frames(img, func)
 
 
+def resize_gif(img, size, get_raw=True, **kwargs) -> BytesIO | Image.Image:
+    frames = [resize_keep_aspect_ratio(frame, size, **kwargs)
+              for frame in ImageSequence.Iterator(img)]
+
+
+    if len(frames) > 200:
+        raise TooManyFrames('Maximum amount of frames is 200')
+
+    data = BytesIO()
+    duration = get_duration(frames)
+    frames[0].info['duration'] = duration
+    frames[0].save(data, format='GIF', duration=duration, save_all=True, append_images=frames[1:], loop=65535)
+    data.seek(0)
+    if not get_raw:
+        data = Image.open(data)
+
+    return data
+
+
 def func_to_gif(img, f, get_raw=True):
     if max(img.size) > 600:
         frames = [resize_keep_aspect_ratio(frame.convert('RGBA'), (600, 600), can_be_bigger=False, resample=Image.BILINEAR)
@@ -536,9 +557,7 @@ def func_to_gif(img, f, get_raw=True):
     images[0].info['duration'] = duration
     images[0].save(data, format='GIF', duration=duration, save_all=True, append_images=images[1:], loop=65535)
     data.seek(0)
-    if get_raw:
-        data = optimize_gif(data.getvalue())
-    else:
+    if not get_raw:
         data = Image.open(data)
 
     return data
@@ -607,11 +626,11 @@ def gradient_flash(im, get_raw=True, transparency=None):
     else:
         duration = [frame.info.get('duration', 20) for frame in frames]
 
-    images[0].save(data, format='gif', duration=duration, save_all=True, append_images=images[1:], loop=65535, disposal=2, optimize=False)
+    images[0].save(data, format='gif', duration=duration, save_all=True, append_images=images[1:], loop=65535, disposal=2, optimize=True)
 
     data.seek(0)
     if get_raw:
-        data = optimize_gif(data.getvalue())
+        pass
     else:
         data = Image.open(data)
 
@@ -642,15 +661,6 @@ def apply_transparency(frames):
         images.append(img)
 
     return images
-
-
-def optimize_gif(gif_bytes):
-    cmd = '{}convert - -dither none -layers optimize -dispose background -matte -depth 8 gif:-'.format(MAGICK)
-    p = subprocess.Popen(split(cmd), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    p.stdin.write(gif_bytes)
-    out, _ = p.communicate()
-    buff = BytesIO(out)
-    return buff
 
 
 def concatenate_images(images, width=50):

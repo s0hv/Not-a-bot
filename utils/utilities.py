@@ -565,7 +565,7 @@ async def get_images(ctx: 'Context', content, current_message_only=False,
     return images
 
 
-async def get_image(ctx, image, current_message_only=False):
+async def get_image(ctx, image, current_message_only=False, get_raw=False):
     img = await get_image_from_ctx(ctx, image, current_message_only)
     if img is None:
         if image is not None:
@@ -576,13 +576,13 @@ async def get_image(ctx, image, current_message_only=False):
 
         return
 
-    img = await dl_image(ctx, img)
+    img = await dl_image(ctx, img, get_raw=get_raw)
     return img
 
 
-async def dl_image(ctx, url):
+async def dl_image(ctx, url, get_raw=False):
     try:
-        img = await image_from_url(url)
+        img = await image_from_url(url, get_raw=get_raw)
     except OverflowError:
         await ctx.send('Failed to download. File is too big')
     except TypeError:
@@ -1187,7 +1187,7 @@ def find_coeffs(pa, pb):
         matrix.append([p1[0], p1[1], 1, 0, 0, 0, -p2[0]*p1[0], -p2[0]*p1[1]])
         matrix.append([0, 0, 0, p1[0], p1[1], 1, -p2[1]*p1[0], -p2[1]*p1[1]])
 
-    A = numpy.matrix(matrix, dtype=numpy.float)
+    A = numpy.matrix(matrix, dtype=float)
     B = numpy.array(pb).reshape(8)
 
     res = numpy.dot(numpy.linalg.inv(A.T * A) * A.T, B)

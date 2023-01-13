@@ -668,7 +668,9 @@ class Server(Cog):
     @cooldown(1, 15, BucketType.guild)
     @has_permissions(manage_guild=True)
     async def upload_banner(self, ctx, no_resize: Optional[bool]=False, image=None):
-        """Add an image to the server banner rotation. If no_resize is True then the image will be saved as is without resizing."""
+        """Add an image to the server banner rotation.
+        By default, images will be up or downscaled and cropped to 960x540.
+        If no_resize is True then the image will be saved as is without resizing and cropping."""
         img: Image.Image = await get_image(ctx, image, True, get_raw=no_resize)
         if img is None:
             return
@@ -712,7 +714,9 @@ class Server(Cog):
                 img = data if no_resize else img
                 buffer = img.getbuffer()
                 if buffer.nbytes > 8_000_000:
-                    raise BotException('Banner image was too big in filesize')
+                    raise BotException('Banner image was too big in filesize. '
+                                       'If the gif is smaller than 960x540 try setting no_resize to true. '
+                                       'To manually edit the gif use a service like <https://ezgif.com>')
 
                 with open(full_path, 'wb') as f:
                     f.write(buffer)
@@ -743,7 +747,8 @@ class Server(Cog):
             return filename
 
         try:
-            file = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
+            async with ctx.typing():
+                file = await self.bot.run_async(do_it)
         except OSError:
             logger.exception('Failed to save banner')
             await ctx.send('Failed to save banner image')
@@ -840,7 +845,16 @@ class Server(Cog):
             def do_it():
                 thumbs_path = os.path.join(base_path, 'thumbs')
                 os.makedirs(thumbs_path, exist_ok=True)
-                w, h = (3, 4)  # How many banners we have in one image
+
+                # How many banners we have in one image
+                w = 3
+                if len(banners) > 30:
+                    h = 6
+                elif len(banners) > 24:
+                    h = 5
+                else:
+                    h = 4
+
                 width = THUMB_SIZE[0]*w
                 images = []  # Images to be concatenated together
                 stack = []  # Concatenated images

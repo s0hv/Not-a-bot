@@ -11,7 +11,7 @@ from disnake.ext.commands import is_owner, Greedy, cooldown
 from disnake.ext.commands.cooldowns import CooldownMapping, BucketType
 from numpy.random import choice
 
-from bot.bot import command
+from bot.bot import command, Context
 from bot.converters import TimeDelta
 from cogs.cog import Cog
 from cogs.moderator import Moderator
@@ -473,6 +473,31 @@ class BattleArena(Cog):
 
         await self.do_spawn()
 
+class Aprilfool(Cog):
+    def __init__(self, bot):
+        super().__init__(bot)
+        self._guild = 353927534439825429 if bot.test_mode else 217677285442977792
+
+    async def cog_check(self, ctx):
+        if not ctx.guild or ctx.guild.id != self._guild:
+            return False
+
+        return True
+
+
+    @command()
+    @cooldown(1, 5, BucketType.user)
+    async def i_love_astolfo(self, ctx: Context):
+        user = ctx.author
+
+        role_id = 1091406419858829364 if self.bot.test_mode else 959146213645615154
+        role = ctx.guild.get_role(role_id)
+        if role in user.roles:
+            await ctx.send('You already have the event role')
+            return
+
+        await user.add_roles(role)
+        await ctx.send('Event role added')
 
 def setup(bot):
-    bot.add_cog(BattleArena(bot))
+    bot.add_cog(Aprilfool(bot))

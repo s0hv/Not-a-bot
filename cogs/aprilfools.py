@@ -490,7 +490,7 @@ class Aprilfool(Cog):
     async def i_love_astolfo(self, ctx: Context):
         user = ctx.author
 
-        role_id = 1091406419858829364 if self.bot.test_mode else 959146213645615154
+        role_id = 355372865693941770 if self.bot.test_mode else 1091406419858829364
         role = ctx.guild.get_role(role_id)
         if role in user.roles:
             await ctx.send('You already have the event role')

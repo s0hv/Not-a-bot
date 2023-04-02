@@ -1592,6 +1592,7 @@ class Moderator(Cog):
 
     async def remove_role(self, user: int, role: int, guild: int):
         guild = self.bot.get_guild(guild)
+        await self.bot.dbutil.delete_user_role(guild, user, role)
         if not guild:
             await self.bot.dbutil.remove_temprole(user, role)
             return

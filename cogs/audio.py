@@ -123,6 +123,23 @@ def select_by_predicate(songs, pred):
 def playlist2partialsong(songs):
     return [PartialSong(**song) for song in songs]
 
+def get_indices(items: Optional[str]) -> Optional[list[range | int]]:
+    if not items:
+        return None
+
+    indexes = items.split(' ')
+    index = []
+    for idx in indexes:
+        if '-' in idx:
+            idx = idx.split('-')
+            a = int(idx[0])
+            b = int(idx[1])
+            index += range(a - 1, b)
+        else:
+            index.append(int(idx) - 1)
+
+    return index
+
 
 class Audio(commands.Cog):
     def __init__(self, bot):
@@ -444,7 +461,8 @@ class Audio(commands.Cog):
             playlist_name: str = PlaylistName,
             user: disnake.User = PlaylistOwner,
             shuffle: bool = PlaylistShuffle,
-            max_songs: int = Param(None, min_value=0)):
+            max_songs: int = Param(None, min_value=0),
+            items: Optional[str] = Param(None, description='Which playlist positions to queue. e.g. "4", "1-10", "1 5-9"')):
         """Queue a saved playlist in random order"""
         await ctx.response.defer()
         musicplayer, success = await self.summon_checks(ctx)
@@ -453,7 +471,7 @@ class Audio(commands.Cog):
 
         user = user if user else ctx.author
         if not await musicplayer.playlist.add_from_playlist(
-                user, playlist_name, ctx, shuffle=shuffle, author=ctx.author, max_songs=max_songs
+                user, playlist_name, ctx, shuffle=shuffle, author=ctx.author, max_songs=max_songs, indices=get_indices(items)
         ):
             return await ctx.send(f"Couldn't find playlist {playlist_name} of user {user} or playlist was empty")
 
@@ -1380,7 +1398,7 @@ class Audio(commands.Cog):
     @cooldown(1, 4, type=BucketType.guild)
     async def clear_(
             self, ctx: ApplicationCommandInteraction,
-            items: str = Param(description='Which playlist positions to remove. e.g. "4", "1-10", "1 5-9" or "all"')
+            items: str = Param(description='Which playlist positions to remove. e.g. "4", "1-10", "1 5-9"')
     ):
         """
         Clear the selected indexes from the playlist.
@@ -1399,18 +1417,7 @@ class Audio(commands.Cog):
             await ctx.send('Not playing music')
             return
 
-        indexes = items.split(' ')
-        index = []
-        for idx in indexes:
-            if '-' in idx:
-                idx = idx.split('-')
-                a = int(idx[0])
-                b = int(idx[1])
-                index += range(a - 1, b)
-            else:
-                index.append(int(idx) - 1)
-
-        await musicplayer.playlist.clear(index, ctx)
+        await musicplayer.playlist.clear(get_indices(items), ctx)
 
     @clear.sub_command(name='all')
     @cooldown(1, 4, type=BucketType.guild)

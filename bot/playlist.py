@@ -133,6 +133,18 @@ async def create_playlist(songs, user, name, ctx: ApplicationCommandInteraction)
         await ctx.send(str(e))
 
 
+def select_by_indices(items, indices):
+    new_items = []
+    length = len(items)
+    for idx in indices:
+        if isinstance(idx, int) and idx >= length:
+            continue
+
+        new_items.extend(items[idx])
+
+    return new_items
+
+
 class SearchPaginator(Paginator):
     def __init__(self,
                  entries: list[T],
@@ -546,7 +558,7 @@ class Playlist:
 
         return added
 
-    async def add_from_playlist(self, user, name, channel=None, shuffle=True, author=None, max_songs: int=None):
+    async def add_from_playlist(self, user, name, channel=None, shuffle=True, author=None, max_songs: int=None, indices: list[range|int] | None=None):
         if channel is None:
             channel = self.channel
 
@@ -555,6 +567,9 @@ class Playlist:
             return False
 
         added = 0
+
+        if indices:
+            songs = select_by_indices(songs, indices)
 
         if shuffle:
             random.shuffle(songs)

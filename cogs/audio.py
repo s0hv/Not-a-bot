@@ -1414,7 +1414,7 @@ class Audio(commands.Cog):
 
     @clear.sub_command(name='all')
     @cooldown(1, 4, type=BucketType.guild)
-    async def clear_(self, ctx: ApplicationCommandInteraction):
+    async def clear_all(self, ctx: ApplicationCommandInteraction):
         """
         Clears the whole playlist
         """

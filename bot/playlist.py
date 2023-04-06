@@ -485,22 +485,24 @@ class Playlist:
             await self.send(f"Failed to download youtube playlist with the id {playlist_id}", channel=channel)
             return
         else:
+            await self.send(f'Processing {len(videos)} playlist items', channel=channel)
             youtube_vids = [vid['contentDetails']['videoId'] for vid in videos]
 
         videos: list = await self.bot.run_async(self.bot.yt_api.video_info,
                                           youtube_vids[:max_results],
                                           Part.combine(Part.ContentDetails, Part.Snippet))
 
-        for song in videos:
-            snippet = song['snippet']
-            await self._append_song(
-                Song(self,
-                     config=self.bot.config,
-                     webpage_url=id2url(song['id']),
-                     title=snippet['title'],
-                     duration=parse_youtube_duration(song['contentDetails']['duration']),
-                     **metadata),
-                priority)
+        songs = [
+            Song(self,
+                 config=self.bot.config,
+                 webpage_url=id2url(song['id']),
+                 title=song['snippet']['title'],
+                 duration=parse_youtube_duration(song['contentDetails']['duration']),
+                 **metadata)
+            for song in videos
+        ]
+        await self.add_from_songs(songs, priority)
+        await self.send(f'Enqueued playlist with {len(songs)} songs', channel=channel)
 
     async def add_song(self, name, no_message=False, maxlen=30, priority=False,
                        channel=None, **metadata):
@@ -557,6 +559,14 @@ class Playlist:
                 added += 1
 
         return added
+
+    async def add_from_songs(self, songs: list[Song], priority=False):
+        if priority:
+            self.playlist.extendleft(songs)
+        else:
+            self.playlist.extend(songs)
+
+        await self.cache_songs(2)
 
     async def add_from_playlist(self, user, name, channel=None, shuffle=True, author=None, max_songs: int=None, indices: list[range|int] | None=None):
         if channel is None:

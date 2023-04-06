@@ -533,7 +533,7 @@ class Audio(commands.Cog):
         if success:
             musicplayer.start_playlist()
 
-    async def _process_links(self, ctx: ApplicationCommandInteraction, links, max_size=30):
+    async def _process_links(self, ctx: ApplicationCommandInteraction, links: list[str], max_size=30, **metadata):
         is_owner = ctx.author.id == self.bot.owner_id
         songs = links
         failed = []
@@ -610,7 +610,8 @@ class Audio(commands.Cog):
             for info in infos:
                 new_songs.append(Song(webpage_url=info['webpage_url'],
                                       title=info.get('title'),
-                                      duration=info.get('duration')))
+                                      duration=info.get('duration'),
+                                      **metadata))
 
         # Max results for youtube api
         max_results = 1000 if not is_owner else 5000
@@ -634,7 +635,8 @@ class Audio(commands.Cog):
                 snippet = song['snippet']
                 new_songs.append(Song(webpage_url=id2url(song['id']),
                                       title=snippet['title'],
-                                      duration=parse_youtube_duration(song['contentDetails']['duration'])))
+                                      duration=parse_youtube_duration(song['contentDetails']['duration']),
+                                      **metadata))
 
         return new_songs, failed
 

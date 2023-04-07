@@ -1,7 +1,9 @@
 import asyncio
 import base64
+import json
 import logging
 import os
+import random
 import shlex
 import subprocess
 import time
@@ -20,16 +22,17 @@ from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
 from asyncpg.exceptions import PostgresError
 from disnake import File
 from disnake.ext.commands import BucketType, BotMissingPermissions, cooldown, \
-    is_owner, guild_only
+    is_owner, guild_only, slash_command, Param
 from disnake.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
-from bot.bot import command
+from bot.bot import command, Context
 from bot.converters import CleanContent
 from bot.exceptions import NoPokeFoundException, BotException
+from bot.globals import DATA
 from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
@@ -47,8 +50,9 @@ os.makedirs(TEMP_DATA, exist_ok=True)
 
 
 class Pokefusion:
-    RANDOM = '%'
+    RANDOM = 'Random'
     LAST_UPDATED = 0
+    LAST_UPDATED_IF = 0
 
     def __init__(self, bot):
         self._last_dex_number = 0
@@ -60,6 +64,8 @@ class Pokefusion:
         self._driver_lock = Lock()
         self._bot = bot
         self._update_lock = Lock()
+        self.fusion_file_set: set[str] = set()
+        self.fusion_file_list: list[str] = []
 
         options = Options()
         options.add_argument('--headless')
@@ -115,6 +121,17 @@ class Pokefusion:
                     f.write(await r.read())
 
                 start += 1
+
+    async def cache_infinite_fusion_sprites(self, force=False):
+        if not force and time.time() - self.LAST_UPDATED_IF < 604800:
+            return
+
+        self.LAST_UPDATED_IF = time.time()
+        async with aiohttp.ClientSession() as client:
+            r = await client.get('https://api.github.com/repos/Aegide/custom-fusion-sprites/git/trees/6397b4bf32888c7c5f4f3817acb4a217cf542c76')
+            data = await r.json()
+            self.fusion_file_set = {d['path'] for d in data['tree']}
+            self.fusion_file_list = list(self.fusion_file_set)
 
     async def update_cache(self):
         if self._update_lock.locked():
@@ -191,10 +208,12 @@ class Pokefusion:
             except RuntimeError:
                 pass
 
-    async def fuse(self, poke1=RANDOM, poke2=RANDOM):
+    def cache_should_be_updated(self) -> bool:
+        return time.time() - self.LAST_UPDATED > 604800
 
+    async def fuse(self, poke1=RANDOM, poke2=RANDOM):
         # Update cache once per week
-        if time.time() - self.LAST_UPDATED > 604800:
+        if self.cache_should_be_updated():
             if not await self.update_cache():
                 raise BotException('Could not cache pokemon')
 
@@ -286,7 +305,7 @@ class Pokefusion:
             elif name.lower() in pokename2:
                 name = pokename1[:ceil(len(pokename1)/2)].title() + name
 
-        w, h = draw.textsize(name, font)
+        _, _, w, h = draw.textbbox((0, 0), name, font)
         draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - h), name, font=font, fill='black')
 
         s = 'Fusion of {} and {}'.format(pokename2, pokename1)
@@ -297,11 +316,19 @@ class Images(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.threadpool = bot.threadpool
+
+        self._pokefusion: Optional[Pokefusion] = None
         try:
             self._pokefusion = Pokefusion(bot)
         except WebDriverException:
             logger.exception('failed to load pokefusion')
-            self._pokefusion = None
+
+        with open(os.path.join(DATA, 'pokefusion', 'pokemon.json'), 'r', encoding='utf-8') as f:
+            self._pokemon_numbers = json.load(f)
+            self._pokemon_names = list(self._pokemon_numbers.values())
+            self._pokemon_names.append(Pokefusion.RANDOM)
+            self._pokemon_numbers[Pokefusion.RANDOM] = Pokefusion.RANDOM
+            self._pokemon_numbers_rev = {v.lower(): k  for k, v in self._pokemon_numbers.items()}
 
         self.mgr_lock = asyncio.Lock()
 
@@ -1503,19 +1530,71 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='narancia.png'))
 
-    @command(aliases=['poke', 'pf'])
+    @command(aliases=['poke', 'pf'], name='pokefusion')
     @cooldown(1, 3, type=BucketType.guild)
-    async def pokefusion(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM):
+    async def pokefusion_cmd(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, force_japeal: bool = False):
         """
-        Gets a random pokemon fusion from http://pokefusion.japeal.com
+        Fuse two pokemon together.
+        Uses infinite fusion sprites if they exist and falls back to https://japeal.com/pkm/ sprites if not.
+
         You can specify the wanted fusion by their name or just a part of their name.
-        Passing % as a parameter will randomize that value. By default both pokemon are randomized
+        Passing "Random" as a parameter will randomize that value. By default both pokemon are randomized.
+        If force_japeal is set to true infinite fusion sprites will not be returned.
         """
+        await self.pokefusion(ctx, poke1, poke2, force_japeal)
+
+    @slash_command(name='pokefusion', description="Fuse two pokemon together.")
+    async def pokefusion_slash(self, ctx: disnake.ApplicationCommandInteraction,
+                         pokemon1: str = Param(Pokefusion.RANDOM, description="Name of the first pokemon. The autocompleted options might not represent what's actually available"),
+                         pokemon2: str = Param(Pokefusion.RANDOM, description="Name of the second pokemon. The autocompleted options might not represent what's actually available"),
+                         force_japeal: bool = Param(False, description='This flag forces the use of https://japeal.com/pkm/ instead of infinite fusion sprites')):
+        """Fuse two pokemon together.
+        Uses infinite fusion sprites if they exist and falls back to https://japeal.com/pkm/ sprites if not.
+        """
+        await self.pokefusion(ctx, pokemon1, pokemon2, force_japeal)
+
+    async def pokefusion(self, ctx: disnake.ApplicationCommandInteraction | Context, pokemon1: str, pokemon2: str, force_japeal: bool):
         if not self._pokefusion:
             return await ctx.send('Pokefusion not supported')
-        await ctx.trigger_typing()
+
+        if isinstance(ctx, disnake.ApplicationCommandInteraction):
+            await ctx.response.defer()
+
+        await self._pokefusion.cache_infinite_fusion_sprites()
+
+        base_url = 'https://raw.githubusercontent.com/Aegide/custom-fusion-sprites/main/CustomBattlers/{}'
+        if not force_japeal and pokemon1 == Pokefusion.RANDOM and pokemon2 == Pokefusion.RANDOM:
+            filename: str = random.choice(self._pokefusion.fusion_file_list)
+            url = base_url.format(filename)
+            split = filename.split('.')
+            embed = disnake.Embed(title=f'{self._pokemon_numbers[split[0]]}/{self._pokemon_numbers[split[1]]}')
+            embed.set_image(url=url)
+            await ctx.send(embed=embed)
+            return
+
+        if not force_japeal and pokemon1.lower() in self._pokemon_numbers_rev and pokemon2.lower() in self._pokemon_numbers_rev:
+            async with aiohttp.ClientSession() as client:
+                nbr1 = self._pokemon_numbers_rev[pokemon1.lower()]
+                nbr2 = self._pokemon_numbers_rev[pokemon2.lower()]
+                filename = f'{nbr1}.{nbr2}.png'
+                url = base_url.format()
+
+                is_ok = True
+                if filename not in self._pokefusion.fusion_file_set:
+                    async with client.head(base_url.format(url)) as resp:
+                        is_ok = resp.ok
+
+                if is_ok:
+                    embed = disnake.Embed(title=f'{self._pokemon_numbers[nbr1]}/{self._pokemon_numbers[nbr2]}')
+                    embed.set_image(url=url)
+                    await ctx.send(embed=embed)
+                    return
+
+        if self._pokefusion.cache_should_be_updated() or self._pokefusion.driver is None:
+            await ctx.send('Updating cache. This might take a couple of seconds.')
+
         try:
-            img, s = await self._pokefusion.fuse(poke1, poke2)
+            img, s = await self._pokefusion.fuse(pokemon1, pokemon2)
         except NoPokeFoundException as e:
             return await ctx.send(str(e))
 
@@ -1523,6 +1602,22 @@ class Images(Cog):
         img.save(file, 'PNG')
         file.seek(0)
         await ctx.send(s, file=File(file, filename='pokefusion.png'))
+
+    async def autocomplete_pokemon(self, _: disnake.ApplicationCommandInteraction, string: str):
+        count = 0
+        names = []
+        for n in self._pokemon_names:
+            if string.lower() in n.lower():
+                names.append(n)
+                count += 1
+
+                if count >= 10:
+                    break
+
+        return names
+
+    pf_poke1 = pokefusion_slash.autocomplete('pokemon1')(autocomplete_pokemon)
+    pf_poke2 = pokefusion_slash.autocomplete('pokemon2')(autocomplete_pokemon)
 
     @command(aliases=['get_im', 'getim'])
     @cooldown(3, 3, BucketType.guild)
@@ -1557,6 +1652,17 @@ class Images(Cog):
             await ctx.send('Failed to update cache')
         else:
             await ctx.send('Successfully updated cache')
+
+    @command()
+    @is_owner()
+    async def update_poke_cache_if(self, ctx):
+        try:
+            await self._pokefusion.cache_infinite_fusion_sprites(True)
+        except:
+            await ctx.send('Failed to update cache')
+            raise
+
+        await ctx.send('Successfully updated cache')
 
     @command(aliases=['mr_graph'])
     @cooldown(1, 10, BucketType.guild)

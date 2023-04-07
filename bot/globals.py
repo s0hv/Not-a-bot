@@ -44,7 +44,6 @@ DELETE_AUTOPLAYLIST = join(PLAYLISTS, 'delete_autoplaylist.txt')
 SFX_FOLDER = join(_wd, 'data', 'audio', 'sfx')
 TTS = join(_wd, 'data', 'audio', 'tts')
 CACHE = join(_wd, 'data', 'audio', 'cache')
-POKESTATS = join(DATA, 'pokestats')
 WORKING_DIR = _wd
 IMAGES_PATH = os.path.join(_wd, 'data', 'images')
 

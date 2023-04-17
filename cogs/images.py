@@ -1577,11 +1577,11 @@ class Images(Cog):
                 nbr1 = self._pokemon_numbers_rev[pokemon1.lower()]
                 nbr2 = self._pokemon_numbers_rev[pokemon2.lower()]
                 filename = f'{nbr1}.{nbr2}.png'
-                url = base_url.format()
+                url = base_url.format(filename)
 
                 is_ok = True
                 if filename not in self._pokefusion.fusion_file_set:
-                    async with client.head(base_url.format(url)) as resp:
+                    async with client.head(url) as resp:
                         is_ok = resp.ok
 
                 if is_ok:

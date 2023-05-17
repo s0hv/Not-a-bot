@@ -262,14 +262,14 @@ def create_geopattern_background(size, s, color=None, generator='overlapping_cir
     return img, pattern.base_color
 
 
-async def image_from_url(url, get_raw=False):
+async def image_from_url(url, get_raw=False) -> Image.Image | BytesIO:
     if get_raw:
         return await raw_image_from_url(url)
 
     return Image.open(await raw_image_from_url(url))
 
 
-async def raw_image_from_url(url, get_mime=False):
+async def raw_image_from_url(url, get_mime=False) -> BytesIO | tuple[BytesIO, str]:
     if not url:
         raise ImageDownloadError('No images found', '')
 

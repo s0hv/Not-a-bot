@@ -428,11 +428,81 @@ class Server(Cog):
         await ctx.send(f'Renamed the given emote to {new_name}')
 
     @staticmethod
+    async def _add_sticker(ctx: AnyContext, sticker_file: BytesIO | disnake.Attachment, name: str, emoji: str = 'no_emoji', description: str = None):
+        guild = ctx.guild
+
+        if len(guild.stickers) > guild.sticker_limit:
+           await ctx.send(f'Sticker limit reached for guild ({len(guild.stickers) + 1} > {guild.sticker_limit})')
+           return
+
+        if isinstance(sticker_file, disnake.Attachment):
+            file = await sticker_file.to_file()
+        else:
+            file = disnake.File(sticker_file)
+
+        try:
+            sticker = await guild.create_sticker(
+                name=name,
+                emoji=emoji,
+                file=file,
+                description=description,
+                reason=f'{ctx.author} created sticker {name}')
+        except disnake.HTTPException as e:
+            await ctx.send(f'Failed to create sticker.\n{e}')
+            return
+
+        if isinstance(ctx, disnake.ApplicationCommandInteraction):
+            await ctx.send(f'Created sticker {sticker.name}')
+        else:
+            await ctx.send('Created sticker', stickers=[sticker])
+
+    @slash_command(name='add_sticker', dm_permission=False, default_member_permissions=disnake.Permissions(manage_emojis=True))
+    @cooldown(2, 6, BucketType.guild)
+    @bot_has_permissions(manage_emojis=True)
+    async def add_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,
+                                sticker_file: disnake.Attachment = Param(name='sticker_file', description='Image of the sticker as a file', default=None),
+                                sticker_url: str = Param(name='sticker_url', description='Image of the sticker as a url', default=''),
+                                name: str = Param(name='name', description='Name of the sticker'),
+                                emoji: str = Param(name='emoji', description='Emoji used for the sticker', default='no_emoji'),
+                                description: str = Param(name='description', description='Description of the emoji', default=None)):
+        """
+        Create a sticker from a url or an attachment
+        """
+        url = sticker_file if sticker_file else sticker_url
+        await self._add_sticker(inter, url, name, emoji, description)
+
+    @command(aliases=['create_sticker'])
+    @cooldown(2, 6, BucketType.guild)
+    @has_permissions(manage_emojis=True)
+    @bot_has_permissions(manage_emojis=True)
+    async def add_sticker(self, ctx: Context, name: str, sticker_url: str = None, emoji: str = 'no_emoji', description: str = None):
+        """
+        Create a sticker from a url or an attachment.
+
+        Usage with url
+        `{prefix}{name} "Sticker name" https://imgur.com/image.png 🤯`
+
+        Usage with attachment
+        `{prefix}{name} "Sticker name" 🤯`
+        """
+
+        # Assume attachment given here and shift parameters by one
+        if sticker_url is not None and not is_url(sticker_url):
+            emoji = sticker_url
+            description = emoji
+
+        data = await get_image(ctx, sticker_url, get_raw=True, current_message_only=True)
+        if data is None:
+            return
+
+        await self._add_sticker(ctx, data, name, emoji, description)
+
+
+    @staticmethod
     async def _steal_sticker(ctx: AnyContext, message: disnake.Message):
         guild = ctx.guild
 
-        # sticker_limit does not support free stickers atm
-        if len(guild.stickers) > max(guild.sticker_limit, 5):
+        if len(guild.stickers) > guild.sticker_limit:
             await ctx.send('Sticker limit reached for guild')
             return
 

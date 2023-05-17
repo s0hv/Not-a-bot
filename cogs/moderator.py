@@ -1590,9 +1590,13 @@ class Moderator(Cog):
 
         return timeouts
 
-    async def remove_role(self, user: int, role: int, guild: int):
-        guild = self.bot.get_guild(guild)
-        await self.bot.dbutil.delete_user_role(guild, user, role)
+    async def remove_role(self, user: int, role: int, guild_id: int):
+        guild = self.bot.get_guild(guild_id)
+        try:
+            await self.bot.dbutil.delete_user_role(guild_id, user, role)
+        except:
+            logger.exception('Failed to delete user role from keeproles')
+
         if not guild:
             await self.bot.dbutil.remove_temprole(user, role)
             return
@@ -1691,7 +1695,7 @@ class Moderator(Cog):
 
         total_seconds = time.total_seconds()
 
-        if not self.bot.test_mode and total_seconds < 60:
+        if not self.bot.test_mode and total_seconds < 10:
             return await ctx.send('Must be over minute')
 
         bot = ctx.guild.me

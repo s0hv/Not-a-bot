@@ -738,7 +738,11 @@ def call_later(func, loop, timeout: float, *args, after=None, **kwargs):
             except asyncio.CancelledError:
                 return
 
-        await func(*args, **kwargs)
+        try:
+            await func(*args, **kwargs)
+        except:
+            logger.exception('Failed to call_later')
+            raise
 
     fut = asyncio.run_coroutine_threadsafe(wait(), loop)
     if callable(after):

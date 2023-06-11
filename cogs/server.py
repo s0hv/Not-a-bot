@@ -461,7 +461,7 @@ class Server(Cog):
     @bot_has_permissions(manage_emojis=True)
     async def add_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,
                                 sticker_file: disnake.Attachment = Param(name='sticker_file', description='Image of the sticker as a file', default=None),
-                                sticker_url: str = Param(name='sticker_url', description='Image of the sticker as a url', default=''),
+                                sticker_url: str = Param(name='sticker_url', description='Image of the sticker as a url', default=None),
                                 name: str = Param(name='name', description='Name of the sticker'),
                                 emoji: str = Param(name='emoji', description='Emoji used for the sticker', default='no_emoji'),
                                 description: str = Param(name='description', description='Description of the emoji', default=None)):
@@ -469,6 +469,11 @@ class Server(Cog):
         Create a sticker from a url or an attachment
         """
         url = sticker_file if sticker_file else sticker_url
+
+        if url is None:
+            await inter.send('Please provide either sticker_file or sticker_url', ephemeral=True)
+            return
+
         await self._add_sticker(inter, url, name, emoji, description)
 
     @command(aliases=['create_sticker'])

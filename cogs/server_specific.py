@@ -285,6 +285,7 @@ AVAILABLE_ROLES = {10: {
     1500: {
         disnake.Role(guild=None, state=None, data={"id": 968563116130578472, "name": "Radahn festival enjoyer"}),
         disnake.Role(guild=None, state=None, data={"id": 978028956395634779, "name": "Saucy jack"}),
+        disnake.Role(guild=None, state=None, data={"id": 1128975230447140894, "name": "member of the En Family"}),
     }
 }
 

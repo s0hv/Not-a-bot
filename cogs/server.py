@@ -36,7 +36,7 @@ from utils.utilities import (format_timedelta, DateAccuracy,
                              wait_for_yes, get_image,
                              get_emote_name_id, split_string,
                              get_filename_from_url, utcnow, call_later,
-                             native_format_timedelta)
+                             native_format_timedelta, dl_image)
 
 logger = logging.getLogger('terminal')
 
@@ -428,7 +428,7 @@ class Server(Cog):
         await ctx.send(f'Renamed the given emote to {new_name}')
 
     @staticmethod
-    async def _add_sticker(ctx: AnyContext, sticker_file: BytesIO | disnake.Attachment, name: str, emoji: str = 'no_emoji', description: str = None):
+    async def _add_sticker(ctx: AnyContext, sticker_file: BytesIO | disnake.Attachment, name: str, emoji: str = 'no_emoji', description: str = ''):
         guild = ctx.guild
 
         if len(guild.stickers) > guild.sticker_limit:
@@ -464,23 +464,27 @@ class Server(Cog):
                                 sticker_url: str = Param(name='sticker_url', description='Image of the sticker as a url', default=None),
                                 name: str = Param(name='name', description='Name of the sticker'),
                                 emoji: str = Param(name='emoji', description='Emoji used for the sticker', default='no_emoji'),
-                                description: str = Param(name='description', description='Description of the emoji', default=None)):
+                                description: str = Param(name='description', description='Description of the emoji', default='')):
         """
         Create a sticker from a url or an attachment
         """
-        url = sticker_file if sticker_file else sticker_url
+        file = None
+        if sticker_file:
+            file = sticker_file
+        elif is_url(sticker_url):
+            file = await dl_image(inter, sticker_url, get_raw=True)
 
-        if url is None:
+        if file is None:
             await inter.send('Please provide either sticker_file or sticker_url', ephemeral=True)
             return
 
-        await self._add_sticker(inter, url, name, emoji, description)
+        await self._add_sticker(inter, file, name, emoji, description)
 
     @command(aliases=['create_sticker'])
     @cooldown(2, 6, BucketType.guild)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
-    async def add_sticker(self, ctx: Context, name: str, sticker_url: str = None, emoji: str = 'no_emoji', description: str = None):
+    async def add_sticker(self, ctx: Context, name: str, sticker_url: str = None, emoji: str = 'no_emoji', description: str = ''):
         """
         Create a sticker from a url or an attachment.
 

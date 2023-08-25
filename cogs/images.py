@@ -21,8 +21,8 @@ from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
                  GifImagePlugin)
 from asyncpg.exceptions import PostgresError
 from disnake import File
-from disnake.ext.commands import BucketType, BotMissingPermissions, cooldown, \
-    is_owner, guild_only, slash_command, Param
+from disnake.ext.commands import (BucketType, BotMissingPermissions, cooldown,
+                                  is_owner, guild_only, slash_command, Param)
 from disnake.ext.commands.errors import BadArgument
 from selenium.common.exceptions import UnexpectedAlertPresentException
 from selenium.common.exceptions import WebDriverException
@@ -145,6 +145,9 @@ class Pokefusion:
         try:
             logger.info('Updating pokecache')
             await self.get_url('https://japeal.com/pkm/')
+
+            self._driver.execute_script('LoadNewFusionDelay()')
+            await asyncio.sleep(0.5)
 
             # Get a list of tuples in the format of ("XXX Pokemon name", internal id)
             rows = self._driver.execute_script('return [...document.getElementById("msdropdown20_child").querySelectorAll("*[value]")].map(p => [p.innerText, p.getAttribute("value")])')

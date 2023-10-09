@@ -40,7 +40,7 @@ from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
                               apply_transparency)
 from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
                              split_string, get_image, dl_image, call_later,
-                             get_images)
+                             get_images, get_text_size)
 
 logger = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
@@ -1480,8 +1480,9 @@ class Images(Cog):
             # Since that what draw.text uses in it's text drawing methods but not
             # in the text size methods. Nice design I know. It makes textsize inaccurate
             # so don't use that method
-            text_size = font.getsize(text)
-            text_size = (text_size[0], font.getsize('A')[1])
+            # Does not seem to be the case anymore
+            text_size = get_text_size(font, text)
+            #text_size = (text_size[0], get_text_size(font, 'A')[1])
 
             # Linearly growing spacing
             spacing = int(round(0.5 + 0.167 * fontsize))

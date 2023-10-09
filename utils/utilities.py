@@ -1405,3 +1405,9 @@ async def wants_to_be_noticed(member, guild, remove=True):
 
 def get_filename_from_url(url):
     return os.path.basename(urlparse(url).path)
+
+
+def get_text_size(font, text) -> tuple[int, int]:
+    left, top, right, bottom = font.getbbox(text)
+
+    return right - left, bottom - top

@@ -27,7 +27,7 @@ from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.imagetools import stack_images, concatenate_images
 from utils.utilities import (split_string, get_role, y_n_check, y_check,
-                             Snowflake, check_botperm)
+                             Snowflake, check_botperm, get_text_size)
 
 logger = logging.getLogger('terminal')
 
@@ -682,7 +682,7 @@ class Colors(Cog):
 
         draw = ImageDraw.Draw(im)
         name = str(color)
-        text_size = font.getsize(name)
+        text_size = get_text_size(font, name)
         text_color = self.text_color(color)
         x_margin = 1
 
@@ -700,7 +700,7 @@ class Colors(Cog):
                 if text_size[1] + total_y > size[1]:
                     break
 
-                x = (size[0] + x_margin - font.getsize(line)[0]) // 2
+                x = (size[0] + x_margin - get_text_size(font, line)[0]) // 2
                 all_lines.append((line, x))
                 total_y += y_margin + text_size[1]
 

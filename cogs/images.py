@@ -1567,7 +1567,7 @@ class Images(Cog):
         await self._pokefusion.cache_infinite_fusion_sprites()
 
         base_url = 'https://raw.githubusercontent.com/Aegide/custom-fusion-sprites/main/CustomBattlers/{}'
-        if not force_japeal and pokemon1 == Pokefusion.RANDOM and pokemon2 == Pokefusion.RANDOM:
+        if not force_japeal and pokemon1 == Pokefusion.RANDOM and pokemon2 == Pokefusion.RANDOM and self._pokefusion.fusion_file_list:
             filename: str = random.choice(self._pokefusion.fusion_file_list)
             url = base_url.format(filename)
             split = filename.split('.')

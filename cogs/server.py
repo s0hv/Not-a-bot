@@ -471,7 +471,7 @@ class Server(Cog):
         file = None
         if sticker_file:
             file = sticker_file
-        elif is_url(sticker_url):
+        elif sticker_url is not None and is_url(sticker_url):
             file = await dl_image(inter, sticker_url, get_raw=True)
 
         if file is None:

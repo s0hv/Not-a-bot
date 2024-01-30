@@ -9,8 +9,8 @@ from typing import Union, List, Optional, cast
 import disnake
 from asyncpg.exceptions import PostgresError
 from disnake.ext import tasks
-from disnake.ext.commands import BucketType, Greedy, cooldown, guild_only, \
-    NoPrivateMessage
+from disnake.ext.commands import (BucketType, Greedy, cooldown, guild_only,
+                                  NoPrivateMessage)
 
 from bot.bot import (command, group, has_permissions,
                      bot_has_permissions, Context)
@@ -391,7 +391,7 @@ class Moderator(Cog):
     @cooldown(2, 5, BucketType.guild)
     @bot_has_permissions(manage_roles=True)
     @has_permissions(manage_roles=True)
-    async def add_role(self, ctx, name, random_color=True, mentionable=False, hoist=False):
+    async def add_role(self, ctx: Context, name, random_color=True, mentionable=False, hoist=False):
         """Add a role to the server.
         random_color makes the bot choose a random color for the role and
         hoist will make the role show up in the member list"""
@@ -410,9 +410,10 @@ class Moderator(Cog):
                                         mentionable=mentionable, hoist=hoist,
                                         reason=f'responsible user {ctx.author} {ctx.author.id}')
         except disnake.HTTPException as e:
-            return await ctx.send('Could not create role because of an error\n```%s```' % e)
+            return await ctx.send(f'Could not create role because of an error\n```{e}```')
 
-        await ctx.send('Successfully created role %s `%s`' % (name, r.id))
+        await ctx.send(f'Successfully created role {r.mention} `{r.id}`',
+                       allowed_mentions=disnake.AllowedMentions.none())
 
     async def _mute_check(self, ctx: Context) -> bool | Optional[disnake.Role]:
         guild = ctx.guild

@@ -4,6 +4,7 @@ import random
 import re
 import shlex
 import textwrap
+import unicodedata
 from collections import Counter
 from datetime import datetime
 from datetime import timedelta
@@ -15,7 +16,6 @@ from typing import Union, Optional
 import disnake
 import emoji
 import numpy as np
-import unicodedata
 from aioredis import Redis
 from aioredis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
@@ -286,6 +286,8 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None, data={"id": 968563116130578472, "name": "Radahn festival enjoyer"}),
         disnake.Role(guild=None, state=None, data={"id": 978028956395634779, "name": "Saucy jack"}),
         disnake.Role(guild=None, state=None, data={"id": 1128975230447140894, "name": "member of the En Family"}),
+        disnake.Role(guild=None, state=None, data={"id": 1201860328573648936, "name": "Nah, I'd win"}),
+        disnake.Role(guild=None, state=None, data={"id": 1201860468734709780, "name": "Perhaps, this is hell"}),
     }
 }
 
@@ -353,6 +355,7 @@ role_response_fail = [
     RoleResponse('', 'https://manly.gachimuchi.men/ll2a095z8whe.jpg'),
     RoleResponse('You know nothing pendejo.'),
     RoleResponse('You get killed by demons while trying to get a role.', 'https://manly.gachimuchi.men/pacbscl1un9a.jpg'),
+    RoleResponse('Now YOU give ME a role :index_pointing_at_the_viewer:', 'https://i.imgur.com/OG8Zj6s.png')
 ]
 
 start_date = datetime(year=2020, month=8, day=1, hour=12)

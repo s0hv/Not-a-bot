@@ -1347,6 +1347,7 @@ class Audio(commands.Cog):
     async def stereo(
             self, ctx: ApplicationCommandInteraction,
             mode: str = Param('sine', description="Type of stereo effect", choices=stereo_modes),
+            speed: int = Param(500, description='Speed of the effect in ms', min_value=10, max_value=2000)
     ):
         """Works almost the same way {prefix}play does
         Default stereo type is sine.
@@ -1386,7 +1387,7 @@ class Audio(commands.Cog):
             current.remove_filter('pan')
             current.remove_filter('apulsator')
         else:
-            current.set_filter('apulsator', f'mode={mode}')
+            current.set_filter('apulsator', f'mode={mode}=timing=ms=ms={speed}')
 
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)

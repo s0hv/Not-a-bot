@@ -1387,7 +1387,7 @@ class Audio(commands.Cog):
             current.remove_filter('pan')
             current.remove_filter('apulsator')
         else:
-            current.set_filter('apulsator', f'mode={mode}=timing=ms=ms={speed}')
+            current.set_filter('apulsator', f'mode={mode}:timing=ms:ms={speed}')
 
         logger.debug('Filters parsed. Returned: {}'.format(current.options))
         await self._seek(musicplayer, current, seek, options=current.options)

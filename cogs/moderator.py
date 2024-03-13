@@ -1542,14 +1542,13 @@ class Moderator(Cog):
         except disnake.HTTPException:
             return await ctx.send('Something went wrong while trying to ban. Try again')
 
+        await ctx.send(f'Softbanned user {user_name}')
+        await asyncio.sleep(3)
+
         try:
             await guild.unban(Snowflake(user), reason=f'{ctx.author} softbanned')
         except disnake.HTTPException:
             return await ctx.send('Failed to unban after ban')
-
-        s = f'Softbanned user {user_name}'
-
-        await ctx.send(s)
 
     @command(aliases=['zawarudo'])
     @cooldown(1, 5, BucketType.guild)

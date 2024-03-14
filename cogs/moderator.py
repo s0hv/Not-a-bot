@@ -1488,7 +1488,7 @@ class Moderator(Cog):
             return
 
         try:
-            await ctx.guild.ban(user, clean_history_duration=delete_days, reason=f'Banned by {author}: {reason[:400]}')
+            await ctx.guild.ban(user, clean_history_duration=timedelta(days=delete_days), reason=f'Banned by {author}: {reason[:400]}')
             pass
         except disnake.HTTPException as e:
             await ctx.send(f'Failed to ban user {user}\n{e}')
@@ -1536,14 +1536,14 @@ class Moderator(Cog):
             user = user.id
             user_name += f' `{user}`'
         try:
-            await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', clean_history_duration=message_days)
+            await guild.ban(Snowflake(user), reason=f'{ctx.author} softbanned', clean_history_duration=timedelta(days=message_days))
         except disnake.Forbidden:
             return await ctx.send("The bot doesn't have ban perms")
         except disnake.HTTPException:
             return await ctx.send('Something went wrong while trying to ban. Try again')
 
         await ctx.send(f'Softbanned user {user_name}')
-        await asyncio.sleep(3)
+        await asyncio.sleep(1)
 
         try:
             await guild.unban(Snowflake(user), reason=f'{ctx.author} softbanned')

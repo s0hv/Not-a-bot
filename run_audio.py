@@ -97,7 +97,7 @@ bot: AudioBot = None
 
 async def main():
     global bot
-    bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls', 'as'], reverse=True),
+    bot = AudioBot(prefix=sorted(['Alexa ', 'alexa ', 'ä', 'a', 'pls ', 'as', 'asunto'], reverse=True),
                    conf=config, max_messages=100, cogs=initial_cogs, intents=intents,
                    test_guilds=get_test_guilds(), test_mode=test_mode,
                    command_sync_flags=CommandSyncFlags.all() if test_mode else CommandSyncFlags.default()

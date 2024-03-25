@@ -70,7 +70,7 @@ class GuildCache:
 
         prefixes = self._get_internals(guild_id).get('prefixes')
         if prefixes is None:
-            prefixes = list(self.get_settings(guild_id).get('prefixes', [self.bot.default_prefix] if isinstance(str, self.bot.default_prefix) else self.bot.default_prefix))
+            prefixes = list(self.get_settings(guild_id).get('prefixes', [self.bot.default_prefix] if isinstance(self.bot.default_prefix, str) else self.bot.default_prefix))
             self._set_internal_value(guild_id, 'prefixes', prefixes)
 
         return prefixes

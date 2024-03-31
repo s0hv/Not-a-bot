@@ -26,7 +26,7 @@ import disnake
 import matplotlib.pyplot as plt
 from aioredis import Redis
 from asyncpg.exceptions import PostgresError
-from disnake import File
+from disnake import File, HTTPException
 from disnake.ext.commands.errors import ExtensionError, ExtensionFailed
 from disnake.user import BaseUser
 from matplotlib.dates import AutoDateLocator, DateFormatter
@@ -309,8 +309,7 @@ class BotAdmin(Cog):
         cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
         t = time.perf_counter()
         try:
-            await self.bot.loop.run_in_executor(self.bot.threadpool,
-                                                self.bot.load_extension, cog_name)
+            self.bot.load_extension(cog_name)
         except Exception as e:
             logger.exception('Failed to load')
             return await ctx.send('Could not load %s because of %s' % (cog_name, e.__class__.__name__))
@@ -322,8 +321,7 @@ class BotAdmin(Cog):
         cog_name = 'cogs.%s' % cog if not cog.startswith('cogs.') else cog
         t = time.perf_counter()
         try:
-            await self.bot.loop.run_in_executor(self.bot.threadpool,
-                                                self.bot.unload_extension, cog_name)
+            self.bot.unload_extension(cog_name)
         except Exception as e:
             return await ctx.send('Could not unload %s because of %s' % (cog_name, e.__class__.__name__))
 

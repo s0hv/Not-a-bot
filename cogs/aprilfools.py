@@ -58,6 +58,39 @@ class Turtle(Cog):
             pass
 
     @Cog.listener()
+    async def on_message_edit(self, before: disnake.Message, after: disnake.Message):
+        if (
+                not after.guild or
+                after.guild.id != self._guild or
+                after.channel.id != self._channel
+        ):
+            return
+
+        if before.content.strip() == after.content.strip():
+            return
+
+        try:
+            await after.delete()
+        except:
+            pass
+
+    @Cog.listener()
+    async def on_message_delete(self, msg: disnake.Message):
+        if (
+                not msg.guild or
+                msg.guild.id != self._guild or
+                msg.channel.id != self._channel
+        ):
+            return
+
+        async with self._check_lock:
+            async for message in msg.guild.get_channel(self._channel).history(limit=1):
+                if not self.is_turtle_pol(message) and not self.is_turtle(message):
+                    return
+
+                self._last_emote = self._turtle if self.is_turtle(message) else self._turtle_pol
+
+    @Cog.listener()
     async def on_message(self, msg: disnake.Message):
         if (
                 not msg.guild or

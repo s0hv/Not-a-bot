@@ -1,11 +1,11 @@
 import logging
+import re
 from asyncio.locks import Lock
 from datetime import timedelta
 
 import disnake
 
 from cogs.cog import Cog
-from utils.utilities import get_emote_id
 
 logger = logging.getLogger('terminal')
 
@@ -29,7 +29,10 @@ class Turtle(Cog):
         if ' ' in s:
             return False
 
-        return self._turtle_pol ==  get_emote_id(s)[1]
+        match = re.match(r'^<(a)?:\w+:(\d+)>$', s)
+        if not match:
+            return False
+        return self._turtle_pol == match.groups()[1]
 
     def is_turtle(self, msg: disnake.Message):
         return self._turtle == msg.content

@@ -1600,6 +1600,7 @@ class Audio(commands.Cog):
         """
         Adds a song to the top of the queue.
         """
+        await ctx.response.defer()
         musicplayer = self.get_musicplayer(ctx.guild.id)
         success = False
         if musicplayer is None or musicplayer.voice is None:

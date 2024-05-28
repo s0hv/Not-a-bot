@@ -303,6 +303,7 @@ class Audio(commands.Cog):
         so to seek only one millisecond put 001ms. Otherwise, the song will just
         restart. e.g. 1h 4s and 2m1s3ms both should work.
         """
+        await ctx.response.defer()
         if not await self.check_voice(ctx):
             return
 

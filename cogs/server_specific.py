@@ -4,7 +4,6 @@ import random
 import re
 import shlex
 import textwrap
-import unicodedata
 from collections import Counter
 from datetime import datetime
 from datetime import timedelta
@@ -16,6 +15,7 @@ from typing import Union, Optional
 import disnake
 import emoji
 import numpy as np
+import unicodedata
 from aioredis import Redis
 from aioredis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
@@ -279,7 +279,8 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None,  data={"id": 376789104794533898, "name": "no u"}),
         disnake.Role(guild=None, state=None,  data={"id": 348900633979518977, "name": "Role to die"}),
         disnake.Role(guild=None, state=None,  data={"id": 349123036189818894, "name": "koichipose"}),
-        disnake.Role(guild=None, state=None,  data={"id": 318383761953652741, "name": "The Ashura"})
+        disnake.Role(guild=None, state=None,  data={"id": 318383761953652741, "name": "The Ashura"}),
+        disnake.Role(guild=None, state=None,  data={"id": 1260901563128352781, "name": "CURSE YOU BAYLE!"}),
     },
 
     1500: {
@@ -355,7 +356,12 @@ role_response_fail = [
     RoleResponse('', 'https://manly.gachimuchi.men/ll2a095z8whe.jpg'),
     RoleResponse('You know nothing pendejo.'),
     RoleResponse('You get killed by demons while trying to get a role.', 'https://manly.gachimuchi.men/pacbscl1un9a.jpg'),
-    RoleResponse('Now YOU give ME a role :index_pointing_at_the_viewer:', 'https://i.imgur.com/OG8Zj6s.png')
+    RoleResponse('Now YOU give ME a role :index_pointing_at_the_viewer:', 'https://i.imgur.com/OG8Zj6s.png'),
+    RoleResponse('Unfortunately for you, however, you are maidenless.', 'https://manly.gachimuchi.men/rz0Xcf91vJTq.png'),
+    RoleResponse('CURSE YOU BAYLE!!!! I HEREBY VOW YOU WILL RUE THIS DAY! BEHOLD, A TRUE DRAKE WARRIOR! '
+                 'AND I, IGON! YOUR FEARS MADE FLESH! SOLID OF SCALES YOU MAY BE, FOUL DRAGON! '
+                 'BUT I WILL RIDDLE WITH HOLES YOUR ROTTEN HIDE! WITH A HAIL OF HARPOONS! WITH EVERY LAST DROP OF MY BEING!\n'
+                 'YAAHHHHHHHAAAAAAAAAAAAAAHH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 ]
 
 start_date = datetime(year=2020, month=8, day=1, hour=12)

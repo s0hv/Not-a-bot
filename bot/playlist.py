@@ -23,6 +23,7 @@ SOFTWARE.
 """
 
 import asyncio
+import disnake
 import functools
 import json
 import logging
@@ -31,11 +32,9 @@ import random
 import re
 import time
 from collections import deque
-from typing import Union, Callable, TypeVar, Awaitable
-
-import disnake
 from disnake import ApplicationCommandInteraction, MessageInteraction
 from numpy import delete as delete_by_indices
+from typing import Union, Callable, TypeVar, Awaitable
 from validators import url as valid_url
 
 from bot.bot import Context
@@ -309,7 +308,7 @@ class Playlist:
         entries = info['entries']
 
         def get_url(entry_):
-            if entry_.get('id') is None:
+            if site == 'sc' or entry_.get('id') is None:
                 new_url = entry_.get('url')
             else:
                 new_url = url % entry_['id']

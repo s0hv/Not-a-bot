@@ -308,7 +308,9 @@ class Playlist:
         entries = info['entries']
 
         def get_url(entry_):
-            if site == 'sc' or entry_.get('id') is None:
+            if site == 'sc':
+                new_url = entry_.get('webpage_url')
+            elif entry_.get('id') is None:
                 new_url = entry_.get('url')
             else:
                 new_url = url % entry_['id']

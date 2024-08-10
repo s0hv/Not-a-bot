@@ -30,33 +30,22 @@ from concurrent.futures import ThreadPoolExecutor
 
 import disnake
 
-from bot.bot import Bot, command
-from bot.dbutil import DatabaseUtils
+from bot.bot import Bot
 
 terminal = logging.getLogger('terminal')
 
 
 initial_cogs = ['cogs.sfx_audio',
-                'cogs.utils',
                 'cogs.botadmin']
 
 
 class Ganypepe(Bot):
-    def __init__(self, prefix, conf, aiohttp=None, test_mode=False, **options):
-        super().__init__(prefix, conf, aiohttp, **options)
+    def __init__(self, prefix, conf, test_mode=False, **options):
+        super().__init__(prefix, conf, **options)
         self.test_mode = test_mode
         self.threadpool = ThreadPoolExecutor(max_workers=4)
-        self._dbutil = DatabaseUtils(self)
         self.music_players = {}
         self._exit_code = 0
-
-    @property
-    def dbutil(self):
-        return self._dbutil
-
-    @property
-    def dbutils(self):
-        return self._dbutil
 
     async def _load_cogs(self, print_err=True):
         for cog in initial_cogs:
@@ -72,11 +61,3 @@ class Ganypepe(Bot):
         terminal.info(f'Logged in as {self.user}')
         await self.change_presence(activity=disnake.Game(name=self.config.sfx_game))
         await self._load_cogs()
-        try:
-            cmd = command('test')(self.test)
-            self.add_command(cmd)
-        except (TypeError, disnake.ClientException):
-            pass
-
-    async def test(self, ctx):
-        await ctx.send('test')

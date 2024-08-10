@@ -27,7 +27,8 @@ class Cog(commands.Cog):
             entries.append(cmd.name)
             data.append((entries[0], ' '.join(entries[1:]) or ""))
 
-        await self.bot.dbutil.add_commands(data)
+        if hasattr(self.bot, 'dbutil'):
+            await self.bot.dbutil.add_commands(data)
 
     @property
     def bot(self):

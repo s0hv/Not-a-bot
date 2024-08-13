@@ -25,13 +25,19 @@ SOFTWARE.
 import asyncio
 import logging
 import os
+import re
 import shlex
+import subprocess
+import time
+import typing
 from collections import deque, OrderedDict
+from pathlib import Path
+from typing import Optional
 
 import disnake
 from disnake import ApplicationCommandInteraction
 from disnake.ext import commands
-from disnake.ext.commands import Cog, cooldown, slash_command
+from disnake.ext.commands import Cog, cooldown, slash_command, Param
 from numpy import random
 
 from bot.formatter import EmbedPaginator
@@ -43,8 +49,15 @@ except ImportError:
     gTTS = None
 
 from bot.globals import TTS, SFX_FOLDER
+if typing.TYPE_CHECKING:
+    from bot.sfx_bot import Ganypepe
 
 terminal = logging.getLogger('terminal')
+guild_ids = [128248421130698752]
+filename_regex = re.compile(r'^[\w\-\s]+$')
+DELETED_SFX_FOLDER = Path(SFX_FOLDER, 'deleted')
+if not DELETED_SFX_FOLDER.exists():
+    DELETED_SFX_FOLDER.mkdir()
 
 
 class SFX:
@@ -57,7 +70,7 @@ class SFX:
 
 class Playlist:
     def __init__(self, bot, disconnect, guild):
-        self.voice = None
+        self.voice: Optional[disnake.VoiceClient] = None
         self.bot = bot
         self.guild = guild
         self._disconnect = disconnect
@@ -101,14 +114,17 @@ class Playlist:
                 path = SFX_FOLDER
                 files = os.listdir(path)
 
-                sfx = os.path.join(path, random.choice(files))
-                if random.random() < 0.5:
-                    sfx2 = os.path.join(path, random.choice(files))
-                    options = '-i "{}" '.format(sfx2)
-                    options += '-filter_complex "[0:a0] [1:a:0] concat=n=2:v=0:a=1 [a]" -map "[a]"'
-                    self.add_to_queue(sfx, options)
-                else:
-                    self.add_to_queue(sfx)
+                count = random.randint(1, 4)
+                cog: 'Audio' = self.bot.get_cog('Audio')
+                sfx = [os.path.join(path, p) for p in random.choice(files, count) if os.path.isfile(os.path.join(path, p))]
+
+                if sfx:
+                    entry = await cog.combine_sfx(None, *sfx, search=False)
+
+                    if isinstance(entry, tuple):
+                        self.add_to_queue(entry[0], entry[1])
+                    elif isinstance(entry, str):
+                        self.add_to_queue(entry)
 
             await asyncio.sleep(60)
 
@@ -153,14 +169,18 @@ class Playlist:
 
 
 class Audio(Cog):
-    def __init__(self, bot, queue):
-        self.bot = bot
+    def __init__(self, bot: 'Ganypepe', queue):
+        self.bot: 'Ganypepe' = bot
         self.music_players: dict[int, Playlist] = self.bot.music_players
         self.queue = queue
         self._lang = 'en-us'
+        self._sfx_list: list[str] = NotImplemented
+        self.set_sfx_list()
+
+    def set_sfx_list(self):
         self._sfx_list = sorted(f.rsplit('.', 1)[0] for f in os.listdir(SFX_FOLDER) if '.' in f)
 
-    def get_voice_state(self, guild):
+    def get_voice_state(self, guild: disnake.Guild):
         playlist = self.music_players.get(guild.id)
         if playlist is None:
             playlist = Playlist(self.bot, self.disconnect_voice, guild)
@@ -168,14 +188,17 @@ class Audio(Cog):
 
         return playlist
 
-    @slash_command(dm_permission=False)
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
     async def summon(self, ctx: ApplicationCommandInteraction):
         """Summons the bot to join your voice channel."""
+        is_done = ctx.response.is_done()
+        if not is_done:
+            await ctx.response.defer()
         if not ctx.author.voice:
             await ctx.send("You aren't connected to a voice channel")
             return False
 
-        channel = ctx.author.voice.channel
+        channel: disnake.VoiceChannel = ctx.author.voice.channel
         state = self.get_voice_state(ctx.guild)
 
         if state.voice is None:
@@ -195,9 +218,12 @@ class Audio(Cog):
         if file:
             state.add_to_queue(file[0])
 
+        if not is_done:
+            await ctx.send('Joined VC')
+
         return True
 
-    @slash_command(dm_permission=False)
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
     async def stop_sfx(self, ctx: ApplicationCommandInteraction):
         """Stop the current sfx"""
         state = self.get_voice_state(ctx.guild)
@@ -249,7 +275,7 @@ class Audio(Cog):
 
         return names
 
-    @slash_command(dm_permission=False)
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx: ApplicationCommandInteraction, name: str):
         """Play a sound effect"""
@@ -265,11 +291,11 @@ class Audio(Cog):
             await self.summon.invoke(ctx)
 
         state.add_to_queue(file)
-        await ctx.send('Queued', ephemeral=True)
+        await ctx.send('Queued')
 
     sfx.autocomplete('name')(autocomplete_sfx)
 
-    @slash_command(name='max_combo', guild_ids=[128248421130698752])
+    @slash_command(name='max_combo', guild_ids=guild_ids)
     async def change_combo(self, ctx: ApplicationCommandInteraction, max_combo: int=None):
         """Change how many sound effects you can combine with {prefix}combo"""
         if max_combo is None:
@@ -278,7 +304,7 @@ class Audio(Cog):
         self.bot.config.max_combo = max_combo
         await ctx.send(f'Max combo set to {max_combo}')
 
-    async def _combine_sfx(self, ctx: ApplicationCommandInteraction, *effects, search=True):
+    async def combine_sfx(self, ctx: Optional[ApplicationCommandInteraction], *effects, search=True):
         max_combo = self.bot.config.max_combo
         silences = []
         silenceidx = 0
@@ -289,7 +315,8 @@ class Audio(Cog):
                 try:
                     silence = float(silence)
                 except ValueError as e:
-                    await ctx.send('Silence duration needs to be a number\n%s' % e, delete_after=20)
+                    if ctx:
+                        await ctx.send('Silence duration needs to be a number\n%s' % e, delete_after=20)
                     continue
 
                 silences.append(('aevalsrc=0:d={}[s{}]'.format(silence, str(silenceidx)), idx))
@@ -300,7 +327,8 @@ class Audio(Cog):
                 try:
                     bpm = int(''.join(name.split('-')[:-1]))
                     if bpm <= 0:
-                        await ctx.send('BPM needs to be bigger than 0', delete_after=20)
+                        if ctx:
+                            await ctx.send('BPM needs to be bigger than 0', delete_after=20)
                         continue
 
                     silence = 60 / bpm
@@ -314,7 +342,8 @@ class Audio(Cog):
                 sfx = self._search_sfx(name)
                 if not sfx:
                     name = name.replace('@', '\u200b@')
-                    await ctx.send(f"{ctx.author.mention} Couldn't find {name}. Skipping it", delete_after=30)
+                    if ctx:
+                        await ctx.send(f"{ctx.author.mention} Couldn't find {name}. Skipping it", delete_after=30)
                     continue
 
                 sfx_list.append(sfx[0])
@@ -322,10 +351,14 @@ class Audio(Cog):
                 sfx_list.append(name)
 
         if not sfx_list:
-            return await ctx.send('No sfx found', delete_after=30)
+            if ctx:
+                await ctx.send('No sfx found', delete_after=30)
+            return
 
         if len(sfx_list) > max_combo:
-            return await ctx.send('Cannot combine more effects than the current combo limit of %s' % max_combo)
+            if ctx:
+                await ctx.send('Cannot combine more effects than the current combo limit of %s' % max_combo)
+            return
 
         entry = sfx_list.pop(0)
         if not sfx_list:
@@ -350,7 +383,7 @@ class Audio(Cog):
         options += 'concat=n={}:v=0:a=1 [a]" -map "[a]"'.format(len(audio_order))
         return entry, options
 
-    @slash_command(dm_permission=False)
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
     async def random_sfx(self, ctx: ApplicationCommandInteraction, combo: int=1):
         """Set how many sfx random sfx will combine if it's on"""
         await ctx.response.defer()
@@ -371,15 +404,15 @@ class Audio(Cog):
             pass
 
         effects = [os.path.join(SFX_FOLDER, f) for f in random.choice(sfx, combo)]
-        entry = await self._combine_sfx(ctx, *effects, search=False)
+        entry = await self.combine_sfx(ctx, *effects, search=False)
         if isinstance(entry, tuple):
             state.add_to_queue(entry[0], entry[1])
         elif isinstance(entry, str):
             state.add_to_queue(entry)
 
-        await ctx.send('Queued', ephemeral=True)
+        await ctx.send('Queued')
 
-    @slash_command(name='combo', dm_permission=False)
+    @slash_command(name='combo', dm_permission=False, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def combine(self, ctx: ApplicationCommandInteraction, names: str):
         """Play multiple sfx in a row"""
@@ -393,13 +426,13 @@ class Audio(Cog):
         if state.voice is None:
             await self.summon.invoke(ctx)
 
-        entry = await self._combine_sfx(ctx, *names)
+        entry = await self.combine_sfx(ctx, *names)
         if isinstance(entry, tuple):
             state.add_to_queue(entry[0], entry[1])
         elif isinstance(entry, str):
             state.add_to_queue(entry)
 
-        await ctx.send('Queued', ephemeral=True)
+        await ctx.send('Queued')
 
         'ffmpeg -i audio1.mp3 -i audio2.mp3 -filter_complex "[0:a:0] [1:a:0] concat=n=2:v=0:a=1 [a]" -map "[a]" out.mp3'
 
@@ -418,7 +451,15 @@ class Audio(Cog):
 
         return [os.path.join(SFX_FOLDER, f) for f in file]
 
-    @slash_command(dm_permission=False)
+    @staticmethod
+    def get_sfx(name: str) -> Optional[str]:
+        path = os.path.join(SFX_FOLDER, f'{name}.opus')
+        if os.path.exists(path):
+            return path
+
+        return None
+
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
     async def set_random_sfx(self, ctx: ApplicationCommandInteraction, value: bool):
         """Set random sfx on or off"""
         state = self.get_voice_state(ctx.guild)
@@ -426,7 +467,7 @@ class Audio(Cog):
 
         await ctx.send('Random sfx set to %s' % value)
 
-    @slash_command()
+    @slash_command(guild_ids=guild_ids)
     @cooldown(1, 4, type=commands.BucketType.user)
     async def sfxlist(self, ctx: ApplicationCommandInteraction):
         """List of all the sound effects"""
@@ -457,7 +498,7 @@ class Audio(Cog):
         for embed in p.pages:
             await ctx.send(embed=embed)
 
-    @slash_command(name='on_join', dm_permission=False)
+    @slash_command(name='on_join', dm_permission=False, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def _on_join(self, ctx: ApplicationCommandInteraction, val: bool=None):
         guild = ctx.guild
@@ -471,7 +512,7 @@ class Audio(Cog):
         state.on_join = val
         await ctx.send(f'On join set to {val}')
 
-    @slash_command(dm_permission=False)
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def stop(self, ctx: ApplicationCommandInteraction):
         """Stops playing audio and leaves the voice channel.
@@ -482,6 +523,51 @@ class Audio(Cog):
         if not state:
             return
         await self.disconnect_voice(state)
+        await ctx.send('Disconnected')
+
+    async def create_normalized_sfx(self, input_file: str, sfx_filename: str):
+        terminal.info(f'Creating new sfx {sfx_filename}')
+        args = ['ffmpeg', '-i', input_file, '-filter:a', 'loudnorm=i=-16', sfx_filename]
+        terminal.debug(args)
+        process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        await self.bot.loop.run_in_executor(self.bot.threadpool, process.communicate)
+
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    async def create_sfx(self, ctx: ApplicationCommandInteraction, name: str=Param(name='sfx_name', min_length=1, max_length=50), file: disnake.Attachment=Param()):
+        """Create a new sfx from an audio file"""
+        if self.get_sfx(name):
+            await ctx.send(f'SFX with the name {name} already exists', ephemeral=True)
+            return
+
+        await ctx.response.defer()
+        if not filename_regex.match(name):
+            await ctx.send(f'Invalid SFX name {name}. Only alphanumeric characters and "-" are allowed', ephemeral=True)
+            return
+
+        await self.create_normalized_sfx(file.url, os.path.join(SFX_FOLDER, f'{name}.opus'))
+        self.set_sfx_list()
+        await ctx.send(f'Created SFX {name}')
+
+    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    async def delete_sfx(self, ctx: ApplicationCommandInteraction, name):
+        """Delete the given sfx"""
+        sfx_file = self.get_sfx(name)
+        if not sfx_file:
+            await ctx.send(f'SFX with the name {name} not found', ephemeral=True)
+            return
+
+        await ctx.response.defer()
+        filepath = Path(sfx_file)
+        delete_path = Path(DELETED_SFX_FOLDER, filepath.name)
+        if delete_path.exists():
+            delete_path = Path(DELETED_SFX_FOLDER, f'{filepath.name}-{time.time():.0f}')
+
+        filepath.rename(delete_path)
+        self.set_sfx_list()
+        await ctx.send(f'Deleted sfx {name}')
+
+    delete_sfx.autocomplete('name')(autocomplete_sfx)
 
     #@Cog.listener()
     async def on_voice_state_update(self, member, before, after):
@@ -531,7 +617,7 @@ class Audio(Cog):
         path = os.path.join(TTS, 'leave.mp3')
         self._add_tts(path, string, member.guild)
 
-    def _add_tts(self, path: str, string: str, guild: int):
+    def _add_tts(self, path: str, string: str, guild: disnake.Guild):
         if gTTS is None:
             return
 

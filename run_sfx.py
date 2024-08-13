@@ -36,7 +36,7 @@ async def main():
     terminal.info('SFX bot starting up')
     bot = Ganypepe(prefix=disnake.ext.commands.when_mentioned, conf=config, max_messages=100)
 
-    @bot.slash_command(name='help')
+    @bot.slash_command(name='help', guild_ids=[128248421130698752])
     async def help_slash(inter: disnake.ApplicationCommandInteraction, command: str = Param(autocomplete=autocomplete_command)):
         cmd = inter.bot.get_command(command)
         slash_cmd = inter.bot.get_slash_command(command)

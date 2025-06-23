@@ -25,6 +25,7 @@ SOFTWARE.
 import asyncio
 import functools
 import logging
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 import yt_dlp
@@ -46,6 +47,9 @@ opts = {
     'source_address': '0.0.0.0',
     'extract_flat': 'in_playlist'
 }
+
+if cookie_file := os.environ.get('YT_COOKIE_FILE'):
+    opts['cookiefile'] = cookie_file
 
 
 def bug_reports_message(*_, **__):

@@ -26,7 +26,7 @@ class DBApi(Cog):
             await self._thread_safe_init()
 
     async def _thread_safe_init(self):
-        self.dbl = topgg.DBLClient(self._token)
+        self.dbl = topgg.DBLClient(bot=self.bot, token=self._token)
         self.update_task = self.bot.loop.create_task(self.update_stats())
 
     async def on_vote(self, json):

@@ -9,6 +9,7 @@ from io import BytesIO
 from math import ceil, sqrt
 
 import disnake
+import numpy
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 from asyncpg.exceptions import PostgresError
@@ -32,6 +33,14 @@ from utils.utilities import (split_string, get_role, y_n_check, y_check,
 logger = logging.getLogger('terminal')
 
 rgb_splitter = re.compile(r'^(\d{1,3})([, ])(\d{1,3})\2(\d{1,3})$')
+
+
+# Patch for numpy.asscalar deprecation
+def patch_asscalar(a):
+    return a.item()
+
+
+setattr(numpy, "asscalar", patch_asscalar)
 
 
 class Color:

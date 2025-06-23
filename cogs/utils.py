@@ -8,6 +8,7 @@ import sys
 import textwrap
 import time
 from datetime import datetime
+from datetime import timezone
 from email.utils import formatdate as format_rfc2822
 from io import StringIO
 from typing import Union, cast
@@ -218,7 +219,7 @@ class Utilities(Cog):
         pid = os.getpid()
         process = psutil.Process(pid)
         uptime = time.time() - process.create_time()
-        d = datetime.utcfromtimestamp(uptime)
+        d = datetime.fromtimestamp(uptime, timezone.utc)
         uptime = f'{d.day-1}d {d.hour}h {d.minute}m {d.second}s'
         current_memory = round(process.memory_info().rss / 1048576, 2)
         memory_usage = f' Current: {current_memory}MB'

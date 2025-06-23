@@ -47,7 +47,14 @@ opts = {
     'extract_flat': 'in_playlist'
 }
 
-yt_dlp.utils.bug_reports_message = lambda: ''
+
+def bug_reports_message(*_, **__):
+    terminal.debug(f'{_}, {__}')
+    return ''
+
+
+# Replace yt_dlp's bug report message with an empty string
+yt_dlp.utils.bug_reports_message = bug_reports_message
 
 
 class Downloader:

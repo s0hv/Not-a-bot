@@ -24,7 +24,7 @@ from typing import Optional
 import aiohttp
 import disnake
 import matplotlib.pyplot as plt
-from aioredis import Redis
+from redis.asyncio import Redis
 from asyncpg.exceptions import PostgresError
 from disnake import File, HTTPException
 from disnake.ext.commands.errors import ExtensionError, ExtensionFailed
@@ -626,7 +626,7 @@ class BotAdmin(Cog):
 
     @command()
     async def reload_redis(self, ctx):
-        from aioredis.client import Redis
+        from redis.asyncio.client import Redis
         logger.exception('Connection closed. Reconnecting')
         redis = self.bot.create_redis()
 

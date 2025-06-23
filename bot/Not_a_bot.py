@@ -31,7 +31,7 @@ matplotlib.use('Agg')
 import logging
 import time
 
-from aioredis.client import Redis
+from redis.asyncio.client import Redis
 import disnake
 from asyncpg.exceptions import PostgresError, InterfaceError
 

@@ -197,7 +197,7 @@ class Playlist:
         self.download = download
         self.playlist = deque()
         self.history = deque(maxlen=5)
-        self.downloader = Downloader() if not downloader else downloader
+        self.downloader: Downloader = Downloader() if not downloader else downloader
         self.not_empty = asyncio.Event()
         self.playlist_path = PLAYLISTS
         self.adding_songs = False

@@ -12,6 +12,7 @@ from typing import Optional
 import disnake
 import pytz
 from PIL import Image
+from disnake import InteractionContextTypes
 from disnake.ext import tasks
 from disnake.ext.commands import (
     BucketType, PartialEmojiConverter, Greedy, cooldown,
@@ -456,7 +457,7 @@ class Server(Cog):
         else:
             await ctx.send('Created sticker', stickers=[sticker])
 
-    @slash_command(name='add_sticker', dm_permission=False, default_member_permissions=disnake.Permissions(manage_emojis=True))
+    @slash_command(name='add_sticker', contexts=InteractionContextTypes.guild, default_member_permissions=disnake.Permissions(manage_emojis=True))
     @cooldown(2, 6, BucketType.guild)
     @bot_has_permissions(manage_emojis=True)
     async def add_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,
@@ -546,7 +547,7 @@ class Server(Cog):
         else:
             await ctx.send('Created sticker', stickers=[sticker])
 
-    @slash_command(name='steal_sticker', dm_permission=False, default_member_permissions=disnake.Permissions(manage_emojis=True))
+    @slash_command(name='steal_sticker', contexts=InteractionContextTypes.guild, default_member_permissions=disnake.Permissions(manage_emojis=True))
     @cooldown(2, 6, BucketType.guild)
     @bot_has_permissions(manage_emojis=True)
     async def steal_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,

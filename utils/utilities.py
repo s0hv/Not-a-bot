@@ -39,7 +39,7 @@ from urllib.parse import urlparse
 
 import disnake
 import numpy
-from aioredis.client import Redis
+from redis.asyncio.client import Redis
 from asyncpg.exceptions import PostgresError
 from disnake import ApplicationCommandInteraction
 from disnake import abc

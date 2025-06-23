@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Optional
 
 import disnake
-from disnake import ApplicationCommandInteraction
+from disnake import ApplicationCommandInteraction, InteractionContextTypes
 from disnake.ext import commands
 from disnake.ext.commands import Cog, cooldown, slash_command, Param
 from numpy import random
@@ -188,7 +188,7 @@ class Audio(Cog):
 
         return playlist
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     async def summon(self, ctx: ApplicationCommandInteraction):
         """Summons the bot to join your voice channel."""
         is_done = ctx.response.is_done()
@@ -223,7 +223,7 @@ class Audio(Cog):
 
         return True
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     async def stop_sfx(self, ctx: ApplicationCommandInteraction):
         """Stop the current sfx"""
         state = self.get_voice_state(ctx.guild)
@@ -275,7 +275,7 @@ class Audio(Cog):
 
         return names
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def sfx(self, ctx: ApplicationCommandInteraction, name: str):
         """Play a sound effect"""
@@ -383,7 +383,7 @@ class Audio(Cog):
         options += 'concat=n={}:v=0:a=1 [a]" -map "[a]"'.format(len(audio_order))
         return entry, options
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     async def random_sfx(self, ctx: ApplicationCommandInteraction, combo: int=1):
         """Set how many sfx random sfx will combine if it's on"""
         await ctx.response.defer()
@@ -412,7 +412,7 @@ class Audio(Cog):
 
         await ctx.send('Queued')
 
-    @slash_command(name='combo', dm_permission=False, guild_ids=guild_ids)
+    @slash_command(name='combo', contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def combine(self, ctx: ApplicationCommandInteraction, names: str):
         """Play multiple sfx in a row"""
@@ -459,7 +459,7 @@ class Audio(Cog):
 
         return None
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     async def set_random_sfx(self, ctx: ApplicationCommandInteraction, value: bool):
         """Set random sfx on or off"""
         state = self.get_voice_state(ctx.guild)
@@ -498,7 +498,7 @@ class Audio(Cog):
         for embed in p.pages:
             await ctx.send(embed=embed)
 
-    @slash_command(name='on_join', dm_permission=False, guild_ids=guild_ids)
+    @slash_command(name='on_join', contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def _on_join(self, ctx: ApplicationCommandInteraction, val: bool=None):
         guild = ctx.guild
@@ -512,7 +512,7 @@ class Audio(Cog):
         state.on_join = val
         await ctx.send(f'On join set to {val}')
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     @cooldown(2, 4, type=commands.BucketType.user)
     async def stop(self, ctx: ApplicationCommandInteraction):
         """Stops playing audio and leaves the voice channel.
@@ -533,7 +533,7 @@ class Audio(Cog):
 
         await self.bot.loop.run_in_executor(self.bot.threadpool, process.communicate)
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     async def create_sfx(self, ctx: ApplicationCommandInteraction, name: str=Param(name='sfx_name', min_length=1, max_length=50), file: disnake.Attachment=Param()):
         """Create a new sfx from an audio file"""
         if self.get_sfx(name):
@@ -549,7 +549,7 @@ class Audio(Cog):
         self.set_sfx_list()
         await ctx.send(f'Created SFX {name}')
 
-    @slash_command(dm_permission=False, guild_ids=guild_ids)
+    @slash_command(contexts=InteractionContextTypes.guild, guild_ids=guild_ids)
     async def delete_sfx(self, ctx: ApplicationCommandInteraction, name):
         """Delete the given sfx"""
         sfx_file = self.get_sfx(name)

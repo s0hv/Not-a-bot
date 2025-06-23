@@ -16,8 +16,8 @@ import disnake
 import emoji
 import numpy as np
 import unicodedata
-from aioredis import Redis
-from aioredis.exceptions import ConnectionError as RedisConnectionError
+from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from disnake import AllowedMentions
@@ -1048,7 +1048,7 @@ class ServerSpecific(Cog):
                 await self.bot.get_channel(252872751319089153).send('Manual redis restart required')
                 return
 
-            from aioredis.client import Redis
+            from redis.asyncio.client import Redis
             logger.exception('Connection closed. Reconnecting')
             redis = self.bot.create_redis()
 

@@ -2,14 +2,14 @@ import asyncio
 import logging
 import os
 from datetime import timedelta
-from typing import Optional
 
 import aiohttp
-import topgg
 
 from cogs.cog import Cog
 
 logger = logging.getLogger('terminal')
+
+topgg_api = 'https://top.gg/api/bots'
 
 
 class DBApi(Cog):
@@ -18,7 +18,6 @@ class DBApi(Cog):
         self.bot.server.add_listener(self.on_vote)
         self._token = self.bot.config.dbl_token
         self.update_task = None
-        self.dbl: Optional[topgg.DBLClient] = None
 
     async def cog_load(self):
         await super().cog_load()
@@ -26,7 +25,6 @@ class DBApi(Cog):
             await self._thread_safe_init()
 
     async def _thread_safe_init(self):
-        self.dbl = topgg.DBLClient(bot=self.bot, token=self._token)
         self.update_task = self.bot.loop.create_task(self.update_stats())
 
     async def on_vote(self, json):
@@ -36,16 +34,39 @@ class DBApi(Cog):
         async with aiohttp.ClientSession() as client:
             await client.post(self.bot.config.dbl_webhook, json=json, headers=headers)
 
+    async def do_request(self, client, endpoint, method, payload=None):
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": self._token,
+        }
+        return await client.request(
+            method,
+            f'{topgg_api}/{endpoint}',
+            json=payload,
+            headers=headers
+        )
+
+    async def post_guild_count(self, *, guild_count: int):
+        async with aiohttp.ClientSession() as client:
+            return await self.do_request(
+                client,
+                f'{self.bot.user.id}/stats',
+                'GET',
+                {'server_count': guild_count})
+
+    async def get_bot_info(self):
+        async with aiohttp.ClientSession() as client:
+            res = await self.do_request(
+                client,
+                f'{self.bot.user.id}',
+                'GET'
+            )
+            content = await res.json()
+            return content
+
     async def _thread_safe_stop(self):
         if self.update_task:
             self.update_task.cancel()
-        if self.dbl:
-            task = self.bot.loop.create_task(self.dbl.close())
-            try:
-                await asyncio.wait_for(task, 20)
-            except (asyncio.CancelledError, asyncio.InvalidStateError,
-                    asyncio.TimeoutError):
-                return
 
     def cog_unload(self):
         self.bot.server.remove_listener(self.on_vote)
@@ -56,10 +77,13 @@ class DBApi(Cog):
             await asyncio.sleep(3600)
             logger.info('Posting server count')
             try:
-                await self.dbl.post_guild_count(guild_count=len(self.bot.guilds))
+                await self.post_guild_count(guild_count=len(self.bot.guilds))
                 logger.info(f'Posted server count {len(self.bot.guilds)}')
-            except topgg.ServerError:
-                pass
+            except aiohttp.ClientResponseError as e:
+                if e.status >= 500:
+                    return
+                logger.exception(f'Failed to post server count\n{e}')
+                return
             except Exception as e:
                 logger.exception(f'Failed to post server count\n{e}')
 
@@ -67,8 +91,11 @@ class DBApi(Cog):
 
     async def _check_votes(self):
         try:
-            bot_info = await self.dbl.get_bot_info(self.bot.user.id)
-        except topgg.ServerError:
+            bot_info = await self.get_bot_info()
+        except aiohttp.ClientResponseError as e:
+            if e.status >= 500:
+                return
+            logger.exception(f'Failed to get bot info\n{e}')
             return
         except Exception as e:
             logger.exception(f'Failed to get bot info\n{e}')

@@ -52,7 +52,6 @@ class WebhookServer:
             return_asyncio_server=True)
         await self._server.startup()
 
-
     def add_listener(self, listener):
         self._listeners.add(listener)
 

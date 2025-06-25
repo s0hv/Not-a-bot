@@ -342,7 +342,7 @@ class Images(Cog):
 
     def cog_check(self, ctx):  # skipcq: PYL-R0201
         if not check_botperm('attach_files', ctx=ctx):
-            raise BotMissingPermissions(('attach_files', ))
+            raise BotMissingPermissions(['attach_files'])
 
         return True
 

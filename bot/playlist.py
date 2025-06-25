@@ -293,7 +293,7 @@ class Playlist:
 
         return len(removed)
 
-    async def search(self, name, ctx, site='yt', priority=False, in_vc=True):
+    async def search(self, name: str, ctx, site='yt', priority=False, in_vc=True):
         search_keys = {'yt': 'ytsearch', 'sc': 'scsearch'}
         urls = {'yt': 'https://www.youtube.com/watch?v=%s'}
         max_results = 10

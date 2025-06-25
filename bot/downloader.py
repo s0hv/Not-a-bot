@@ -53,7 +53,6 @@ if cookie_file := os.environ.get('YT_COOKIE_FILE'):
 
 
 def bug_reports_message(*_, **__):
-    terminal.debug(f'{_}, {__}')
     return ''
 
 

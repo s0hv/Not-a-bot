@@ -72,6 +72,10 @@ Duration = Param(converter=convert_timedelta, description='Duration in the forma
 Clear = Param(description='If set to True will clear the found items', name='clear', default=False)
 OptionalBool = Param(None)
 
+# Fixes for pycharm enum typing
+guild_bucket: BucketType = BucketType.guild
+user_bucket: BucketType = BucketType.user
+
 
 def check_who_queued(user):
     """
@@ -260,13 +264,13 @@ class Audio(commands.Cog):
         return musicplayer
 
     @slash_command(aliases=['a'])
-    @cooldown(1, 4, type=BucketType.guild)
+    @cooldown(1, 4, type=guild_bucket)
     async def again(self, ctx):
         """Queue the currently playing song to the end of the queue"""
         await self._again(ctx)
 
     @slash_command()
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     async def again_play_now(self, ctx):
         """Queue the currently playing song to the start of the queue"""
         await self._again(ctx, True)
@@ -294,7 +298,7 @@ class Audio(commands.Cog):
         song = Song.from_song(musicplayer.current, requested_by=ctx.author)
         await musicplayer.playlist.add_from_song(song, priority, channel=ctx)
 
-    @commands.cooldown(2, 3, type=BucketType.guild)
+    @commands.cooldown(2, 3, type=guild_bucket)
     @slash_command(description='Seeks to the given position in the song')
     async def seek(self, ctx: ApplicationCommandInteraction, where: str = Param(description='Position to seek to using this format: 1h 1m 1s')):
         """
@@ -388,7 +392,7 @@ class Audio(commands.Cog):
 
     @slash_command(cooldown_after_parsing=True, name='play',
                    description='Play the given song. A link will play the link and keywords will do a YouTube search.')
-    @commands.cooldown(1, 3, type=BucketType.user)
+    @commands.cooldown(1, 3, type=user_bucket)
     @guild_only()
     async def play_slash(self, ctx: ApplicationCommandInteraction, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
@@ -397,7 +401,7 @@ class Audio(commands.Cog):
         await self.play_song(ctx, song_name)
 
     @command(cooldown_after_parsing=True, name='play')
-    @commands.cooldown(1, 3, type=BucketType.user)
+    @commands.cooldown(1, 3, type=user_bucket)
     @guild_only()
     async def play_cmd(self, ctx: Context, *, song_name: str):
         """Put a song in the playlist. If you put a link it will play that link and
@@ -405,7 +409,7 @@ class Audio(commands.Cog):
         await self.play_song(ctx, song_name)
 
     @slash_command()
-    @commands.cooldown(1, 3, type=BucketType.user)
+    @commands.cooldown(1, 3, type=user_bucket)
     async def play_gapless(self, ctx: ApplicationCommandInteraction, song_name: str):
         """Works the same as /play but this also sets gapless playback mode on"""
         await ctx.response.defer()
@@ -456,7 +460,7 @@ class Audio(commands.Cog):
         pass
 
     @playlist.sub_command(aliases=['play_p', 'pp'], name='play')
-    @cooldown(1, 10, BucketType.user)
+    @cooldown(1, 10, user_bucket)
     async def play_playlist(
             self, ctx: ApplicationCommandInteraction,
             playlist_name: str = PlaylistName,
@@ -480,7 +484,7 @@ class Audio(commands.Cog):
             musicplayer.start_playlist()
 
     @playlist.sub_command(name='play_random')
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def play_random_playlist(
             self, ctx: ApplicationCommandInteraction,
             playlist_name: str =PlaylistName,
@@ -643,7 +647,7 @@ class Audio(commands.Cog):
 
     # TODO Add subcommands to add from queue but with a filter
     @playlist.sub_command(name='add', aliases=['atp'], cooldown_after_parsing=True, description='Adds songs to the given playlist.')
-    @cooldown(1, 20, BucketType.user)
+    @cooldown(1, 20, user_bucket)
     async def add_to_playlist(
             self, ctx: ApplicationCommandInteraction,
             playlist_name: str = PlaylistName,
@@ -728,7 +732,7 @@ class Audio(commands.Cog):
         pass
 
     @playlist_delete.sub_command(name='from', description='Delete the given links from the playlist. If no links given deletes current song.')
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def delete_from_playlist(self, ctx: ApplicationCommandInteraction,
                                    playlist_name: str = PlaylistName,
                                    song_links: str = None):
@@ -770,7 +774,7 @@ class Audio(commands.Cog):
         await ctx.send(f'{s}\nDeleted {deleted} song(s)')
 
     @playlist.sub_command(name='create', description='Create a playlist from the current queue or from links you pass after the prompt.')
-    @cooldown(1, 20, BucketType.user)
+    @cooldown(1, 20, user_bucket)
     async def create_playlist(self, ctx: ApplicationCommandInteraction, playlist_name: str = PlaylistName):
         """
         Create a playlist from the current queue or from links you pass after the prompt.
@@ -847,7 +851,7 @@ class Audio(commands.Cog):
         await ctx.send(f'Successfully copied {user}\'s playlist {name} to {name}')
 
     @playlist.sub_command(name='copy', description='Copy a playlist to your own playlists with a name.')
-    @cooldown(1, 20, BucketType.user)
+    @cooldown(1, 20, user_bucket)
     async def copy_playlist(
             self, ctx: ApplicationCommandInteraction,
             playlist_name: str = PlaylistName,
@@ -885,7 +889,7 @@ class Audio(commands.Cog):
         self.viewed_playlists[user.id] = (playlist, task, name)
 
     @playlist.sub_command(name='list', aliases=['lp'])
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def list_playlists(self, ctx: ApplicationCommandInteraction, user: disnake.User = PlaylistOwner):
         """
         List all the names of the playlists a user own. If user is not provided defaults to you
@@ -909,7 +913,7 @@ class Audio(commands.Cog):
         await ctx.send(f'Playlists of {user}\n\n' + '\n'.join(playlists))
 
     @playlist_delete.sub_command(name='duplicates')
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def clear_playlist_duplicates(self, ctx: ApplicationCommandInteraction, playlist_name: str = PlaylistName):
         """
         Clears all duplicate links from the given playlist
@@ -936,7 +940,7 @@ class Audio(commands.Cog):
         pass
 
     @playlist_view.sub_command(name='playlist', description="Get the contents of one of your playlists or someone else's playlists")
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def view_playlist(self, ctx: ApplicationCommandInteraction,
                             playlist_name: str = PlaylistName,
                             user: disnake.User = PlaylistOwner):
@@ -959,7 +963,7 @@ class Audio(commands.Cog):
         await self.send_playlist(ctx, songs, None, partial=True, accurate_indices=False)
 
     @playlist_view.sub_command(name='by_duration', description='Filters playlist by song duration.')
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def playlist_by_time(
             self, ctx: ApplicationCommandInteraction,
             playlist_name: str = PlaylistName,
@@ -999,7 +1003,7 @@ class Audio(commands.Cog):
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
     @playlist_view.sub_command(name='by_name', description='Filter playlist by song name. Regex can be used for this.')
-    @cooldown(1, 5, BucketType.user)
+    @cooldown(1, 5, user_bucket)
     async def playlist_by_name(
             self, ctx: ApplicationCommandInteraction,
             playlist_name: str = PlaylistName,
@@ -1049,7 +1053,7 @@ class Audio(commands.Cog):
         await self.send_playlist(ctx, selected, None, partial=True, accurate_indices=False)
 
     @playlist_delete.sub_command(name='playlist', description='Deletes a whole playlist')
-    @cooldown(1, 10, BucketType.user)
+    @cooldown(1, 10, user_bucket)
     async def delete_playlist(self, ctx: ApplicationCommandInteraction, playlist_name: str = PlaylistName):
         """Delete a playlist with the given name"""
         src = validate_playlist(playlist_name, ctx.author.id)
@@ -1105,7 +1109,7 @@ class Audio(commands.Cog):
             await Playlist(self.bot, downloader=self.downloader).search(name, ctx, site, in_vc=False)
 
     @slash_command(name='search', description='Search for songs from YouTube or Soundcloud (using "-sc " prefix)')
-    @commands.cooldown(1, 5, type=BucketType.user)
+    @commands.cooldown(1, 5, type=user_bucket)
     async def search_slash(self, ctx: ApplicationCommandInteraction, *, name):
         """Search for songs. Default site is YouTube
         Supported sites: -yt YouTube, -sc Soundcloud
@@ -1115,7 +1119,7 @@ class Audio(commands.Cog):
         await self._search(ctx, name)
 
     @command(name='search')
-    @commands.cooldown(1, 5, type=BucketType.user)
+    @commands.cooldown(1, 5, type=user_bucket)
     async def search_cmd(self, ctx: Context, *, name):
         """Search for songs. Default site is YouTube
         Supported sites: -yt YouTube, -sc Soundcloud
@@ -1174,7 +1178,7 @@ class Audio(commands.Cog):
         return True
 
     @slash_command()
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     async def summon(self, ctx: ApplicationCommandInteraction):
         """Summons the bot to join your voice channel."""
         await ctx.response.defer()
@@ -1183,7 +1187,7 @@ class Audio(commands.Cog):
             await ctx.send('✅')
 
     @slash_command()
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     async def move(self, ctx: ApplicationCommandInteraction, channel: disnake.VoiceChannel=None):
         """Moves the bot to your current voice channel or the specified voice channel"""
         await ctx.response.defer()
@@ -1191,7 +1195,7 @@ class Audio(commands.Cog):
         if not ctx.response.is_done():
             await ctx.send('✅')
 
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, guild_bucket)
     @slash_command()
     async def repeat(self, ctx: ApplicationCommandInteraction, value: bool = OptionalBool):
         """If set on the current song will repeat until this is set off"""
@@ -1212,7 +1216,7 @@ class Audio(commands.Cog):
 
         await ctx.send(s)
 
-    @cooldown(1, 5, BucketType.guild)
+    @cooldown(1, 5, guild_bucket)
     @slash_command()
     async def speed(self, ctx: ApplicationCommandInteraction, value: float = Param(min_value=0.5, max_value=2)):
         """Change the speed of the currently playing song"""
@@ -1236,7 +1240,7 @@ class Audio(commands.Cog):
         await self._seek(musicplayer, current, seek, options=current.options, speed=value)
         await ctx.send(f'Speed set to {value:.1f}')
 
-    @commands.cooldown(2, 5, BucketType.guild)
+    @commands.cooldown(2, 5, guild_bucket)
     @slash_command(name='remove_silence')
     async def cutsilence(
             self, ctx: ApplicationCommandInteraction,
@@ -1310,7 +1314,7 @@ class Audio(commands.Cog):
         await self._seek(musicplayer, current, seek, options=current.options)
         await ctx.send('✅')
 
-    @commands.cooldown(1, 5, BucketType.guild)
+    @commands.cooldown(1, 5, guild_bucket)
     @slash_command()
     @guild_only()
     async def bass(self, ctx: ApplicationCommandInteraction, bass: int = Param(max_value=60, min_value=-60)):
@@ -1343,7 +1347,7 @@ class Audio(commands.Cog):
         await self._seek(musicplayer, current, seek, options=current.options)
         await ctx.send(f'Bass set to {bass}')
 
-    @cooldown(1, 5, BucketType.guild)
+    @cooldown(1, 5, guild_bucket)
     @slash_command(description='Set a stereo effect on the song')
     async def stereo(
             self, ctx: ApplicationCommandInteraction,
@@ -1399,7 +1403,7 @@ class Audio(commands.Cog):
         pass
 
     @clear.sub_command(name='some', description='Clear the selected indexes from the playlist.')
-    @cooldown(1, 4, type=BucketType.guild)
+    @cooldown(1, 4, type=guild_bucket)
     async def clear_(
             self, ctx: ApplicationCommandInteraction,
             items: str = Param(description='Which playlist positions to remove. e.g. "4", "1-10", "1 5-9"')
@@ -1424,7 +1428,7 @@ class Audio(commands.Cog):
         await musicplayer.playlist.clear(get_indices(items), ctx)
 
     @clear.sub_command(name='all')
-    @cooldown(1, 4, type=BucketType.guild)
+    @cooldown(1, 4, type=guild_bucket)
     async def clear_all(self, ctx: ApplicationCommandInteraction):
         """
         Clears the whole playlist
@@ -1512,13 +1516,13 @@ class Audio(commands.Cog):
         cleared = musicplayer.playlist.clear_by_predicate(pred)
         await ctx.send(f'Cleared {cleared} songs matching {song_name}')
 
-    @cooldown(2, 3, type=BucketType.guild)
+    @cooldown(2, 3, type=guild_bucket)
     @slash_command(aliases=['vol'], name='volume', description='Sets the volume of the currently playing song. Displays the current volume if no value given')
     @guild_only()
     async def volume_slash(self, inter: ApplicationCommandInteraction, volume: int = VolumeType):
         await self.volume(inter, volume)
 
-    @cooldown(2, 3, type=BucketType.guild)
+    @cooldown(2, 3, type=guild_bucket)
     @command(aliases=['vol'], name='volume')
     @guild_only()
     async def volume_cmd(self, ctx: Context, volume: int = None):
@@ -1543,7 +1547,7 @@ class Audio(commands.Cog):
         musicplayer.current_volume = value / 100
         await ctx.send('Set the volume to {:.0%}'.format(musicplayer.current_volume))
 
-    @commands.cooldown(2, 3, type=BucketType.guild)
+    @commands.cooldown(2, 3, type=guild_bucket)
     @slash_command(description="Sets the default volume of the player that will be used when song specific volume isn't set.")
     async def default_volume(self, ctx: ApplicationCommandInteraction, volume: int = VolumeType):
         """
@@ -1562,14 +1566,14 @@ class Audio(commands.Cog):
         musicplayer.volume = min(volume / 100, 2)
         await ctx.send('Set the default volume to {:.0%}'.format(musicplayer.volume))
 
-    @commands.cooldown(1, 4, type=BucketType.guild)
+    @commands.cooldown(1, 4, type=guild_bucket)
     @slash_command(name='playing', aliases=['np'])
     @guild_only()
     async def playing_slash(self, inter: ApplicationCommandInteraction):
         """Gets the currently playing song"""
         await self.playing(inter)
 
-    @commands.cooldown(1, 4, type=BucketType.guild)
+    @commands.cooldown(1, 4, type=guild_bucket)
     @command(name='playing', aliases=['np'])
     @guild_only()
     async def playing_cmd(self, ctx: Context):
@@ -1594,7 +1598,7 @@ class Audio(commands.Cog):
             s += slider
             await ctx.send(s, allowed_mentions=AllowedMentions.none())
 
-    @cooldown(1, 3, type=BucketType.user)
+    @cooldown(1, 3, type=user_bucket)
     @slash_command(name='playnow')
     async def play_now(self, ctx: ApplicationCommandInteraction, song_name: str):
         """
@@ -1612,14 +1616,14 @@ class Audio(commands.Cog):
         if success:
             musicplayer.start_playlist()
 
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     @slash_command(aliases=['p'], name='pause')
     @guild_only()
     async def pause_slash(self, inter: ApplicationCommandInteraction):
         """Pauses the currently playing song."""
         await self.pause(inter)
 
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     @command(aliases=['p'], name='pause')
     @guild_only()
     async def pause_cmd(self, ctx: Context):
@@ -1638,7 +1642,7 @@ class Audio(commands.Cog):
         if isinstance(ctx, ApplicationCommandInteraction):
             await ctx.send('✅')
 
-    @cooldown(1, 60, type=BucketType.guild)
+    @cooldown(1, 60, type=guild_bucket)
     @command(enabled=False, hidden=True)
     async def save_playlist(self, ctx, *name):
         if name:
@@ -1647,14 +1651,14 @@ class Audio(commands.Cog):
         musicplayer = self.get_musicplayer(ctx.guild.id)
         await musicplayer.playlist.current_to_file(name, ctx.message.channel)
 
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     @slash_command(name='resume', aliases=['r'])
     @guild_only()
     async def resume_slash(self, inter: ApplicationCommandInteraction):
         """Resumes the currently played song."""
         await self.resume(inter)
 
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     @command(name='resume', aliases=['r'])
     @guild_only()
     async def resume_cmd(self, ctx: Context):
@@ -1673,7 +1677,7 @@ class Audio(commands.Cog):
         if isinstance(ctx, ApplicationCommandInteraction):
             await ctx.send('✅')
 
-    @cooldown(1, 4, type=BucketType.guild)
+    @cooldown(1, 4, type=guild_bucket)
     @slash_command()
     async def shuffle(self, ctx: ApplicationCommandInteraction):
         """Shuffles the current playlist"""
@@ -1725,7 +1729,7 @@ class Audio(commands.Cog):
             await self.bot.change_presence(activity=disnake.Activity(**self.bot.config.default_activity))
 
     @slash_command(description="Forces voice to be stopped no matter what state the bot is in as long as it's connected to voice")
-    @cooldown(1, 6, BucketType.guild)
+    @cooldown(1, 6, guild_bucket)
     async def force_stop(self, ctx: ApplicationCommandInteraction):
         """
         Forces voice to be stopped no matter what state the bot is in
@@ -1763,13 +1767,13 @@ class Audio(commands.Cog):
         else:
             await ctx.send('Disconnected')
 
-    @commands.cooldown(1, 6, BucketType.user)
+    @commands.cooldown(1, 6, user_bucket)
     @slash_command(name='stop')
     async def stop_slash(self, inter: ApplicationCommandInteraction):
         """Stops playing audio and leaves the voice channel."""
         await self.stop(inter)
 
-    @commands.cooldown(1, 6, BucketType.user)
+    @commands.cooldown(1, 6, user_bucket)
     @command(name='stop')
     async def stop_cmd(self, ctx: Context):
         """Stops playing audio and leaves the voice channel."""
@@ -1810,14 +1814,14 @@ class Audio(commands.Cog):
         else:
             await ctx.send(f'{resp} votes until disconnect')
 
-    @cooldown(1, 5, type=BucketType.user)
+    @cooldown(1, 5, type=user_bucket)
     @slash_command(name='skip')
     @guild_only()
     async def skip_slash(self, inter: ApplicationCommandInteraction):
         """Skips the current song"""
         await self.skip(inter)
 
-    @cooldown(1, 5, type=BucketType.user)
+    @cooldown(1, 5, type=user_bucket)
     @command(aliases=['skipsen', 'skipperino', 's'], name='skip')
     @guild_only()
     async def skip_cmd(self, ctx: Context):
@@ -1840,13 +1844,13 @@ class Audio(commands.Cog):
 
         await musicplayer.skip(ctx.author, ctx.channel)
 
-    @cooldown(1, 5, type=BucketType.user)
+    @cooldown(1, 5, type=user_bucket)
     @slash_command(name='force_skip', description='Force skips this song no matter who queued it without requiring any votes')
     @guild_only()
     async def force_skip_slash(self, inter: ApplicationCommandInteraction):
         await self.force_skip(inter)
 
-    @cooldown(1, 5, type=BucketType.user)
+    @cooldown(1, 5, type=user_bucket)
     @command(aliases=['force_skipsen', 'force_skipperino', 'fs'], name='force_skip')
     @guild_only()
     async def force_skip_cmd(self, ctx: Context):
@@ -1988,7 +1992,7 @@ class Audio(commands.Cog):
     async def queue(self, _):
         pass
 
-    @cooldown(1, 5, type=BucketType.guild)
+    @cooldown(1, 5, type=guild_bucket)
     @queue.sub_command(name='view')
     async def playlist_view(self, ctx: ApplicationCommandInteraction, page_index: int=0):
         """Get a list of the current queue. To skip to a certain page set the page_index argument"""
@@ -2078,7 +2082,7 @@ class Audio(commands.Cog):
 
         await self.send_playlist(ctx, selected, musicplayer)
 
-    @cooldown(1, 3, type=BucketType.guild)
+    @cooldown(1, 3, type=guild_bucket)
     @slash_command()
     async def length(self, ctx: ApplicationCommandInteraction):
         """Gets the length of the current queue"""
@@ -2159,7 +2163,7 @@ class Audio(commands.Cog):
         await ctx.send(s)
 
     @slash_command(name='volume_multiplier')
-    @cooldown(1, 4, type=BucketType.guild)
+    @cooldown(1, 4, type=guild_bucket)
     async def vol_multiplier(self, ctx: ApplicationCommandInteraction, value: float=None):
         """The multiplier that is used when dynamically calculating the volume"""
         musicplayer = self.get_musicplayer(ctx.guild.id)
@@ -2173,7 +2177,7 @@ class Audio(commands.Cog):
             await ctx.send('Value is not a number', delete_after=60)
 
     @slash_command()
-    @cooldown(2, 4, type=BucketType.guild)
+    @cooldown(2, 4, type=guild_bucket)
     async def auto_volm(self, ctx: ApplicationCommandInteraction):
         """Automagically set the volume multiplier value based on current volume"""
         musicplayer = await self.check_player(ctx)
@@ -2208,7 +2212,7 @@ class Audio(commands.Cog):
         await ctx.send(f'volm changed automagically {old} -> {new}')
 
     @slash_command()
-    @cooldown(1, 10, type=BucketType.guild)
+    @cooldown(1, 10, type=guild_bucket)
     async def link(self, ctx: ApplicationCommandInteraction):
         """Link to the current song"""
         if not await self.check_voice(ctx, user_connected=False):
@@ -2292,7 +2296,7 @@ class Audio(commands.Cog):
         await ctx.send(f'Added entry {name}', delete_after=60)
 
     @slash_command()
-    @cooldown(1, 5, type=BucketType.guild)
+    @cooldown(1, 5, type=guild_bucket)
     async def autoplaylist(self, ctx: ApplicationCommandInteraction, value: bool = True):
         """Set the autoplaylist on or off"""
         if not await self.check_voice(ctx, user_connected=False):
@@ -2310,7 +2314,7 @@ class Audio(commands.Cog):
         await ctx.send(f'Autoplaylist set {"on" if value else "off"}')
 
     @slash_command()
-    @cooldown(1, 5, type=BucketType.guild)
+    @cooldown(1, 5, type=guild_bucket)
     async def gapless(self, ctx: ApplicationCommandInteraction, value: bool = OptionalBool):
         """EXPERIMENTAL: Set the gapless playback on or off. Might break other features"""
         if not await self.check_voice(ctx, user_connected=False):

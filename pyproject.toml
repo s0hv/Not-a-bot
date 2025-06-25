@@ -34,7 +34,6 @@ dependencies = [
     "disnake[speed,voice]~=2.10.1",
     "tatsu.py~=1.0.4",
     "geopatterns",
-    "topggpy~=1.4.0"
 ]
 
 [tool.uv]

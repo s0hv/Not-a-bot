@@ -31,18 +31,17 @@ import shlex
 import subprocess
 from collections import OrderedDict
 from collections.abc import Iterable
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from random import randint
-from typing import Union, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Union, cast
 from urllib.parse import urlparse
 
 import disnake
 import numpy
-from redis.asyncio.client import Redis
 from asyncpg.exceptions import PostgresError
-from disnake import ApplicationCommandInteraction
-from disnake import abc
+from disnake import AllowedMentions, ApplicationCommandInteraction, Attachment, abc
+from redis.asyncio.client import Redis
 from validators import url as test_url
 
 from bot.exceptions import CommandBlacklisted, NotOwner
@@ -53,6 +52,7 @@ from utils.imagetools import image_from_url
 if TYPE_CHECKING:
     from bot.bot import Context
     from bot.botbase import BotBase
+    from bot.types import BotContext
 
 # Support for recognizing webp images used in many discord avatars
 mimetypes.add_type('image/webp', '.webp')
@@ -399,7 +399,7 @@ def slots2dict(obj, d: dict = None, replace=True):
 
     for k in dir(obj):
         # get_relationship prints deprecation warnings. Not the best solution but whatever
-        if k == 'get_relationship' or k.startswith('_'):  # We don't want any private variables
+        if k == 'get_relationship' or k == 'interaction' or k.startswith('_'):  # We don't want any private variables
             continue
 
         v = getattr(obj, k, None)
@@ -565,14 +565,16 @@ async def get_images(ctx: 'Context', content, current_message_only=False,
     return images
 
 
-async def get_image(ctx, image, current_message_only=False, get_raw=False):
+async def get_image(ctx: 'BotContext', image: str | Attachment | None, current_message_only=False, get_raw=False):
+    if isinstance(image, Attachment):
+        return await dl_image(ctx, image.url, get_raw=get_raw)
+
     img = await get_image_from_ctx(ctx, image, current_message_only)
     if img is None:
         if image is not None:
-            await ctx.send(f'No image found from {image}')
+            await ctx.send(f'No image found from {image}', allowed_mentions=AllowedMentions.none())
         else:
-            await ctx.send(
-                'Please input a mention, emote or an image when using the command')
+            await ctx.send('Please input a mention, emote or an image when using the command')
 
         return
 
@@ -580,7 +582,7 @@ async def get_image(ctx, image, current_message_only=False, get_raw=False):
     return img
 
 
-async def dl_image(ctx, url, get_raw=False):
+async def dl_image(ctx: 'BotContext', url: str, get_raw=False):
     try:
         img = await image_from_url(url, get_raw=get_raw)
     except OverflowError:
@@ -617,11 +619,11 @@ def get_image_from_embeds(embeds: list[disnake.Embed]):
         return attachment
 
 
-def get_image_from_message(bot, message: disnake.Message, content=None):
+def get_image_from_message(bot: 'BotBase', message: disnake.Message, content: str = None) -> str | int | None:
     """
     Get image from disnake.Message
     """
-    image = None
+    image: str | int | None = None
     if len(message.attachments) > 0 and isinstance(message.attachments[0].width, int):
         image = message.attachments[0].url
     elif message.stickers:
@@ -649,8 +651,13 @@ def get_image_from_message(bot, message: disnake.Message, content=None):
     return image
 
 
-async def get_image_from_ctx(ctx, message, current_message_only=False):
-    image = get_image_from_message(ctx.bot, ctx.message, content=message)
+async def get_image_from_ctx(ctx: 'BotContext', message: str | None, current_message_only=False) -> str | None:
+    image: str | int | None
+    if isinstance(ctx, ApplicationCommandInteraction):
+        image = message
+    else:
+        image = get_image_from_message(ctx.bot, ctx.message, content=message)
+
     redis: Redis = ctx.bot.redis
     if image is None or not isinstance(image, str) and not current_message_only:
         if isinstance(image, int):
@@ -672,7 +679,7 @@ async def get_image_from_ctx(ctx, message, current_message_only=False):
         if not isinstance(image, str):
             return None
 
-        image = None if not test_url(image) else image
+        image = None if not test_url(image, strict_query=False) else image
     return image
 
 

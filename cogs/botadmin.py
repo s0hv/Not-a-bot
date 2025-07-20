@@ -15,7 +15,7 @@ import traceback
 import typing
 from datetime import datetime
 from enum import IntEnum
-from importlib import reload, import_module
+from importlib import import_module, reload
 from io import BytesIO, StringIO
 from pprint import PrettyPrinter
 from py_compile import PyCompileError
@@ -24,24 +24,23 @@ from typing import Optional
 import aiohttp
 import disnake
 import matplotlib.pyplot as plt
-from redis.asyncio import Redis
 from asyncpg.exceptions import PostgresError
 from disnake import File, HTTPException
 from disnake.ext.commands.errors import ExtensionError, ExtensionFailed
 from disnake.user import BaseUser
 from matplotlib.dates import AutoDateLocator, DateFormatter
 from matplotlib.ticker import MultipleLocator
+from redis.asyncio import Redis
 
 from bot.bot import command
 from bot.config import Config
-from bot.converters import PossibleUser, CommandConverter
+from bot.converters import CommandConverter, PossibleUser
 from bot.globals import SFX_FOLDER
 from cogs.cog import Cog
-from utils.utilities import split_string, utcnow
-from utils.utilities import (y_n_check, basic_check, y_check, check_import,
-                             parse_timeout, is_owner, format_timedelta,
-                             call_later, seconds2str, test_url,
-                             wants_to_be_noticed, DateAccuracy)
+from utils.utilities import (DateAccuracy, basic_check, call_later, check_import, format_timedelta,
+                             is_owner, parse_timeout, seconds2str, split_string, test_url, utcnow,
+                             wants_to_be_noticed,
+                             y_check, y_n_check)
 
 logger = logging.getLogger('terminal')
 
@@ -346,7 +345,7 @@ class BotAdmin(Cog):
         redis: Optional[Redis] = getattr(self.bot, 'redis', None)
         if redis:
             try:
-                await redis.close()
+                await redis.aclose()
             except:
                 logger.exception('Failed to gracefully close redis')
 

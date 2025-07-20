@@ -11,7 +11,7 @@ import disnake
 from disnake.ext.commands import CommandSyncFlags
 
 from bot.Not_a_bot import NotABot
-from bot.config import Config, is_test_mode, get_test_guilds
+from bot.config import Config, get_test_guilds, is_test_mode
 from bot.formatter import LoggingFormatter
 from utils import init_tf
 
@@ -19,17 +19,23 @@ test_mode = is_test_mode()
 
 discord_logger = logging.getLogger('disnake')
 discord_logger.setLevel(logging.DEBUG if test_mode else logging.INFO)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8-sig', mode='w')
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='a')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 discord_logger.addHandler(handler)
 
 terminal = logging.getLogger('terminal')
 terminal.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(LoggingFormatter('{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
+handler.setFormatter(LoggingFormatter(
+    '{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    style='{'))
 terminal.addHandler(handler)
 error_handler = logging.FileHandler(filename='error.log', encoding='utf-8', mode='a')
-error_handler.setFormatter(logging.Formatter('{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}', datefmt='%Y-%m-%d %H:%M:%S', style='{'))
+error_handler.setFormatter(logging.Formatter(
+    '{color}[{module}][{asctime}] [Thread: {thread}] [{levelname}]:{colorend} {message}',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    style='{'))
 error_handler.setLevel(logging.ERROR)
 terminal.addHandler(error_handler)
 
@@ -96,14 +102,23 @@ bot: Optional[NotABot] = None
 async def main():
     global bot
     if test_mode:
-        bot = NotABot(prefix='-', conf=config, max_messages=5000,
-                      test_mode=True, cogs=initial_cogs, model=model,
-                      intents=intents, test_guilds=get_test_guilds(),
+        bot = NotABot(prefix='-',
+                      conf=config,
+                      max_messages=5000,
+                      test_mode=True,
+                      cogs=initial_cogs,
+                      model=model,
+                      intents=intents,
+                      test_guilds=get_test_guilds(),
                       command_sync_flags=CommandSyncFlags.all())
     else:
-        bot = NotABot(prefix='!', conf=config, max_messages=5000,
+        bot = NotABot(prefix='!',
+                      conf=config,
+                      max_messages=5000,
                       cogs=initial_cogs,
-                      model=model, shard_count=2, intents=intents,
+                      model=model,
+                      shard_count=2,
+                      intents=intents,
                       chunk_guilds_at_startup=False)
 
     await bot.async_init()

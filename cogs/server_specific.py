@@ -5,42 +5,37 @@ import re
 import shlex
 import textwrap
 from collections import Counter
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from difflib import ndiff
 from math import ceil
 from operator import attrgetter
-from typing import Union, Optional
+from typing import Optional, Union
 
 import disnake
 import emoji
 import numpy as np
 import unicodedata
-from redis.asyncio import Redis
-from redis.exceptions import ConnectionError as RedisConnectionError
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from disnake import AllowedMentions
 from disnake.errors import HTTPException
-from disnake.ext.commands import (BucketType, check, dm_only, is_owner,
-                                  BadArgument, cooldown)
+from disnake.ext.commands import (BadArgument, BucketType, check, cooldown, dm_only, is_owner)
 from numpy import sqrt
 from numpy.random import choice
+from redis.asyncio import Redis
+from redis.exceptions import ConnectionError as RedisConnectionError
 from tatsu.data_structures import RankingObject
 from tatsu.wrapper import ApiWrapper
 
-from bot.bot import (command, has_permissions, bot_has_permissions,
-                     Context)
+from bot.bot import (Context, bot_has_permissions, command, has_permissions)
 from bot.formatter import EmbedPaginator
 from bot.paginator import Paginator
 from cogs.cog import Cog
 from cogs.colors import Colors
 from cogs.voting import Poll
 from enums.data_enums import RedisKeyNamespaces
-from utils.utilities import (split_string, parse_time, call_later,
-                             get_avatar, retry,
-                             check_botperm, format_timedelta, DateAccuracy,
-                             wait_for_yes, utcnow)
+from utils.utilities import (DateAccuracy, call_later, check_botperm, format_timedelta, get_avatar,
+                             parse_time, retry, split_string, utcnow, wait_for_yes)
 
 logger = logging.getLogger('terminal')
 
@@ -736,13 +731,13 @@ class ServerSpecific(Cog):
             return True
 
     def extract_emojis(self, emojis):
-        return [c for c in emojis if c in emoji.UNICODE_EMOJI and self.check_type(c)]
+        return [c for c in emojis if c in emoji.EMOJI_DATA and self.check_type(c)]
 
     @command()
     @cooldown(1, 600)
     @bot_has_permissions(manage_guild=True)
     @check(main_check)
-    async def rotate(self, ctx, *, rotate_emojis: str=None):
+    async def rotate_name(self, ctx, *, rotate_emojis: str=None):
         emoji_faces = {'😀', '😁', '😂', '🤣', '😃', '😄', '😅', '😆', '😉',
                        '😊', '😋', '😎', '😍', '😘', '😗', '😙', '😚', '☺',
                        '🙂', '🤗', '\U0001f929', '🤔', '\U0001f928', '😐', '😑',
@@ -793,7 +788,7 @@ class ServerSpecific(Cog):
                     ctx.command.reset_cooldown(ctx)
                     return await ctx.send(f'Invalid emoji {emoji_full}', allowed_mentions=AllowedMentions.none())
 
-                if len(emoji.get_emoji_regexp().findall(emoji_check)) == len(rotate_emoji):
+                if emoji.emoji_count(emoji_check) == len(rotate_emoji):
                     invalid = False
 
                 if invalid:

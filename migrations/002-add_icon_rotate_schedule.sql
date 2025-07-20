@@ -1,0 +1,2 @@
+ALTER TABLE guilds ADD COLUMN icon_delay INT DEFAULT NULL;
+ALTER TABLE guilds ADD COLUMN icon_delay_start TIME DEFAULT NULL;

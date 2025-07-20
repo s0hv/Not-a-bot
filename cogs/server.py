@@ -1,10 +1,12 @@
+import asyncio
+import datetime
 import logging
 import ntpath
 import os
 import random
 import re
 import time
-from datetime import timedelta, time as dtime
+from datetime import time as dtime, timedelta
 from io import BytesIO
 from math import ceil
 from typing import Optional
@@ -12,37 +14,35 @@ from typing import Optional
 import disnake
 import pytz
 from PIL import Image
-from disnake import InteractionContextTypes
+from disnake import ApplicationCommandInteraction, Attachment, InteractionContextTypes
 from disnake.ext import tasks
-from disnake.ext.commands import (
-    BucketType, PartialEmojiConverter, Greedy, cooldown,
-    Cooldown, CooldownMapping, NoPrivateMessage, slash_command,
-    Param, MessageConverter
-)
-from disnake.ext.commands.context import AnyContext
+from disnake.ext.commands import (BucketType, Cooldown, CooldownMapping, Greedy, MessageConverter,
+                                  NoPrivateMessage, Param, PartialEmojiConverter, cooldown,
+                                  slash_command)
 from disnake.user import BaseUser
 from validators import url as is_url
 
-from bot.bot import (command, has_permissions, group,
-                     guild_has_features, bot_has_permissions, Context)
-from bot.converters import PossibleUser, GuildEmoji, TimeDelta
+from bot.Not_a_bot import NotABot
+from bot.bot import (Context, bot_has_permissions, command, group, guild_has_features,
+                     has_permissions)
+from bot.converters import GuildEmoji, PossibleUser, TimeDelta, convert_timedelta
 from bot.exceptions import BotException
 from bot.formatter import EmbedPaginator
 from bot.paginator import Paginator
+from bot.types import BotContext
 from cogs.cog import Cog
-from utils.imagetools import raw_image_from_url, resize_gif
-from utils.imagetools import (resize_keep_aspect_ratio, stack_images,
-                              concatenate_images)
-from utils.utilities import (format_timedelta, DateAccuracy,
-                             wait_for_yes, get_image,
-                             get_emote_name_id, split_string,
-                             get_filename_from_url, utcnow, call_later,
-                             native_format_timedelta, dl_image)
+from utils.imagetools import (concatenate_images, raw_image_from_url, resize_gif,
+                              resize_keep_aspect_ratio, stack_images)
+from utils.utilities import (DateAccuracy, dl_image, format_timedelta,
+                             get_emote_name_id, get_filename_from_url, get_image,
+                             native_format_timedelta, split_string, utcnow, wait_for_yes)
 
 logger = logging.getLogger('terminal')
 
 # Size of banner thumbnail
 THUMB_SIZE = (288, 162)
+ICON_THUMB_SIZE = (128, 128)
+GUILD_COOLDOWN: BucketType = BucketType.guild
 
 
 def get_next_rotate_run_time(t: dtime, delay: timedelta) -> float:
@@ -58,6 +58,40 @@ def get_next_rotate_run_time(t: dtime, delay: timedelta) -> float:
     return timeout
 
 
+def read_image_file(base_path: str, filename: str | None) -> bytes:
+    data = bytes()
+    with open(os.path.join(base_path, filename), 'rb') as f:
+        while True:
+            bt = f.read(4096)
+            if not bt:
+                break
+
+            data += bt
+
+    return data
+
+
+def read_image_file_to_buffer(file: str) -> BytesIO:
+    data = BytesIO()
+    with open(file, 'rb') as f:
+        while True:
+            bt = f.read(4096)
+            if not bt:
+                break
+
+            data.write(bt)
+
+    data.seek(0)
+    return data
+
+
+def get_id_from_ctx(ctx: BotContext) -> int:
+    if isinstance(ctx, ApplicationCommandInteraction):
+        return ctx.id
+
+    return ctx.message.id
+
+
 class AFK:
     def __init__(self, user, message):
         self.user = user
@@ -65,22 +99,29 @@ class AFK:
         self.timestamp = time.time()
 
 
-class Server(Cog):
+class Server(Cog[NotABot]):
     def __init__(self, bot):
         super().__init__(bot)
         self.afks = getattr(bot, 'afks', {})
         self.bot.afks = self.afks
-        self._afk_cd = CooldownMapping(Cooldown(1, 4), BucketType.guild)
+        self._afk_cd = CooldownMapping(Cooldown(1, 4), GUILD_COOLDOWN)
+        self._last_icons: dict[int, str] = {}
 
     async def cog_load(self):
         await super().cog_load()
         await self._load_banner_rotate()
+        await self._load_icon_rotate()
 
     def cog_unload(self):
         self.load_expiring_events.cancel()
 
         for task in list(self.bot.banner_rotate.values()):
             task.cancel()
+        self.bot.banner_rotate.clear()
+
+        for task in list(self.bot.icon_rotate.values()):
+            task.cancel()
+        self.bot.icon_rotate.clear()
 
     @tasks.loop(hours=3)
     async def load_expiring_events(self):
@@ -91,8 +132,13 @@ class Server(Cog):
         sql = 'SELECT guild, banner_delay, banner_delay_start FROM guilds WHERE banner_delay IS NOT NULL'
         rows = await self.bot.dbutil.fetch(sql)
         for row in rows:
-            timeout = get_next_rotate_run_time(row['banner_delay_start'], timedelta(seconds=row['banner_delay']))
-            self.load_guild_rotate(timeout, row['guild'])
+            self.load_guild_rotate(row['banner_delay_start'], timedelta(seconds=row['banner_delay']), row['guild'])
+
+    async def _load_icon_rotate(self):
+        sql = 'SELECT guild, icon_delay, icon_delay_start FROM guilds WHERE icon_delay IS NOT NULL'
+        rows = await self.bot.dbutil.fetch(sql)
+        for row in rows:
+            self.load_icon_rotate(row['icon_delay_start'], timedelta(seconds=row['icon_delay']), row['guild'])
 
     async def cog_check(self, ctx: Context) -> bool:
         if ctx.guild is None:
@@ -299,7 +345,7 @@ class Server(Cog):
         await paginator.send(ctx)
 
     @group(aliases=['mr_top', 'mr_stats', 'mrtop'], invoke_without_command=True)
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, GUILD_COOLDOWN)
     async def mute_roll_top(self, ctx, *, user: PossibleUser=None):
         """
         Sort mute roll stats using a custom algorithm
@@ -309,19 +355,19 @@ class Server(Cog):
         await self._post_mr_top(ctx, user or ctx.author)
 
     @mute_roll_top.command()
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, GUILD_COOLDOWN)
     async def games(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by amount of games played"""
         await self._post_mr_top(ctx, user or ctx.author, sort='games')
 
     @mute_roll_top.command()
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, GUILD_COOLDOWN)
     async def wins(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by amount of games won"""
         await self._post_mr_top(ctx, user or ctx.author, sort='wins')
 
     @mute_roll_top.command(aliases=['wr'])
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, GUILD_COOLDOWN)
     async def winrate(self, ctx, *, user: PossibleUser=None):
         """
         Sort mute roll stats by winrate while also taking games played into account tho only slightly
@@ -332,13 +378,13 @@ class Server(Cog):
         await self._post_mr_top(ctx, user or ctx.author, sort=sort)
 
     @mute_roll_top.command(aliases=['ws'])
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, GUILD_COOLDOWN)
     async def winstreak(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by highest winstreak"""
         await self._post_mr_top(ctx, user or ctx.author, sort='biggest_streak')
 
     @mute_roll_top.command(aliases=['ls'])
-    @cooldown(2, 5, BucketType.guild)
+    @cooldown(2, 5, GUILD_COOLDOWN)
     async def losestreak(self, ctx, *, user: PossibleUser=None):
         """Sort mute roll stats by highest losing streak"""
         await self._post_mr_top(ctx, user or ctx.author, sort='biggest_lose_streak')
@@ -354,7 +400,7 @@ class Server(Cog):
             return data, mime_type
 
     @command(aliases=['delete_emoji', 'delete_emtoe', 'del_emote'])
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def delete_emote(self, ctx, emotes: Greedy[GuildEmoji]):
@@ -377,7 +423,7 @@ class Server(Cog):
             await ctx.send(f'Deleted emotes {" ".join([e.name for e in emotes])}')
 
     @command(aliases=['addemote', 'addemoji', 'add_emoji', 'add_emtoe'])
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def add_emote(self, ctx, link=None, name=None):
@@ -429,7 +475,7 @@ class Server(Cog):
         await ctx.send(f'Renamed the given emote to {new_name}')
 
     @staticmethod
-    async def _add_sticker(ctx: AnyContext, sticker_file: BytesIO | disnake.Attachment, name: str, emoji: str = 'no_emoji', description: str = ''):
+    async def _add_sticker(ctx: BotContext, sticker_file: BytesIO | disnake.Attachment, name: str, emoji: str = 'no_emoji', description: str = ''):
         guild = ctx.guild
 
         if len(guild.stickers) > guild.sticker_limit:
@@ -458,7 +504,7 @@ class Server(Cog):
             await ctx.send('Created sticker', stickers=[sticker])
 
     @slash_command(name='add_sticker', contexts=InteractionContextTypes(guild=True), default_member_permissions=disnake.Permissions(manage_emojis=True))
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @bot_has_permissions(manage_emojis=True)
     async def add_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,
                                 sticker_file: disnake.Attachment = Param(name='sticker_file', description='Image of the sticker as a file', default=None),
@@ -482,7 +528,7 @@ class Server(Cog):
         await self._add_sticker(inter, file, name, emoji, description)
 
     @command(aliases=['create_sticker'])
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def add_sticker(self, ctx: Context, name: str, sticker_url: str = None, emoji: str = 'no_emoji', description: str = ''):
@@ -507,9 +553,8 @@ class Server(Cog):
 
         await self._add_sticker(ctx, data, name, emoji, description)
 
-
     @staticmethod
-    async def _steal_sticker(ctx: AnyContext, message: disnake.Message):
+    async def _steal_sticker(ctx: BotContext, message: disnake.Message):
         guild = ctx.guild
 
         if len(guild.stickers) > guild.sticker_limit:
@@ -548,7 +593,7 @@ class Server(Cog):
             await ctx.send('Created sticker', stickers=[sticker])
 
     @slash_command(name='steal_sticker', contexts=InteractionContextTypes(guild=True), default_member_permissions=disnake.Permissions(manage_emojis=True))
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @bot_has_permissions(manage_emojis=True)
     async def steal_sticker_slash(self, inter: disnake.ApplicationCommandInteraction,
                                   message: str = Param(name='message_id', description='Id of the message containing the sticker to be stolen')):
@@ -560,7 +605,7 @@ class Server(Cog):
         await self._steal_sticker(inter, actual_message)
 
     @command(aliases=['ssteal'])
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def steal_sticker(self, ctx: Context, message: Optional[disnake.Message] = None):
@@ -570,7 +615,7 @@ class Server(Cog):
         await self._steal_sticker(ctx, message or ctx.message)
 
     @command(aliases=['trihard'])
-    @cooldown(2, 6, BucketType.guild)
+    @cooldown(2, 6, GUILD_COOLDOWN)
     @has_permissions(manage_emojis=True)
     @bot_has_permissions(manage_emojis=True)
     async def steal(self, ctx, emoji: Greedy[PartialEmojiConverter]=None,
@@ -670,7 +715,7 @@ class Server(Cog):
 
     @command()
     @bot_has_permissions(embed_links=True)
-    @cooldown(1, 20, BucketType.guild)
+    @cooldown(1, 20, GUILD_COOLDOWN)
     async def channels(self, ctx):
         """
         Lists all channels in the server in an embed
@@ -744,8 +789,181 @@ class Server(Cog):
         p = os.path.join('data', 'templates', 'loading.gif')
         await ctx.send('Please wait. Server deletion in progress', file=disnake.File(p, filename='loading.gif'))
 
-    @command(aliases=['pls'])
-    @cooldown(1, 15, BucketType.guild)
+    async def _delete_image_file(self, ctx: BotContext, base_path: str, filename: str):
+        files = os.listdir(base_path)
+
+        # Sanitize path to only the filename
+        filename = ntpath.basename(filename)
+
+        if filename not in files:
+            await ctx.send(f'File {filename} not found')
+            ctx.command.reset_cooldown(ctx)
+            return
+
+        file = os.path.join(base_path, filename)
+        thumb = os.path.join(base_path, 'thumbs', filename)
+
+        def do_it() -> BytesIO:
+            data = read_image_file_to_buffer(file)
+
+            try:
+                os.remove(file)
+            except OSError:
+                logger.exception(f'Failed to delete file {file}')
+                pass
+
+            try:
+                os.remove(thumb)
+            except OSError:
+                logger.exception(f'Failed to delete thumb {thumb}')
+                pass
+
+            return data
+
+        image_data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
+
+        await ctx.send(f'Deleted {filename}', file=disnake.File(image_data, filename))
+
+    async def _list_thumbs(self, ctx: BotContext, base_path: str, filename: str | None, image_type: str):
+        (_, _, image_files) = next(os.walk(base_path))
+
+        if not image_files:
+            await ctx.send(f'No {image_type} found for guild')
+            self.reset_cooldown(ctx)
+            return None
+
+        if filename:
+            # Sanitize path to only the filename
+            filename = ntpath.basename(filename)
+
+            if filename not in image_files:
+                await ctx.send(f'File {filename} not found')
+                self.reset_cooldown(ctx)
+                return None
+
+            def do_it():
+                data = BytesIO()
+                with open(os.path.join(base_path, filename), 'rb') as f:
+                    while True:
+                        bt = f.read(4096)
+                        if not bt:
+                            break
+
+                        data.write(bt)
+
+                data.seek(0)
+                yield data, (filename, )
+
+        else:
+            def do_it():
+                thumbs_path = os.path.join(base_path, 'thumbs')
+                os.makedirs(thumbs_path, exist_ok=True)
+                THUMB_SIZE_VAR = THUMB_SIZE if image_type == 'banners' else ICON_THUMB_SIZE
+
+                # How many files we have in one image
+                w = 3 if image_type == 'banners' else 5
+                if len(image_files) > 30:
+                    h = 6
+                elif len(image_files) > 24:
+                    h = 5
+                else:
+                    h = 4
+
+                width = THUMB_SIZE_VAR[0]*w
+                images = []  # Images to be concatenated together
+                stack = []  # Concatenated images
+                curr_files = []  # Filenames for images in the images variable
+                filenames = []  # Filenames for current stack
+                data = BytesIO()
+
+                for banner in image_files:
+                    curr_files.append(banner)
+                    thumb = os.path.join(thumbs_path, banner)
+
+                    # Create thumb if it doesn't exist
+                    if not os.path.exists(thumb):
+                        og_img = Image.open(os.path.join(base_path, banner))
+                        im_resized = og_img.resize(THUMB_SIZE_VAR, Image.Resampling.LANCZOS)
+                        im_resized.save(thumb, 'PNG')
+
+                    im = Image.open(thumb)
+
+                    # Append thumb to list and concatenate them when the limit
+                    # is reached
+                    images.append(im)
+                    if len(images) >= w:
+                        stack.append(concatenate_images(
+                            images, THUMB_SIZE_VAR[0]
+                        ))
+                        images.clear()
+                        filenames.append(' '.join(curr_files))
+                        curr_files.clear()
+
+                    # Stack concatenated images when the limit is reached
+                    if len(stack) >= h:
+                        stack_images(stack, THUMB_SIZE_VAR[1], width).save(data, 'PNG')
+                        data.seek(0)
+                        yield data, filenames
+                        filenames = []
+                        data = BytesIO()
+                        stack.clear()
+
+                if images:
+                    stack.append(concatenate_images(images, THUMB_SIZE_VAR[0]))
+                    filenames.append(' '.join(curr_files))
+
+                if stack:
+                    stack_images(stack, THUMB_SIZE_VAR[1], width).save(data, 'PNG')
+                    data.seek(0)
+                    yield data, filenames
+
+        try:
+            for image_data, filenames in await self.bot.loop.run_in_executor(self.bot.threadpool, do_it):
+                filenames = '\n'.join(filenames)
+                await ctx.send(f'```\n{filenames}\n```', file=disnake.File(image_data, filename or f'{image_type}.png'))
+        except OSError:
+            logger.exception(f'Failed to load {image_type}')
+            await ctx.send(f'Failed to show {image_type}')
+            return
+
+    async def _validate_rotate_schedule(self, ctx: BotContext, delay: timedelta, start_time: str) -> datetime.time | None:
+        if delay < timedelta(hours=6):
+            await ctx.send('Minimum delay is 6 hours')
+            self.reset_cooldown(ctx)
+            return
+
+        if delay > timedelta(days=4):
+            await ctx.send('Maximum delay is 4 days')
+            self.reset_cooldown(ctx)
+            return
+
+        if not re.match(r'^(\d{2}):(\d{2})$', start_time):
+            await ctx.send('Start time should be in the 24h format. e.g. 18:00')
+            self.reset_cooldown(ctx)
+            return
+
+        t = dtime.fromisoformat(start_time)
+
+        tz = await self.get_timezone(ctx, ctx.author.id)
+        tztime = utcnow().astimezone(tz).replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
+        t = tztime.astimezone(pytz.UTC).time()
+
+        return t
+
+    async def get_timezone(self, ctx, user_id: int):
+        tz = await self.bot.dbutil.get_timezone(user_id)
+        if tz:
+            try:
+                return await ctx.bot.loop.run_in_executor(ctx.bot.threadpool, pytz.timezone, tz)
+            except pytz.UnknownTimeZoneError:
+                pass
+
+        return pytz.FixedOffset(0)
+
+    # region banners
+
+    @command()
+    @cooldown(1, 15, GUILD_COOLDOWN)
     @has_permissions(manage_guild=True)
     async def upload_banner(self, ctx, no_resize: Optional[bool]=False, image=None):
         """Add an image to the server banner rotation.
@@ -769,7 +987,7 @@ class Server(Cog):
                 w, h = (960, 540)
 
                 # According to docs LANCZOS is best for downsampling. In other cases use bicubic
-                resample = Image.LANCZOS if (img.width > w and img.height > h) else Image.BICUBIC
+                resample = Image.Resampling.LANCZOS if (img.width > w and img.height > h) else Image.Resampling.BICUBIC
 
                 if is_gif:
                     # Returns bytes io
@@ -837,7 +1055,7 @@ class Server(Cog):
         await ctx.send(f'Saved banner image as {file}')
 
     @command(aliases=['bremove', 'delete_banner'])
-    @cooldown(1, 5, BucketType.guild)
+    @cooldown(1, 5, GUILD_COOLDOWN)
     @has_permissions(manage_guild=True)
     async def remove_banner(self, ctx, filename):
         """Remove a banner from the rotation"""
@@ -848,43 +1066,10 @@ class Server(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        files = os.listdir(base_path)
-
-        # Sanitize path to only the filename
-        filename = ntpath.basename(filename)
-
-        if filename not in files:
-            await ctx.send(f'File {filename} not found')
-            ctx.command.reset_cooldown(ctx)
-            return
-
-        file = os.path.join(base_path, filename)
-        thumb = os.path.join(base_path, 'thumbs', filename)
-
-        def do_it():
-            data = BytesIO()
-            im = Image.open(file)
-            im.save(data, 'PNG')
-            data.seek(0)
-
-            try:
-                os.remove(file)
-            except OSError:
-                pass
-
-            try:
-                os.remove(thumb)
-            except OSError:
-                pass
-
-            return data
-
-        data = await self.bot.loop.run_in_executor(self.bot.threadpool, do_it)
-
-        await ctx.send(f'Deleted {filename}', file=disnake.File(data, filename))
+        await self._delete_image_file(ctx, base_path, filename)
 
     @command()
-    @cooldown(1, 15, BucketType.guild)
+    @cooldown(1, 15, GUILD_COOLDOWN)
     async def banners(self, ctx, filename=None):
         """
         Show all banners in rotation for this server. If filename is specified
@@ -897,101 +1082,7 @@ class Server(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        (_, _, banners) = next(os.walk(base_path))
-
-        if filename:
-            # Sanitize path to only the filename
-            filename = ntpath.basename(filename)
-
-            if filename not in banners:
-                await ctx.send(f'File {filename} not found')
-                ctx.command.reset_cooldown(ctx)
-                return
-
-            def do_it():
-                data = BytesIO()
-                with open(os.path.join(base_path, filename), 'rb') as f:
-                    while True:
-                        bt = f.read(4096)
-                        if not bt:
-                            break
-
-                        data.write(bt)
-
-                data.seek(0)
-                yield data, (filename, )
-
-        else:
-            def do_it():
-                thumbs_path = os.path.join(base_path, 'thumbs')
-                os.makedirs(thumbs_path, exist_ok=True)
-
-                # How many banners we have in one image
-                w = 3
-                if len(banners) > 30:
-                    h = 6
-                elif len(banners) > 24:
-                    h = 5
-                else:
-                    h = 4
-
-                width = THUMB_SIZE[0]*w
-                images = []  # Images to be concatenated together
-                stack = []  # Concatenated images
-                curr_files = []  # Filenames for images in the images variable
-                filenames = []  # Filenames for current stack
-                data = BytesIO()
-
-                for banner in banners:
-                    curr_files.append(banner)
-                    thumb = os.path.join(thumbs_path, banner)
-
-                    # Create thumb if it doesn't exist
-                    if not os.path.exists(thumb):
-                        im = Image.open(os.path.join(base_path, banner))
-                        im = im.resize(THUMB_SIZE, Image.LANCZOS)
-                        im.save(thumb, 'PNG')
-                    else:
-                        im = Image.open(thumb)
-
-                    # Append thumb to list and concatenate them when the limit
-                    # is reached
-                    images.append(im)
-                    if len(images) >= w:
-                        stack.append(concatenate_images(
-                            images, THUMB_SIZE[0]
-                        ))
-                        images.clear()
-                        filenames.append(' '.join(curr_files))
-                        curr_files.clear()
-
-                    # Stack concatenated images when the limit is reached
-                    if len(stack) >= h:
-                        stack_images(stack, THUMB_SIZE[1], width).save(data, 'PNG')
-                        data.seek(0)
-                        yield data, filenames
-                        filenames = []
-                        data = BytesIO()
-                        stack.clear()
-
-                if images:
-                    stack.append(concatenate_images(images, THUMB_SIZE[0]))
-                    filenames.append(' '.join(curr_files))
-
-                if stack:
-                    stack_images(stack, THUMB_SIZE[1], width).save(data, 'PNG')
-                    data.seek(0)
-                    yield data, filenames
-
-        try:
-            for data, filenames in await self.bot.loop.run_in_executor(self.bot.threadpool, do_it):
-                filenames = '\n'.join(filenames)
-                await ctx.send(f'```\n{filenames}\n```', file=disnake.File(data, 'banners.png'))
-        except OSError:
-            logger.exception('Failed to load banners')
-            await ctx.send('Failed to show banners')
-            return
-
+        await self._list_thumbs(ctx, base_path, filename, 'banners')
 
     async def random_banner(self, base_path, guild_id: int):
         if not os.path.exists(base_path):
@@ -1022,41 +1113,37 @@ class Server(Cog):
         if not filename:
             return
 
-        data = bytes()
-        with open(os.path.join(base_path, filename), 'rb') as f:
-            while True:
-                bt = f.read(4096)
-                if not bt:
-                    break
-
-                data += bt
+        data = read_image_file(base_path, filename)
 
         try:
             await guild.edit(banner=data)
         except (disnake.HTTPException, TypeError, ValueError):
             return
 
-    async def do_guild_rotate(self, guild_id: int):
+    async def do_guild_banner_rotate(self, guild_id: int):
         guild = self.bot.get_guild(guild_id)
         if not guild:
             return
 
         await self.rotate_banner(guild)
 
-    def load_guild_rotate(self, timeout: float, guild_id: int):
+    def load_guild_rotate(self, delay_start: dtime, delay: timedelta, guild_id: int):
         old_task = self.bot.banner_rotate.get(guild_id)
         if old_task and not old_task.done():
             return
 
-        task = call_later(self.do_guild_rotate, self.bot.loop, timeout, guild_id,
-                          after=lambda _: self.bot.banner_rotate.pop(guild_id, None))
+        async def method():
+            while True:
+                await asyncio.sleep(get_next_rotate_run_time(delay_start, delay))
+                await self.do_guild_banner_rotate(guild_id)
 
+        task = asyncio.run_coroutine_threadsafe(method(), self.bot.loop)
         self.bot.banner_rotate[guild_id] = task
 
     @group(aliases=['brotate'], invoke_without_command=True)
     @guild_has_features('BANNER')
     @bot_has_permissions(manage_guild=True)
-    @cooldown(1, 1800, BucketType.guild)
+    @cooldown(1, 1800, GUILD_COOLDOWN)
     async def banner_rotate(self, ctx, filename=None):
         """Change server banner to one of the banners saved for the server"""
         guild = ctx.guild
@@ -1100,14 +1187,7 @@ class Server(Cog):
             ctx.command.reset_cooldown(ctx)
             return
 
-        data = bytes()
-        with open(os.path.join(base_path, filename), 'rb') as f:
-            while True:
-                bt = f.read(4096)
-                if not bt:
-                    break
-
-                data += bt
+        data = read_image_file(base_path, filename)
 
         try:
             await guild.edit(banner=data)
@@ -1134,16 +1214,6 @@ class Server(Cog):
 
         await ctx.send('Automatic banner rotation disabled')
 
-    async def get_timezone(self, ctx, user_id: int):
-        tz = await self.bot.dbutil.get_timezone(user_id)
-        if tz:
-            try:
-                return await ctx.bot.loop.run_in_executor(ctx.bot.threadpool, pytz.timezone, tz)
-            except pytz.UnknownTimeZoneError:
-                pass
-
-        return pytz.FixedOffset(0)
-
     @banner_rotate.command(name='schedule')
     @guild_has_features('BANNER')
     @bot_has_permissions(manage_guild=True)
@@ -1155,27 +1225,9 @@ class Server(Cog):
         Usage:
         {prefix}{name} 12:00 12h
         """
-        if delay < timedelta(hours=6):
-            await ctx.send('Minimum delay is 6 hours')
-            ctx.command.reset_cooldown(ctx)
+        t = await self._validate_rotate_schedule(ctx, delay, start_time)
+        if t is None:
             return
-
-        if delay > timedelta(days=4):
-            await ctx.send('Maximum delay is 4 days')
-            ctx.command.reset_cooldown(ctx)
-            return
-
-        if not re.match(r'^(\d{2}):(\d{2})$', start_time):
-            await ctx.send('Start time should be in the 24h format. e.g. 18:00')
-            ctx.command.reset_cooldown(ctx)
-            return
-
-        t = dtime.fromisoformat(start_time)
-
-        tz = await self.get_timezone(ctx, ctx.author.id)
-        tztime = utcnow().astimezone(tz).replace(hour=t.hour, minute=t.minute, second=0, microsecond=0)
-        t = tztime.astimezone(pytz.UTC).time()
-
 
         sql = 'UPDATE guilds SET banner_delay=$1, banner_delay_start=$2::time WHERE guild=$3'
         try:
@@ -1194,6 +1246,381 @@ class Server(Cog):
 
         self.load_guild_rotate(timeout, ctx.guild.id)
         await ctx.send(f'Next automatic banner rotation {native_format_timedelta(timedelta(seconds=timeout))}')
+
+    # endregion banners
+
+    # region server icons
+
+    @staticmethod
+    def _get_icon_path(guild_id: int) -> str:
+        return os.path.join('data', 'server_icons', str(guild_id))
+
+    def random_icon(self, base_path: str, guild_id: int) -> str | None:
+        if not os.path.exists(base_path):
+            os.makedirs(base_path, exist_ok=True)
+
+        (_, _, files) = next(os.walk(base_path))
+        old_icon = self._last_icons.get(guild_id)
+
+        try:
+            files.remove(old_icon)
+        except ValueError:
+            pass
+
+        if not files:
+            return None
+
+        filename = random.choice(files)
+        return filename
+
+    async def rotate_icon(self, guild: disnake.Guild):
+        base_path = self._get_icon_path(guild.id)
+        filename = self.random_icon(base_path, guild.id)
+
+        if not filename:
+            return
+
+        data = read_image_file(base_path, filename)
+
+        try:
+            await guild.edit(icon=data)
+            self._last_icons[guild.id] = filename
+        except (disnake.HTTPException, TypeError, ValueError):
+            return
+
+    async def do_guild_icon_rotate(self, guild_id: int):
+        guild = self.bot.get_guild(guild_id)
+        if not guild:
+            return
+
+        await self.rotate_icon(guild)
+
+    def load_icon_rotate(self, delay_start: dtime, delay: timedelta, guild_id: int):
+        old_task = self.bot.icon_rotate.get(guild_id)
+        if old_task and not old_task.done():
+            return
+
+        async def method():
+            while True:
+                await asyncio.sleep(get_next_rotate_run_time(delay_start, delay))
+                await self.do_guild_icon_rotate(guild_id)
+
+        task = asyncio.run_coroutine_threadsafe(method(), self.bot.loop)
+
+        self.bot.icon_rotate[guild_id] = task
+
+    @slash_command(name='rotate-icon-management',
+                   contexts=InteractionContextTypes(guild=True),
+                   default_member_permissions=disnake.Permissions(manage_guild=True))
+    async def icon_rotate_management_base(self, inter: disnake.ApplicationCommandInteraction):
+        pass
+
+    @command(aliases=['pls'])
+    @cooldown(1, 15, GUILD_COOLDOWN)
+    @has_permissions(manage_guild=True)
+    async def upload_icon_cmd(self, ctx: Context, no_resize: bool | None = False, image=None):
+        await self.upload_icon(ctx, image, no_resize=no_resize)
+
+    @icon_rotate_management_base.sub_command(name='upload')
+    async def upload_icon_slash(self,
+                                inter: disnake.ApplicationCommandInteraction,
+                                image: disnake.Attachment | None = Param(description='Image to upload as server icon', default=None),
+                                image_url: str = Param(description='Image url to upload as server icon. To support e.g. mentions, use the old style prefix command.', default=None, name='image_url'),
+                                no_resize: bool = Param(description='If true, the image will not be resized or cropped', default=False)):
+        """Upload an image to the server icon rotation."""
+        self.share_cooldown(self.upload_icon_cmd, inter)
+        await inter.response.defer()
+        await self.upload_icon(inter, image or image_url, no_resize=no_resize)
+
+    async def upload_icon(self, ctx: BotContext, image: str | Attachment | None = None, no_resize: bool = False):
+        """Add an image to the server icon rotation.
+        By default, images will be up or downscaled and cropped to 960x540.
+        If no_resize is True then the image will be saved as is without resizing and cropping."""
+        data: BytesIO | None = await get_image(ctx, image, True, get_raw=True)
+        if data is None:
+            return
+
+        img = Image.open(data)
+
+        def do_it():
+            nonlocal img
+
+            is_gif = img.format == 'GIF'
+            w, h = (512, 512)
+            do_resize = img.width > w or img.height > h
+            resized = do_resize and not no_resize
+
+            if resized:
+                # According to docs LANCZOS is best for downsampling. In other cases use bicubic
+                resample = Image.Resampling.LANCZOS if (img.width > w and img.height > h) else Image.Resampling.BICUBIC
+
+                if is_gif:
+                    # Returns bytes io
+                    img = resize_gif(
+                        img,
+                        (w, h),
+                        crop_to_size=True,
+                        center_cropped=True,
+                        can_be_bigger=True,
+                        resample=resample,
+                        get_raw=True
+                    )
+                else:
+                    img = resize_keep_aspect_ratio(
+                        img,
+                        (w, h),
+                        crop_to_size=True,
+                        center_cropped=True,
+                        can_be_bigger=True,
+                        resample=resample
+                    )
+
+            base_path = self._get_icon_path(ctx.guild.id)
+            os.makedirs(base_path, exist_ok=True)
+
+            filename = str(get_id_from_ctx(ctx)) + ('.gif' if is_gif else '.png')
+
+            full_path = os.path.join(base_path, filename)
+            if is_gif:
+                buffer = data.getbuffer() if not resized else img.getbuffer()
+                if buffer.nbytes > 5_000_000:
+                    raise BotException('Icon image was too big in filesize. '
+                                       'If the gif is larger than 512x512, try manually editing the gif using a service like <https://ezgif.com>')
+
+                with open(full_path, 'wb') as f:
+                    f.write(buffer)
+
+                if resized:
+                    img.seek(0)
+                    img = Image.open(img)
+            else:
+                if not resized:
+                    with open(full_path, 'wb') as f:
+                        f.write(data.getbuffer())
+                else:
+                    img.save(
+                        full_path,
+                        'PNG'
+                    )
+
+            # Make thumbnails every icon for faster access when viewing multiple
+            # icons at once
+            base_path = os.path.join(base_path, 'thumbs')
+            os.makedirs(base_path, exist_ok=True)
+
+            img = img.resize(ICON_THUMB_SIZE, Image.Resampling.LANCZOS)
+            img.save(
+                os.path.join(base_path, filename),
+                'PNG'
+            )
+
+            return filename
+
+        try:
+            self.reset_cooldown(ctx)
+            file = await self.run_with_typing(ctx, do_it)
+
+        except OSError:
+            logger.exception('Failed to save icon')
+            await ctx.send('Failed to save icon image')
+            return
+
+        await ctx.send(f'Saved icon image as {file}')
+
+    @command(aliases=['iremove', 'delete_icon'])
+    @cooldown(1, 5, GUILD_COOLDOWN)
+    @has_permissions(manage_guild=True)
+    async def remove_icon(self, ctx: Context, filename: str):
+        """Remove an icon from the rotation"""
+        await self._remove_icon(ctx, filename)
+
+    @icon_rotate_management_base.sub_command(name='delete-icon')
+    @cooldown(1, 5, GUILD_COOLDOWN)
+    async def remove_icon_slash(self, inter: disnake.ApplicationCommandInteraction,
+                                filename: str = Param(name='filename', description='Filename of the icon to remove')):
+        """Remove an icon from the rotation"""
+        await inter.response.defer()
+        await self._remove_icon(inter, filename)
+
+    async def _remove_icon(self, ctx: ApplicationCommandInteraction | Context, filename: str):
+        guild = ctx.guild
+        base_path = self._get_icon_path(guild.id)
+        if not os.path.exists(base_path):
+            await ctx.send('No icons found for guild')
+            self.reset_cooldown(ctx)
+            return
+
+        await self._delete_image_file(ctx, base_path, filename)
+
+    @command()
+    @cooldown(1, 10, GUILD_COOLDOWN)
+    async def icons(self, ctx: Context, filename: Optional[str] = None):
+        """
+        Show all icons in rotation for this server. If filename is specified,
+        gives the full icon corresponding to that filename
+        """
+        await self._icons(ctx, filename)
+
+    @slash_command(name='icons', contexts=InteractionContextTypes(guild=True))
+    async def icons_slash(self, inter: disnake.ApplicationCommandInteraction, filename: str | None = Param(default=None, description='Filename of the icon to show')):
+        """
+        Show all icons in rotation for this server.
+        """
+        self.share_cooldown(self.icons, inter)
+        await inter.response.defer()
+        await self._icons(inter, filename)
+
+    async def _icons(self, ctx: BotContext, filename: str | None = None):
+        base_path = self._get_icon_path(ctx.guild.id)
+        if not os.path.exists(base_path):
+            await ctx.send('No icons found for guild')
+            self.reset_cooldown(ctx)
+            return
+
+        await self._list_thumbs(ctx, base_path, filename, 'icons')
+
+    @group(aliases=['rotate', 'potato', 'tomato', 'rotato', '🥔', '🍅'], invoke_without_command=True)
+    @bot_has_permissions(manage_guild=True)
+    @cooldown(1, 1800, GUILD_COOLDOWN)
+    async def icon_rotate(self, ctx: Context, filename: str=None):
+        await self._icon_rotate(ctx, filename)
+
+    @slash_command(name='rotate-icon', contexts=InteractionContextTypes(guild=True))
+    @bot_has_permissions(manage_guild=True)
+    async def icon_rotate_slash(self, inter: disnake.ApplicationCommandInteraction, filename: str = Param(default=None, description='Filename of the icon to rotate to')):
+        """Change server icon to one of the icons saved for the server"""
+        self.share_cooldown(self.icon_rotate, inter)
+        await inter.response.defer()
+        await self._icon_rotate(inter, filename)
+
+    async def _icon_rotate(self, ctx: BotContext, filename: str | None = None):
+        guild = ctx.guild
+        base_path = self._get_icon_path(guild.id)
+        if not os.path.exists(base_path):
+            os.makedirs(base_path, exist_ok=True)
+
+        (_, _, files) = next(os.walk(base_path))
+
+        if filename:
+            # Sanitize path to only the filename
+            filename = ntpath.basename(filename)
+
+            if filename not in files:
+                await ctx.send(f'File {filename} not found')
+                self.reset_cooldown(ctx)
+                return
+
+        old_icon = self._last_icons.get(guild.id)
+
+        try:
+            files.remove(old_icon)
+        except ValueError:
+            pass
+        else:
+            if not files:
+                await ctx.send('Server only has one icon to select from')
+                self.reset_cooldown(ctx)
+                return
+
+        if not filename:
+            if not files:
+                await ctx.send('No icon rotation images found for guild')
+                self.reset_cooldown(ctx)
+                return
+
+            filename = random.choice(files)
+
+        if filename not in files:
+            await ctx.send(f'File {filename} not found')
+            self.reset_cooldown(ctx)
+            return
+
+        data = read_image_file(base_path, filename)
+
+        try:
+            await guild.edit(icon=data)
+        except (disnake.HTTPException, TypeError, ValueError) as e:
+            await ctx.send(f'Failed to set icon because of an error\n{e}')
+            return
+
+        self._last_icons[guild.id] = filename
+        await ctx.send('♻')
+
+    @icon_rotate.command(name='stop_schedule', aliases=['stop'])
+    @has_permissions(manage_guild=True)
+    async def icon_schedule_stop(self, ctx: Context):
+        """
+        Disables the automatic icon rotation
+        """
+        await self._icon_schedule_stop(ctx)
+
+    @icon_rotate_management_base.sub_command(name='stop-schedule')
+    async def icon_schedule_stop_slash(self, inter: disnake.ApplicationCommandInteraction):
+        """
+        Disables the automatic icon rotation
+        """
+        await self._icon_schedule_stop(inter)
+
+    async def _icon_schedule_stop(self, ctx: BotContext):
+        """
+        Disables the automatic icon rotation
+        """
+        sql = 'UPDATE guilds SET icon_delay=NULL, icon_delay_start=NULL WHERE guild=$1'
+        try:
+            await self.bot.dbutil.execute(sql, (ctx.guild.id,))
+        except:
+            logger.exception('Failed to reset icon rotate schedule')
+            await ctx.send('Failed to update settings. Try again later')
+            return
+
+        await ctx.send('Automatic icon rotation disabled')
+
+    @icon_rotate.command(name='schedule')
+    @bot_has_permissions(manage_guild=True)
+    @has_permissions(manage_guild=True)
+    @cooldown(1, 5)
+    async def icon_schedule(self, ctx: Context, start_time: str, *, delay: TimeDelta):
+        """
+        Automatically rotate the server icon on a schedule.
+        Usage:
+        {prefix}{name} 12:00 12h
+        """
+        await self._icon_schedule(ctx, delay, start_time)
+
+    @icon_rotate_management_base.sub_command(name='schedule')
+    @bot_has_permissions(manage_guild=True)
+    @cooldown(1, 5)
+    async def icon_schedule_slash(self, inter: disnake.ApplicationCommandInteraction,
+                                  delay: timedelta = Param(converter=convert_timedelta, description='Delay in the format 1h 1m 1s', name='delay'),
+                                  start_time: str = Param(description='Start time in 24h format. e.g. 18:00')):
+        """
+        Automatically rotate the server icon on a schedule.
+        """
+        await inter.response.defer()
+        await self._icon_schedule(inter, delay, start_time)
+
+    async def _icon_schedule(self, ctx: BotContext, delay: timedelta, start_time: str):
+        t = await self._validate_rotate_schedule(ctx, delay, start_time)
+
+        sql = 'UPDATE guilds SET icon_delay=$1, icon_delay_start=$2::time WHERE guild=$3'
+        try:
+            await self.bot.dbutil.execute(sql, (delay.total_seconds(), t, ctx.guild.id))
+        except:
+            logger.exception('Failed to update icon schedule')
+            await ctx.send('Failed to update settings. Try again later')
+            return
+
+        timeout = get_next_rotate_run_time(t, delay)
+
+        task = self.bot.icon_rotate.get(ctx.guild.id)
+        if task:
+            task.cancel()
+            self.bot.icon_rotate.pop(ctx.guild.id, None)
+
+        self.load_icon_rotate(timeout, delay.total_seconds(), ctx.guild.id)
+        await ctx.send(f'Next automatic icon rotation {native_format_timedelta(timedelta(seconds=timeout))}')
+
+    # endregion server icons
 
     @Cog.listener()
     async def on_message(self, message):
@@ -1248,7 +1675,7 @@ class Server(Cog):
 
     @command(np_pm=True)
     @cooldown(1, 5, BucketType.user)
-    async def afk(self, ctx, *, message = ''):
+    async def afk(self, ctx, *, message: str = ''):
         """
         Set an afk message on this server that will be posted every time someone
         pings you until you send your next message
@@ -1265,7 +1692,7 @@ class Server(Cog):
 
     @command(aliases=['delete_afk', 'clear_afk'])
     @has_permissions(manage_roles=True)
-    @cooldown(2, 4, BucketType.guild)
+    @cooldown(2, 4, GUILD_COOLDOWN)
     async def remove_afk(self, ctx, *, user: disnake.User):
         """
         Removes the afk of the mentioned user on this server

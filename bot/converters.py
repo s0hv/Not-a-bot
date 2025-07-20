@@ -1,12 +1,12 @@
 import re
 from datetime import timedelta
-from typing import Any
+from typing import cast
 
 import disnake
 import pytz
 from disnake import ApplicationCommandInteraction
 from disnake.ext import commands
-from disnake.ext.commands import converter, SubCommandGroup
+from disnake.ext.commands import ParamInfo, SubCommandGroup, converter
 from disnake.ext.commands.errors import BadArgument
 
 from utils.tzinfo import fuzzy_tz
@@ -123,7 +123,7 @@ class MentionedUserID(converter.UserConverter):
         return result
 
 
-class TimeDelta(converter.Converter):
+class TimeDelta(converter.Converter[timedelta]):
     def __init__(self):
         super().__init__()
 
@@ -131,13 +131,22 @@ class TimeDelta(converter.Converter):
         return convert_timedelta(None, argument)
 
 
-@commands.register_injection
-def convert_timedelta(_, value: Any) -> timedelta:
+def convert_timedelta(_, value: str) -> timedelta:
     time = parse_time(value)
     if not time:
         raise BadArgument(f'Failed to parse time from {value}')
 
     return time
+
+
+class TimedeltaInjected(timedelta):
+    """This class can be used in type annotations to automatically convert the input to a timedelta object."""
+    pass
+
+
+@commands.register_injection
+def convert_timedelta_injected(_, value: str = ParamInfo(description='Time in the format 1h 1m 1s')) -> TimedeltaInjected:
+    return cast(TimedeltaInjected, convert_timedelta(_, value))
 
 
 class FuzzyRole(converter.RoleConverter):

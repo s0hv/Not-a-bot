@@ -53,6 +53,7 @@ class NotABot(BotBase):
         self.timeouts = {}
         self.temproles = {}
         self.banner_rotate = {}
+        self.icon_rotate = {}
         self.gachilist = []
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol

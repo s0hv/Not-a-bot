@@ -805,7 +805,7 @@ class ServerSpecific(Cog):
         except disnake.HTTPException as e:
             await ctx.send(f'Failed to change name because of an error\n{e}')
         else:
-            await ctx.send('♻')
+            await ctx.send('♻️')
 
     async def _toggle_every(self, channel, winners: int, expires_in):
         """

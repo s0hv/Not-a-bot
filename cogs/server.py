@@ -1196,7 +1196,7 @@ class Server(Cog[NotABot]):
             return
 
         await self.bot.dbutil.set_last_banner(guild.id, filename)
-        await ctx.send('♻')
+        await ctx.send('♻️')
 
     @banner_rotate.command(name='stop_schedule', aliases=['stop'])
     @has_permissions(manage_guild=True)
@@ -1544,7 +1544,7 @@ class Server(Cog[NotABot]):
             return
 
         self._last_icons[guild.id] = filename
-        await ctx.send('♻')
+        await ctx.send('♻️')
 
     @icon_rotate.command(name='stop_schedule', aliases=['stop'])
     @has_permissions(manage_guild=True)

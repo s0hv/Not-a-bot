@@ -1318,8 +1318,8 @@ class Server(Cog[NotABot]):
     @command(aliases=['pls'])
     @cooldown(1, 15, GUILD_COOLDOWN)
     @has_permissions(manage_guild=True)
-    async def upload_icon_cmd(self, ctx: Context, no_resize: bool | None = False, image=None):
-        await self.upload_icon(ctx, image, no_resize=no_resize)
+    async def upload_icon(self, ctx: Context, no_resize: bool | None = False, image=None):
+        await self._upload_icon(ctx, image, no_resize=no_resize)
 
     @icon_rotate_management_base.sub_command(name='upload')
     async def upload_icon_slash(self,
@@ -1328,11 +1328,11 @@ class Server(Cog[NotABot]):
                                 image_url: str = Param(description='Image url to upload as server icon. To support e.g. mentions, use the old style prefix command.', default=None, name='image_url'),
                                 no_resize: bool = Param(description='If true, the image will not be resized or cropped', default=False)):
         """Upload an image to the server icon rotation."""
-        self.share_cooldown(self.upload_icon_cmd, inter)
+        self.share_cooldown(self.upload_icon, inter)
         await inter.response.defer()
-        await self.upload_icon(inter, image or image_url, no_resize=no_resize)
+        await self._upload_icon(inter, image or image_url, no_resize=no_resize)
 
-    async def upload_icon(self, ctx: BotContext, image: str | Attachment | None = None, no_resize: bool = False):
+    async def _upload_icon(self, ctx: BotContext, image: str | Attachment | None = None, no_resize: bool = False):
         """Add an image to the server icon rotation.
         By default, images will be up or downscaled and cropped to 960x540.
         If no_resize is True then the image will be saved as is without resizing and cropping."""

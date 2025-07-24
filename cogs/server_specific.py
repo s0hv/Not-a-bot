@@ -1277,7 +1277,7 @@ class ServerSpecific(Cog):
             if not is_booster and s < 8000:
                 return 0
 
-            return (s / 3000 + 70 / r) * (r**-3 + (r * 0.5)**-2 + (r * 100)**-1)
+            return (s / 3300) * (r**-3 + (r * 0.55)**-2 + (r * 100)**-1)
 
         role_count = len(user_roles - FILTERED_ROLES)
         return role_get(int(score), role_count)

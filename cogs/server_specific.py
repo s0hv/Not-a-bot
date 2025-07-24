@@ -250,7 +250,8 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None,  data={"id": 329350731918344193, "name": "4 balls"}),
         disnake.Role(guild=None, state=None,  data={"id": 358615843120218112, "name": "weirdo"}),
         disnake.Role(guild=None, state=None,  data={"id": 336437276156493825, "name": "Wannabe owner"}),
-        disnake.Role(guild=None, state=None,  data={"id": 327519034545537024, "name": "food"})
+        disnake.Role(guild=None, state=None,  data={"id": 327519034545537024, "name": "food"}),
+        disnake.Role(guild=None, state=None,  data={"id": 1397928859772387388, "name": "CEO of Homosexuality"})
 
     },
 
@@ -284,6 +285,7 @@ AVAILABLE_ROLES = {10: {
         disnake.Role(guild=None, state=None, data={"id": 1128975230447140894, "name": "member of the En Family"}),
         disnake.Role(guild=None, state=None, data={"id": 1201860328573648936, "name": "Nah, I'd win"}),
         disnake.Role(guild=None, state=None, data={"id": 1201860468734709780, "name": "Perhaps, this is hell"}),
+        disnake.Role(guild=None, state=None, data={"id": 369042760457519105, "name": "modertarter"}),
     }
 }
 
@@ -1463,6 +1465,8 @@ class ServerSpecific(Cog):
         if not roles:
             if mentionable is False:
                 await ctx.send('No unmentionable roles available. Use `!toletole on` to include mentionable roles.')
+            elif delta_days > max(AVAILABLE_ROLES.keys()):
+                await ctx.send('No roles available. You must wait until more are added.')
             else:
                 await ctx.send('No roles available to you at the moment. Try again after being more active')
             return

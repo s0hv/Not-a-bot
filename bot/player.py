@@ -560,7 +560,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
     def read(self) -> bytes:
         ret = self._stdout.read(OpusEncoder.FRAME_SIZE)
         if len(ret) != OpusEncoder.FRAME_SIZE:
-            logger.info('FFmpegPCMAudio read returned less than expected, probably EOF', len(ret))
+            logger.info(f'FFmpegPCMAudio read returned less than expected, probably EOF. length: {len(ret)}, expected: {OpusEncoder.FRAME_SIZE}')
             return b""
         return ret
 

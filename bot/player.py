@@ -4,25 +4,23 @@ import shlex
 import time
 import weakref
 from collections import deque
-from math import ceil
-from math import floor
-from typing import Optional
+from math import ceil, floor
+from typing import Optional, override
 
 import disnake
-from disnake import player, opus, AllowedMentions
+from disnake import AllowedMentions, opus, player
 from disnake.activity import Activity
 from disnake.enums import ActivityType
-from disnake.errors import ClientException
-from disnake.errors import HTTPException
+from disnake.errors import ClientException, HTTPException
 from disnake.ext.commands.cooldowns import BucketType, CooldownMapping
 from disnake.opus import Encoder as OpusEncoder
 from disnake.player import PCMVolumeTransformer
 
 from bot.playlist import Playlist
 from bot.song import Song
-from bot.youtube import url2id, get_related_vids, id2url
+from bot.youtube import get_related_vids, id2url, url2id
 from utils.timedset import TimedSet
-from utils.utilities import seek_to_sec, seek_from_timestamp, mean_volume
+from utils.utilities import mean_volume, seek_from_timestamp, seek_to_sec
 
 log = logging.getLogger('discord')
 logger = logging.getLogger('audio')
@@ -545,7 +543,7 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         args.extend(('-f', 's16le',
                      '-ar', '48000',
                      '-ac', '2',
-                     '-loglevel', 'panic'))
+                     '-loglevel', 'warning'))
 
         if isinstance(options, str):
             args.extend(shlex.split(options))
@@ -557,6 +555,14 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         # init but instead the init of its parent
         super(player.FFmpegPCMAudio, self).__init__(source, executable=executable,
                                                     args=args, **subprocess_kwargs)
+
+    @override
+    def read(self) -> bytes:
+        ret = self._stdout.read(OpusEncoder.FRAME_SIZE)
+        if len(ret) != OpusEncoder.FRAME_SIZE:
+            logger.info('FFmpegPCMAudio read returned less than expected, probably EOF', len(ret))
+            return b""
+        return ret
 
 
 class AudioPlayer(player.AudioPlayer):

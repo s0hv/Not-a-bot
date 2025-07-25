@@ -64,7 +64,7 @@ class Downloader:
     def __init__(self):
         self.thread_pool = ThreadPoolExecutor(max_workers=3)
         self.safe_ytdl = YoutubeDL(opts)
-        self.safe_ytdl.params['ignore_errors'] = True
+        self.safe_ytdl.params['ignoreerrors'] = True
 
         self.unsafe_ytdl = YoutubeDL(opts)
 

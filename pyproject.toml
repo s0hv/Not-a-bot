@@ -7,7 +7,7 @@ authors = [{ name = "s0hv", email =  "s0hvaperuna@gachimuchi.men" }]
 license = "MIT"
 readme = "README.md"
 dependencies = [
-    "aiohttp~=3.10.11",
+    "aiohttp~=3.13.2",
     "redis~=6.2.0",
     "ansicolors~=1.1.8",
     "asyncpg ~= 0.30.0",
@@ -18,7 +18,7 @@ dependencies = [
     "emoji ~= 2.14.1",
     "isodate ~= 0.6.0",
     "gtts ~= 2.0.4",
-    "google-api-python-client == 2.173.0",
+    "google-api-python-client == 2.185.0",
     "lxml ~= 5.4.0",
     "matplotlib == 3.10.3",
     "numpy ~= 1.26.4",
@@ -30,15 +30,14 @@ dependencies = [
     "sanic~=25.3.0",
     "selenium ~= 3.141.0",
     "validators ~= 0.35.0",
-    "yt-dlp",
-    "disnake[speed,voice]~=2.10.1",
+    "yt-dlp[default]",
+    "disnake[speed,voice]~=2.11.0",
     "tatsu.py~=1.0.4",
     "geopatterns",
 ]
 
 [tool.uv]
-required-version = "~=0.8.11"
+required-version = "~=0.9.5"
 
 [tool.uv.sources]
 geopatterns = { git = "https://github.com/cristobalcl/geopatterns.git" }
-disnake = { git = "https://github.com/DisnakeDev/disnake.git" }

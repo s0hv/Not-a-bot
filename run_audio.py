@@ -55,16 +55,6 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8-sig', mode
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 discord_logger.addHandler(handler)
 
-terminal.info('testing colors')
-terminal.debug('test')
-terminal.warning('test')
-terminal.error('test')
-terminal.critical('test')
-try:
-    int('d')
-except:
-    terminal.exception('test exception')
-
 config = Config()
 
 initial_cogs = [

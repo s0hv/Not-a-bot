@@ -543,7 +543,10 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         args.extend(('-f', 's16le',
                      '-ar', '48000',
                      '-ac', '2',
-                     '-loglevel', 'warning'))
+                     '-loglevel', 'warning',
+                     # https://github.com/yt-dlp/yt-dlp/issues/6658
+                     '-http_persistent', '0',
+                     ))
 
         if isinstance(options, str):
             args.extend(shlex.split(options))

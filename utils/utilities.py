@@ -41,6 +41,7 @@ import disnake
 import numpy
 from asyncpg.exceptions import PostgresError
 from disnake import AllowedMentions, ApplicationCommandInteraction, Attachment, abc
+from disnake.types.role import Role as RolePayload
 from redis.asyncio.client import Redis
 from validators import url as test_url
 
@@ -1418,3 +1419,29 @@ def get_text_size(font, text) -> tuple[int, int]:
     left, top, right, bottom = font.getbbox(text)
 
     return right - left, bottom - top
+
+
+base_role: RolePayload = {
+    'id': 0,
+    'name': '',
+    'color': 0,
+    'colors': {
+        'primary_color': 0,
+        'secondary_color': 0,
+        'tertiary_color': 0,
+    },
+    'hoist': False,
+    'position': 0,
+    'permissions': '0',
+    'managed': False,
+    'mentionable': False,
+    'flags': 0,
+}
+
+
+def role_from_id(id: int, name: str = '') -> disnake.Role:
+    return disnake.Role(
+        guild=None,
+        state=None,
+        data={**base_role, "id": id, "name": name}
+    )

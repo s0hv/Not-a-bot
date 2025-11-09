@@ -35,7 +35,8 @@ from utils.imagetools import (concatenate_images, raw_image_from_url, resize_gif
                               resize_keep_aspect_ratio, stack_images)
 from utils.utilities import (DateAccuracy, dl_image, format_timedelta,
                              get_emote_name_id, get_filename_from_url, get_image,
-                             native_format_timedelta, split_string, utcnow, wait_for_yes)
+                             native_format_timedelta, role_from_id, split_string, utcnow,
+                             wait_for_yes)
 
 logger = logging.getLogger('terminal')
 
@@ -164,7 +165,7 @@ class Server(Cog[NotABot]):
             filtered_roles = {321374867557580801, 331811458012807169, 361889118210359297, 380814558769578003,
                               337290275749756928, 422432520643018773, 322837972317896704, 323492471755636736,
                               329293030957776896, 317560511929647118, 363239074716188672, 365175139043901442}
-            filtered_roles = {disnake.Role(guild=None, state=None, data={"id": id_, "name": ""}) for id_ in filtered_roles}
+            filtered_roles = {role_from_id(id_) for id_ in filtered_roles}
 
             def sort(member):
                 return len(set(member.roles) - filtered_roles)

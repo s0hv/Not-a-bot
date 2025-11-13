@@ -534,6 +534,9 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
 
+        # https://github.com/yt-dlp/yt-dlp/issues/6658
+        args.extend(('-http_persistent', '0',))
+
         args.append('-i')
         args.append('-' if pipe else source)
 
@@ -544,8 +547,6 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
                      '-ar', '48000',
                      '-ac', '2',
                      '-loglevel', 'warning',
-                     # https://github.com/yt-dlp/yt-dlp/issues/6658
-                     '-http_persistent', '0',
                      ))
 
         if isinstance(options, str):

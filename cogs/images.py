@@ -17,30 +17,26 @@ from typing import Optional
 import aiohttp
 import disnake
 import matplotlib.pyplot as plt
-from PIL import (Image, ImageSequence, ImageFont, ImageDraw, ImageChops,
-                 GifImagePlugin)
+from PIL import (GifImagePlugin, Image, ImageChops, ImageDraw, ImageFont, ImageSequence)
 from asyncpg.exceptions import PostgresError
 from disnake import File
-from disnake.ext.commands import (BucketType, BotMissingPermissions, cooldown,
-                                  is_owner, guild_only, slash_command, Param)
+from disnake.ext.commands import (BotMissingPermissions, BucketType, Param, cooldown, guild_only,
+                                  is_owner, slash_command)
 from disnake.ext.commands.errors import BadArgument
-from selenium.common.exceptions import UnexpectedAlertPresentException
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import UnexpectedAlertPresentException, WebDriverException
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.options import Options
 
-from bot.bot import command, Context
+from bot.bot import Context, command
 from bot.converters import CleanContent
-from bot.exceptions import NoPokeFoundException, BotException
+from bot.exceptions import BotException, NoPokeFoundException
 from bot.globals import DATA
 from bot.paginator import Paginator
 from cogs.cog import Cog
-from utils.imagetools import (resize_keep_aspect_ratio, gradient_flash, sepia,
-                              func_to_gif, get_duration, convert_frames,
-                              apply_transparency)
-from utils.utilities import (get_image_from_ctx, find_coeffs, check_botperm,
-                             split_string, get_image, dl_image, call_later,
-                             get_images, get_text_size)
+from utils.imagetools import (apply_transparency, convert_frames, func_to_gif, get_duration,
+                              gradient_flash, resize_keep_aspect_ratio, sepia)
+from utils.utilities import (call_later, check_botperm, dl_image, find_coeffs, get_image,
+                             get_image_from_ctx, get_images, get_text_size, split_string)
 
 logger = logging.getLogger('terminal')
 TEMPLATES = os.path.join('data', 'templates')
@@ -1534,7 +1530,7 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='narancia.png'))
 
-    @command(aliases=['poke', 'pf'], name='pokefusion')
+    @command(aliases=['poke', 'pf'], name='pokefusion', enabled=False)
     @cooldown(1, 3, type=BucketType.guild)
     async def pokefusion_cmd(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, force_japeal: bool = False):
         """
@@ -1547,7 +1543,7 @@ class Images(Cog):
         """
         await self.pokefusion(ctx, poke1, poke2, force_japeal)
 
-    @slash_command(name='pokefusion', description="Fuse two pokemon together.")
+    @slash_command(name='pokefusion', description="Fuse two pokemon together.", enabled=False)
     async def pokefusion_slash(self, ctx: disnake.ApplicationCommandInteraction,
                          pokemon1: str = Param(Pokefusion.RANDOM, description="Name of the first pokemon. The autocompleted options might not represent what's actually available"),
                          pokemon2: str = Param(Pokefusion.RANDOM, description="Name of the second pokemon. The autocompleted options might not represent what's actually available"),

@@ -529,16 +529,21 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         subprocess_kwargs = {'stdin': source if pipe else None, 'stderr': stderr}
 
         if reconnect:
-            args.extend(('-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5'))
+            args.extend((
+                '-reconnect', '1',
+                '-reconnect_streamed', '1',
+                '-reconnect_delay_max', '5',
+                '-reconnect_on_network_error', '1',
+            ))
 
         if isinstance(before_options, str):
             args.extend(shlex.split(before_options))
 
-        # https://github.com/yt-dlp/yt-dlp/issues/6658
-        args.extend(('-http_persistent', '0',))
-
         args.append('-i')
         args.append('-' if pipe else source)
+
+        # https://github.com/yt-dlp/yt-dlp/issues/6658
+        args.extend(('-http_persistent', '0',))
 
         if isinstance(after_input, str):
             args.extend(shlex.split(after_input))

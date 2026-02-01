@@ -7,7 +7,7 @@ authors = [{ name = "s0hv", email =  "s0hvaperuna@gachimuchi.men" }]
 license = "MIT"
 readme = "README.md"
 dependencies = [
-    "aiohttp~=3.13.2",
+    "aiohttp[speedups]~=3.13.3",
     "redis~=6.2.0",
     "ansicolors~=1.1.8",
     "asyncpg ~= 0.30.0",

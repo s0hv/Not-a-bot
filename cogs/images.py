@@ -1,41 +1,28 @@
 import asyncio
-import base64
-import json
 import logging
 import os
-import random
 import shlex
 import subprocess
-import time
-from asyncio import Lock
 from functools import partial
 from io import BytesIO
-from math import ceil
-from random import randint
 from typing import Optional
 
-import aiohttp
 import disnake
 import matplotlib.pyplot as plt
 from PIL import (GifImagePlugin, Image, ImageChops, ImageDraw, ImageFont, ImageSequence)
 from asyncpg.exceptions import PostgresError
 from disnake import File
-from disnake.ext.commands import (BotMissingPermissions, BucketType, Param, cooldown, guild_only,
-                                  is_owner, slash_command)
+from disnake.ext.commands import (BotMissingPermissions, BucketType, cooldown, guild_only)
 from disnake.ext.commands.errors import BadArgument
-from selenium.common.exceptions import UnexpectedAlertPresentException, WebDriverException
-from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.options import Options
 
-from bot.bot import Context, command
+from bot.bot import command
 from bot.converters import CleanContent
-from bot.exceptions import BotException, NoPokeFoundException
-from bot.globals import DATA
+from bot.exceptions import BotException
 from bot.paginator import Paginator
 from cogs.cog import Cog
 from utils.imagetools import (apply_transparency, convert_frames, func_to_gif, get_duration,
                               gradient_flash, resize_keep_aspect_ratio, sepia)
-from utils.utilities import (call_later, check_botperm, dl_image, find_coeffs, get_image,
+from utils.utilities import (check_botperm, dl_image, find_coeffs, get_image,
                              get_image_from_ctx, get_images, get_text_size, split_string)
 
 logger = logging.getLogger('terminal')
@@ -45,296 +32,11 @@ TEMP_DATA = os.path.join('data', 'temp')
 os.makedirs(TEMP_DATA, exist_ok=True)
 
 
-class Pokefusion:
-    RANDOM = 'Random'
-    LAST_UPDATED = 0
-    LAST_UPDATED_IF = 0
-
-    def __init__(self, bot):
-        self._last_dex_number = 0
-        self._pokemon = {}
-        self._poke_reverse = {}
-        self._poke_ids = []
-        self._quit_chrome_task = None
-        self._data_folder = os.path.join(os.getcwd(), 'data', 'pokefusion')
-        self._driver_lock = Lock()
-        self._bot = bot
-        self._update_lock = Lock()
-        self.fusion_file_set: set[str] = set()
-        self.fusion_file_list: list[str] = []
-
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--disable-background-networking')
-        options.add_argument('--no-first-run')
-        options.add_argument('--disable-pinch')
-        binary = self.bot.config.chrome
-        if binary:
-            options.binary_location = binary
-        self.opts = options
-        self._driver = None
-
-    @property
-    def bot(self):
-        return self._bot
-
-    @property
-    def driver(self):
-        # If driver is None create a driver for 60 seconds
-        # Driver won't quit until driver lock is released though
-        if self._driver is None:
-            self._driver = Chrome(self.bot.config.chromedriver, chrome_options=self.opts)
-            self._quit_chrome_task = call_later(self._quit_chrome, self.bot.loop, 60)
-            return self._driver
-
-        # Restart quit task if it's running so we dont end up with multiple overlapping tasks
-        if self._quit_chrome_task:
-            self._quit_chrome_task.cancel()
-            self._quit_chrome_task = call_later(self._quit_chrome, self.bot.loop, 60)
-
-        return self._driver
-
-    async def _quit_chrome(self):
-        if not self._driver:
-            return
-
-        async with self._driver_lock:
-            self._driver.quit()
-            self._driver = None
-
-    async def cache_types(self, start=1):
-        name = 'sprPKMType_{}.png'
-        url = 'https://japeal.com/wordpress/wp-content/themes/total/PKM/others/sprPKMType_{}.png'
-        async with aiohttp.ClientSession() as client:
-            while True:
-                r = await client.get(url.format(start))
-                if r.status == 404:
-                    r.close()
-                    break
-
-                with open(os.path.join(self._data_folder, name.format(start)), 'wb') as f:
-                    f.write(await r.read())
-
-                start += 1
-
-    async def cache_infinite_fusion_sprites(self, force=False):
-        if not force and time.time() - self.LAST_UPDATED_IF < 604800:
-            return
-
-        self.LAST_UPDATED_IF = time.time()
-        async with aiohttp.ClientSession() as client:
-            r = await client.get('https://api.github.com/repos/Aegide/custom-fusion-sprites/git/trees/6397b4bf32888c7c5f4f3817acb4a217cf542c76')
-            data = await r.json()
-            self.fusion_file_set = {d['path'] for d in data['tree']}
-            self.fusion_file_list = list(self.fusion_file_set)
-
-    async def update_cache(self):
-        if self._update_lock.locked():
-            # If and update is in progress wait for it to finish and then continue
-            await self._update_lock.acquire()
-            self._update_lock.release()
-            return
-
-        await self._update_lock.acquire()
-        success = False
-        try:
-            logger.info('Updating pokecache')
-            await self.get_url('https://japeal.com/pkm/')
-
-            self._driver.execute_script('LoadNewFusionDelay()')
-            await asyncio.sleep(0.5)
-
-            # Get a list of tuples in the format of ("XXX Pokemon name", internal id)
-            rows = self._driver.execute_script('return [...document.getElementById("msdropdown20_child").querySelectorAll("*[value]")].map(p => [p.innerText, p.getAttribute("value")])')
-
-            for p in rows:
-                i = int(p[1])
-                name = p[0].split(' ', 1)[-1].lower().strip()
-                if name.endswith('(new)'):
-                    name = name[:-6]
-                self._pokemon[name] = i
-                self._poke_reverse[i] = name
-
-            self._poke_ids = list(self._poke_reverse.keys())
-
-            types = filter(lambda f: f.startswith('sprPKMType_'), os.listdir(self._data_folder))
-            await self.cache_types(start=max(len(list(types)), 1))
-            self.LAST_UPDATED = time.time()
-            success = True
-        except:  # skipcq: FLK-E722
-            logger.exception('Failed to update pokefusion cache')
-        finally:
-            self._update_lock.release()
-            return success
-
-    def get_by_name(self, name):
-        poke = self._pokemon.get(name.lower())
-        if poke is None:
-            for poke_, v in self._pokemon.items():
-                if name in poke_:
-                    return v
-        return poke
-
-    def get_pokemon(self, name):
-        if name == self.RANDOM and self._poke_ids:
-            # Get a random id of a pokemon
-            return self._poke_ids[randint(0, len(self._poke_ids) - 1)]
-        else:
-            return self.get_by_name(name)
-
-    async def get_url(self, url):
-        # Attempt at making phantomjs async friendly
-        # After visiting the url remember to put 1 item in self.queue
-        # Otherwise the browser will be locked
-
-        # If lock is not locked lock it until this operation finishes
-        # This is required because some operations acquire the lock and call this function
-        unlock = False
-        if not self._driver_lock.locked():
-            await self._driver_lock.acquire()
-            unlock = True
-
-        f = partial(self.driver.get, url)
-        try:
-            await self.bot.loop.run_in_executor(self.bot.threadpool, f)
-        except UnexpectedAlertPresentException:
-            self._driver.get_screenshot_as_file('test.png')
-            self._driver.switch_to.alert.accept()
-        if unlock:
-            try:
-                self._driver_lock.release()
-            except RuntimeError:
-                pass
-
-    def cache_should_be_updated(self) -> bool:
-        return time.time() - self.LAST_UPDATED > 604800
-
-    async def fuse(self, poke1=RANDOM, poke2=RANDOM):
-        # Update cache once per week
-        if self.cache_should_be_updated():
-            if not await self.update_cache():
-                raise BotException('Could not cache pokemon')
-
-        dex_n = []
-        for p in (poke1, poke2):
-            poke = self.get_pokemon(p)
-            if poke is None:
-                raise NoPokeFoundException(p)
-            dex_n.append(poke)
-
-        fmt = bytes(f'p1={dex_n[1]}@p2={dex_n[0]}', 'utf8')
-
-        url = f'https://japeal.com/pkm/?efc={base64.b64encode(fmt).decode("ascii")}'
-
-        async with self._driver_lock:
-            driver = self.driver
-            try:
-                await self.get_url(url)
-            except UnexpectedAlertPresentException:
-                driver.switch_to.alert.accept()
-                raise BotException('Invalid pokemon given')
-
-            img_found = False
-            for _ in range(3):
-                # Char0div is the pokemon without the blue bg
-                # If you want the blue bg use this
-                # return document.getElementById('image').src
-                data = driver.execute_script("return document.getElementById('Char0div').style.backgroundImage")
-                if data and data.startswith('url("data:image/png'):
-                    img_found = True
-                    break
-                await asyncio.sleep(1)
-
-            if not img_found:
-                raise BotException('Failed to get image of fused pokemon')
-
-            types = driver.execute_script("return [document.getElementById('FusedTypeL').src, document.getElementById('FusedTypeR').src]")
-            name = driver.execute_script("return document.getElementById('fnametxt').textContent")
-
-        data = data.replace('url("data:image/png;base64,', '', 1)[:-1]
-        # This fixes incorrect padding error
-        img = Image.open(BytesIO(base64.b64decode(data + '===')))
-        type_imgs = []
-
-        for tp in types:
-            file = tp.split('/')[-1]
-            try:
-                im = Image.open(os.path.join(self._data_folder, file))
-                type_imgs.append(im)
-            except (FileNotFoundError, OSError):
-                raise BotException('Error while getting type images')
-
-        bg = Image.open(os.path.join(self._data_folder, 'poke_bg.png'))
-
-        # Paste pokemon in the middle of the background
-        x, y = (bg.width//2-img.width//2, bg.height//2-img.height//2)
-        bg.paste(img, (x, y), img)
-
-        w, h = type_imgs[0].size
-        padding = 2
-        # Total width of all type images combined with padding
-        type_w = len(type_imgs) * (w + padding)
-        width = bg.width
-        start_x = (width - type_w)//2
-        y = y + img.height
-
-        for tp in type_imgs:
-            bg.paste(tp, (start_x, y), tp)
-            start_x += w + padding
-
-        font = ImageFont.truetype(os.path.join('M-1c', 'mplus-1c-bold.ttf'), 36)
-        draw = ImageDraw.Draw(bg)
-
-        name = name.strip()
-
-        # Names need to be taken in reverse since the site treats the first pokemon as the rightmost one on the site
-        pokename1 = self._poke_reverse[dex_n[1]]
-        pokename2 = self._poke_reverse[dex_n[0]]
-
-        # if name not present generate our own
-        if not name:
-            name = pokename1[:ceil(len(pokename1)/2)].title() + pokename2[ceil(len(pokename2)/2):]
-
-        # If only half of name possibly present generate the other half based on
-        # which name contains the given part
-        elif len(name) <= 6:
-            if name.lower() in pokename1:
-                name = name + pokename2[ceil(len(pokename2)/2):]
-            elif name.lower() in pokename2:
-                name = pokename1[:ceil(len(pokename1)/2)].title() + name
-
-        _, _, w, h = draw.textbbox((0, 0), name, font)
-        draw.text(((bg.width-w)//2, bg.height//2-img.height//2 - h), name, font=font, fill='black')
-
-        s = 'Fusion of {} and {}'.format(pokename2, pokename1)
-        return bg, s
-
-
 class Images(Cog):
     def __init__(self, bot):
         super().__init__(bot)
         self.threadpool = bot.threadpool
-
-        self._pokefusion: Optional[Pokefusion] = None
-        try:
-            self._pokefusion = Pokefusion(bot)
-        except WebDriverException:
-            logger.exception('failed to load pokefusion')
-
-        with open(os.path.join(DATA, 'pokefusion', 'pokemon.json'), 'r', encoding='utf-8') as f:
-            self._pokemon_numbers = json.load(f)
-            self._pokemon_names = list(self._pokemon_numbers.values())
-            self._pokemon_names.append(Pokefusion.RANDOM)
-            self._pokemon_numbers[Pokefusion.RANDOM] = Pokefusion.RANDOM
-            self._pokemon_numbers_rev = {v.lower(): k  for k, v in self._pokemon_numbers.items()}
-
         self.mgr_lock = asyncio.Lock()
-
-    def cog_unload(self):
-        if self._pokefusion and self._pokefusion._driver:
-            self._pokefusion._driver.quit()
-            self._pokefusion._driver = None
 
     def cog_check(self, ctx):  # skipcq: PYL-R0201
         if not check_botperm('attach_files', ctx=ctx):
@@ -1530,95 +1232,6 @@ class Images(Cog):
             file = await self.image_func(do_it)
         await ctx.send(file=File(file, filename='narancia.png'))
 
-    @command(aliases=['poke', 'pf'], name='pokefusion', enabled=False)
-    @cooldown(1, 3, type=BucketType.guild)
-    async def pokefusion_cmd(self, ctx, poke1=Pokefusion.RANDOM, poke2=Pokefusion.RANDOM, force_japeal: bool = False):
-        """
-        Fuse two pokemon together.
-        Uses infinite fusion sprites if they exist and falls back to https://japeal.com/pkm/ sprites if not.
-
-        You can specify the wanted fusion by their name or just a part of their name.
-        Passing "Random" as a parameter will randomize that value. By default both pokemon are randomized.
-        If force_japeal is set to true infinite fusion sprites will not be returned.
-        """
-        await self.pokefusion(ctx, poke1, poke2, force_japeal)
-
-    @slash_command(name='pokefusion', description="Fuse two pokemon together.", enabled=False)
-    async def pokefusion_slash(self, ctx: disnake.ApplicationCommandInteraction,
-                         pokemon1: str = Param(Pokefusion.RANDOM, description="Name of the first pokemon. The autocompleted options might not represent what's actually available"),
-                         pokemon2: str = Param(Pokefusion.RANDOM, description="Name of the second pokemon. The autocompleted options might not represent what's actually available"),
-                         force_japeal: bool = Param(False, description='This flag forces the use of https://japeal.com/pkm/ instead of infinite fusion sprites')):
-        """Fuse two pokemon together.
-        Uses infinite fusion sprites if they exist and falls back to https://japeal.com/pkm/ sprites if not.
-        """
-        await self.pokefusion(ctx, pokemon1, pokemon2, force_japeal)
-
-    async def pokefusion(self, ctx: disnake.ApplicationCommandInteraction | Context, pokemon1: str, pokemon2: str, force_japeal: bool):
-        if not self._pokefusion:
-            return await ctx.send('Pokefusion not supported')
-
-        if isinstance(ctx, disnake.ApplicationCommandInteraction):
-            await ctx.response.defer()
-
-        await self._pokefusion.cache_infinite_fusion_sprites()
-
-        base_url = 'https://raw.githubusercontent.com/Aegide/custom-fusion-sprites/main/CustomBattlers/{}'
-        if not force_japeal and pokemon1 == Pokefusion.RANDOM and pokemon2 == Pokefusion.RANDOM and self._pokefusion.fusion_file_list:
-            filename: str = random.choice(self._pokefusion.fusion_file_list)
-            url = base_url.format(filename)
-            split = filename.split('.')
-            embed = disnake.Embed(title=f'{self._pokemon_numbers[split[0]]}/{self._pokemon_numbers[split[1]]}')
-            embed.set_image(url=url)
-            await ctx.send(embed=embed)
-            return
-
-        if not force_japeal and pokemon1.lower() in self._pokemon_numbers_rev and pokemon2.lower() in self._pokemon_numbers_rev:
-            async with aiohttp.ClientSession() as client:
-                nbr1 = self._pokemon_numbers_rev[pokemon1.lower()]
-                nbr2 = self._pokemon_numbers_rev[pokemon2.lower()]
-                filename = f'{nbr1}.{nbr2}.png'
-                url = base_url.format(filename)
-
-                is_ok = True
-                if filename not in self._pokefusion.fusion_file_set:
-                    async with client.head(url) as resp:
-                        is_ok = resp.ok
-
-                if is_ok:
-                    embed = disnake.Embed(title=f'{self._pokemon_numbers[nbr1]}/{self._pokemon_numbers[nbr2]}')
-                    embed.set_image(url=url)
-                    await ctx.send(embed=embed)
-                    return
-
-        if self._pokefusion.cache_should_be_updated() or self._pokefusion.driver is None:
-            await ctx.send('Updating cache. This might take a couple of seconds.')
-
-        try:
-            img, s = await self._pokefusion.fuse(pokemon1, pokemon2)
-        except NoPokeFoundException as e:
-            return await ctx.send(str(e))
-
-        file = BytesIO()
-        img.save(file, 'PNG')
-        file.seek(0)
-        await ctx.send(s, file=File(file, filename='pokefusion.png'))
-
-    async def autocomplete_pokemon(self, _: disnake.ApplicationCommandInteraction, string: str):
-        count = 0
-        names = []
-        for n in self._pokemon_names:
-            if string.lower() in n.lower():
-                names.append(n)
-                count += 1
-
-                if count >= 10:
-                    break
-
-        return names
-
-    pf_poke1 = pokefusion_slash.autocomplete('pokemon1')(autocomplete_pokemon)
-    pf_poke2 = pokefusion_slash.autocomplete('pokemon2')(autocomplete_pokemon)
-
     @command(aliases=['get_im', 'getim'])
     @cooldown(3, 3, BucketType.guild)
     async def get_image(self, ctx, *, data=None):
@@ -1644,25 +1257,6 @@ class Images(Cog):
         paginator = Paginator(imgs, generate_page=get_page, hide_page_count=True,
                               show_stop_button=True)
         await paginator.send(ctx)
-
-    @command()
-    @is_owner()
-    async def update_poke_cache(self, ctx):
-        if await self._pokefusion.update_cache() is False:
-            await ctx.send('Failed to update cache')
-        else:
-            await ctx.send('Successfully updated cache')
-
-    @command()
-    @is_owner()
-    async def update_poke_cache_if(self, ctx):
-        try:
-            await self._pokefusion.cache_infinite_fusion_sprites(True)
-        except:
-            await ctx.send('Failed to update cache')
-            raise
-
-        await ctx.send('Successfully updated cache')
 
     @command(aliases=['mr_graph'])
     @cooldown(1, 10, BucketType.guild)

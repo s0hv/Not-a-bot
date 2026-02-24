@@ -9,7 +9,7 @@ from cogs.cog import Cog
 
 logger = logging.getLogger('terminal')
 
-topgg_api = 'https://top.gg/api/bots'
+topgg_api = 'https://top.gg/api/v0/bots'
 
 
 class DBApi(Cog):
@@ -37,7 +37,7 @@ class DBApi(Cog):
     async def do_request(self, client, endpoint, method, payload=None):
         headers = {
             "Content-Type": "application/json",
-            "Authorization": self._token,
+            "Authorization": f'Bearer {self._token}',
         }
         return await client.request(
             method,

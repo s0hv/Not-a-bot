@@ -36,7 +36,6 @@ import disnake
 from asyncpg.exceptions import PostgresError, InterfaceError
 
 from bot.botbase import BotBase
-from bot.server import WebhookServer
 from utils.init_tf import LoadedModel
 from utils.utilities import (random_color)
 
@@ -57,18 +56,19 @@ class NotABot(BotBase):
         self.gachilist = []
         self.every_giveaways = {}
         self.anti_abuse_switch = False  # lol
-        self._server = WebhookServer(self)
+        #self._server = WebhookServer(self)
         self.redis: Optional[Redis] = None
         self.antispam = True
         self._ready_called = False
 
     async def async_init(self):
         await super().async_init()
-        await self._server.create_server()
+        #await self._server.create_server()
 
     @property
     def server(self):
-        return self._server
+        raise NotImplementedError("Server is not available")
+        #return self._server
 
     @property
     def tf_model(self):

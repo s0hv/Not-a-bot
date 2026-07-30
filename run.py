@@ -49,7 +49,8 @@ initial_cogs = [
     'botmod',
     'colors',
     'command_blacklist',
-    'dbl',
+    # Disabled as the API does not seem to work
+    #'dbl',
     'emotes',
     'gachiGASM',
     'images',

@@ -19,7 +19,8 @@ from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
 from disnake import AllowedMentions
 from disnake.errors import HTTPException
-from disnake.ext.commands import (BadArgument, BucketType, check, cooldown, dm_only, is_owner)
+from disnake.ext.commands import (BadArgument, BucketType, check, cooldown,
+                                  dm_only, is_owner)
 from disnake.types.role import Role as RolePayload
 from numpy import sqrt
 from numpy.random import choice
@@ -35,8 +36,10 @@ from cogs.cog import Cog
 from cogs.colors import Colors
 from cogs.voting import Poll
 from enums.data_enums import RedisKeyNamespaces
-from utils.utilities import (DateAccuracy, call_later, check_botperm, format_timedelta, get_avatar,
-                             parse_time, retry, split_string, utcnow, wait_for_yes)
+from utils.utilities import (DateAccuracy, call_later, check_botperm,
+                             format_timedelta, get_avatar,
+                             parse_time, retry, split_string, utcnow,
+                             wait_for_yes)
 
 logger = logging.getLogger('terminal')
 
@@ -385,7 +388,7 @@ start_date = datetime(year=2020, month=8, day=1, hour=12)
 class ServerSpecific(Cog):
     def __init__(self, bot):
         super().__init__(bot)
-        self.bot.server.add_listener(self.reduce_role_cooldown)
+        #self.bot.server.add_listener(self.reduce_role_cooldown)
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
         self.redis: Redis = self.bot.redis
@@ -405,7 +408,7 @@ class ServerSpecific(Cog):
         self._zetas.clear()
         self._d.clear()
 
-        self.bot.server.remove_listener(self.reduce_role_cooldown)
+        #self.bot.server.remove_listener(self.reduce_role_cooldown)
         for g in list(self.bot.every_giveaways.values()):
             g.cancel()
 

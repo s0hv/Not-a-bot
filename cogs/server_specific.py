@@ -9,11 +9,12 @@ from datetime import datetime, timedelta
 from difflib import ndiff
 from math import ceil
 from operator import attrgetter
-from typing import Optional, Union
+from typing import Optional, Union, TYPE_CHECKING
 
 import disnake
 import emoji
 import numpy as np
+import redis
 import unicodedata
 from asyncpg.exceptions import PostgresError, UniqueViolationError
 from colour import Color
@@ -24,7 +25,6 @@ from disnake.ext.commands import (BadArgument, BucketType, check, cooldown,
 from disnake.types.role import Role as RolePayload
 from numpy import sqrt
 from numpy.random import choice
-from redis.asyncio import Redis
 from redis.exceptions import ConnectionError as RedisConnectionError
 from tatsu.data_structures import RankingObject
 from tatsu.wrapper import ApiWrapper
@@ -34,12 +34,16 @@ from bot.formatter import EmbedPaginator
 from bot.paginator import Paginator
 from cogs.cog import Cog
 from cogs.colors import Colors
+from cogs.moderator import Moderator
 from cogs.voting import Poll
 from enums.data_enums import RedisKeyNamespaces
 from utils.utilities import (DateAccuracy, call_later, check_botperm,
                              format_timedelta, get_avatar,
                              parse_time, retry, split_string, utcnow,
                              wait_for_yes)
+
+if TYPE_CHECKING:
+    from bot.Not_a_bot import NotABot
 
 logger = logging.getLogger('terminal')
 
@@ -385,13 +389,12 @@ role_response_fail = [
 start_date = datetime(year=2020, month=8, day=1, hour=12)
 
 
-class ServerSpecific(Cog):
+class ServerSpecific(Cog['NotABot']):
     def __init__(self, bot):
         super().__init__(bot)
         #self.bot.server.add_listener(self.reduce_role_cooldown)
         self.main_whitelist = whitelist
         self.grant_whitelist = grant_whitelist
-        self.redis: Redis = self.bot.redis
         self._zetas = {}
         self._d = {}
         self._redis_fails = 0
@@ -399,6 +402,10 @@ class ServerSpecific(Cog):
         self.replace_tatsu_api = False
         self._using_toletole = {}
         self._tatsu_api = ApiWrapper(self.bot.config.tatsumaki_key)
+
+    @property
+    def redis(self):
+        return self.bot.redis
 
     async def cog_load(self):
         await super().cog_load()
@@ -1005,9 +1012,119 @@ class ServerSpecific(Cog):
             name = str(random.randint(1000, 9999))
         await member.edit(nick=name, reason='Auto nick')
 
+    async def check_compromised_account(self, message: disnake.Message, moderator: Moderator):
+        user = message.author
+        automatic_action = len(user.roles) < 10 or user.guild_permissions
+
+        # Ignore muted channel
+        if message.channel.id == 322839372913311744:
+            return
+
+        # Skip for users with leveled role
+        if disnake.utils.find(lambda r: r.id == 461419824216539139, user.roles):
+            return
+
+        # Ignore short messages with few attachments
+        attachments_embeds = len(message.attachments) + len(message.embeds)
+
+        if (not message.content or len(message.content) < 10) and attachments_embeds < 2:
+            return
+
+        key = f'{RedisKeyNamespaces.ScamDetection.value}:{message.guild.id}:{user.id}'
+        score = 1
+        if attachments_embeds > 3:
+            score += 1
+
+        if utcnow() - user.created_at < timedelta(days=10):
+            score += 2
+
+        async with self.redis.pipeline(transaction=True) as pipe:
+            attempts = 0
+            while attempts < 3:
+                try:
+                    await pipe.watch(key)
+                    # The pipeline executes commands directly (instead of
+                    # buffering them) from immediately after the `watch()`
+                    # call until we begin the transaction.
+                    current_value: bytes | None = await pipe.get(key)
+                    if current_value:
+                        current_score, current_channel_ids = current_value.decode('utf-8').split(':')
+                        channel_ids = current_channel_ids.split(',')
+                        if len(channel_ids) > 2:
+                            score += 8
+                        else:
+                            score = max(0, score - 2)
+
+                        new_score = int(current_score) + int(score)
+                        # Append the channel id
+                        new_channels = {str(message.channel.id), *channel_ids}
+                    else:
+                        new_score = score
+                        new_channels = {str(message.channel.id)}
+
+                    # Start the transaction, which will enable buffering
+                    # again for the remaining commands.
+                    pipe.multi()
+
+                    await pipe.set(key, f'{new_score}:{','.join(new_channels)}', ex=timedelta(seconds=60))
+
+                    await pipe.execute()
+
+                    # The transaction succeeded, so break out of the loop.
+                    break
+                except redis.WatchError:
+                    attempts += 1
+                    # The transaction failed, so continue with the next attempt.
+                    continue
+
+        if new_score < 10:
+            return
+
+        logger.info(f'Current score {new_score} for user {user.id}')
+
+        if not automatic_action:
+            await self.bot.get_channel(252872751319089153).send(
+                f'Potential scammer detected or a false positive. {message.author.mention} with score {new_score}'
+            )
+
+            return
+
+        guild = message.guild
+
+        if self.bot.timeouts.get(guild.id, {}).get(user.id):
+            return
+
+        mute_role = self.bot.guild_cache.mute_role(message.guild.id)
+        mute_role = disnake.utils.find(lambda r: r.id == mute_role,
+                                       message.guild.roles)
+        if not mute_role:
+            return
+
+        mute_time = timedelta(days=7)
+        d = 'Automuted user {0} `{0.id}` for {1}'.format(message.author, mute_time)
+
+        await message.author.add_roles(mute_role, reason='[Automute] Potential scammer')
+        url = f'[Jump to](https://discordapp.com/channels/{guild.id}/{message.channel.id}/{message.id})'
+        embed = disnake.Embed(title='Moderation action [AUTOMUTE]',
+                              description=d, timestamp=utcnow())
+        embed.add_field(name='Reason', value='Potential scammer')
+        embed.add_field(name='link', value=url)
+        embed.set_thumbnail(url=user.display_avatar.url)
+        embed.set_footer(text=str(self.bot.user),
+                         icon_url=self.bot.user.display_avatar.url)
+        msg = await moderator.send_to_modlog(guild, embed=embed)
+
+        await moderator.add_timeout(await self.bot.get_context(message),
+                                    guild.id, user.id,
+                                    utcnow() + mute_time,
+                                    mute_time.total_seconds(),
+                                    reason=f'Potential scammer. Score {new_score}',
+                                    author=guild.me,
+                                    modlog_msg=msg.id if msg else None)
+
     @Cog.listener()
     async def on_message(self, message):
-        if not self.bot.antispam or not self.redis:
+        if not self.redis:
             return
 
         guild = message.guild
@@ -1028,6 +1145,14 @@ class ServerSpecific(Cog):
 
         moderator = self.bot.get_cog('Moderator')
         if not moderator:
+            return
+
+        try:
+            await self.check_compromised_account(message, moderator)
+        except Exception as ex:
+            logger.exception('Error occurred while checking compromised account', exc_info=ex)
+
+        if not self.bot.antispam:
             return
 
         blacklist = moderator.automute_blacklist.get(guild.id, ())

@@ -58,7 +58,7 @@ class NotABot(BotBase):
         self.anti_abuse_switch = False  # lol
         #self._server = WebhookServer(self)
         self.redis: Optional[Redis] = None
-        self.antispam = True
+        self.antispam = False
         self._ready_called = False
 
     async def async_init(self):

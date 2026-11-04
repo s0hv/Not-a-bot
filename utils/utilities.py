@@ -40,7 +40,8 @@ from urllib.parse import urlparse
 import disnake
 import numpy
 from asyncpg.exceptions import PostgresError
-from disnake import AllowedMentions, ApplicationCommandInteraction, Attachment, abc
+from disnake import AllowedMentions, ApplicationCommandInteraction, Attachment, \
+    abc
 from disnake.types.role import Role as RolePayload
 from redis.asyncio.client import Redis
 from validators import url as test_url
@@ -631,7 +632,7 @@ def get_image_from_message(bot: 'BotBase', message: disnake.Message, content: st
         image = message.stickers[0].url
     elif content or message.content:
         image = content or message.content.split(' ')[0]
-        if not test_url(image):
+        if not test_url(image.strip(' &')):
             if re.match(r'<@!?\d+>', image) and message.mentions:
                 image = get_avatar(message.mentions[0])
             elif get_emote_id(image)[1]:
@@ -1033,7 +1034,7 @@ def is_image_url(url):
     if url is None:
         return
 
-    if not test_url(url):
+    if not test_url(url.strip(' &')):
         return False
 
     mimetype, _ = mimetypes.guess_type(url)

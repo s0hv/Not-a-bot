@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import queue
 import shlex
+import threading
 import time
 import weakref
 from collections import deque
@@ -387,7 +389,13 @@ class MusicPlayer:
         return PCMVolumeTransformer(source, volume=self.volume)
 
     def on_stop(self, e):
-        if e:
+        if isinstance(e, StreamStalledError):
+            logger.warning(f'Stream of {self.current} stalled: {e}')
+            asyncio.run_coroutine_threadsafe(
+                self.send(f'Stream for {self.current} stopped responding, skipping'),
+                self.bot.loop,
+            )
+        elif e:
             logger.debug(f'Player caught an error {e}')
         self.bot.loop.call_soon_threadsafe(self.play_next.set)
         self.playlist.on_stop()
@@ -483,6 +491,10 @@ class MusicPlayer:
             self.player.sources.append(self.create_source(nxt))
 
 
+class StreamStalledError(Exception):
+    pass
+
+
 class FFmpegPCMAudio(player.FFmpegPCMAudio):
     """An audio source from FFmpeg (or AVConv).
 
@@ -521,6 +533,13 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
     ClientException
         The subprocess failed to be created.
     """
+    # 250 frames of 20 ms each, i.e. 5 seconds of audio
+    READ_AHEAD_FRAMES = 250
+    READ_WRITE_TIMEOUT_MICROSECONDS = 15_000_000
+    # Must stay well above the read/write timeout plus ffmpeg's reconnect
+    # delay, otherwise streams that would have recovered get cut off.
+    STALL_TIMEOUT_SECONDS = 30
+
     def __init__(self, source, *, executable='ffmpeg', pipe=False, stderr=None,
                  before_options=None, after_input=None, options=None,
                  reconnect: bool = True):
@@ -534,6 +553,9 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
                 '-reconnect_streamed', '1',
                 '-reconnect_delay_max', '5',
                 '-reconnect_on_network_error', '1',
+                # Without a timeout a connection that stays open but stops
+                # sending data blocks ffmpeg forever instead of reconnecting.
+                '-rw_timeout', str(self.READ_WRITE_TIMEOUT_MICROSECONDS),
             ))
 
         if isinstance(before_options, str):
@@ -565,20 +587,73 @@ class FFmpegPCMAudio(player.FFmpegPCMAudio):
         super(player.FFmpegPCMAudio, self).__init__(source, executable=executable,
                                                     args=args, **subprocess_kwargs)
 
+        self._eof = False
+        self._frames = queue.Queue(maxsize=self.READ_AHEAD_FRAMES)
+        self._stop_reading = threading.Event()
+        # The reader thread must not hold a reference to self, otherwise the
+        # source is never garbage collected and its ffmpeg process is never killed.
+        threading.Thread(
+            target=_pump_frames,
+            args=(self._stdout, self._frames, self._stop_reading),
+            name=f'ffmpeg-reader-{self._process.pid}',
+            daemon=True,
+        ).start()
+
     @override
     def read(self) -> bytes:
-        ret = self._stdout.read(OpusEncoder.FRAME_SIZE)
+        if self._eof:
+            return b""
+
+        try:
+            ret = self._frames.get(timeout=self.STALL_TIMEOUT_SECONDS)
+        except queue.Empty:
+            self._eof = True
+            raise StreamStalledError(f'No audio received from ffmpeg in {self.STALL_TIMEOUT_SECONDS} seconds')
+
         if len(ret) != OpusEncoder.FRAME_SIZE:
             logger.info(f'FFmpegPCMAudio read returned less than expected, probably EOF. length: {len(ret)}, expected: {OpusEncoder.FRAME_SIZE}')
+            self._eof = True
             return b""
         return ret
+
+    @override
+    def cleanup(self) -> None:
+        self._stop_reading.set()
+        super().cleanup()
+
+
+def _put_until_stopped(frames: queue.Queue, frame: bytes, stop: threading.Event):
+    while not stop.is_set():
+        try:
+            frames.put(frame, timeout=0.5)
+            return
+        except queue.Full:
+            continue
+
+
+def _pump_frames(stdout, frames: queue.Queue, stop: threading.Event):
+    """
+    Reads PCM frames from ffmpeg ahead of playback, so that network hiccups or a
+    slow ffmpeg do not stall the realtime send loop. The final item put in the
+    queue is always shorter than a frame and marks the end of the stream.
+    """
+    frame = b''
+    try:
+        while not stop.is_set() and len(frame := stdout.read(OpusEncoder.FRAME_SIZE)) == OpusEncoder.FRAME_SIZE:
+            _put_until_stopped(frames, frame, stop)
+    except (OSError, ValueError):
+        # stdout gets closed underneath us when the source is cleaned up
+        frame = b''
+    finally:
+        _put_until_stopped(frames, frame, stop)
 
 
 class AudioPlayer(player.AudioPlayer):
     DELAY = OpusEncoder.FRAME_LENGTH / 1000.0
     BUFFER_SIZE = 5
+    MAX_LAG_SECONDS = 0.1
 
-    def __init__(self, source, client, *, after=None, run_loops=0, frameskip=3, speed_mod=1):
+    def __init__(self, source, client, *, after=None, run_loops=0, speed_mod=1):
         self.sources = []
         if isinstance(source, list):
             self.sources = source
@@ -586,7 +661,6 @@ class AudioPlayer(player.AudioPlayer):
 
         super().__init__(source, client, after=after)
         self._run_loops = run_loops
-        self.frameskip = frameskip
         self._speed_mod = speed_mod
         self.sfx_source = None
 
@@ -629,7 +703,6 @@ class AudioPlayer(player.AudioPlayer):
     def _do_run(self):
         self.loops = 0
         self._start = time.perf_counter()
-        frameskip = 0
         # getattr lookup speed ups
         play_audio = self.client.send_audio_packet
         self._speak(True)
@@ -665,11 +738,6 @@ class AudioPlayer(player.AudioPlayer):
                 data = audioop.add(data, data2, 2)
             """
 
-            if frameskip > 0:
-                frameskip -= 1
-                self._run_loops += 1
-                continue
-
             if not data:
                 self.stop()
                 break
@@ -677,11 +745,14 @@ class AudioPlayer(player.AudioPlayer):
             play_audio(data, encode=not self.source.is_opus())
             self._run_loops += 1
             next_time = self._start + self.DELAY * self.loops
-            delay = max(0, self.DELAY + (next_time - time.perf_counter()))
-            if delay < 0:
-                frameskip = min(self.frameskip, abs(int(delay/self.DELAY)))
-                continue
-            time.sleep(delay)
+            lag = time.perf_counter() - next_time
+            # Catching up after a long stall would send the backlog as a burst
+            # of packets, which Discord clients drop or play back garbled.
+            # Shifting the schedule instead keeps the packet rate steady.
+            if lag > self.MAX_LAG_SECONDS:
+                self._start += lag
+                lag = 0
+            time.sleep(max(0.0, self.DELAY - lag))
 
     def _call_after(self):
         if self.after is not None:

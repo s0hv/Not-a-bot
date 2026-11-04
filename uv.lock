@@ -888,7 +888,7 @@ requires-dist = [
     { name = "sanic", specifier = "~=25.3.0" },
     { name = "tatsu-py", specifier = "~=1.0.4" },
     { name = "validators", specifier = "~=0.36.0" },
-    { name = "yt-dlp", extras = ["default"], specifier = "==2026.10.26" },
+    { name = "yt-dlp", extras = ["default"] },
 ]
 
 [[package]]
